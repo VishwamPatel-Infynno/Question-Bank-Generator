@@ -211,7 +211,7 @@ export default function ReviewAuditView({ question, onClose }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Zap size={13} style={{ color: 'var(--brand-purple, #8b5cf6)' }} />
+                  <Zap size={13} style={{ color: 'var(--status-purple, #8b5cf6)' }} />
                   Common Trap Tested
                 </span>
                 <span className="badge badge-purple" style={{ fontSize: '0.68rem', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -240,7 +240,7 @@ export default function ReviewAuditView({ question, onClose }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Target size={13} style={{ color: 'var(--brand-cyan, #06b6d4)' }} />
+                  <Target size={13} style={{ color: 'var(--brand-primary, #38bdf8)' }} />
                   Common Student Mistake
                 </span>
                 <span className="badge badge-cyan" style={{ fontSize: '0.68rem', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -277,7 +277,7 @@ export default function ReviewAuditView({ question, onClose }) {
                   width: '32px',
                   height: '32px',
                   borderRadius: 'var(--radius-xs)',
-                  background: hasVisual ? 'var(--status-info-bg, rgba(59, 130, 246, 0.1))' : 'var(--bg-card)',
+                  background: hasVisual ? 'var(--brand-light)' : 'var(--bg-surface-elevated)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

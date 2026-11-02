@@ -188,10 +188,10 @@ Run the deterministic backend test suite covering endpoints, schemas, database o
 # Run all unit and integration tests (90 deterministic tests across 17 modules)
 # Smart auto-skip: 54 pure unit tests pass offline, 36 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
-pytest backend/tests -v -m "not live_e2e"
+PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
 
 # Run database relational structure tests
-pytest backend/tests/test_database_structure.py -v
+PYTHONPATH=backend pytest backend/tests/test_database_structure.py -v
 ```
 
 ### Code Formatting & Linting
@@ -201,8 +201,8 @@ Enforce Python code hygiene using **Ruff** (enforces SIM, RET, B, C4, E, W, F, I
 # Check code style and rules (0 errors policy)
 ruff check backend/
 
-# Verify formatting without modification
-ruff format --check backend/
+# Verify formatting without modification across repository
+ruff format --check .
 
 # Automatically fix linting issues
 ruff check --fix backend/

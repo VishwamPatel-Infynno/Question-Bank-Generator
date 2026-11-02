@@ -307,7 +307,6 @@ Question Bank Generator/
         │   └── QuestionBankView.jsx       # Question Bank search, filter, and export
         ├── constants/           # Centralized application constants
         │   ├── index.js         # Constants barrel export
-        │   ├── config.js        # Model options & pricing constants
         │   ├── mcat.js          # MCAT sections, pacing targets, and skills
         │   ├── mcatTraps.js     # AAMC cognitive trap definitions and defense strategies
         │   └── mcat_dependent_taxonomy.json # AAMC-aligned foundational concepts and skills
@@ -317,8 +316,8 @@ Question Bank Generator/
         │   ├── useFocusTrap.js          # Accessible WCAG AA keyboard focus-trapping hook
         │   ├── useGeneratorForm.js      # Form state, validation & preset handlers
         │   ├── useKeyboardShortcuts.js  # Global hotkeys (⌘↵, T, A, D, /, Esc)
+        │   ├── usePagination.js         # Pagination state & range calculations
         │   ├── useQuestionBank.js       # Debounced search, sorting, and bank fetching
-        │   ├── useQuestionGenerator.js  # SSE streaming multi-agent orchestrator hook
         │   └── useTheme.js              # Theme manager (Dark/Light with localStorage)
         ├── components/          # Domain-organized UI components
         │   ├── index.js         # Barrel exports for clean component imports
@@ -329,6 +328,7 @@ Question Bank Generator/
         │   ├── batch/           # Batch Activity cards & job monitors
         │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live monitor
         │   │   ├── BatchCard.jsx               # Summary status card for generation batches
+        │   │   ├── BatchDuplicateAuditSection.jsx # Set-preserving duplicate resolution & refill
         │   │   ├── BatchFiltersBar.jsx         # Section, status, and search filters
         │   │   ├── BatchJobCard.jsx            # Per-question job card with lifecycle status
         │   │   ├── BatchQuestionItem.jsx       # Staged question item with review modal trigger
@@ -347,7 +347,9 @@ Question Bank Generator/
         │   │   ├── Footer.jsx           # Infynno Solutions LLP attribution & resource footer
         │   │   ├── Navbar.jsx           # Header with branding, navigation tabs, and theme toggle
         │   │   └── index.js
-        │   ├── modals/          # Dialog modals
+        │   ├── modals/          # Dialog modals (WCAG AA Focus Trapped)
+        │   │   ├── ConfirmationModal.jsx # Accessible confirmation modal replacing window.confirm
+        │   │   ├── DeletePassageModal.jsx# Dedicated passage deletion and cascade warning dialog (Hoisted)
         │   │   ├── DuplicateComparisonModal.jsx # Side-by-side duplicate candidate vs bank comparison & override modal
         │   │   ├── ExportPaperPreview.jsx # Live print layout previewer
         │   │   ├── ExportPrintModal.jsx   # Exam Paper (PDF), Study Pack, CSV/JSON export modal
@@ -359,17 +361,12 @@ Question Bank Generator/
         │   │   ├── PassageLinkedQuestionCard.jsx # Linked question card within passage desk
         │   │   ├── PassageVisualStimulusEditor.jsx # Passage diagram & figure attachment editor
         │   │   └── index.js
-        │   ├── pipeline/        # Pipeline visualizers
-        │   │   ├── AgentVisualizer.jsx  # Live generating telemetry & compact stepper
-        │   │   ├── MultiAgentPipelineVisualizer.jsx # 4-Milestone pipeline visualizer with conduits
-        │   │   ├── RejectionCard.jsx    # Diagnostic display when score fails threshold
-        │   │   └── index.js
         │   ├── question/        # Single Question Review Desk
         │   │   ├── MentorExplanationView.jsx # 3-card mentor explanation view
         │   │   ├── QuestionCard.jsx     # Interactive student practice & review card
         │   │   ├── QuestionInlineEditor.jsx # In-place authoring & remediation editor
         │   │   ├── QuestionScorecardTab.jsx # 100-point rubric breakdown accordion
-        │   │   ├── ReviewAuditView.jsx  # 100-point rubric breakdown & token cost modal
+        │   │   ├── ReviewAuditView.jsx  # 100-point rubric breakdown & token cost modal (Focus Trapped)
         │   │   ├── SharedPassageCard.jsx# Shared reading passage stimulus display card
         │   │   ├── StageJsonInspector.jsx# Deep stage outcome JSON inspector accordion
         │   │   ├── VisualStimulusViewer.jsx # SVG & neural visual diagram renderer

@@ -9,7 +9,7 @@ import VisualStimulusViewer from './VisualStimulusViewer';
 
 /**
  * SharedPassageCard:
- * Unified, reusable reading passage container for both StagedBatchReview and QuestionBank.
+ * Unified, reusable reading passage container for PassageEditorialDesk, QuestionCard, and QuestionBank.
  * Encapsulates:
  * - Header with BookOpen icon, title, word count badge, linked questions badge, and diagram badge.
  * - Collapsible toggle with expand/collapse states.

@@ -36,11 +36,13 @@ export default function DeletePassageModal({
 
   return (
     <div
+      className="modal-backdrop-theme"
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.75)',
-        backdropFilter: 'blur(4px)',
+        backgroundColor: 'rgba(8, 12, 20, 0.72)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
@@ -59,17 +61,18 @@ export default function DeletePassageModal({
     >
       <div
         ref={modalRef}
+        className="modal-card-theme"
         style={{
           width: '100%',
           maxWidth: '520px',
-          backgroundColor: 'var(--bg-card, #1e293b)',
-          borderRadius: '12px',
-          border: '1px solid var(--border-light, rgba(255, 255, 255, 0.1))',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4)',
+          backgroundColor: 'var(--bg-surface-elevated)',
+          borderRadius: 'var(--radius-lg, 16px)',
+          border: '1px solid var(--border-light)',
+          boxShadow: 'var(--shadow-lg, 0 20px 25px -5px rgba(0, 0, 0, 0.5))',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          animation: 'fadeInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+          animation: 'fadeIn 0.15s ease-out'
         }}
       >
         {/* Header */}
@@ -79,8 +82,8 @@ export default function DeletePassageModal({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 20px',
-            borderBottom: '1px solid var(--border-light, rgba(255, 255, 255, 0.1))',
-            backgroundColor: 'rgba(239, 68, 68, 0.08)'
+            borderBottom: '1px solid var(--border-light)',
+            backgroundColor: 'var(--status-danger-bg, rgba(244, 63, 94, 0.08))'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -88,9 +91,9 @@ export default function DeletePassageModal({
               style={{
                 width: '34px',
                 height: '34px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(239, 68, 68, 0.18)',
-                color: 'var(--status-danger, #ef4444)',
+                borderRadius: 'var(--radius-sm, 8px)',
+                backgroundColor: 'rgba(244, 63, 94, 0.18)',
+                color: 'var(--status-danger, #f43f5e)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
@@ -105,7 +108,7 @@ export default function DeletePassageModal({
                   margin: 0,
                   fontSize: '1.05rem',
                   fontWeight: 600,
-                  color: 'var(--text-primary, #f8fafc)'
+                  color: 'var(--text-primary)'
                 }}
               >
                 Delete Reading Passage
@@ -114,7 +117,7 @@ export default function DeletePassageModal({
                 style={{
                   margin: '2px 0 0 0',
                   fontSize: '0.75rem',
-                  color: 'var(--text-muted, #94a3b8)'
+                  color: 'var(--text-muted)'
                 }}
               >
                 Permanent cascade deletion
@@ -128,8 +131,8 @@ export default function DeletePassageModal({
             className="btn-ghost"
             style={{
               padding: '6px',
-              borderRadius: '6px',
-              color: 'var(--text-muted, #94a3b8)',
+              borderRadius: 'var(--radius-xs, 4px)',
+              color: 'var(--text-muted)',
               cursor: isDeleting ? 'not-allowed' : 'pointer'
             }}
             aria-label="Close dialog"
@@ -144,9 +147,9 @@ export default function DeletePassageModal({
           <div
             style={{
               padding: '12px 14px',
-              borderRadius: '8px',
-              backgroundColor: 'var(--bg-card-subtle, rgba(255, 255, 255, 0.03))',
-              border: '1px solid var(--border-light, rgba(255, 255, 255, 0.08))',
+              borderRadius: 'var(--radius-md, 12px)',
+              backgroundColor: 'var(--bg-surface-subtle)',
+              border: '1px solid var(--border-light)',
               display: 'flex',
               flexDirection: 'column',
               gap: '8px'
@@ -154,11 +157,11 @@ export default function DeletePassageModal({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <BookOpen size={14} style={{ color: 'var(--accent-primary, #38bdf8)' }} />
+                <BookOpen size={14} style={{ color: 'var(--brand-primary)' }} />
                 <strong
                   style={{
                     fontSize: '0.9rem',
-                    color: 'var(--text-primary, #f8fafc)',
+                    color: 'var(--text-primary)',
                     wordBreak: 'break-word'
                   }}
                 >
@@ -173,9 +176,9 @@ export default function DeletePassageModal({
                       fontWeight: 600,
                       textTransform: 'uppercase',
                       padding: '2px 6px',
-                      borderRadius: '4px',
-                      backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                      color: 'var(--accent-primary, #38bdf8)'
+                      borderRadius: 'var(--radius-xs, 4px)',
+                      backgroundColor: 'var(--brand-light)',
+                      color: 'var(--brand-primary)'
                     }}
                   >
                     {passage.section}
@@ -185,10 +188,11 @@ export default function DeletePassageModal({
                   <span
                     style={{
                       fontSize: '0.68rem',
-                      color: 'var(--text-muted, #94a3b8)',
+                      color: 'var(--text-muted)',
                       padding: '2px 6px',
-                      borderRadius: '4px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                      borderRadius: 'var(--radius-xs, 4px)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-light)'
                     }}
                   >
                     {passage.word_count} words
@@ -204,7 +208,7 @@ export default function DeletePassageModal({
                   fontSize: '0.78rem',
                   fontFamily: 'var(--font-serif, serif)',
                   fontStyle: 'italic',
-                  color: 'var(--text-secondary, #cbd5e1)',
+                  color: 'var(--text-secondary)',
                   lineHeight: 1.45,
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
@@ -216,7 +220,7 @@ export default function DeletePassageModal({
               </p>
             )}
 
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted, #64748b)', fontFamily: 'monospace' }}>
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
               ID: {passage.id}
             </div>
           </div>
@@ -226,15 +230,15 @@ export default function DeletePassageModal({
             id="delete-passage-desc"
             style={{
               padding: '12px 14px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: 'var(--radius-md, 12px)',
+              backgroundColor: 'var(--status-danger-bg, rgba(244, 63, 94, 0.08))',
+              border: '1px solid var(--status-danger-border, rgba(244, 63, 94, 0.22))',
               display: 'flex',
               flexDirection: 'column',
               gap: '6px'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-danger, #ef4444)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-danger, #f43f5e)' }}>
               <Layers size={16} />
               <strong style={{ fontSize: '0.85rem' }}>
                 {questionCount > 0
@@ -248,7 +252,7 @@ export default function DeletePassageModal({
                 margin: 0,
                 fontSize: '0.8rem',
                 lineHeight: 1.5,
-                color: 'var(--text-secondary, #cbd5e1)'
+                color: 'var(--text-secondary)'
               }}
             >
               {questionCount > 0 ? (
@@ -266,7 +270,7 @@ export default function DeletePassageModal({
               style={{
                 fontSize: '0.72rem',
                 fontWeight: 600,
-                color: 'var(--text-muted, #94a3b8)',
+                color: 'var(--text-muted)',
                 marginTop: '2px'
               }}
             >
@@ -279,10 +283,10 @@ export default function DeletePassageModal({
             <div
               style={{
                 padding: '10px 12px',
-                borderRadius: '6px',
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid var(--status-danger, #ef4444)',
-                color: 'var(--status-danger, #ef4444)',
+                borderRadius: 'var(--radius-sm, 8px)',
+                backgroundColor: 'var(--status-danger-bg, rgba(244, 63, 94, 0.15))',
+                border: '1px solid var(--status-danger-border, #f43f5e)',
+                color: 'var(--status-danger, #f43f5e)',
                 fontSize: '0.8rem'
               }}
             >
@@ -299,8 +303,8 @@ export default function DeletePassageModal({
             justifyContent: 'flex-end',
             gap: '10px',
             padding: '14px 20px',
-            borderTop: '1px solid var(--border-light, rgba(255, 255, 255, 0.1))',
-            backgroundColor: 'var(--bg-card-subtle, rgba(255, 255, 255, 0.02))'
+            borderTop: '1px solid var(--border-light)',
+            backgroundColor: 'var(--bg-surface-subtle)'
           }}
         >
           <button
@@ -330,9 +334,9 @@ export default function DeletePassageModal({
               fontSize: '0.82rem',
               fontWeight: 600,
               color: '#ffffff',
-              backgroundColor: isDeleting ? 'rgba(239, 68, 68, 0.6)' : 'var(--status-danger, #ef4444)',
+              backgroundColor: isDeleting ? 'rgba(244, 63, 94, 0.6)' : 'var(--status-danger, #f43f5e)',
               border: 'none',
-              borderRadius: '6px',
+              borderRadius: 'var(--radius-sm, 8px)',
               cursor: isDeleting ? 'not-allowed' : 'pointer',
               transition: 'background-color 0.15s ease'
             }}

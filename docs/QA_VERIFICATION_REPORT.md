@@ -88,18 +88,18 @@ This report establishes comprehensive, verifiable proof of product readiness acr
 
 All views were verified in live browser sessions (`http://localhost:5173`) against the specifications in `DESIGN.md`:
 
-### 4.1 Generator Workspace (`GeneratorWorkspaceView.jsx`)
+### 4.1 Question Studio & 3-Step Guided Wizard (`HeroLanding.jsx`, `GuidedWizard.jsx`)
 - **Hero Landing:** Clean typography, Infynno branding, and 4 quick-launch preset buttons (`Chem / Phys 50 Qs`, `CARS 50 Qs`, `Bio / Biochem 50 Qs`, `Psych / Soc 50 Qs`).
 - **Streamlined 3-Step Guided Wizard (`GuidedWizard.jsx`):**
   - **Step 1: Section & Topic Focus (`WizardStep1SectionFocus.jsx`)**: Section selection with immediate subject, unit, and subtopic taxonomy dropdowns. Selecting CARS automatically enforces 100% passage-based mode and disables image generation.
   - **Step 2: Level, Format & Scope (`WizardStep2LevelFormat.jsx`)**: Streamlined question count cards (5 Qs Practice Set vs 50 Qs Full Exam), difficulty level cards (Low, Medium, High), and binary passage mode toggles.
   - **Step 3: Review & Advanced Settings (`WizardStep3ReviewAdvanced.jsx`)**: Tabular parameter summary, dedicated scientific diagrams toggle card, cognitive trap selectors, and the new **Additional Authoring Instructions** textarea with visible `+ Custom Prompt Active` indicator badge.
-- **Multi-Agent Pipeline Visualizer:**
-  - Real-time SSE streaming updates with active node indicators: Fused Generator $\rightarrow$ Option Balancer $\rightarrow$ Pedagogy Reviewer $\rightarrow$ Blind Solver $\rightarrow$ Finalize.
-  - Real-time execution timer (Live Stopwatch) tracking elapsed seconds.
+- **Autonomous Background Execution:**
+  - Dispatches Practice Sets (5 Qs, 1 job) or Full Mock Exams (50 Qs, 10 jobs) to the background worker pool with real-time status streaming into the Review Queue and Batch Activity Desk.
+  - Real-time execution timer (Live Stopwatch) tracking elapsed seconds during generation.
 
 ### 4.2 Question Bank (`QuestionBankView.jsx`)
-- **Data Table & Cards:** Displays question stem, passage excerpt, section badge, difficulty chip, score indicator (e.g. `96/100`), and discrete indicator.
+- **Canonical Editorial Cards:** Displays question stem, passage excerpt, section badge, difficulty chip, score indicator (e.g. `96/100`), and discrete indicator on high-density cards.
 - **Inline Preview Expansion:** Toggling "Expand preview inline" cleanly presents reading passage, passage text scaling controls (`A-`, `100%`, `A+`), balanced options with key markers, and detailed pedagogical explanations.
 - **Search & Filter Controls:**
   - Global search bar with `/` keyboard shortcut activation.
@@ -108,11 +108,11 @@ All views were verified in live browser sessions (`http://localhost:5173`) again
   - Dynamic sort dropdown (`Newest First`, `Highest Score`, etc.).
   - Select all checkbox and batch pagination bar.
 
-### 4.3 Review Queue / Staged Batch Review (`StagedBatchReview.jsx`)
+### 4.3 Review Queue / AI-Validated Questions (`AiValidatedQuestionsView.jsx`)
 - **Queue Metrics Bar:** Real-time counters showing "Ready for Review", "In Question Bank", "Good Quality", and "Needs Polish".
 - **Batch Withholding Guarantee:** Questions from in-progress batches are withheld in `batch_only` status, preventing draft leakage into the "Ready for Review" queue until batch completion.
 - **Duplicate Cluster Management:** In-batch clustering and Duplicate Comparison Modal with side-by-side diffing, designated leader selection, and automated slot replenishment.
-- **Inspection Tools:** Full audit trail inspection displaying 100-point rubric breakdown (Stem Clarity, Distractor Plausibility, Scientific Accuracy, Bias Minimization).
+- **Inspection Tools:** Full audit trail inspection displaying 100-point rubric breakdown (Authenticity, Clarity, Distractor Traps, Explanation Rigor).
 
 ### 4.4 Passage Bank (`PassageBankView.jsx`)
 - **Passage Statistics:** Displays total passages and average word length.

@@ -194,13 +194,11 @@ This delivers global repository cost and token totals directly to the Question B
 
 ## 6. UI Observability & User Experience
 
-Token and cost data is surfaced across all 5 top-level views and specialized domain components in the frontend:
+Token and cost data is surfaced across all active views and specialized domain components in the frontend:
 
-### 1. Multi-Agent Pipeline Visualizer ([`MultiAgentPipelineVisualizer.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/pipeline/MultiAgentPipelineVisualizer.jsx))
-- **4-Milestone Pipeline Visualizer**: Tracks live computational usage across the four milestones: `Drafting & Review`, `Answer Check`, `Question Polish`, and `Figures & Diagrams`.
-- **Cumulative Header Badge**: Displays running totals during live generation:
-  `🪙 2,850 tokens • $0.00053`
-- **Per-Agent Step Badges**: Each agent node shows its specific cycle tokens, cost, and status.
+### 1. Active Multi-Batch Concurrency Monitor & Live Stopwatch ([`ActiveMultiBatchMonitor.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/batch/ActiveMultiBatchMonitor.jsx), [`LiveStopwatch.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/common/LiveStopwatch.jsx))
+- **Live Worker Telemetry Strip**: Displays live global jobs occupancy (`Global Jobs: X / 4`) and active inference concurrency (`Active Inference: Y / 10`) alongside a high-precision live elapsed stopwatch timer during active batch runs.
+- **Micro-Dollar Live Updates**: Visualizes active batch throughput with real-time token accumulation as worker jobs complete.
 
 ### 2. Formatted Question Card ([`QuestionCard.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/question/QuestionCard.jsx))
 - Displays an emerald/cyan metadata chip in the question header:
@@ -209,7 +207,7 @@ Token and cost data is surfaced across all 5 top-level views and specialized dom
 
 ### 3. Psychometric Review & Cost Audit Modal ([`ReviewAuditView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/question/ReviewAuditView.jsx))
 - **Summary Metric Cards**: 4-card grid showing Prompt Tokens, Completion Tokens, Total Tokens, and Accumulated Cost.
-- **Granular Breakdown Table**: Itemizes every LLM request with prompt tokens ($0.098 rate), completion tokens ($0.294 rate), total tokens, and micro-dollar cost.
+- **Granular Breakdown Table**: Itemizes every LLM request with prompt tokens, completion tokens, cache reads/writes, total tokens, and sub-micro-cent USD cost.
 
 ### 4. Question Bank Repository ([`QuestionBankView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/views/QuestionBankView.jsx))
 - **Repository Stat Metric**: Displays total accumulated tokens and total expenditure for the entire database:
@@ -217,12 +215,10 @@ Token and cost data is surfaced across all 5 top-level views and specialized dom
 - **Editorial Card Chips**: Each question card includes a compact chip:
   `🪙 2,850 tok • $0.00053`
 
-### 5. Staged Batch Review Deck ([`StagedBatchReview.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/staged/StagedBatchReview.jsx))
-- Displays cumulative batch token consumption and aggregate batch cost before admin approval via [`BatchProgressHeader.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/staged/BatchProgressHeader.jsx).
-- Allows educators to inspect individual slot cards with their respective token weights and reviewer scores.
+### 5. Batch Activity Monitor & Job Cards ([`BatchActivityView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/views/BatchActivityView.jsx), [`BatchCard.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/batch/BatchCard.jsx))
+- Displays cumulative batch token consumption and aggregate batch cost across all 10 worker jobs.
+- Allows educators to inspect individual jobs via [`BatchJobCard.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/batch/BatchJobCard.jsx) with their respective token weights, prompt/completion breakdown, and question scores.
 
 ### 6. AI Validated Quality Bank ([`AiValidatedQuestionsView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/views/AiValidatedQuestionsView.jsx))
 - Header stats bar displays total AI-validated items and total cost of verified inventory.
-
-### 7. Batch Activity Monitor ([`BatchActivityView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/views/BatchActivityView.jsx))
-- Aggregates running token totals across parallel jobs for 50-question background mock runs.
+- Each validated card presents instant token and cost metrics before one-click approval into the canonical bank.

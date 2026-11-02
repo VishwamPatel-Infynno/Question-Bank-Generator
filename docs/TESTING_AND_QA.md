@@ -77,28 +77,34 @@ backend/tests/
 └── test_e2e_live.py                  # Live LLM inference suite (marked as live_e2e)
 ```
 
-### 2.2 Test Suite Execution Commands
+### 2.2 Test Suite Execution Commands & Execution Modes
+
+#### Execution Modes Breakdown
+- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 36 database-dependent tests, executing all 54 algorithmic, schema, prompt builder, and token pricing unit tests in ~12 seconds (`54 passed, 36 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 90 deterministic unit and integration tests execute across all 17 modules in ~31 seconds (`90 passed, 0 failed, 10 deselected`).
+- **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
+- **Total Suite**: 100 backend tests across 18 test files.
 
 ```bash
 # 1. Activate backend virtual environment
 source .venv/bin/activate
 
-# 2. Run all 90 deterministic unit and integration tests across 17 modules
+# 2. Run all deterministic unit and integration tests across 17 modules
 # Smart auto-skip: If PostgreSQL is offline on localhost:5432, 54 pure unit tests pass and 36 DB tests cleanly skip
-pytest backend/tests -v -m "not live_e2e"
+PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
 
 # 3. Run specific test modules
-pytest backend/tests/test_anthropic.py -v
-pytest backend/tests/test_soft_delete_batch_integrity.py -v
-pytest backend/tests/test_additional_instructions.py -v
-pytest backend/tests/test_batch_review_withholding.py -v
-pytest backend/tests/test_target_count_guarantee.py -v
-pytest backend/tests/test_question_status_refill.py -v
-pytest backend/tests/test_deduplication.py -v
-pytest backend/tests/test_api.py -v
+PYTHONPATH=backend pytest backend/tests/test_anthropic.py -v
+PYTHONPATH=backend pytest backend/tests/test_soft_delete_batch_integrity.py -v
+PYTHONPATH=backend pytest backend/tests/test_additional_instructions.py -v
+PYTHONPATH=backend pytest backend/tests/test_batch_review_withholding.py -v
+PYTHONPATH=backend pytest backend/tests/test_target_count_guarantee.py -v
+PYTHONPATH=backend pytest backend/tests/test_question_status_refill.py -v
+PYTHONPATH=backend pytest backend/tests/test_deduplication.py -v
+PYTHONPATH=backend pytest backend/tests/test_api.py -v
 
 # 4. Run live LLM tests (requires DEEPINFRA_API_KEY in .env)
-pytest backend/tests/test_e2e_live.py -v -m live_e2e
+PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
 ### 2.3 Detailed Test Module Coverage (90 Deterministic Tests across 17 Modules / 100 Total Backend Tests)

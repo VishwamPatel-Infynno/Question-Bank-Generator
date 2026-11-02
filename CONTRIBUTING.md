@@ -45,17 +45,17 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (90 deterministic unit & integration tests across 17 modules; 54 pass offline, 36 DB tests skip cleanly)
+# 1. Backend pytest suite (90 deterministic unit & integration tests across 17 modules; 54 pass offline, 36 DB tests skip cleanly; 100 total backend tests)
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
 
 # 2. Backend Python linter and formatting checks (enforcing SIM, RET, B, C4, E, W, F, I, UP)
 ruff check backend/
-ruff format --check backend/
+ruff format --check .
 
 # 3. Frontend Oxlint linter (0 errors, 0 warnings policy across 82 files)
 pnpm --dir frontend lint
 
-# 4. Frontend production build (compiles in ~197ms via Vite 8)
+# 4. Frontend production build (compiles cleanly via Vite 8)
 pnpm --dir frontend build
 ```
 
@@ -78,7 +78,7 @@ pnpm --dir frontend build
    - Data Access Layer: `backend/app/repositories/`
    - Database Entities: `backend/app/models/`
    - Background Services: `backend/app/services/` (`batch_runner.py` with global job semaphores)
-   - Frontend: Top-level views (`views/`) with feature-based component directories (`wizard/`, `pipeline/`, `question/`, `passage/`, `staged/`, `bank/`, `batch/`, `validated/`, `layout/`, `modals/`, `common/`) and centralized hooks/constants.
+   - Frontend: Top-level views (`views/`) with feature-based component directories (`wizard/`, `question/`, `passage/`, `bank/`, `batch/`, `validated/`, `layout/`, `modals/`, `common/`) and centralized hooks/constants.
 8. **Multi-Agent Pipeline & Cognitive Fusion**: Step 01 fuses item authoring and 100-point rubric self-critique (`Drafting & Review`) into a single pass. Step 02 executes independent dual validation (`Answer Check`). Step 03 executes remediation (`Question Polish`) for drafts scoring $\le 90$ or failing verification, while Step 04 renders visual stimuli (`Figures & Diagrams`).
 9. **AAMC Dual Split-Pane Reading Mode**: Ensures dense scientific research passages and CARS essays are presented side-by-side with sticky scrolling and synchronized candidate review.
 10. **Option Symmetry & Anti-AI Standard**: Enforce $\pm 15\%$ option length parity across strictly 4 options ($A, B, C, D$) and single hyphens (`-`) only; em dashes (`—`) and en dashes (`–`) are strictly forbidden across prompts and generation output.

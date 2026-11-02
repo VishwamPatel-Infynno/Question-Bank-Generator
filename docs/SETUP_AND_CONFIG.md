@@ -30,6 +30,8 @@ cp .env.example .env
 
 ### Configuration Variables Reference
 
+The system defines 39 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
+
 | Variable | Type | Default Value | Description |
 | :--- | :--- | :--- | :--- |
 | `ACTIVE_LLM_PROVIDER` | `string` | `deepinfra` | Active inference provider: `deepinfra` or `anthropic` |
@@ -48,14 +50,14 @@ cp .env.example .env
 | `BATCH_PASSING_SCORE_THRESHOLD` | `integer`| `85` | Benchmark score required for batch activity run acceptance (Tier 2) |
 | `DEFAULT_MAX_TOKENS` | `integer`| `3000` | Default maximum completion token budget for generator nodes |
 | `REVIEWER_MAX_TOKENS` | `integer`| `1800` | Maximum completion token budget for 100-point psychometric reviewer |
-| `COST_PER_MILLION_INPUT_TOKENS` | `float` | `0.098` | Input token price ($0.098 / 1M tokens) |
-| `COST_PER_MILLION_OUTPUT_TOKENS`| `float` | `0.294` | Output token price ($0.294 / 1M tokens) |
+| `COST_PER_MILLION_INPUT_TOKENS` | `float` | Dynamic | Dynamic property mapping to active provider input price ($0.098 DeepInfra / $0.10 Anthropic) |
+| `COST_PER_MILLION_OUTPUT_TOKENS`| `float` | Dynamic | Dynamic property mapping to active provider output price ($0.294 DeepInfra / $0.50 Anthropic) |
 | `DEFAULT_TEMPERATURE` | `float` | `0.2` | Global default sampling temperature for call_llm |
 | `GENERATOR_TEMPERATURE` | `float` | `0.2` | Strict instruction-following temperature for Generator |
 | `REGENERATOR_TEMPERATURE` | `float` | `0.2` | Strict remediation temperature for Regenerator |
 | `REVIEWER_TEMPERATURE` | `float` | `0.1` | Deterministic temperature for 100-pt Psychometric Reviewer |
 | `BLIND_SOLVER_TEMPERATURE`| `float` | `0.1` | Ultra-deterministic temperature for Blind-Solver Agent |
-| `FAST_MODEL_CASCADE` | `list[str]` | `["deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017"]` | Dedicated DeepInfra fast model cascade list |
+| `FAST_MODEL_CASCADE` | `list[str]` | Dynamic | Dynamic property mapping to active provider fallback model list |
 | `ENABLE_BLIND_SOLVER` | `boolean` | `true` | Enables dual-validation blind solver agent |
 | `BLIND_SOLVER_CONFIDENCE_THRESHOLD` | `integer` | `88` | Minimum blind solver confidence percentage to pass without remediation |
 | `BLIND_SOLVER_MAX_TOKENS` | `integer` | `1200` | Max completion tokens budget for blind-solver inference |
@@ -73,6 +75,9 @@ cp .env.example .env
 | `IMAGE_HEIGHT` | `integer` | `1024` | Default height for FLUX diagrams |
 | `IMAGE_ITERS` | `integer` | `0` | Inference step iterations (0 for flat-rate models) |
 | `IMAGE_COST_PER_BASE_UNIT` | `float` | `0.014` | Flat unit rate in USD ($0.014/img) |
+
+> [!NOTE]
+> `COST_PER_MILLION_INPUT_TOKENS`, `COST_PER_MILLION_OUTPUT_TOKENS`, and `FAST_MODEL_CASCADE` are dynamic `@property` getters and setters in `backend/app/core/config.py`. When unset, they automatically resolve to the active provider rates (`DEEPINFRA_*` or `ANTHROPIC_*`). Setters allow optional programmatic overrides during tests or custom runs.
 
 ---
 
@@ -151,7 +156,7 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 90-test deterministic unit & integration suite across 17 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full test specifications):
+Run the complete 100-test backend verification suite across 18 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
@@ -162,8 +167,14 @@ PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
 
 # 2. Run Python linting and code quality checks (enforces SIM, RET, B, C4, E, W, F, I, UP)
 ruff check backend/
-ruff format --check backend/
+ruff format --check .
 ```
+
+#### Dual Test Execution Modes
+- **Offline Mode** (PostgreSQL offline): Executes all 54 algorithmic, schema, agent, and mathematical tests in ~12 seconds (`54 passed, 36 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 90 deterministic tests across 17 modules in ~31 seconds (`90 passed, 0 failed, 10 deselected`).
+- **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
+- **Total Backend Suite**: 100 tests across 18 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.
@@ -192,7 +203,7 @@ The application includes 15 automated Playwright E2E browser tests covering guid
 ### 5.3 Frontend Quality & Production Verification
 
 ```bash
-# 1. High-speed Oxlint check across 97 frontend files (Zero warnings, zero errors required)
+# 1. High-speed Oxlint check across 82 frontend files (Zero warnings, zero errors required)
 pnpm --dir frontend lint
 
 # 2. Compile optimized production bundle with Vite (builds in ~218ms)

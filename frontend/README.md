@@ -101,7 +101,6 @@ frontend/src/
 │           └── WizardStep3ReviewAdvanced.jsx # Step 3: Compact review table & advanced accordion
 ├── constants/
 │   ├── index.js                  # Constants barrel export
-│   ├── config.js                 # Pricing models, image parameters, token rates
 │   ├── mcat.js                   # MCAT sections, pacing specs, icons, and fallback topics
 │   ├── mcat_dependent_taxonomy.json # AAMC-aligned foundational concepts and skills
 │   └── mcatTraps.js              # AAMC cognitive trap definitions and defense strategies
@@ -111,8 +110,8 @@ frontend/src/
 │   ├── useFocusTrap.js           # Accessible WCAG AA keyboard focus-trapping hook for modals
 │   ├── useGeneratorForm.js       # Form state & validation logic
 │   ├── useKeyboardShortcuts.js   # Global hotkeys (⌘↵ to generate, A to approve, D to discard, T to toggle theme)
+│   ├── usePagination.js          # Client and server pagination calculations and state management
 │   ├── useQuestionBank.js        # Debounced search, sorting, and bank fetching
-│   ├── useQuestionGenerator.js   # SSE streaming, batch progress, and state management
 │   └── useTheme.js               # Dark/light mode persistence
 ├── services/
 │   ├── index.js                  # Services barrel export

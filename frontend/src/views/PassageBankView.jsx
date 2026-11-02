@@ -325,44 +325,31 @@ export default function PassageBankView({ onShowToast, onNavigateToWizard, reset
     }
   };
 
-  // ── Render Editorial Desk Mode ─────────────────────────────────────────────
-  if (selectedPassage) {
-    if (isLoadingDetail) {
-      return (
-        <div className="view-loading-box">
-          <div className="view-loading-spinner" />
-          <span className="view-loading-text">Loading Passage Editorial Desk &amp; Questions...</span>
-        </div>
-      );
-    }
-
-    return (
-      <>
-        <PassageEditorialDesk
-          key={selectedPassage.id}
-          passage={selectedPassage}
-          questions={selectedPassageQuestions}
-          onBack={() => {
-            setSelectedPassage(null);
-            setSelectedPassageQuestions([]);
-          }}
-          onSavePassage={handleSavePassage}
-          onDeletePassage={handleRequestDeletePassage}
-          onUpdateQuestion={handleUpdateQuestion}
-        />
-        <DeletePassageModal
-          isOpen={Boolean(passageToDelete)}
-          onClose={() => setPassageToDelete(null)}
-          passage={passageToDelete}
-          onConfirmDelete={handleConfirmCascadeDelete}
-        />
-      </>
-    );
-  }
-
-  // ── Render Master List Mode ────────────────────────────────────────────────
+  // ── Render View ────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <>
+      {selectedPassage ? (
+        isLoadingDetail ? (
+          <div className="view-loading-box">
+            <div className="view-loading-spinner" />
+            <span className="view-loading-text">Loading Passage Editorial Desk &amp; Questions...</span>
+          </div>
+        ) : (
+          <PassageEditorialDesk
+            key={selectedPassage.id}
+            passage={selectedPassage}
+            questions={selectedPassageQuestions}
+            onBack={() => {
+              setSelectedPassage(null);
+              setSelectedPassageQuestions([]);
+            }}
+            onSavePassage={handleSavePassage}
+            onDeletePassage={handleRequestDeletePassage}
+            onUpdateQuestion={handleUpdateQuestion}
+          />
+        )
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* ── Header & Stats Strip ─────────────────────────────────────────── */}
       <div
         style={{
@@ -515,13 +502,16 @@ export default function PassageBankView({ onShowToast, onNavigateToWizard, reset
         />
       )}
 
-      {/* ── Cascade Delete Passage Modal ──────────────────────────────────── */}
+        </div>
+      )}
+
+      {/* ── Cascade Delete Passage Modal (Single Hoisted Instance) ────────── */}
       <DeletePassageModal
         isOpen={Boolean(passageToDelete)}
         onClose={() => setPassageToDelete(null)}
         passage={passageToDelete}
         onConfirmDelete={handleConfirmCascadeDelete}
       />
-    </div>
+    </>
   );
 }

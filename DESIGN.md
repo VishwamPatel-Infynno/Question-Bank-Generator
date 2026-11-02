@@ -151,9 +151,12 @@ Streamlined 3-step authoring workflow:
 
 ### 4.4 Psychometric Audit Modal & Accessible Focus Trapping (`ReviewAuditView.jsx`)
 - **Modal Architecture**: Accessible dialog overlay implementing strict WCAG AA focus trapping and escape dismissal:
-  - Traps keyboard focus (`Tab` and `Shift+Tab`) within the dialog boundaries, preventing background tabbing.
+  - Traps keyboard focus (`Tab` and `Shift+Tab`) within the dialog boundaries, preventing background tabbing via `useFocusTrap`.
   - Restores focus to the triggering element upon dismissal (`Escape` key or backdrop click).
   - ARIA attributes: `role="dialog"`, `aria-modal="true"`, `aria-labelledby="audit-modal-title"`.
+- **Theme-Harmonized Styling**: Styled using consistent brand design tokens:
+  - Header & Accents: Uses `var(--brand-primary)` and `var(--brand-light)` for target indicators, cognitive trap badges, and visual stimulus indicators.
+  - Surfaces: Uses `var(--bg-surface-elevated)` for card containers with hairline borders (`var(--border-light)`).
 - Displays the 4-pillar breakdown (Authenticity, Clarity, Distractor Traps, Explanation Rigor) scored out of 25 each.
 - Itemized per-cycle token usage table detailing prompt tokens, completion tokens, execution time, and sub-micro-cent USD cost.
 
@@ -189,12 +192,12 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 ### 4.8 Live Stopwatch & Precision Telemetry (`LiveStopwatch.jsx`)
 - Renders an active runtime duration stopwatch using `font-family: var(--font-mono)` with glowing amber pulse animation during active generation runs.
 
-### 4.9 Top-Level Application Views (`views/`)
-1. **Generator Workspace View (`GeneratorWorkspaceView.jsx`)**: Coordinates the 3-step guided wizard dock alongside the single-canvas live generation desk, telemetry pipelines, and staged review decks (Navigation Tab: `Create Questions`).
+### 4.9 Top-Level Application Views & Authoring Workflows
+1. **Question Studio Landing & Guided Wizard (`HeroLanding.jsx`, `GuidedWizard.jsx`)**: The primary authoring portal (`activeTab: 'generator'`), switching smoothly between the minimalist welcome canvas (`HeroLanding.jsx` in `viewMode: 'hero'`) with instant section presets and target pacing badges (~96s to ~101s) and the streamlined 3-step authoring wizard (`GuidedWizard.jsx` in `viewMode: 'wizard'`). Live generation dispatches 1-job Practice Sets (5 Qs) or 10-job Full Exams (50 Qs) directly to background worker pools with real-time telemetry streaming into the Review Queue (`AiValidatedQuestionsView.jsx`) and Batch Progress dashboard (`BatchActivityView.jsx`) (Navigation Tab: `Create Questions`).
 2. **AI Validated Questions View (`AiValidatedQuestionsView.jsx`)**: Dedicated review deck for items generated in background batches that passed the >90 quality threshold, supporting one-click individual or bulk publishing into the primary Question Bank (Navigation Tab: `Review Queue`).
 3. **Question Bank View (`QuestionBankView.jsx`, `QuestionBankTable.jsx`)**: Full-featured searchable, filterable repository strictly consolidated on the canonical **Editorial Cards** view. Legacy table grid mode and view-switcher toolbar controls have been deprecated and removed, dedicating the entire layout to high-density reading cards with inline editing, multi-format CSV/JSON exports, bulk deletion, lifecycle status updates, and repository-wide token analytics (Navigation Tab: `Question Bank`).
 4. **Batch Activity View (`BatchActivityView.jsx`)**: Live and historical monitor displaying running batch jobs, per-job question counts, status indicators, and background worker progress. Features dedicated scope filtering (`All Batches`, `Mini-Batches [1 Job]`, `Full Sections [10 Jobs]`) and visual badges distinguishing 1-job mini-batches from 10-job full mock sections (Navigation Tab: `Batch Progress`).
-5. **Passage Bank View (`PassageBankView.jsx`)**: Full-featured reading passage stimuli repository and editorial workspace. Provides search by passage narrative or concept, section filtering (with instant return-to-catalog reset on tab navigation), and the interactive **Passage Editorial Desk** (`PassageEditorialDesk.jsx`). Supports in-place editing of passage text and metadata, attachment or discarding of figures (`PassageVisualStimulusEditor.jsx`), inspection of all linked questions (`PassageLinkedQuestionCard.jsx`), and dedicated cascade passage deletion with linked question removal via `DeletePassageModal` (Navigation Tab: `Passage Bank`).
+5. **Passage Bank View (`PassageBankView.jsx`)**: Full-featured reading passage stimuli repository and editorial workspace. Provides search by passage narrative or concept, section filtering (with instant return-to-catalog reset on tab navigation), and the interactive **Passage Editorial Desk** (`PassageEditorialDesk.jsx`). Supports in-place editing of passage text and metadata, attachment or discarding of figures (`PassageVisualStimulusEditor.jsx`), inspection of all linked questions (`PassageLinkedQuestionCard.jsx`), and dedicated cascade passage deletion with linked question removal via hoisted `DeletePassageModal` (Navigation Tab: `Passage Bank`).
 
 ### 4.10 Common Primitives & Accessible Pagination (`PaginationBar.jsx`)
 - **Component**: [`frontend/src/components/common/PaginationBar.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/common/PaginationBar.jsx) provides a standardized, WCAG AA compliant pagination footer across all list-based views (`QuestionBankView.jsx`, `AiValidatedQuestionsView.jsx`, `BatchActivityView.jsx`).
@@ -263,7 +266,14 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Contextual Telemetry**: Renders live target count badges and button loading spinners during async mutations.
 
 ### 4.15 Passage Deletion & Cascade Warning Modal (`DeletePassageModal.jsx`)
-- **Component**: [`frontend/src/components/modals/DeletePassageModal.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/modals/DeletePassageModal.jsx) provides a dedicated deletion dialog when removing shared reading passages from the Passage Bank.
+- **Component**: [`frontend/src/components/modals/DeletePassageModal.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/modals/DeletePassageModal.jsx) provides a dedicated cascade deletion confirmation dialog when removing shared reading passages from the Passage Bank.
+- **Hoisted Single-Instance Architecture**:
+  - Mounted as a single hoisted instance in [`PassageBankView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/views/PassageBankView.jsx), guaranteeing modal availability whether the educator is on the master passage catalog table or inside the active [`PassageEditorialDesk.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/passage/PassageEditorialDesk.jsx).
+  - Eliminates DOM unmounting, duplicate listeners, and state race conditions during passage navigation.
+- **Theme-Aware Backdrops & Containers**:
+  - Backdrop: Uses `.modal-backdrop-theme` with `backgroundColor: 'rgba(8, 12, 20, 0.72)'` and `backdropFilter: 'blur(6px)'` (`WebkitBackdropFilter: 'blur(6px)'`).
+  - Modal Card: Uses `.modal-card-theme` with `backgroundColor: 'var(--bg-surface-elevated)'`, `borderRadius: 'var(--radius-lg, 16px)'`, `border: '1px solid var(--border-light)'`, and `boxShadow: 'var(--shadow-lg)'`.
+  - Header: Styled with `var(--status-danger-bg)` and `var(--status-danger)` accents for high-visibility destructive action confirmation.
 - **Features & Architecture**:
   - **Linked Questions Audit Counter**: Queries and itemizes the exact number of linked questions across all lifecycle statuses (`in_bank`, `ai_validated`, `batch_only`) that will be soft-deleted.
   - **Batch Preservation Notice**: Clearly communicates to educators that soft-deleting the passage removes it from active catalogs while preserving batch progress history intact.

@@ -154,7 +154,7 @@ $$\text{Total Cost (DeepInfra)} = \left(\frac{\text{Input Tokens}}{1{,}000{,}000
   - **1-Click Batch Retry**: If a job encounters temporary network latency, educators can re-launch incomplete jobs with a single click, picking up immediately from the exact point of interruption.
   - **Batch Duplicate Clustering & Auto-Refill**: Educators can inspect intra-batch similarity clusters, designate custom leaders, archive duplicates, and automatically launch replacement jobs to deliver exact target quotas.
 - **Dedicated Application Views**: Seamlessly navigate between:
-  1. **Create Questions (`GeneratorWorkspaceView.jsx`)**: Interactive exam generation & pipeline workspace with AAMC Split-Pane reading mode.
+  1. **Create Questions (`HeroLanding.jsx`, `GuidedWizard.jsx`)**: Interactive question studio featuring the welcome canvas with instant section presets and the streamlined 3-Step Guided Wizard dispatching to background worker pools.
   2. **Batch Progress (`BatchActivityView.jsx`)**: Real-time monitor tracking running batch jobs, per-job question counts, status indicators, and background worker progress.
   3. **Review Queue (`AiValidatedQuestionsView.jsx`)**: High-quality items (>90 points) awaiting one-click educator publishing into the Question Bank.
   4. **Question Bank (`QuestionBankView.jsx`)**: Primary verified repository strictly presented in high-density **Editorial Cards** (with search, multi-factor filtering, in-place inline editing, bulk deletion, and PDF/CSV/JSON export; legacy table grid mode removed).
