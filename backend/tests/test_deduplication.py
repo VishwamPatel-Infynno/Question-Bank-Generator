@@ -221,19 +221,24 @@ async def test_auto_resolve_batch_and_refill(monkeypatch):
         archived_ids.extend(q_ids)
         return len(q_ids)
 
-    async def mock_refresh_aggregates(b_id):
+    async def mock_hard_delete_batch(q_ids):
+        archived_ids.extend(q_ids)
+        return len(q_ids)
+
+    async def mock_refresh_aggregates(b_id, allow_complete=False, **_kwargs):
         assert b_id == batch_id
         fake_batch.actual_count = sum(1 for q in current_questions if q.id not in archived_ids)
         return fake_batch
 
     mock_refill = AsyncMock(return_value=(fake_batch, []))
-    mock_delete_batch = AsyncMock(return_value=1)
     mock_get_jobs = AsyncMock(return_value=[])
     mock_update_job = AsyncMock(return_value=None)
 
     monkeypatch.setattr("app.services.batch_runner.get_batch_by_id", mock_get_batch)
     monkeypatch.setattr("app.services.batch_runner.get_questions", mock_get_questions)
-    monkeypatch.setattr("app.services.batch_runner.delete_questions_batch", mock_delete_batch)
+    monkeypatch.setattr(
+        "app.services.batch_runner.hard_delete_questions_batch", mock_hard_delete_batch
+    )
     monkeypatch.setattr("app.services.batch_runner.get_jobs_by_batch_id", mock_get_jobs)
     monkeypatch.setattr("app.services.batch_runner.update_job_progress", mock_update_job)
     monkeypatch.setattr(

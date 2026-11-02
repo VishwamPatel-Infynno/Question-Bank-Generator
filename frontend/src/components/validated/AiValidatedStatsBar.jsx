@@ -98,23 +98,9 @@ export default function AiValidatedStatsBar({
         </div>
         <span style={{ color: 'var(--border-light)' }}>•</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Good Quality (86-90):</span>
+          <span style={{ color: 'var(--text-muted)' }}>Good Quality:</span>
           <strong style={{ fontWeight: 700, color: 'var(--brand-indigo, #6366f1)' }}>
             {counts.batch_only || 0}
-          </strong>
-        </div>
-        <span style={{ color: 'var(--border-light)' }}>•</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Discarded:</span>
-          <strong style={{ fontWeight: 700, color: 'var(--text-muted)' }}>
-            {counts.discarded || 0}
-          </strong>
-        </div>
-        <span style={{ color: 'var(--border-light)' }}>•</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Needs Polish (&le;85):</span>
-          <strong style={{ fontWeight: 700, color: 'var(--status-warning, #d97706)' }}>
-            {counts.below_threshold || 0}
           </strong>
         </div>
       </div>

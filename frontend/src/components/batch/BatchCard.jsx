@@ -118,10 +118,28 @@ function BatchCard({
   const totalTarget = batch.target_count || 50;
   const actualTotal = batch.actual_count || 0;
   const isMiniSet = totalJobs === 1 || totalTarget === 5;
-  const progressPercent = Math.min(
-    100,
-    Math.round((actualTotal / Math.max(1, totalTarget)) * 100)
-  );
+  const isCompleted = batch.status === 'completed';
+  const isInProgress = batch.status === 'in_progress';
+
+  // Strictly monotonic progress tracking while batch is in progress:
+  // Caps running batches at 95% to leave headroom for deduplication and refills,
+  // preventing premature 100% flashes and avoiding backwards percentage drops.
+  const [highestProgress, setHighestProgress] = React.useState(0);
+
+  const rawPercent = Math.round((actualTotal / Math.max(1, totalTarget)) * 100);
+  const runningCapped = Math.min(95, Math.max(0, rawPercent));
+
+  if (isInProgress && runningCapped > highestProgress) {
+    setHighestProgress(runningCapped);
+  } else if (isCompleted && highestProgress !== 100) {
+    setHighestProgress(100);
+  }
+
+  const progressPercent = isCompleted
+    ? 100
+    : isInProgress
+      ? Math.max(highestProgress, runningCapped)
+      : Math.min(100, Math.max(0, rawPercent));
 
   return (
     <div

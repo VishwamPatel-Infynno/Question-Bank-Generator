@@ -106,11 +106,15 @@ async def delete_batch(batch_id: str) -> bool:
         return True
 
 
-async def refresh_batch_aggregates(batch_id: str) -> GenerationBatch | None:
+async def refresh_batch_aggregates(
+    batch_id: str, allow_complete: bool = False
+) -> GenerationBatch | None:
     """
     Recalculates completed_jobs, failed_jobs, actual_count, total_tokens, and cost_usd
     directly from the generation_jobs table in a single atomic database operation.
     Guarantees zero lost updates from concurrent jobs.
+    When allow_complete is False, in-progress batches are preserved in 'in_progress'
+    so that deduplication and refills do not cause premature completion.
     """
     async with async_session_factory() as session:
         batch_model = await session.get(GenerationBatchModel, batch_id)
@@ -134,9 +138,10 @@ async def refresh_batch_aggregates(batch_id: str) -> GenerationBatch | None:
         total_tokens = int(row.total_tokens or 0)
         cost_usd = round(float(row.cost_usd or 0.0), 6)
 
-        # Count real active questions in the batch (excluding discarded, failed, rejected)
+        # Count real active questions in the batch (excluding soft-deleted, discarded, failed, rejected)
         q_count_stmt = select(func.count(QuestionModel.id)).where(
             QuestionModel.batch_id == batch_id,
+            QuestionModel.is_deleted.is_(False),
             QuestionModel.status.notin_(
                 ("discarded", "rejected_below_threshold", "error", "failed")
             ),
@@ -157,20 +162,28 @@ async def refresh_batch_aggregates(batch_id: str) -> GenerationBatch | None:
 
         # Preserve terminal or user-stopped status unless transitioning upon completion
         if batch_model.status not in ("cancelled", "stopped"):
-            if actual_count >= target_count and actual_count > 0:
-                batch_model.status = "completed"
-            elif completed_jobs >= total_jobs:
-                batch_model.status = "completed" if actual_count >= target_count else "in_progress"
-            elif completed_jobs + failed_jobs >= total_jobs:
+            if completed_jobs + failed_jobs >= total_jobs and failed_jobs > 0:
                 batch_model.status = "partially_completed" if completed_jobs > 0 else "failed"
+            elif actual_count >= target_count and actual_count > 0:
+                batch_model.status = "completed" if allow_complete else "in_progress"
+            elif completed_jobs >= total_jobs:
+                if allow_complete:
+                    batch_model.status = (
+                        "completed" if actual_count >= target_count else "partially_completed"
+                    )
+                else:
+                    batch_model.status = "in_progress"
+            elif batch_model.status != "completed":
+                batch_model.status = "in_progress"
 
-        # If batch is completed, promote qualifying active questions (>90 score) to 'ai_validated'
-        if batch_model.status == "completed":
+        # If batch is completed or partially completed, promote qualifying active questions (>90 score) to 'ai_validated'
+        if batch_model.status in ("completed", "partially_completed"):
             promote_stmt = (
                 update(QuestionModel)
                 .where(
                     QuestionModel.batch_id == batch_id,
                     QuestionModel.status == "batch_only",
+                    QuestionModel.is_deleted.is_(False),
                     QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD,
                 )
                 .values(status="ai_validated", updated_at=datetime.now(UTC))
@@ -193,6 +206,7 @@ async def promote_completed_batch_questions(batch_id: str) -> int:
             .where(
                 QuestionModel.batch_id == batch_id,
                 QuestionModel.status == "batch_only",
+                QuestionModel.is_deleted.is_(False),
                 QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD,
             )
             .values(status="ai_validated", updated_at=datetime.now(UTC))

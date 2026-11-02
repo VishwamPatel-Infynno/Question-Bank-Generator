@@ -182,6 +182,51 @@ async def test_admin_approval_and_persistence_endpoints():
     assert await get_question_by_id(batch_q2.id) is None
     assert await delete_questions_batch([]) == 0
 
+    # Test permanent purge endpoints
+    from app.api.v1.questions import purge_questions_batch_endpoint, purge_single_question
+    purge_q_id = str(uuid.uuid4())
+    await save_question(
+        Question(
+            id=purge_q_id,
+            section="biological_biochemical",
+            section_label="Biological and Biochemical Foundations of Living Systems",
+            subtopic="Enzyme Kinetics",
+            difficulty="medium",
+            question_stem="Question for permanent purge test?",
+            options=[OptionChoice(id="A", text="Opt A")],
+            correct_answer_id="A",
+            explanation="Test purge rationale",
+            final_score=95,
+            status="ai_validated",
+        )
+    )
+    assert await get_question_by_id(purge_q_id) is not None
+    purge_res = await purge_single_question(purge_q_id)
+    assert purge_res["success"] is True
+    assert await get_question_by_id(purge_q_id) is None
+
+    # Test purge batch endpoint
+    purge_b1 = str(uuid.uuid4())
+    await save_question(
+        Question(
+            id=purge_b1,
+            section="biological_biochemical",
+            section_label="Biological and Biochemical Foundations of Living Systems",
+            subtopic="Enzyme Kinetics",
+            difficulty="medium",
+            question_stem="Batch question for permanent purge test?",
+            options=[OptionChoice(id="A", text="Opt A")],
+            correct_answer_id="A",
+            explanation="Test purge rationale",
+            final_score=95,
+            status="ai_validated",
+        )
+    )
+    purge_batch_res = await purge_questions_batch_endpoint(BatchDeleteRequest(ids=[purge_b1]))
+    assert purge_batch_res["success"] is True
+    assert purge_batch_res["purged_count"] == 1
+    assert await get_question_by_id(purge_b1) is None
+
 
 @pytest.mark.asyncio
 async def test_multichoice_and_passage_support():

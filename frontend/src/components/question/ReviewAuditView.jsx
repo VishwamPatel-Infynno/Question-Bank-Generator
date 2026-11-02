@@ -127,7 +127,7 @@ export default function ReviewAuditView({ question, onClose }) {
             </div>
             <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
               <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>QUALITY STATUS</div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--status-success)' }}>High Quality (&gt; 90)</div>
+              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--status-success)' }}>High Quality</div>
             </div>
           </div>
         </div>
@@ -361,7 +361,7 @@ export default function ReviewAuditView({ question, onClose }) {
                     </span>
                   </div>
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    {h.review?.passed ? '✓ Met High Quality (>90 Score)' : 'Polished in Refinement Round'}
+                    {h.review?.passed ? '✓ Met High Quality' : 'Polished in Refinement Round'}
                   </span>
                 </div>
               ))}

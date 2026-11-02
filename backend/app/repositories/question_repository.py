@@ -2,7 +2,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.db.base import to_datetime, to_iso_str
@@ -485,6 +485,28 @@ async def delete_questions_batch(question_ids: list[str]) -> int:
     return result.rowcount or 0
 
 
+async def hard_delete_questions_batch(question_ids: list[str]) -> int:
+    """Permanently purges questions by primary key IDs from the database (used for duplicate resolution and trimming excess buffer)."""
+    if not question_ids:
+        return 0
+    async with async_session_factory() as session:
+        stmt = delete(QuestionModel).where(QuestionModel.id.in_(question_ids))
+        result = await session.execute(stmt)
+        await session.commit()
+    return result.rowcount or 0
+
+
+async def hard_delete_question(question_id: str) -> bool:
+    """Permanently purges a single question by ID from the database."""
+    if not question_id:
+        return False
+    async with async_session_factory() as session:
+        stmt = delete(QuestionModel).where(QuestionModel.id == question_id)
+        result = await session.execute(stmt)
+        await session.commit()
+    return bool(result.rowcount and result.rowcount > 0)
+
+
 async def restore_question(question_id: str) -> Question | None:
     """Restores a soft-deleted question back to active status, and restores its passage if soft-deleted."""
     now_dt = datetime.now(UTC)
@@ -648,6 +670,8 @@ __all__ = [
     "batch_update_question_status",
     "delete_question",
     "delete_questions_batch",
+    "hard_delete_question",
+    "hard_delete_questions_batch",
     "get_question_by_id",
     "get_question_status_counts",
     "get_questions",

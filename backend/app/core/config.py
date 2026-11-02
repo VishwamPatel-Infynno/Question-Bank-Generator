@@ -276,7 +276,7 @@ class Settings(BaseSettings):
     # Global Multi-Batch Concurrency & Rate Limiting Controls
     GLOBAL_MAX_CONCURRENT_JOBS: int = 4
     GLOBAL_MAX_CONCURRENT_LLM_CALLS: int = 10
-    LLM_MAX_RETRIES: int = 4
+    LLM_MAX_RETRIES: int = 3
     LLM_BASE_BACKOFF_SECONDS: float = 1.5
     # Per-worker retry attempts for individual question generation jobs within a batch
     WORKFLOW_MAX_WORKER_RETRIES: int = 2

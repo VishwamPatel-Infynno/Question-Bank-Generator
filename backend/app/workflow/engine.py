@@ -251,10 +251,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             logger.warning(f"Could not load reference questions for deduplication: {ref_err}")
 
         async def _worker(idx: int) -> None:
-            max_worker_retries = config.WORKFLOW_MAX_WORKER_RETRIES
-            max_slot_attempts = (
-                max_worker_retries + 3
-            )  # Up to 5 attempts to guarantee slot completion
+            max_slot_attempts = 3  # Try up to 3 times max per slot, then move forward
             for attempt in range(max_slot_attempts):
                 try:
                     async with semaphore:

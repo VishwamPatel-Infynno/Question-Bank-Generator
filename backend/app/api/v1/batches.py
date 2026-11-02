@@ -14,8 +14,8 @@ from app.repositories.batch_repository import (
 from app.repositories.job_repository import get_jobs_by_batch_id
 from app.repositories.question_repository import (
     batch_update_question_status,
-    delete_questions_batch,
     get_questions,
+    hard_delete_questions_batch,
 )
 from app.schemas import GenerationBatch, GenerationRequest, is_question_active
 from app.services.batch_runner import (
@@ -85,10 +85,12 @@ async def get_single_batch(batch_id: str):
 
     jobs = await get_jobs_by_batch_id(batch_id)
     linked_questions = await get_questions(batch_id=batch_id, include_deleted=True)
+    # Discarded duplicate questions must not be attached to jobs or displayed as active/deleted bank questions
+    visible_questions = [q for q in linked_questions if q.status != "discarded"]
 
     # Group questions by job_id or run_id
     questions_by_job: dict[str, list[dict]] = {}
-    for q in linked_questions:
+    for q in visible_questions:
         q_dump = q.model_dump()
         j_key = q.job_id or q.run_id or "unassigned"
         questions_by_job.setdefault(j_key, []).append(q_dump)
@@ -103,8 +105,8 @@ async def get_single_batch(batch_id: str):
     return {
         "batch": b.model_dump(),
         "jobs": jobs_with_questions,
-        "questions": [q.model_dump() for q in linked_questions],
-        "total_questions_count": len(linked_questions),
+        "questions": [q.model_dump() for q in visible_questions],
+        "total_questions_count": len(visible_questions),
     }
 
 
@@ -256,7 +258,7 @@ async def resolve_batch_duplicates(
     modified_count = 0
     if duplicate_ids_to_purge:
         if req_data.action == "delete":
-            modified_count = await delete_questions_batch(duplicate_ids_to_purge)
+            modified_count = await hard_delete_questions_batch(duplicate_ids_to_purge)
         else:
             # Default: Archive (mark status='discarded')
             modified_count = await batch_update_question_status(

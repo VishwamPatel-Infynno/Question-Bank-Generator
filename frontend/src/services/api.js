@@ -115,6 +115,24 @@ export async function batchDeleteQuestions(ids) {
   return res.json();
 }
 
+export async function purgeQuestion(id) {
+  const res = await fetch(`${API_BASE}/questions/${id}/permanent`, {
+    method: 'DELETE'
+  });
+  await assertOk(res, `Purge question ${id}`);
+  return res.json();
+}
+
+export async function purgeQuestionsBatch(ids) {
+  const res = await fetch(`${API_BASE}/questions/purge-batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids })
+  });
+  await assertOk(res, 'Purge questions batch');
+  return res.json();
+}
+
 export async function restoreQuestion(id) {
   const res = await fetch(`${API_BASE}/questions/${id}/restore`, {
     method: 'POST'

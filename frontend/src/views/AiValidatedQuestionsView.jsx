@@ -10,7 +10,9 @@ import {
   fetchQuestions,
   fetchQuestionCounts,
   updateQuestionStatus,
-  batchUpdateQuestionStatus
+  batchUpdateQuestionStatus,
+  purgeQuestion,
+  purgeQuestionsBatch
 } from '../services/api';
 import {
   AiValidatedStatsBar,
@@ -186,14 +188,14 @@ export default function AiValidatedQuestionsView({
   const handleDiscardSingle = async (q) => {
     setActionInProgress(true);
     try {
-      await updateQuestionStatus(q.id, 'discarded');
+      await purgeQuestion(q.id);
       setQuestions(prev => prev.filter(item => item.id !== q.id));
       setSelectedIds(prev => prev.filter(id => id !== q.id));
       if (onShowToast) {
         onShowToast({
           type: 'info',
           title: 'Question Discarded',
-          message: 'Question has been marked as discarded.'
+          message: 'Question has been permanently removed.'
         });
       }
       if (onRefreshCounts) onRefreshCounts();
@@ -243,7 +245,7 @@ export default function AiValidatedQuestionsView({
     setConfirmModal({
       isOpen: true,
       title: 'Discard Selected Questions',
-      description: `Are you sure you want to discard ${count} selected question${count !== 1 ? 's' : ''}? They will be removed from the Review Queue and marked as discarded.`,
+      description: `Are you sure you want to discard ${count} selected question${count !== 1 ? 's' : ''}? They will be permanently removed from the system.`,
       confirmLabel: `Discard ${count} Question${count !== 1 ? 's' : ''}`,
       variant: 'danger',
       itemCount: count,
@@ -251,13 +253,13 @@ export default function AiValidatedQuestionsView({
       onConfirm: async () => {
         setActionInProgress(true);
         try {
-          await batchUpdateQuestionStatus(selectedIds, 'discarded');
+          await purgeQuestionsBatch(selectedIds);
           setQuestions(prev => prev.filter(item => !selectedIds.includes(item.id)));
           if (onShowToast) {
             onShowToast({
               type: 'info',
               title: 'Questions Discarded',
-              message: `${count} question(s) marked as discarded.`
+              message: `${count} question(s) permanently removed.`
             });
           }
           setSelectedIds([]);
@@ -267,7 +269,7 @@ export default function AiValidatedQuestionsView({
         } catch (err) {
           console.error('Bulk discard failed:', err);
           if (onShowToast) {
-            onShowToast({ type: 'error', title: 'Bulk Discard Failed', message: err.message || 'Error updating questions.' });
+            onShowToast({ type: 'error', title: 'Bulk Discard Failed', message: err.message || 'Error deleting questions.' });
           }
         } finally {
           setActionInProgress(false);
@@ -359,7 +361,7 @@ export default function AiValidatedQuestionsView({
             <p className="view-empty-desc">
               {searchQuery || sectionFilter
                 ? 'No questions matched your current filter criteria. Try clearing filters.'
-                : 'All high-quality questions have been saved to your Question Bank or discarded. Generate a new practice set to create more questions.'}
+                : 'All high-quality questions have been saved to your Question Bank or reviewed. Generate a new practice set to create more questions.'}
             </p>
           </div>
           <div className="view-empty-actions">

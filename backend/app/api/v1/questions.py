@@ -16,6 +16,8 @@ from app.repositories.question_repository import (
     get_questions,
     get_repository_metrics,
     get_subtopic_reference_questions,
+    hard_delete_question,
+    hard_delete_questions_batch,
     override_question_duplicate,
     restore_question,
     save_question,
@@ -157,6 +159,24 @@ async def remove_questions_batch(payload: BatchDeleteRequest):
     deleted_count = await delete_questions_batch(payload.ids)
     logger.info(f"Bulk deleted {deleted_count} questions from Question Bank.")
     return {"success": True, "deleted_count": deleted_count}
+
+
+@router.delete("/questions/{question_id}/permanent")
+async def purge_single_question(question_id: str):
+    """Permanently deletes a single question by ID from the database."""
+    success = await hard_delete_question(question_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Question not found")
+    logger.info(f"Permanently purged question {question_id} from database.")
+    return {"success": True}
+
+
+@router.post("/questions/purge-batch")
+async def purge_questions_batch_endpoint(payload: BatchDeleteRequest):
+    """Permanently deletes multiple questions from database."""
+    purged_count = await hard_delete_questions_batch(payload.ids)
+    logger.info(f"Permanently purged {purged_count} questions from database.")
+    return {"success": True, "purged_count": purged_count}
 
 
 @router.post("/questions/{question_id}/restore")

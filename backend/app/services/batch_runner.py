@@ -20,8 +20,8 @@ from app.repositories.job_repository import (
 )
 from app.repositories.question_repository import (
     batch_update_question_status,
-    delete_questions_batch,
     get_questions,
+    hard_delete_questions_batch,
     save_question,
 )
 from app.schemas import (
@@ -297,7 +297,10 @@ async def _run_single_job_refill(
         if is_passage_mode and not passage_id_for_job:
             passage_id_for_job = str(uuid.uuid4())
 
-        thematic_angle = BATCH_THEMATIC_ANGLES[(job.job_number - 1) % len(BATCH_THEMATIC_ANGLES)]
+        refill_thematic_angle = (
+            f"{BATCH_THEMATIC_ANGLES[(job.job_number - 1) % len(BATCH_THEMATIC_ANGLES)]} • "
+            f"In-Set Replenishment Item"
+        )
 
         refill_req = base_req.model_copy(
             update={
@@ -309,7 +312,7 @@ async def _run_single_job_refill(
                 "passage_mode": "single_passage" if is_passage_mode else "independent",
                 "passage_required": "Yes" if is_passage_mode else "No",
                 "passage_id": passage_id_for_job,
-                "thematic_angle": thematic_angle,
+                "thematic_angle": refill_thematic_angle,
                 "shared_stimulus": existing_stimulus,  # Ground replacement question in set's existing passage
             }
         )
@@ -376,7 +379,7 @@ async def _execute_in_set_refill(
     req: GenerationRequest,
     jobs_to_refill: list[tuple[GenerationJob, int]],
     current_cycle: int = 2,
-    max_cycles: int = 5,
+    max_cycles: int = 3,
 ) -> None:
     """Coordinates execution of in-set replenishment without creating new jobs."""
     tasks: list[asyncio.Task[Any]] = []
@@ -388,15 +391,15 @@ async def _execute_in_set_refill(
         ]
         await asyncio.gather(*tasks, return_exceptions=True)
 
-        await refresh_batch_aggregates(batch_id)
+        await refresh_batch_aggregates(batch_id, allow_complete=False)
 
         # Autonomous duplicate resolution and refill on next cycle if needed
         refill_result = await auto_resolve_batch_and_refill(
             batch_id, current_cycle=current_cycle, max_cycles=max_cycles
         )
         if not refill_result.get("refill_launched"):
-            final_b = await refresh_batch_aggregates(batch_id)
-            if final_b and final_b.status == "completed":
+            final_b = await refresh_batch_aggregates(batch_id, allow_complete=True)
+            if final_b and final_b.status in ("completed", "partially_completed"):
                 await promote_completed_batch_questions(batch_id)
     except asyncio.CancelledError:
         logger.info(f"In-set refill for batch {batch_id} was cancelled.")
@@ -423,7 +426,7 @@ async def _execute_batch_workflow(
     req: GenerationRequest,
     target_jobs: list[GenerationJob] | None = None,
     current_cycle: int = 1,
-    max_cycles: int = 5,
+    max_cycles: int = 3,
 ) -> None:
     """Coordinates the execution of jobs within a batch using the global worker semaphore."""
     tasks: list[asyncio.Task[Any]] = []
@@ -450,8 +453,8 @@ async def _execute_batch_workflow(
         ]
         await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Finalize batch state atomically
-        updated_batch = await refresh_batch_aggregates(batch_id)
+        # Finalize batch state atomically without premature completion
+        updated_batch = await refresh_batch_aggregates(batch_id, allow_complete=False)
         if updated_batch:
             logger.info(
                 f"Batch {batch_id} finished execution. Status: {updated_batch.status} "
@@ -465,8 +468,8 @@ async def _execute_batch_workflow(
         )
         if not refill_result.get("refill_launched"):
             # Batch has fully concluded all processing, deduplication, and refilling
-            final_b = await refresh_batch_aggregates(batch_id)
-            if final_b and final_b.status == "completed":
+            final_b = await refresh_batch_aggregates(batch_id, allow_complete=True)
+            if final_b and final_b.status in ("completed", "partially_completed"):
                 await promote_completed_batch_questions(batch_id)
 
     except asyncio.CancelledError:
@@ -492,14 +495,14 @@ async def _execute_batch_workflow(
 async def auto_resolve_batch_and_refill(
     batch_id: str,
     current_cycle: int = 1,
-    max_cycles: int = 5,
+    max_cycles: int = 3,
     threshold: float = 0.75,
 ) -> dict[str, Any]:
     """
     Evaluates active questions in a batch for duplicate clusters, permanently deletes
     redundant duplicates in favor of the highest-scoring question in each cluster,
     and automatically triggers in-set replenishment within affected sets if a deficit exists,
-    capped at max_cycles (up to 5 cycles). Also trims excess questions within sets to exact target.
+    capped at max_cycles (up to 3 cycles). Also trims excess questions within sets to exact target.
     """
     b = await get_batch_by_id(batch_id)
     if not b:
@@ -521,8 +524,7 @@ async def auto_resolve_batch_and_refill(
                     duplicate_ids_to_purge.append(dup_id)
 
         if duplicate_ids_to_purge:
-            await delete_questions_batch(duplicate_ids_to_purge)
-            await batch_update_question_status(duplicate_ids_to_purge, status="discarded")
+            await hard_delete_questions_batch(duplicate_ids_to_purge)
             logger.info(
                 f"Auto-resolved {len(clusters)} duplicate cluster(s) in batch {batch_id}; "
                 f"permanently deleted {len(duplicate_ids_to_purge)} duplicate question(s)."
@@ -546,14 +548,14 @@ async def auto_resolve_batch_and_refill(
             job_qs.sort(key=lambda q: q.final_score or 0, reverse=True)
             excess_to_delete = [q.id for q in job_qs[job.target_count :]]
             if excess_to_delete:
-                await delete_questions_batch(excess_to_delete)
+                await hard_delete_questions_batch(excess_to_delete)
                 logger.info(
                     f"Trimmed Set #{job.job_number} (Job {job.id}) to target count {job.target_count}: "
-                    f"deleted {len(excess_to_delete)} excess question(s)."
+                    f"permanently deleted {len(excess_to_delete)} excess question(s)."
                 )
             await update_job_progress(job.id, actual_count=job.target_count)
 
-    await refresh_batch_aggregates(batch_id)
+    await refresh_batch_aggregates(batch_id, allow_complete=False)
     refreshed_b = await get_batch_by_id(batch_id)
     refreshed_questions = await get_questions(batch_id=batch_id)
     valid_active = [q for q in refreshed_questions if is_question_active(q.status)]
@@ -582,7 +584,7 @@ async def auto_resolve_batch_and_refill(
             logger.info(
                 f"Capped batch {batch_id} to exact target {target}: archived {len(excess_to_delete)} excess buffer question(s)."
             )
-        await refresh_batch_aggregates(batch_id)
+        await refresh_batch_aggregates(batch_id, allow_complete=False)
         remaining_active = target
         deficit = 0
 
@@ -690,7 +692,7 @@ async def refill_batch_deficit(
     batch_id: str,
     deficit: int,
     cycle: int = 2,
-    max_cycles: int = 5,
+    max_cycles: int = 3,
 ) -> tuple[GenerationBatch | None, list[GenerationJob]]:
     """
     Replenishes questions in-place for existing jobs that have deficits,

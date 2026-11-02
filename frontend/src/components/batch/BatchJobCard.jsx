@@ -22,6 +22,7 @@ export default function BatchJobCard({
 
   // Compute status counts for questions in this job
   const resolveStatus = (q) => {
+    if (q.status === 'discarded') return 'discarded';
     if (q.is_deleted) return 'deleted';
     if (q.status) return q.status;
     const score = q.final_score ?? 95;
@@ -30,7 +31,8 @@ export default function BatchJobCard({
     return 'below_threshold';
   };
 
-  const deletedCount = jobQuestions.filter((q) => Boolean(q.is_deleted)).length;
+  // Only genuine user deletions from the bank count as deleted; discarded duplicates never count as deleted
+  const deletedCount = jobQuestions.filter((q) => Boolean(q.is_deleted) && q.status !== 'discarded').length;
   const validatedCount = jobQuestions.filter((q) => !q.is_deleted && resolveStatus(q) === 'ai_validated').length;
   const batchOnlyCount = jobQuestions.filter((q) => !q.is_deleted && resolveStatus(q) === 'batch_only').length;
   const inBankCount = jobQuestions.filter((q) => !q.is_deleted && resolveStatus(q) === 'in_bank').length;
@@ -52,8 +54,11 @@ export default function BatchJobCard({
       )
   );
 
+  // Filter out any discarded duplicate questions so they never appear in the job questions list
+  const visibleQuestions = jobQuestions.filter((q) => q.status !== 'discarded');
+
   // Present kept questions (>85) first, then below threshold (<=85)
-  const sortedQuestions = [...jobQuestions].sort((a, b) => {
+  const sortedQuestions = [...visibleQuestions].sort((a, b) => {
     const isKeptA = resolveStatus(a) !== 'below_threshold';
     const isKeptB = resolveStatus(b) !== 'below_threshold';
     if (isKeptA && !isKeptB) return -1;
@@ -175,7 +180,7 @@ export default function BatchJobCard({
                 fontWeight: 700
               }}
             >
-              {validatedCount} Ready for Review (&gt;90)
+              {validatedCount} Ready for Review
             </span>
           )}
           {batchOnlyCount > 0 && (
@@ -192,7 +197,7 @@ export default function BatchJobCard({
                 gap: '3px'
               }}
             >
-              <Layers size={10} /> {batchOnlyCount} Good Quality (86-90)
+              <Layers size={10} /> {batchOnlyCount} Good Quality
             </span>
           )}
           {inBankCount > 0 && (
@@ -319,7 +324,7 @@ export default function BatchJobCard({
       )}
 
       {/* Expanded Questions inside Job */}
-      {isExpanded && jobQuestions.length > 0 && (
+      {isExpanded && visibleQuestions.length > 0 && (
         <div
           style={{
             marginTop: '8px',

@@ -56,7 +56,7 @@ export default function StageJsonInspector({ question }) {
         iteration_count: question.iteration_count,
         history: question.iterations_history
       } : null),
-      bypassedNote: question.iteration_count <= 1 ? 'First draft scored 90+ on the rubric, so no additional revisions were needed.' : null
+      bypassedNote: question.iteration_count <= 1 ? 'First draft met the quality rubric, so no additional revisions were needed.' : null
     },
     {
       id: 'visual_stimulus',
@@ -91,7 +91,7 @@ export default function StageJsonInspector({ question }) {
         final_score: question.final_score,
         correct_answer_id: question.correct_answer_id,
         compute_units: question.total_tokens,
-        quality_status: question.final_score > 90 ? 'Passed (>90 Rubric)' : 'Passed Benchmark',
+        quality_status: question.final_score > 90 ? 'High Quality' : 'Passed Benchmark',
         created_at: question.created_at
       }
     }

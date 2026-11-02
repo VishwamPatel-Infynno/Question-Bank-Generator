@@ -17,12 +17,8 @@ export default function ActiveMultiBatchMonitor({
   isCancellingAll = false
 }) {
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
+  const [highestOverallProgress, setHighestOverallProgress] = useState(0);
 
-  if (!activeBatches || activeBatches.length === 0) {
-    return null;
-  }
-
-  const batchCount = activeBatches.length;
   const totalJobs = activeBatches.reduce((acc, b) => acc + (b.total_jobs || 10), 0);
   const completedJobs = activeBatches.reduce((acc, b) => acc + (b.completed_jobs || 0), 0);
   const targetQuestions = activeBatches.reduce((acc, b) => acc + (b.target_count || 50), 0);
@@ -30,9 +26,28 @@ export default function ActiveMultiBatchMonitor({
   const totalTokens = activeBatches.reduce((acc, b) => acc + (b.total_tokens || 0), 0);
   const totalCost = activeBatches.reduce((acc, b) => acc + (b.cost_usd || 0.0), 0.0);
 
-  const overallProgressPct = targetQuestions > 0
-    ? Math.min(100, Math.round((actualQuestions / targetQuestions) * 100))
+  const allCompleted = activeBatches.length > 0 && activeBatches.every((b) => b.status === 'completed');
+  const rawProgressPct = targetQuestions > 0
+    ? Math.round((actualQuestions / targetQuestions) * 100)
     : 0;
+  const runningOverall = Math.min(95, Math.max(0, rawProgressPct));
+
+  if (activeBatches.length > 0) {
+    if (allCompleted && highestOverallProgress !== 100) {
+      setHighestOverallProgress(100);
+    } else if (!allCompleted && runningOverall > highestOverallProgress) {
+      setHighestOverallProgress(runningOverall);
+    }
+  }
+
+  if (!activeBatches || activeBatches.length === 0) {
+    return null;
+  }
+
+  const batchCount = activeBatches.length;
+  const overallProgressPct = allCompleted
+    ? 100
+    : Math.max(highestOverallProgress, runningOverall);
 
   const handleConfirmCancel = () => {
     setShowConfirmCancel(false);

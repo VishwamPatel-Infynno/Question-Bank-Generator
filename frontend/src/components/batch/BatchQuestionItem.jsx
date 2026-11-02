@@ -79,7 +79,7 @@ export default function BatchQuestionItem({
           </span>
 
           {/* Status Badge */}
-          {question.is_deleted ? (
+          {question.is_deleted && question.status !== 'discarded' ? (
             <span
               style={{
                 fontSize: '0.675rem',
@@ -132,7 +132,7 @@ export default function BatchQuestionItem({
                     gap: '4px'
                   }}
                 >
-                  <Sparkles size={11} /> Ready for Review (&gt;90)
+                  <Sparkles size={11} /> Ready for Review
                 </span>
               )}
 
@@ -151,7 +151,7 @@ export default function BatchQuestionItem({
                     gap: '4px'
                   }}
                 >
-                  <Layers size={11} /> Good Quality (86-90)
+                  <Layers size={11} /> Good Quality
                 </span>
               )}
 
@@ -403,7 +403,7 @@ export default function BatchQuestionItem({
           {question.aamc_skill || question.primary_trap || 'MCAT Standard'}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {question.is_deleted && onRestoreQuestion && (
+          {question.is_deleted && question.status !== 'discarded' && onRestoreQuestion && (
             <button
               type="button"
               onClick={() => onRestoreQuestion(question)}
