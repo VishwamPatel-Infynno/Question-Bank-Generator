@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from app.db.session import init_db
+from app.main import app
 from app.repositories import (
     get_jobs_by_batch_id,
     get_questions,
@@ -12,13 +13,9 @@ from app.repositories import (
     save_job,
     update_job_progress,
 )
-from app.schemas import (
-    GenerationBatch,
-    GenerationJob,
-    GenerationRequest,
-    MCATSection,
-)
+from app.schemas import GenerationBatch, GenerationJob, GenerationRequest, MCATSection
 from app.services.batch_runner import _run_single_job, retry_incomplete_jobs_for_batch
+from httpx import ASGITransport, AsyncClient
 
 pytestmark = pytest.mark.requires_db
 
@@ -62,8 +59,8 @@ async def test_job_trial_count_persistence():
 
 
 @pytest.mark.asyncio
-async def test_retry_incomplete_jobs_targets_shortfalls():
-    """Verifies that retry_incomplete_jobs_for_batch includes jobs with actual_count < target_count."""
+async def test_resume_stopped_jobs_under_3_trials():
+    """Verifies that stopped/cancelled jobs with trial_count < 3 can be resumed."""
     await init_db()
 
     batch_id = str(uuid.uuid4())
@@ -77,7 +74,7 @@ async def test_retry_incomplete_jobs_targets_shortfalls():
         difficulty="medium",
         target_count=15,
         actual_count=8,
-        status="partially_completed",
+        status="stopped",
     )
     await save_batch(batch)
 
@@ -90,24 +87,24 @@ async def test_retry_incomplete_jobs_targets_shortfalls():
             status="completed",
             target_count=5,
             actual_count=5,
-            trial_count=3,
+            trial_count=1,
         )
     )
 
-    # Job 2: shortfall (3/5) but was marked completed
+    # Job 2: shortfall (3/5) on trial 1 (stopped mid-run)
     await save_job(
         GenerationJob(
             id=job_short_id,
             batch_id=batch_id,
             job_number=2,
-            status="completed",
+            status="cancelled",
             target_count=5,
             actual_count=3,
-            trial_count=3,
+            trial_count=1,
         )
     )
 
-    # Job 3: failed (0/5)
+    # Job 3: failed (0/5) on trial 1
     await save_job(
         GenerationJob(
             id=job_failed_id,
@@ -116,7 +113,7 @@ async def test_retry_incomplete_jobs_targets_shortfalls():
             status="failed",
             target_count=5,
             actual_count=0,
-            trial_count=3,
+            trial_count=1,
         )
     )
 
@@ -130,10 +127,52 @@ async def test_retry_incomplete_jobs_targets_shortfalls():
     assert job_failed_id in retried_pending_ids
     assert job_full_id not in retried_pending_ids
 
-    # Verify trial_count was reset to 1 on re-queued jobs
-    updated_short = [j for j in retried_jobs if j.id == job_short_id][0]
-    assert updated_short.status == "pending"
-    assert updated_short.trial_count == 1
+
+@pytest.mark.asyncio
+async def test_retry_strictly_blocked_after_3_trials():
+    """
+    Verifies that jobs with trial_count >= 3 cannot be retried,
+    and the API returns HTTP 400 Bad Request.
+    """
+    await init_db()
+
+    batch_id = str(uuid.uuid4())
+    job_id = str(uuid.uuid4())
+
+    batch = GenerationBatch(
+        id=batch_id,
+        section="CPBS",
+        difficulty="medium",
+        target_count=5,
+        actual_count=3,
+        status="partially_completed",
+    )
+    await save_batch(batch)
+
+    # Job that exhausted all 3 trials
+    await save_job(
+        GenerationJob(
+            id=job_id,
+            batch_id=batch_id,
+            job_number=1,
+            status="completed",
+            target_count=5,
+            actual_count=3,
+            trial_count=3,
+        )
+    )
+
+    # Calling service directly yields empty jobs list
+    b, retried_jobs = await retry_incomplete_jobs_for_batch(batch_id)
+    assert len(retried_jobs) == 0
+
+    # Calling API endpoint returns 400 Bad Request
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post(f"/api/batches/{batch_id}/retry")
+        assert resp.status_code == 400
+        data = resp.json()
+        assert "maximum 3-trial limit" in data["detail"]
 
 
 @pytest.mark.asyncio
@@ -166,35 +205,8 @@ async def test_run_single_job_autonomous_in_flight_retry():
     )
     await save_job(job)
 
-    # Helper to generate mock SSE stream yielding given count of questions
     call_count = 0
 
-    async def mock_run_workflow_stream(req):
-        nonlocal call_count
-        call_count += 1
-        qty = req.questions_to_generate or 1
-        for i in range(qty):
-            q_id = str(uuid.uuid4())
-            q_dict = {
-                "id": q_id,
-                "batch_id": batch_id,
-                "job_id": job_id,
-                "section": "chemical_physical",
-                "section_label": "Chemical and Physical Foundations",
-                "subtopic": "Thermodynamics",
-                "difficulty": "medium",
-                "question_stem": f"Question {i + 1} from attempt {call_count}",
-                "options": [{"id": "A", "text": "Opt A"}, {"id": "B", "text": "Opt B"}],
-                "correct_answer_id": "A",
-                "explanation": "Rationale",
-                "final_score": 92,
-                "status": "batch_only",
-            }
-            yield f"data: {json.dumps({'event_type': 'question_generated', 'data': {'question': q_dict}})}\n\n"
-        yield f"data: {json.dumps({'event_type': 'workflow_complete', 'data': {'questions': []}})}\n\n"
-
-    # In trial 1: simulate generating only 3 questions (deficit of 2)
-    # In trial 2: simulate generating the remaining 2 questions (reaching 5/5)
     async def mock_workflow_stream_two_attempts(req):
         nonlocal call_count
         call_count += 1
@@ -230,7 +242,10 @@ async def test_run_single_job_autonomous_in_flight_retry():
         questions_to_generate=5,
     )
 
-    with patch("app.workflow.engine.run_workflow_stream", side_effect=mock_workflow_stream_two_attempts):
+    with patch(
+        "app.workflow.engine.run_workflow_stream",
+        side_effect=mock_workflow_stream_two_attempts,
+    ):
         await _run_single_job(batch_id, job, req, semaphore)
 
     # Verify that run_workflow_stream was called twice autonomously in-flight

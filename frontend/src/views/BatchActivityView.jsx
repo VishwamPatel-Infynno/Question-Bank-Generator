@@ -243,8 +243,8 @@ export default function BatchActivityView({
       if (onShowToast) {
         onShowToast({
           type: 'success',
-          title: 'Incomplete Sets Re-queued',
-          message: 'Incomplete question sets have been re-queued with fresh autonomous retry trials.'
+          title: 'Incomplete Sets Resumed',
+          message: 'Incomplete question sets have resumed generation.'
         });
       }
       await loadBatches(true);

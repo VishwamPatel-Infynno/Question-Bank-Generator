@@ -132,9 +132,17 @@ async def retry_single_batch(batch_id: str, req: GenerationRequest | None = None
     if not b:
         raise HTTPException(status_code=404, detail="Batch not found")
     batch, jobs = await retry_incomplete_jobs_for_batch(batch_id, req)
+    if not jobs:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"All incomplete sets in batch {batch_id} have already reached the maximum 3-trial limit "
+                "or have already completed, and cannot be retried."
+            ),
+        )
     return {
         "success": True,
-        "message": f"Retrying incomplete jobs for batch {batch_id}.",
+        "message": f"Resuming incomplete jobs for batch {batch_id}.",
         "batch": batch.model_dump() if batch else None,
         "jobs": [j.model_dump() for j in jobs],
     }

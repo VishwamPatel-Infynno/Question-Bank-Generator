@@ -730,21 +730,24 @@ async def retry_incomplete_jobs_for_batch(
     await cancel_background_batch(batch_id)
 
     jobs = await get_jobs_by_batch_id(batch_id)
+    # Strictly enforce 3-trial ceiling: only jobs with trial_count < 3 are eligible for retry/resume
     retryable_jobs = [
         j
         for j in jobs
-        if j.status in ("failed", "cancelled", "pending")
-        or (j.actual_count < (j.target_count or 5))
+        if (j.trial_count or 1) < 3
+        and (
+            j.status in ("failed", "cancelled", "pending")
+            or (j.actual_count < (j.target_count or 5))
+        )
     ]
     if not retryable_jobs:
-        return b, jobs
+        return b, []
 
-    # Reset retryable jobs to pending and reset trial_count so they get fresh attempts
+    # Reset retryable jobs to pending while preserving their current trial count
     for j in retryable_jobs:
         await update_job_progress(
             j.id,
             status="pending",
-            trial_count=1,
             error_message=None,
             started_at=None,
             completed_at=None,
