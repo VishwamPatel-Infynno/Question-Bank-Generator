@@ -346,7 +346,7 @@ function BatchCard({
             </button>
           )}
 
-          {/* Retry Incomplete Jobs button for partially completed, stopped, or failed batches */}
+          {/* Manual Retry Fallback: Only shown if all 3 automated trials have completed or batch was manually stopped */}
           {(batch.status === 'partially_completed' || batch.status === 'failed' || batch.status === 'cancelled' || batch.status === 'stopped') && (
             <button
               type="button"
@@ -368,10 +368,20 @@ function BatchCard({
                 alignItems: 'center',
                 gap: '4px'
               }}
-              title="Retry incomplete or failed jobs in this batch"
+              title={
+                batch.status === 'cancelled' || batch.status === 'stopped'
+                  ? 'Resume incomplete sets from where you stopped'
+                  : 'All 3 automated trials completed. Click to trigger manual retry.'
+              }
             >
               <RotateCcw size={11} />
-              <span>{isRetrying ? 'Retrying...' : 'Retry Incomplete Sets'}</span>
+              <span>
+                {isRetrying
+                  ? 'Retrying...'
+                  : batch.status === 'cancelled' || batch.status === 'stopped'
+                    ? 'Resume Sets'
+                    : 'Manual Retry (3 Trials Exhausted)'}
+              </span>
             </button>
           )}
 

@@ -1,6 +1,8 @@
 import React from 'react';
 import { CheckCircle, Scale } from 'lucide-react';
 
+const EMPTY_ARRAY = Object.freeze([]);
+
 /**
  * QuestionOptionsList
  *
@@ -8,11 +10,11 @@ import { CheckCircle, Scale } from 'lucide-react';
  * word count counters, correct answer indicators, and inline-edit support.
  */
 export default function QuestionOptionsList({
-  options = [],
-  correctKeysList = [],
+  options = EMPTY_ARRAY,
+  correctKeysList = EMPTY_ARRAY,
   optionSymmetry = null,
   isEditing = false,
-  editedOptions = [],
+  editedOptions = EMPTY_ARRAY,
   onEditedOptionsChange = null
 }) {
   const currentOptionsList = options || [];

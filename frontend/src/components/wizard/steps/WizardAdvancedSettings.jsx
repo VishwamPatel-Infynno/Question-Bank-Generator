@@ -1,6 +1,8 @@
 import React from 'react';
 import { ChevronDown, ChevronUp, Sliders, CheckCircle2 } from 'lucide-react';
 
+const EMPTY_ARRAY = Object.freeze([]);
+
 /**
  * WizardAdvancedSettings
  *
@@ -11,16 +13,16 @@ export default function WizardAdvancedSettings({
   showAdvanced = false,
   setShowAdvanced,
   hasInstructions = false,
-  effectiveTraps = [],
-  COGNITIVE_TRAPS = [],
+  effectiveTraps = EMPTY_ARRAY,
+  COGNITIVE_TRAPS = EMPTY_ARRAY,
   onTogglePrimaryTrap,
   setPrimaryTrap,
-  availableSubskills = [],
-  effectiveSubskills = [],
+  availableSubskills = EMPTY_ARRAY,
+  effectiveSubskills = EMPTY_ARRAY,
   onToggleSubskill,
   setSelectedSubskill,
-  effectiveMistakes = [],
-  LIKELY_MISTAKE_PATTERNS = [],
+  effectiveMistakes = EMPTY_ARRAY,
+  LIKELY_MISTAKE_PATTERNS = EMPTY_ARRAY,
   onToggleMistakePattern,
   setLikelyMistakePattern,
   additionalInstructions = '',

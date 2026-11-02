@@ -85,7 +85,7 @@ export default function BatchJobCard({
     >
       {/* Job Card Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span
             style={{
               fontWeight: 800,
@@ -100,6 +100,9 @@ export default function BatchJobCard({
             style={{
               fontSize: '0.675rem',
               padding: '1px 6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
               background: isJobDone
                 ? 'rgba(16, 185, 129, 0.1)'
                 : isJobRunning
@@ -116,8 +119,36 @@ export default function BatchJobCard({
                     : 'var(--text-muted)'
             }}
           >
-            {job.status.toUpperCase()}
+            {isJobRunning && (
+              <span
+                style={{
+                  width: '5px',
+                  height: '5px',
+                  borderRadius: '50%',
+                  background: 'var(--brand-primary)',
+                  animation: 'pulse 1.5s infinite'
+                }}
+              />
+            )}
+            {isJobRunning && (job.trial_count > 1)
+              ? `AUTO-RETRYING (${job.trial_count}/3)`
+              : job.status.toUpperCase()}
           </span>
+          {((isJobFailed || (isJobDone && job.actual_count < (job.target_count || 5))) && (job.trial_count >= 3)) && (
+            <span
+              className="badge"
+              style={{
+                fontSize: '0.65rem',
+                padding: '1px 6px',
+                background: 'rgba(245, 158, 11, 0.12)',
+                color: 'var(--status-warning)',
+                border: '1px solid rgba(245, 158, 11, 0.25)'
+              }}
+              title="All 3 autonomous replenishment trials completed"
+            >
+              3/3 TRIALS EXHAUSTED
+            </span>
+          )}
         </div>
 
         <span

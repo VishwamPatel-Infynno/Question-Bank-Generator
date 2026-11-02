@@ -316,6 +316,7 @@ class GenerationJob(BaseModel):
     status: str = "pending"  # pending, running, completed, failed
     target_count: int = 5
     actual_count: int = 0
+    trial_count: int = 1
     passage_id: str | None = None
     total_tokens: int = 0
     prompt_tokens: int = 0

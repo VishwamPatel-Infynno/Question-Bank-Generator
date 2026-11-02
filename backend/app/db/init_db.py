@@ -248,6 +248,12 @@ async def init_db_schema(engine: AsyncEngine):
         await conn.execute(
             text("CREATE INDEX IF NOT EXISTS ix_questions_job_id ON questions (job_id);")
         )
+        # Safe schema update for autonomous set retry tracking
+        await conn.execute(
+            text(
+                "ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS trial_count INTEGER DEFAULT 1;"
+            )
+        )
         await conn.execute(
             text(
                 "ALTER TABLE questions ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'in_bank';"

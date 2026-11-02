@@ -23,6 +23,8 @@ import { useFocusTrap } from '../../hooks';
  * @param {string} [props.className] - Optional extra class name for the card.
  * @param {Object} [props.cardStyle] - Optional inline style overrides for the card.
  */
+const DEFAULT_CARD_STYLE = Object.freeze({});
+
 export default function Modal({
   isOpen,
   onClose,
@@ -35,7 +37,7 @@ export default function Modal({
   footer,
   ariaLabelledBy = 'modal-dialog-title',
   className = '',
-  cardStyle = {}
+  cardStyle = DEFAULT_CARD_STYLE
 }) {
   const modalRef = useFocusTrap({ isActive: Boolean(isOpen), onClose });
 

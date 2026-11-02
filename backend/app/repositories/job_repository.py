@@ -19,6 +19,7 @@ def _job_model_to_schema(m: GenerationJobModel) -> GenerationJob:
         status=m.status or "pending",
         target_count=m.target_count or 5,
         actual_count=m.actual_count or 0,
+        trial_count=m.trial_count if m.trial_count is not None else 1,
         passage_id=m.passage_id,
         total_tokens=m.total_tokens or 0,
         prompt_tokens=m.prompt_tokens or 0,
@@ -40,6 +41,7 @@ def _job_schema_to_model(j: GenerationJob) -> GenerationJobModel:
         status=j.status,
         target_count=j.target_count,
         actual_count=j.actual_count,
+        trial_count=j.trial_count or 1,
         passage_id=j.passage_id,
         total_tokens=j.total_tokens,
         prompt_tokens=j.prompt_tokens,
@@ -99,6 +101,7 @@ async def update_job_progress(
     job_id: str,
     status: str | None = None,
     actual_count: int | None = None,
+    trial_count: int | None = None,
     total_tokens: int | None = None,
     prompt_tokens: int | None = None,
     completion_tokens: int | None = None,
@@ -118,6 +121,8 @@ async def update_job_progress(
             model.status = status
         if actual_count is not None:
             model.actual_count = actual_count
+        if trial_count is not None:
+            model.trial_count = trial_count
         if total_tokens is not None:
             model.total_tokens = total_tokens
         if prompt_tokens is not None:

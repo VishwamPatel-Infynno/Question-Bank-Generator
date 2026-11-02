@@ -122,15 +122,14 @@ async def _run_single_job(
     base_req: GenerationRequest,
     semaphore: asyncio.Semaphore,
 ) -> None:
-    """Executes a single job generating 5 questions, saving them directly to the database."""
+    """
+    Executes a single job generating questions (target_count), saving them directly to the database.
+    Guarantees up to 3 autonomous in-flight trials if a shortfall or error occurs,
+    fulfilling the target count guarantee without stopping the batch or requiring user intervention.
+    """
+    max_trials = 3
     async with semaphore:
-        now_iso = datetime.now(UTC).isoformat()
         total_jobs = len(await get_jobs_by_batch_id(batch_id)) or 10
-        logger.info(
-            f"Starting Job {job.job_number}/{total_jobs} (ID: {job.id}) for Batch {batch_id}..."
-        )
-        await update_job_progress(job.id, status="running", started_at=now_iso)
-
         is_cars = _is_cars_section(base_req.section)
         is_passage_mode = (
             is_cars
@@ -138,118 +137,196 @@ async def _run_single_job(
             or str(base_req.passage_required).lower() in ("yes", "true", "1")
         )
 
-        passage_id_for_job = str(uuid.uuid4()) if is_passage_mode else None
-        thematic_angle = BATCH_THEMATIC_ANGLES[(job.job_number - 1) % len(BATCH_THEMATIC_ANGLES)]
-
-        job_req = base_req.model_copy(
-            update={
-                "run_id": job.id,
-                "batch_id": batch_id,
-                "job_id": job.id,
-                "passing_threshold": config.BATCH_PASSING_SCORE_THRESHOLD,
-                "questions_to_generate": job.target_count or 5,
-                "passage_mode": "single_passage" if is_passage_mode else "independent",
-                "passage_required": "Yes" if is_passage_mode else "No",
-                "passage_id": passage_id_for_job,
-                "thematic_angle": thematic_angle,
-                "shared_stimulus": None,  # Each job gets a dedicated fresh passage
-            }
-        )
-
-        job_questions: list[Question] = []
-        job_tokens = 0
-        job_prompt_tokens = 0
-        job_completion_tokens = 0
-        job_cost = 0.0
+        passage_id_for_job = job.passage_id or (str(uuid.uuid4()) if is_passage_mode else None)
+        job_tokens = job.total_tokens or 0
+        job_prompt_tokens = job.prompt_tokens or 0
+        job_completion_tokens = job.completion_tokens or 0
+        job_cost = job.cost_usd or 0.0
 
         from app.workflow.engine import run_workflow_stream
 
-        try:
-            async for raw_chunk in run_workflow_stream(job_req):
-                line = raw_chunk.strip()
-                if not line.startswith("data: "):
-                    continue
-                try:
-                    evt_data = json.loads(line[6:])
-                    etype = evt_data.get("event_type")
-                    data = evt_data.get("data") or {}
+        start_trial = job.trial_count or 1
+        trial = start_trial
+        for current_trial in range(start_trial, max_trials + 1):
+            trial = current_trial
+            now_iso = datetime.now(UTC).isoformat()
 
-                    if etype == "question_generated" and data.get("question"):
-                        saved_q, should_abort = await _persist_job_question(
-                            batch_id, job.id, passage_id_for_job, data["question"], job_questions
-                        )
-                        if should_abort:
-                            return
-                        if saved_q:
-                            await update_job_progress(job.id, actual_count=len(job_questions))
+            # Check existing active questions for this set
+            existing_active_qs = [
+                q
+                for q in (await get_questions(batch_id=batch_id, job_id=job.id))
+                if is_question_active(q.status)
+            ]
+            deficit = max(0, (job.target_count or 5) - len(existing_active_qs))
+            if deficit <= 0 and len(existing_active_qs) >= (job.target_count or 5):
+                logger.info(
+                    f"Job {job.job_number}/{total_jobs} (ID: {job.id}) already fulfilled target count."
+                )
+                break
 
-                    elif etype == "workflow_complete":
-                        completed_qs = data.get("questions") or []
-                        for raw_q in completed_qs:
-                            _, should_abort = await _persist_job_question(
-                                batch_id, job.id, passage_id_for_job, raw_q, job_questions
+            logger.info(
+                f"Executing Job {job.job_number}/{total_jobs} (ID: {job.id}) for Batch {batch_id} "
+                f"[Trial {trial}/{max_trials}, deficit={deficit}]..."
+            )
+            await update_job_progress(
+                job.id,
+                status="running",
+                trial_count=trial,
+                actual_count=len(existing_active_qs),
+                passage_id=passage_id_for_job,
+                started_at=now_iso,
+            )
+            await refresh_batch_aggregates(batch_id, allow_complete=False)
+
+            existing_stimulus = (
+                existing_active_qs[0].stimulus_text
+                if (existing_active_qs and existing_active_qs[0].stimulus_text)
+                else None
+            )
+            if existing_active_qs and existing_active_qs[0].passage_id:
+                passage_id_for_job = existing_active_qs[0].passage_id
+
+            if trial > 1:
+                thematic_angle = (
+                    f"{BATCH_THEMATIC_ANGLES[(job.job_number - 1) % len(BATCH_THEMATIC_ANGLES)]} • "
+                    f"In-Set Replenishment (Trial {trial}/{max_trials})"
+                )
+            else:
+                thematic_angle = BATCH_THEMATIC_ANGLES[
+                    (job.job_number - 1) % len(BATCH_THEMATIC_ANGLES)
+                ]
+
+            attempt_req = base_req.model_copy(
+                update={
+                    "run_id": job.id,
+                    "batch_id": batch_id,
+                    "job_id": job.id,
+                    "passing_threshold": config.BATCH_PASSING_SCORE_THRESHOLD,
+                    "questions_to_generate": deficit,
+                    "passage_mode": "single_passage" if is_passage_mode else "independent",
+                    "passage_required": "Yes" if is_passage_mode else "No",
+                    "passage_id": passage_id_for_job,
+                    "thematic_angle": thematic_angle,
+                    "shared_stimulus": existing_stimulus,
+                }
+            )
+
+            attempt_new_qs: list[Question] = []
+            try:
+                async for raw_chunk in run_workflow_stream(attempt_req):
+                    line = raw_chunk.strip()
+                    if not line.startswith("data: "):
+                        continue
+                    try:
+                        evt_data = json.loads(line[6:])
+                        etype = evt_data.get("event_type")
+                        data = evt_data.get("data") or {}
+
+                        if etype == "question_generated" and data.get("question"):
+                            saved_q, should_abort = await _persist_job_question(
+                                batch_id,
+                                job.id,
+                                passage_id_for_job,
+                                data["question"],
+                                attempt_new_qs,
                             )
                             if should_abort:
                                 return
+                            if saved_q:
+                                total_now = len(existing_active_qs) + len(attempt_new_qs)
+                                await update_job_progress(job.id, actual_count=total_now)
 
-                        usage = data.get("cumulative_usage") or {}
-                        job_tokens = usage.get("total_tokens", 0)
-                        job_prompt_tokens = usage.get("total_prompt_tokens", 0)
-                        job_completion_tokens = usage.get("total_completion_tokens", 0)
-                        job_cost = float(usage.get("total_cost_usd", 0.0))
+                        elif etype == "workflow_complete":
+                            completed_qs = data.get("questions") or []
+                            for raw_q in completed_qs:
+                                _, should_abort = await _persist_job_question(
+                                    batch_id, job.id, passage_id_for_job, raw_q, attempt_new_qs
+                                )
+                                if should_abort:
+                                    return
 
-                    elif etype == "workflow_error":
-                        raise RuntimeError(data.get("error", "Unknown workflow error"))
+                            usage = data.get("cumulative_usage") or {}
+                            job_tokens += usage.get("total_tokens", 0)
+                            job_prompt_tokens += usage.get("total_prompt_tokens", 0)
+                            job_completion_tokens += usage.get("total_completion_tokens", 0)
+                            job_cost += float(usage.get("total_cost_usd", 0.0))
 
-                except json.JSONDecodeError:
+                        elif etype == "workflow_error":
+                            raise RuntimeError(data.get("error", "Unknown workflow error"))
+
+                    except json.JSONDecodeError:
+                        continue
+
+            except asyncio.CancelledError:
+                logger.info(f"Job {job.job_number}/{total_jobs} (ID: {job.id}) was cancelled.")
+                current_qs = [
+                    q
+                    for q in (await get_questions(batch_id=batch_id, job_id=job.id))
+                    if is_question_active(q.status)
+                ]
+                await update_job_progress(
+                    job.id,
+                    status="cancelled",
+                    trial_count=trial,
+                    actual_count=len(current_qs),
+                    completed_at=datetime.now(UTC).isoformat(),
+                )
+                await refresh_batch_aggregates(batch_id)
+                raise
+            except Exception as exc:
+                logger.warning(
+                    f"Job {job.job_number}/{total_jobs} (ID: {job.id}) trial {trial}/{max_trials} encountered error: {exc}"
+                )
+                if trial < max_trials:
+                    await asyncio.sleep(1.0)
                     continue
+                logger.error(
+                    f"Job {job.job_number}/{total_jobs} (ID: {job.id}) exhausted all {max_trials} trials: {exc}",
+                    exc_info=True,
+                )
+                await update_job_progress(job.id, error_message=str(exc))
 
-            # Mark job status based on questions saved
-            completed_now = datetime.now(UTC).isoformat()
-            job_status = "completed" if len(job_questions) > 0 else "failed"
-            await update_job_progress(
-                job.id,
-                status=job_status,
-                actual_count=len(job_questions),
-                passage_id=passage_id_for_job,
-                total_tokens=job_tokens,
-                prompt_tokens=job_prompt_tokens,
-                completion_tokens=job_completion_tokens,
-                cost_usd=job_cost,
-                completed_at=completed_now,
-            )
+            # Re-evaluate active question count after attempt
+            updated_active_qs = [
+                q
+                for q in (await get_questions(batch_id=batch_id, job_id=job.id))
+                if is_question_active(q.status)
+            ]
+            if len(updated_active_qs) >= (job.target_count or 5):
+                logger.info(
+                    f"Job {job.job_number}/{total_jobs} (ID: {job.id}) successfully reached target "
+                    f"{job.target_count} on Trial {trial}/{max_trials}."
+                )
+                break
 
-            # Atomic database-level aggregation to prevent lost updates
-            await refresh_batch_aggregates(batch_id)
+        # Finalize job progress after all attempts
+        final_active_qs = [
+            q
+            for q in (await get_questions(batch_id=batch_id, job_id=job.id))
+            if is_question_active(q.status)
+        ]
+        final_count = len(final_active_qs)
+        completed_now = datetime.now(UTC).isoformat()
+        job_status = "completed" if final_count > 0 else "failed"
 
-            logger.info(
-                f"Job {job.job_number}/{total_jobs} (ID: {job.id}) finished: generated {len(job_questions)} questions."
-            )
+        await update_job_progress(
+            job.id,
+            status=job_status,
+            actual_count=final_count,
+            trial_count=trial,
+            passage_id=passage_id_for_job,
+            total_tokens=job_tokens,
+            prompt_tokens=job_prompt_tokens,
+            completion_tokens=job_completion_tokens,
+            cost_usd=job_cost,
+            completed_at=completed_now,
+        )
 
-        except asyncio.CancelledError:
-            logger.info(f"Job {job.job_number}/{total_jobs} (ID: {job.id}) was cancelled.")
-            await update_job_progress(
-                job.id,
-                status="cancelled",
-                actual_count=len(job_questions),
-                completed_at=datetime.now(UTC).isoformat(),
-            )
-            await refresh_batch_aggregates(batch_id)
-            raise
-        except Exception as exc:
-            logger.error(
-                f"Job {job.job_number}/{total_jobs} (ID: {job.id}) failed with error: {exc}",
-                exc_info=True,
-            )
-            failed_now = datetime.now(UTC).isoformat()
-            await update_job_progress(
-                job.id,
-                status="failed",
-                error_message=str(exc),
-                actual_count=len(job_questions),
-                completed_at=failed_now,
-            )
-            await refresh_batch_aggregates(batch_id)
+        await refresh_batch_aggregates(batch_id, allow_complete=False)
+        logger.info(
+            f"Job {job.job_number}/{total_jobs} (ID: {job.id}) finished: generated {final_count}/"
+            f"{job.target_count or 5} questions across {trial}/{max_trials} trial(s)."
+        )
 
 
 async def _run_single_job_refill(
@@ -265,11 +342,12 @@ async def _run_single_job_refill(
 
     async with semaphore:
         now_iso = datetime.now(UTC).isoformat()
+        new_trial = min(3, (job.trial_count or 1) + 1)
         logger.info(
             f"Replenishing Set #{job.job_number} (Job ID: {job.id}) in Batch {batch_id} "
-            f"with {job_deficit} replacement question(s)..."
+            f"with {job_deficit} replacement question(s) [Trial {new_trial}/3]..."
         )
-        await update_job_progress(job.id, status="running", started_at=now_iso)
+        await update_job_progress(job.id, status="running", trial_count=new_trial, started_at=now_iso)
 
         # Determine passage and stimulus from existing questions in this job
         job_existing_qs = [
@@ -358,6 +436,7 @@ async def _run_single_job_refill(
                 job.id,
                 status="completed" if total_active > 0 else "failed",
                 actual_count=total_active,
+                trial_count=new_trial,
                 passage_id=passage_id_for_job,
                 completed_at=completed_now,
             )
@@ -651,15 +730,21 @@ async def retry_incomplete_jobs_for_batch(
     await cancel_background_batch(batch_id)
 
     jobs = await get_jobs_by_batch_id(batch_id)
-    retryable_jobs = [j for j in jobs if j.status in ("failed", "cancelled", "pending")]
+    retryable_jobs = [
+        j
+        for j in jobs
+        if j.status in ("failed", "cancelled", "pending")
+        or (j.actual_count < (j.target_count or 5))
+    ]
     if not retryable_jobs:
         return b, jobs
 
-    # Reset retryable jobs to pending
+    # Reset retryable jobs to pending and reset trial_count so they get fresh attempts
     for j in retryable_jobs:
         await update_job_progress(
             j.id,
             status="pending",
+            trial_count=1,
             error_message=None,
             started_at=None,
             completed_at=None,
@@ -673,8 +758,8 @@ async def retry_incomplete_jobs_for_batch(
     effective_req = req or _batch_requests.get(batch_id)
     if not effective_req:
         effective_req = GenerationRequest(
-            section=b.section,
-            difficulty=b.difficulty,
+            section=b.section or "chem_phys",
+            difficulty=b.difficulty or "medium",
             subtopic=b.subtopic,
             passage_mode=b.passage_mode,
             questions_to_generate=5,
@@ -742,8 +827,8 @@ async def refill_batch_deficit(
     effective_req = _batch_requests.get(batch_id)
     if not effective_req:
         effective_req = GenerationRequest(
-            section=b.section,
-            difficulty=b.difficulty,
+            section=b.section or "chem_phys",
+            difficulty=b.difficulty or "medium",
             subtopic=b.subtopic,
             passage_mode=b.passage_mode,
             questions_to_generate=5,

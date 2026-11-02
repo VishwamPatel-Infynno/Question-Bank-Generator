@@ -3,6 +3,10 @@ import uuid
 
 import pytest
 from app.agents.generator import get_mock_draft
+from app.api.v1.questions import (
+    purge_questions_batch_endpoint,
+    purge_single_question,
+)
 from app.core.config import config
 from app.db.session import init_db
 from app.repositories.question_repository import (
@@ -183,7 +187,6 @@ async def test_admin_approval_and_persistence_endpoints():
     assert await delete_questions_batch([]) == 0
 
     # Test permanent purge endpoints
-    from app.api.v1.questions import purge_questions_batch_endpoint, purge_single_question
     purge_q_id = str(uuid.uuid4())
     await save_question(
         Question(
