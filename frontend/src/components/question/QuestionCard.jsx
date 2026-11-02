@@ -104,10 +104,10 @@ function QuestionCard({
 
   const review = question.review_rubric;
   const pillars = [
-    { label: 'MCAT Scientific Style & Tone', score: review?.authenticity_score ?? 24, max: 25, color: 'var(--brand-primary)' },
+    { label: 'Scientific Style', score: review?.authenticity_score ?? 24, max: 25, color: 'var(--brand-primary)' },
     { label: 'Clarity & Logic', score: review?.clarity_score ?? 24, max: 25, color: 'var(--brand-indigo)' },
-    { label: 'Wrong Answer Quality', score: review?.distractor_score ?? 23, max: 25, color: 'var(--status-warning)' },
-    { label: 'Explanation & Key Accuracy', score: review?.explanation_score ?? 24, max: 25, color: 'var(--status-success)' },
+    { label: 'Wrong Answers', score: review?.distractor_score ?? 23, max: 25, color: 'var(--status-warning)' },
+    { label: 'Explanation Accuracy', score: review?.explanation_score ?? 24, max: 25, color: 'var(--status-success)' },
   ];
 
   const correctKeysList = Array.isArray(question.correct_answer_ids) && question.correct_answer_ids.length > 0
@@ -139,9 +139,9 @@ function QuestionCard({
       {/* Desk Tab Navigation */}
       <div className="pill-track">
         {[
-          { id: 'preview', label: 'Question & Choices', icon: FileText },
-          { id: 'scorecard', label: 'Quality Checklist', icon: BarChart3 },
-          { id: 'telemetry', label: 'Generation Details & Cost', icon: Code2 }
+          { id: 'preview', label: 'Preview', icon: FileText },
+          { id: 'scorecard', label: 'Scorecard', icon: BarChart3 },
+          { id: 'telemetry', label: 'Details', icon: Code2 }
         ].map(tab => {
           const Icon = tab.icon;
           const isSel = activeTab === tab.id;
@@ -288,7 +288,7 @@ function QuestionCard({
               style={{ gap: '6px', fontSize: '0.775rem' }}
             >
               {showExplanation ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-              <span>{showExplanation ? 'Hide Answer Explanations' : 'Why Each Choice is Right or Wrong'}</span>
+              <span>{showExplanation ? 'Hide Explanations' : 'View Explanations'}</span>
             </button>
 
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -313,7 +313,7 @@ function QuestionCard({
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: 'var(--brand-primary)', fontWeight: 600 }}>
                     <HelpCircle size={15} />
-                    <span>Why Answers are Right or Wrong</span>
+                    <span>Explanations</span>
                   </div>
                   <textarea
                     value={editedExplanation}

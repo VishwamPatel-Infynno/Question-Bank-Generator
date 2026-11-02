@@ -95,9 +95,9 @@ function AiValidatedQuestionCard({
             <span
               className="badge badge-purple"
               style={{ fontSize: '0.675rem', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-              title={`Common Trap: ${trapInfo.label}`}
+              title={`Trap: ${trapInfo.label}`}
             >
-              <AlertTriangle size={10} /> Common Trap: {trapInfo.label}
+              <AlertTriangle size={10} /> {trapInfo.label}
             </span>
           )}
           {q.likely_mistake_pattern && (
@@ -113,18 +113,18 @@ function AiValidatedQuestionCard({
                 color: 'var(--status-warning, #d97706)',
                 border: '1px solid rgba(245, 158, 11, 0.3)'
               }}
-              title={`Common Student Mistake: ${q.likely_mistake_pattern}`}
+              title={`Mistake: ${q.likely_mistake_pattern}`}
             >
-              <Target size={10} /> Common Mistake: {q.likely_mistake_pattern}
+              <Target size={10} /> {q.likely_mistake_pattern}
             </span>
           )}
           {hasDiagram && (
             <span
               className="badge badge-purple"
               style={{ fontSize: '0.675rem', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-              title={hasPassage ? "Contains Passage Diagram" : "Contains Visual Diagram"}
+              title="Contains Diagram"
             >
-              <ImageIcon size={10} /> {hasPassage ? 'Passage Diagram' : 'Diagram'}
+              <ImageIcon size={10} /> Diagram
             </span>
           )}
         </div>

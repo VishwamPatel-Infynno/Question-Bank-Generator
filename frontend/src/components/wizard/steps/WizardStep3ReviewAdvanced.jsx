@@ -82,16 +82,16 @@ export default function WizardStep3ReviewAdvanced({
   const isPassage = isCars || questionType === 'PASSAGE_BASED_MCQ';
 
   const formatSummary = isCars
-    ? 'Reading Passage + Questions'
+    ? 'Passage-Based (CARS)'
     : isPassage
-    ? 'Passage-Based Set'
-    : 'Standalone Questions';
+    ? 'Passage-Based'
+    : 'Standalone';
 
   const diffLabel = difficulty
     ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase()
     : 'Medium';
 
-  const topicLabel = selectedSubtopic || selectedTopic || selectedSubject || 'All Topics (Balanced Mix)';
+  const topicLabel = selectedSubtopic || selectedTopic || selectedSubject || 'All Topics';
   const sectionLabel = sectionMeta.label || selectedSection;
 
   return (
@@ -163,10 +163,7 @@ export default function WizardStep3ReviewAdvanced({
                   color: 'var(--text-primary)'
                 }}
               >
-                Include Diagrams &amp; Figures
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '1px' }}>
-                Adds scientific diagrams, molecular structures, and reaction pathways where helpful.
+                Include Images When Needed
               </div>
             </div>
           </div>

@@ -22,7 +22,7 @@ export default function SharedPassageCard({
   title,
   passageText = '',
   questionCount = 1,
-  totalCount,
+  totalCount: _totalCount,
   isMixedBatch = false,
   diagramQuestion = null,
   collapsible = true,
@@ -49,7 +49,6 @@ export default function SharedPassageCard({
   }
 
   const wordCount = passageText.trim().split(/\s+/).filter(Boolean).length;
-  const effectiveTotal = totalCount || questionCount;
 
   // Determine if a diagram/image is present
   const hasDiagram = Boolean(
@@ -65,10 +64,6 @@ export default function SharedPassageCard({
   const defaultTitle = isMixedBatch
     ? `Shared Reading Passage (Questions 1 to ${questionCount})`
     : 'Single Shared Reading Passage';
-
-  const subtitle = isMixedBatch
-    ? `Questions 1 to ${questionCount} reference this reading passage directly. Questions ${questionCount + 1} to ${effectiveTotal} are independent questions without a passage.`
-    : `All ${effectiveTotal} questions in this set reference this reading passage directly.`;
 
   return (
     <div
@@ -144,14 +139,10 @@ export default function SharedPassageCard({
                     gap: '3px'
                   }}
                 >
-                  <ImageIcon size={10} /> Passage Diagram
+                  <ImageIcon size={10} /> Diagram
                 </span>
               )}
             </div>
-
-            <p style={{ fontSize: '0.725rem', color: 'var(--text-muted)', margin: 0, marginTop: '2px' }}>
-              {subtitle}
-            </p>
           </div>
         </div>
 

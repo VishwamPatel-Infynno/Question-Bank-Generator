@@ -22,17 +22,17 @@ export default function QuestionOptionsList({
       {/* Options Header & Anti-Guessability Symmetry Badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
         <span style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Choices ({currentOptionsList.length || 4} Total)
+          Choices
         </span>
         {optionSymmetry && (
           <span
             className={`badge ${optionSymmetry.is_balanced ? 'badge-emerald' : 'badge-amber'}`}
             style={{ fontSize: '0.675rem', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 8px' }}
-            title="Choice Length Balance: All answer choices are similar in length, ensuring students cannot guess the answer simply because one option is longer or shorter."
+            title="Choice length balance"
           >
             <Scale size={11} />
             <span>
-              Choice Lengths: {optionSymmetry.status} ({optionSymmetry.min_word_count}–{optionSymmetry.max_word_count} words)
+              {optionSymmetry.status} ({optionSymmetry.min_word_count}–{optionSymmetry.max_word_count}w)
             </span>
           </span>
         )}

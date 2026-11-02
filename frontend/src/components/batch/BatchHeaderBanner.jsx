@@ -22,9 +22,6 @@ export default function BatchHeaderBanner({
           <h1 className="batch-activity-banner-title">
             Batch Progress &amp; History
           </h1>
-          <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            Track live question generation, view past runs, and review created questions.
-          </p>
         </div>
       </div>
 

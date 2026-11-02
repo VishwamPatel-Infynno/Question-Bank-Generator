@@ -197,7 +197,7 @@ export default function DuplicateComparisonModal({
 
             <div>
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                Question Stem
+                Question Prompt
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.45 }}>
                 {candidateQuestion.question_stem}
@@ -206,7 +206,7 @@ export default function DuplicateComparisonModal({
 
             <div>
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                Answer Choices
+                Choices
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {candidateOptions.map((opt) => {
@@ -291,16 +291,16 @@ export default function DuplicateComparisonModal({
 
             <div>
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                Question Stem
+                Question Prompt
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.45 }}>
-                {dupInfo.matched_question_stem || '(Stem text unavailable)'}
+                {dupInfo.matched_question_stem || '(Question text unavailable)'}
               </div>
             </div>
 
             <div>
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                Answer Choices
+                Choices
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {matchedOptions.length > 0 ? (

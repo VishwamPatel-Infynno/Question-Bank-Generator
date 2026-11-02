@@ -26,7 +26,7 @@ export default function QuestionInlineEditor({ onSave, onCancel }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
         <Edit3 size={14} />
-        <span>Editing Question. Make your changes below and click Save.</span>
+        <span>Editing Question</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <button

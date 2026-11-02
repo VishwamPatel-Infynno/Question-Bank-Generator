@@ -75,7 +75,7 @@ export default function QuestionCardHeader({
               border: '1px solid rgba(139, 92, 246, 0.3)',
               color: 'var(--status-purple)'
             }}
-            title={`Primary Cognitive Trap: ${effectiveTrapInfo.label}`}
+            title={`Trap: ${effectiveTrapInfo.label}`}
           >
             <AlertTriangle size={11} /> {effectiveTrapInfo.label}
           </span>
@@ -97,7 +97,7 @@ export default function QuestionCardHeader({
             title="Open quality breakdown modal"
           >
             <ShieldCheck size={12} color="var(--brand-primary)" />
-            <span>Quality Review</span>
+            <span>Audit</span>
           </button>
         )}
 
@@ -110,7 +110,7 @@ export default function QuestionCardHeader({
             title="Edit question text (Press E)"
           >
             <Edit3 size={12} />
-            <span>{isEditing ? 'Cancel' : 'Quick Edit'}</span>
+            <span>{isEditing ? 'Cancel' : 'Edit'}</span>
             <span className="kbd-hint" style={{ fontSize: '0.6rem' }}>E</span>
           </button>
         )}

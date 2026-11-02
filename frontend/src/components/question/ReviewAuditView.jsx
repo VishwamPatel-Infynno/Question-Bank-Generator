@@ -27,10 +27,10 @@ export default function ReviewAuditView({ question, onClose }) {
   );
 
   const pillars = [
-    { label: 'MCAT Scientific Style & Tone', score: review?.authenticity_score ?? 24, max: 25, color: 'var(--brand-primary)' },
+    { label: 'Scientific Style', score: review?.authenticity_score ?? 24, max: 25, color: 'var(--brand-primary)' },
     { label: 'Clarity & Logic', score: review?.clarity_score ?? 24, max: 25, color: 'var(--brand-indigo)' },
-    { label: 'Wrong Answer Quality', score: review?.distractor_score ?? 23, max: 25, color: 'var(--status-warning)' },
-    { label: 'Explanation & Key Accuracy', score: review?.explanation_score ?? 24, max: 25, color: 'var(--status-success)' },
+    { label: 'Wrong Answers', score: review?.distractor_score ?? 23, max: 25, color: 'var(--status-warning)' },
+    { label: 'Explanation Accuracy', score: review?.explanation_score ?? 24, max: 25, color: 'var(--status-success)' },
   ];
 
   const iconElement = (
@@ -62,8 +62,7 @@ export default function ReviewAuditView({ question, onClose }) {
     <Modal
       isOpen={Boolean(question)}
       onClose={onClose}
-      title="Question Quality Review"
-      subtitle="Quality breakdown, token usage, and exam standards"
+      title="Quality Review"
       icon={iconElement}
       maxWidth="820px"
       footer={footer}
@@ -83,7 +82,7 @@ export default function ReviewAuditView({ question, onClose }) {
           }}
         >
           <div>
-            <div style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--brand-primary)' }}>Overall Quality Score</div>
+            <div style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--brand-primary)' }}>Score</div>
             <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--brand-primary)', lineHeight: 1.1 }}>
               {question.final_score} <span style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ 100</span>
             </div>
@@ -93,10 +92,10 @@ export default function ReviewAuditView({ question, onClose }) {
               className={`badge ${question.final_score > 90 ? 'badge-emerald' : 'badge-amber'}`}
               style={{ fontSize: '0.75rem', padding: '4px 10px' }}
             >
-              {question.final_score > 90 ? 'Ready for Review (>90 Score)' : 'Needs Polish (≤85 Score)'}
+              {question.final_score > 90 ? 'Passed' : 'Needs Polish'}
             </span>
             <div style={{ fontSize: '0.725rem', fontWeight: 500, color: 'var(--text-muted)', marginTop: '4px' }}>
-              Refinement Rounds: {question.iteration_count || 1} of 3
+              Rounds: {question.iteration_count || 1} of 3
             </div>
           </div>
         </div>
@@ -105,7 +104,7 @@ export default function ReviewAuditView({ question, onClose }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h4 style={{ fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Usage &amp; Question Details
+              Usage Details
             </h4>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
               Quality Review Summary

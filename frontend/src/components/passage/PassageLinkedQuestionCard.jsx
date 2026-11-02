@@ -60,7 +60,7 @@ function PassageInlineQuestionEditor({ question, onSave, onCancel }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-          Options &amp; Correct Answer Key
+          Options
         </label>
         {options.map((opt, idx) => (
           <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -119,7 +119,7 @@ function PassageInlineQuestionEditor({ question, onSave, onCancel }) {
             fontWeight: 600
           }}
         >
-          Explanation &amp; Distractor Traps
+          Explanation
         </label>
         <textarea
           rows={3}
@@ -160,7 +160,7 @@ function PassageInlineQuestionEditor({ question, onSave, onCancel }) {
           className="btn-primary"
           style={{ padding: '4px 10px', fontSize: '0.72rem' }}
         >
-          Save Question Updates
+          Save
         </button>
       </div>
     </div>
@@ -250,7 +250,7 @@ export default function PassageLinkedQuestionCard({
           title={isEditing ? 'Close editor' : 'Edit question text, choices, or explanation'}
         >
           {isEditing ? <X size={12} /> : <Edit3 size={12} color="var(--brand-primary)" />}
-          <span>{isEditing ? 'Cancel' : 'Edit Question'}</span>
+          <span>{isEditing ? 'Cancel' : 'Edit'}</span>
         </button>
       </div>
 

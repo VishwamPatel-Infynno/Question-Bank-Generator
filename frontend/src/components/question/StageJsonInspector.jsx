@@ -140,10 +140,7 @@ export default function StageJsonInspector({ question }) {
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Code2 size={16} color="var(--brand-primary)" />
-          <span>Question Generation Details</span>
-          <span style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted)' }}>
-            (Step-by-step breakdown of how this question was created)
-          </span>
+          <span>Generation Details</span>
         </span>
 
         {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

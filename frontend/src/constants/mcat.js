@@ -263,21 +263,21 @@ export const DIFFICULTY_TIERS = [
   {
     id: 'low',
     title: 'Easy',
-    desc: 'Core science concepts and straightforward questions — great for foundational practice.',
+    desc: 'Core science concepts and straightforward questions.',
     color: '#10b981',
     badgeClass: 'badge-emerald'
   },
   {
     id: 'medium',
     title: 'Medium',
-    desc: 'Standard exam difficulty with multi-step reasoning and realistic test timing.',
+    desc: 'Standard exam difficulty and multi-step reasoning.',
     color: '#f59e0b',
     badgeClass: 'badge-amber'
   },
   {
     id: 'high',
     title: 'Hard',
-    desc: 'Challenging questions with multi-step logic, tricky answer choices, and complex data.',
+    desc: 'Challenging questions with multi-step logic and complex data.',
     color: '#f43f5e',
     badgeClass: 'badge-rose'
   }

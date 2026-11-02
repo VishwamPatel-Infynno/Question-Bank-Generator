@@ -55,9 +55,6 @@ export default function WizardAdvancedSettings({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <Sliders size={14} style={{ color: 'var(--brand-primary)' }} />
           <span>Advanced Settings</span>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-            (Common Traps, Reasoning Skills, Student Mistakes)
-          </span>
           {hasInstructions && (
             <span
               className="badge-minimal"
@@ -82,7 +79,7 @@ export default function WizardAdvancedSettings({
           {/* Cognitive Traps */}
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-              Common Traps to Test
+              Test Traps
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               <button
@@ -145,7 +142,7 @@ export default function WizardAdvancedSettings({
           {availableSubskills.length > 0 && (
             <div>
               <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                Exam Reasoning Skills
+                Reasoning Skills
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 <button
@@ -208,7 +205,7 @@ export default function WizardAdvancedSettings({
           {/* Misconception Patterns */}
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-              Common Student Mistakes to Target
+              Student Mistakes
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               <button
@@ -274,7 +271,7 @@ export default function WizardAdvancedSettings({
                 htmlFor="wizard-additional-instructions"
                 style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}
               >
-                Additional Authoring Instructions
+                Additional Instructions
               </label>
               {hasInstructions && (
                 <span className="badge-minimal" style={{ fontSize: '0.68rem', color: 'var(--brand-primary)' }}>
@@ -287,7 +284,7 @@ export default function WizardAdvancedSettings({
               rows={3}
               value={additionalInstructions}
               onChange={(e) => setAdditionalInstructions?.(e.target.value)}
-              placeholder="e.g. Emphasize Lineweaver-Burk kinetic derivations; incorporate a competitive inhibitor with Ki = 2.5 uM; avoid complex trigonometric arithmetic..."
+              placeholder="e.g. Focus on enzyme pathways; keep math calculations simple; include a clinical scenario..."
               style={{
                 width: '100%',
                 padding: '10px 12px',

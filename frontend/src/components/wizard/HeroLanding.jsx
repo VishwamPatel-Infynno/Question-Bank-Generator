@@ -100,7 +100,7 @@ export default function HeroLanding({
 
         {/* Tagline */}
         <p className="hero-tagline">
-          Create exam-ready MCAT practice questions with reading passages, diagrams, and step-by-step answer explanations.
+          Generate MCAT questions with passages, diagrams, and explanations.
         </p>
 
         {/* Centered CTA Buttons */}
@@ -111,7 +111,7 @@ export default function HeroLanding({
             id="btn-hero-get-started"
             onClick={onGetStarted}
           >
-            <span>Start Creating Questions</span>
+            <span>Create Questions</span>
             <ArrowRight size={16} />
           </button>
 
@@ -122,7 +122,7 @@ export default function HeroLanding({
             onClick={onOpenBank}
           >
             <Database size={15} />
-            <span>Browse Question Bank</span>
+            <span>Question Bank</span>
           </button>
         </div>
 

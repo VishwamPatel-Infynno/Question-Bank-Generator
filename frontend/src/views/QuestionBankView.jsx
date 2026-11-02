@@ -233,9 +233,6 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
           <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
             Question Bank
           </h2>
-          <p style={{ margin: '3px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            Browse, search, edit, and export your saved MCAT practice questions.
-          </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

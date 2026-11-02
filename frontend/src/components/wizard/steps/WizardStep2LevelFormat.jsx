@@ -7,8 +7,8 @@ import {
 
 const DEFAULT_DIFFICULTY_TIERS = [];
 const COUNT_OPTIONS = Object.freeze([
-  { count: 5, label: '5 Questions', desc: 'Quick practice set' },
-  { count: 50, label: '50 Questions', desc: 'Full section exam set' }
+  { count: 5, label: '5 Questions' },
+  { count: 50, label: '50 Questions' }
 ]);
 
 export default function WizardStep2LevelFormat({
@@ -116,11 +116,8 @@ export default function WizardStep2LevelFormat({
               <FileText size={16} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
               <div>
                 <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Reading Passage + Questions (CARS)
+                  Passage-Based (CARS)
                 </span>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  CARS is strictly passage-based with questions testing textual arguments.
-                </div>
               </div>
             </div>
           </div>
@@ -142,20 +139,17 @@ export default function WizardStep2LevelFormat({
               id="btn-question-type-passage"
               style={{ padding: '12px 14px' }}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                  <FileText size={15} style={{ color: 'var(--brand-primary)', marginTop: '2px', flexShrink: 0 }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={15} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
                   <div>
                     <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Passage-Based Set
+                      Passage-Based
                     </span>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      A reading passage followed by questions (most common on the exam).
-                    </div>
                   </div>
                 </div>
                 {isPassage && (
-                  <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)', flexShrink: 0, marginTop: '2px' }} />
+                  <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
                 )}
               </div>
             </div>
@@ -175,20 +169,17 @@ export default function WizardStep2LevelFormat({
               id="btn-question-type-independent"
               style={{ padding: '12px 14px' }}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                  <Layers size={15} style={{ color: 'var(--status-purple)', marginTop: '2px', flexShrink: 0 }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Layers size={15} style={{ color: 'var(--status-purple)', flexShrink: 0 }} />
                   <div>
                     <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Standalone Questions
+                      Standalone
                     </span>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      Discrete questions with no reading passage needed.
-                    </div>
                   </div>
                 </div>
                 {!isPassage && (
-                  <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)', flexShrink: 0, marginTop: '2px' }} />
+                  <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
                 )}
               </div>
             </div>
@@ -231,11 +222,6 @@ export default function WizardStep2LevelFormat({
                   <div style={{ fontSize: '0.96rem', fontWeight: 700, color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
                     {opt.label}
                   </div>
-                  {opt.desc && (
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {opt.desc}
-                    </div>
-                  )}
                 </div>
                 {isSelected && (
                   <CheckCircle2 size={16} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />

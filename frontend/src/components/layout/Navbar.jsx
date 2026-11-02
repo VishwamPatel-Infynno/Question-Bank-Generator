@@ -123,9 +123,10 @@ export default function Navbar({
             }
           }}
           className={`pill-track-btn ${activeTab === 'generator' ? 'active' : ''}`}
+          title="Create Questions"
         >
           <Sparkles size={12} color={activeTab === 'generator' ? 'var(--brand-primary)' : 'currentColor'} />
-          <span>Create Questions</span>
+          <span>Create</span>
         </button>
 
         <button
@@ -134,10 +135,10 @@ export default function Navbar({
           onClick={() => setActiveTab('batches')}
           className={`pill-track-btn ${activeTab === 'batches' ? 'active' : ''}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          title="Batch Progress - Track active and past question generation runs"
+          title="Batch Progress"
         >
           <Layers size={12} color={activeTab === 'batches' ? 'var(--brand-primary)' : 'currentColor'} />
-          <span>Batch Progress</span>
+          <span>Batches</span>
           {activeBatchCount > 0 && (
             <span
               style={{
@@ -161,10 +162,10 @@ export default function Navbar({
           onClick={() => setActiveTab('validated')}
           className={`pill-track-btn ${activeTab === 'validated' ? 'active' : ''}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          title="Review Queue - Review newly generated questions ready for your bank"
+          title="Review Queue"
         >
           <CheckCircle2 size={12} color={activeTab === 'validated' ? 'var(--brand-primary)' : 'currentColor'} />
-          <span>Review Queue</span>
+          <span>Review</span>
           {validatedCount > 0 && (
             <span
               style={{
@@ -187,7 +188,7 @@ export default function Navbar({
           type="button"
           onClick={() => setActiveTab('bank')}
           className={`pill-track-btn ${activeTab === 'bank' ? 'active' : ''}`}
-          title="Question Bank - Browse, search, and export saved questions"
+          title="Question Bank"
         >
           <Database size={12} color={activeTab === 'bank' ? 'var(--brand-primary)' : 'currentColor'} />
           <span>Question Bank</span>
@@ -204,7 +205,7 @@ export default function Navbar({
             }
           }}
           className={`pill-track-btn ${activeTab === 'passages' ? 'active' : ''}`}
-          title="Passage Bank - View and edit reading passages and linked questions"
+          title="Passage Bank"
         >
           <BookOpen size={12} color={activeTab === 'passages' ? 'var(--brand-primary)' : 'currentColor'} />
           <span>Passage Bank</span>

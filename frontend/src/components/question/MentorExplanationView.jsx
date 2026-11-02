@@ -3,7 +3,6 @@ import {
   GraduationCap,
   CheckCircle2,
   AlertTriangle,
-  Lightbulb,
   Target
 } from 'lucide-react';
 
@@ -147,13 +146,8 @@ export default function MentorExplanationView({
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: isCompact ? '0.825rem' : '0.875rem', color: 'var(--text-primary)' }}>
-              Why Each Choice is Right or Wrong
+              Explanations
             </div>
-            {!isCompact && (
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '1px' }}>
-                Detailed breakdown of the correct solution and why the other options are wrong.
-              </div>
-            )}
           </div>
         </div>
 
@@ -164,7 +158,7 @@ export default function MentorExplanationView({
             title={parsed.resolvedTrap.advice}
           >
             <AlertTriangle size={11} color="var(--status-warning)" />
-            Common Trap: {parsed.resolvedTrap.label}
+            {parsed.resolvedTrap.label}
           </span>
         )}
       </div>
@@ -183,7 +177,7 @@ export default function MentorExplanationView({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-success)' }}>
           <CheckCircle2 size={13} />
-          <span>Correct Answer Explanation ({keyLabel})</span>
+          <span>Correct Answer ({keyLabel})</span>
         </div>
 
         {parsed.steps && parsed.steps.length > 0 ? (
@@ -254,10 +248,10 @@ export default function MentorExplanationView({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-warning)' }}>
               <AlertTriangle size={13} color="var(--status-warning)" />
-              <span>Why Other Choices Are Incorrect (Common Traps &amp; Mistakes)</span>
+              <span>Incorrect Choices</span>
             </div>
             <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>
-              {parsed.distractors.length} other choices
+              {parsed.distractors.length} choices
             </span>
           </div>
 
@@ -335,12 +329,12 @@ export default function MentorExplanationView({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-purple)' }}>
               <Target size={13} />
-              <span>Exam Trap to Watch Out For &bull; {parsed.resolvedTrap.label}</span>
+              <span>Exam Trap &bull; {parsed.resolvedTrap.label}</span>
             </div>
           </div>
 
           <div style={{ fontSize: isCompact ? '0.76rem' : '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            <strong style={{ color: 'var(--text-primary)' }}>How to avoid this trap on test day: </strong>
+            <strong style={{ color: 'var(--text-primary)' }}>Avoidance: </strong>
             {parsed.resolvedTrap.advice}
           </div>
         </div>
@@ -361,7 +355,7 @@ export default function MentorExplanationView({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-warning)' }}>
             <AlertTriangle size={13} />
-            <span>Common Student Mistake in Choices &bull; {likelyMistakePattern}</span>
+            <span>Target Mistake &bull; {likelyMistakePattern}</span>
           </div>
 
           <div style={{ fontSize: isCompact ? '0.76rem' : '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
@@ -370,21 +364,6 @@ export default function MentorExplanationView({
           </div>
         </div>
       )}
-
-      {/* Quiet Pro-Tip Footer */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontSize: '0.72rem',
-          color: 'var(--text-muted)',
-          paddingTop: '2px'
-        }}
-      >
-        <Lightbulb size={12} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
-        <span>Tip: Understanding why wrong choices are incorrect is one of the fastest ways to improve your exam score.</span>
-      </div>
     </div>
   );
 }

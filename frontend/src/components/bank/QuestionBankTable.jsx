@@ -187,7 +187,7 @@ const QuestionBankCardRow = React.memo(function QuestionBankCardRow({
             style={{ padding: '6px 12px', fontSize: '0.78rem', whiteSpace: 'nowrap', gap: '6px' }}
             title="Open question in editorial desk inspector"
           >
-            <Eye size={13} /> Open Question
+            <Eye size={13} /> Open
           </button>
 
           <button

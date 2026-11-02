@@ -176,14 +176,14 @@ function BatchCard({
                   className="badge badge-purple"
                   style={{ fontSize: '0.7rem', fontWeight: 700 }}
                 >
-                  🎯 Quick Set (5 Qs)
+                  🎯 5 Questions
                 </span>
               ) : (
                 <span
                   className="badge badge-cyan"
                   style={{ fontSize: '0.7rem', fontWeight: 700 }}
                 >
-                  📚 Full Section (50 Qs)
+                  📚 50 Questions
                 </span>
               )}
               <span
@@ -216,7 +216,7 @@ function BatchCard({
                 color: 'var(--text-primary)'
               }}
             >
-              {batch.subtopic || 'All Topics (Balanced Practice)'}
+              {batch.subtopic || 'All Topics'}
             </div>
             <div
               style={{
@@ -251,7 +251,7 @@ function BatchCard({
               {completedJobs} / {totalJobs} {totalJobs === 1 ? 'Set' : 'Sets'} Completed
             </span>
             <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>
-              {actualTotal} / {totalTarget} Questions Ready ({progressPercent}%)
+              {actualTotal} / {totalTarget} Questions ({progressPercent}%)
             </span>
           </div>
 

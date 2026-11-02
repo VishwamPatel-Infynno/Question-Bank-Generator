@@ -199,7 +199,6 @@ export default function ExportPrintModal({
             </div>
             <div>
               <h2 id="export-modal-title" className="modal-title">Export &amp; Print Exam</h2>
-              <p className="modal-subtitle">Print official MCAT exam papers, study packs with answer keys, or export to CSV and JSON</p>
             </div>
           </div>
           <button 
@@ -220,7 +219,7 @@ export default function ExportPrintModal({
             {/* Scope Selection */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                Questions to Export ({exportQuestions.length})
+                Questions ({exportQuestions.length})
               </span>
               <div className="pill-track" style={{ background: 'var(--bg-surface)' }}>
                 {selectedIds.length > 0 && (
@@ -246,7 +245,7 @@ export default function ExportPrintModal({
                   className={`pill-track-btn ${scope === 'all' ? 'active' : ''}`}
                   onClick={() => setScope('all')}
                 >
-                  <span>All in Bank ({allQuestions.length})</span>
+                  <span>All ({allQuestions.length})</span>
                 </button>
               </div>
             </div>
@@ -254,7 +253,7 @@ export default function ExportPrintModal({
             {/* Format Selection */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                Export Format
+                Format
               </span>
               <div className="pill-track" style={{ background: 'var(--bg-surface)' }}>
                 <button
@@ -264,7 +263,7 @@ export default function ExportPrintModal({
                   style={{ gap: '6px' }}
                 >
                   <FileText size={13} />
-                  <span>Printable Exam (PDF)</span>
+                  <span>Printable Exam</span>
                 </button>
                 <button
                   type="button"
@@ -273,7 +272,7 @@ export default function ExportPrintModal({
                   style={{ gap: '6px' }}
                 >
                   <Table size={13} />
-                  <span>CSV Spreadsheet</span>
+                  <span>CSV</span>
                 </button>
                 <button
                   type="button"
@@ -282,7 +281,7 @@ export default function ExportPrintModal({
                   style={{ gap: '6px' }}
                 >
                   <Code size={13} />
-                  <span>JSON Dataset</span>
+                  <span>JSON</span>
                 </button>
               </div>
             </div>
@@ -303,7 +302,7 @@ export default function ExportPrintModal({
                       style={{ gap: '6px', fontSize: '0.78rem' }}
                     >
                       <GraduationCap size={13} />
-                      <span>Student Practice Test (Questions Only)</span>
+                      <span>Student Test</span>
                     </button>
                     <button
                       type="button"
@@ -312,7 +311,7 @@ export default function ExportPrintModal({
                       style={{ gap: '6px', fontSize: '0.78rem' }}
                     >
                       <BookOpen size={13} />
-                      <span>Full Study Pack (With Explanations &amp; Key)</span>
+                      <span>Full Study Pack</span>
                     </button>
                   </div>
                 </div>

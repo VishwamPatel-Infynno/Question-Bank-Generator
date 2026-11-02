@@ -124,9 +124,9 @@ export default function WizardStep1SectionFocus({
     onSelectSubject?.(top.subjectId);
     onSelectUnit?.(top.unitId);
     onSelectTopic?.(top.id);
-    onSelectSubtopic?.(`${top.name} (All Concepts)`);
+    onSelectSubtopic?.(top.name);
     if (onToggleSubtopic) {
-      onToggleSubtopic('All Core Topics (Balanced Mix)');
+      onToggleSubtopic('All Core Topics');
     }
   };
 
@@ -264,7 +264,7 @@ export default function WizardStep1SectionFocus({
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Compass size={15} style={{ color: 'var(--brand-primary)' }} />
                 <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  All Subjects (Balanced Mix)
+                  All Subjects
                 </span>
               </div>
               {isAllDisciplines && (
@@ -333,7 +333,7 @@ export default function WizardStep1SectionFocus({
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Layers size={15} style={{ color: 'var(--brand-primary)' }} />
                 <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  All Topics (Balanced Mix)
+                  All Topics
                 </span>
               </div>
               {isAllTopics && (

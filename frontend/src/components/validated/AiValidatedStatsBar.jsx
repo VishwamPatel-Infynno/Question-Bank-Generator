@@ -43,9 +43,6 @@ export default function AiValidatedStatsBar({
               Review Queue
             </h2>
           </div>
-          <p style={{ margin: '3px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            Review and approve newly generated questions before saving them to your Question Bank.
-          </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
