@@ -4,10 +4,14 @@ import {
   Zap,
   Square,
   Coins,
-  Cpu
+  Cpu,
+  Clock,
+  Activity,
+  CheckCircle2
 } from 'lucide-react';
 import { MCAT_SECTION_LABELS } from '../../constants/mcat';
 import { formatCostUsd, formatTokenCount } from '../../utils';
+import { LiveStopwatch } from '../common';
 
 const EMPTY_ARRAY = Object.freeze([]);
 
@@ -17,7 +21,6 @@ export default function ActiveMultiBatchMonitor({
   isCancellingAll = false
 }) {
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
-  const [highestOverallProgress, setHighestOverallProgress] = useState(0);
 
   const totalJobs = activeBatches.reduce((acc, b) => acc + (b.total_jobs || 10), 0);
   const completedJobs = activeBatches.reduce((acc, b) => acc + (b.completed_jobs || 0), 0);
@@ -27,27 +30,23 @@ export default function ActiveMultiBatchMonitor({
   const totalCost = activeBatches.reduce((acc, b) => acc + (b.cost_usd || 0.0), 0.0);
 
   const allCompleted = activeBatches.length > 0 && activeBatches.every((b) => b.status === 'completed');
-  const rawProgressPct = targetQuestions > 0
-    ? Math.round((actualQuestions / targetQuestions) * 100)
-    : 0;
-  const runningOverall = Math.min(95, Math.max(0, rawProgressPct));
+  const overallProgressPct = allCompleted
+    ? 100
+    : targetQuestions > 0
+      ? Math.min(100, Math.round((actualQuestions / targetQuestions) * 100))
+      : 0;
 
-  if (activeBatches.length > 0) {
-    if (allCompleted && highestOverallProgress !== 100) {
-      setHighestOverallProgress(100);
-    } else if (!allCompleted && runningOverall > highestOverallProgress) {
-      setHighestOverallProgress(runningOverall);
-    }
-  }
+  // Global Concurrency Worker Pool occupancy:
+  // Server semaphore allows up to 4 concurrent jobs simultaneously across all batches.
+  const remainingIncompleteJobs = Math.max(0, totalJobs - completedJobs);
+  const activeWorkerSlots = Math.min(4, remainingIncompleteJobs);
+  const queuedJobs = Math.max(0, remainingIncompleteJobs - activeWorkerSlots);
 
   if (!activeBatches || activeBatches.length === 0) {
     return null;
   }
 
   const batchCount = activeBatches.length;
-  const overallProgressPct = allCompleted
-    ? 100
-    : Math.max(highestOverallProgress, runningOverall);
 
   const handleConfirmCancel = () => {
     setShowConfirmCancel(false);
@@ -94,7 +93,7 @@ export default function ActiveMultiBatchMonitor({
             <Zap size={16} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <h2
                 style={{
                   fontSize: '1.05rem',
@@ -130,6 +129,25 @@ export default function ActiveMultiBatchMonitor({
                   }}
                 />
                 {batchCount} {batchCount === 1 ? 'Batch Active' : 'Batches Active'}
+              </span>
+
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.72rem',
+                  color: 'var(--brand-primary)',
+                  fontWeight: 700,
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: '12px',
+                  padding: '2px 8px'
+                }}
+              >
+                <Clock size={11} />
+                <span>Elapsed:</span>
+                <LiveStopwatch isRunning={true} />
               </span>
             </div>
             <p
@@ -281,6 +299,99 @@ export default function ActiveMultiBatchMonitor({
             </div>
           </div>
         </div>
+
+        {/* Worker Pool Concurrency */}
+        <div
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius-sm, 8px)',
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}
+        >
+          <Activity size={16} color="var(--brand-primary)" />
+          <div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Worker Pool Concurrency</div>
+            <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {activeWorkerSlots} / 4 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Slots Busy</span>
+            </div>
+            <div style={{ fontSize: '0.68rem', color: queuedJobs > 0 ? 'var(--status-warning)' : 'var(--status-success)', marginTop: '1px' }}>
+              {queuedJobs > 0 ? `${queuedJobs} sets queued in pool` : 'All sets executing or done'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Operational Stage Breakdown */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          flexWrap: 'wrap',
+          padding: '8px 12px',
+          background: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-light)',
+          borderRadius: 'var(--radius-xs)',
+          fontSize: '0.72rem'
+        }}
+      >
+        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Active Execution Stages:</span>
+        <span
+          className="badge"
+          style={{
+            fontSize: '0.68rem',
+            background: 'rgba(51, 90, 207, 0.1)',
+            color: 'var(--brand-primary)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          <span
+            style={{
+              width: '5px',
+              height: '5px',
+              borderRadius: '50%',
+              background: 'var(--brand-primary)',
+              animation: 'pulse 1.4s infinite'
+            }}
+          />
+          {activeWorkerSlots} Sets Generating in Parallel
+        </span>
+        {queuedJobs > 0 && (
+          <span
+            className="badge"
+            style={{
+              fontSize: '0.68rem',
+              background: 'rgba(245, 158, 11, 0.1)',
+              color: 'var(--status-warning)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <Clock size={10} />
+            {queuedJobs} Sets Queued for Slots
+          </span>
+        )}
+        <span
+          className="badge"
+          style={{
+            fontSize: '0.68rem',
+            background: 'rgba(16, 185, 129, 0.1)',
+            color: 'var(--status-success)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          <CheckCircle2 size={10} />
+          {completedJobs} Sets Fully Formed
+        </span>
       </div>
 
       {/* Combined Progress Bar */}

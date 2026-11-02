@@ -1,6 +1,20 @@
 import React from 'react';
-import { FileText, ChevronDown, ChevronRight, Layers, BookOpen, Image as ImageIcon, Trash2 } from 'lucide-react';
+import {
+  FileText,
+  ChevronDown,
+  ChevronRight,
+  Layers,
+  BookOpen,
+  Image as ImageIcon,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  RotateCcw,
+  Check
+} from 'lucide-react';
 import { formatCostUsd, formatTokenCount } from '../../utils';
+import { LiveStopwatch } from '../common';
 import BatchQuestionItem from './BatchQuestionItem';
 
 export default function BatchJobCard({
@@ -19,6 +33,8 @@ export default function BatchJobCard({
   const isJobDone = job.status === 'completed';
   const isJobRunning = job.status === 'running';
   const isJobFailed = job.status === 'failed';
+  const isJobPending = job.status === 'pending';
+  const targetCount = job.target_count || 5;
 
   // Compute status counts for questions in this job
   const resolveStatus = (q) => {
@@ -95,46 +111,84 @@ export default function BatchJobCard({
           >
             Set #{job.job_number}
           </span>
-          <span
-            className="badge"
-            style={{
-              fontSize: '0.675rem',
-              padding: '1px 6px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: isJobDone
-                ? 'rgba(16, 185, 129, 0.1)'
-                : isJobRunning
-                  ? 'rgba(51, 90, 207, 0.15)'
-                  : isJobFailed
-                    ? 'rgba(244, 63, 94, 0.1)'
-                    : 'var(--bg-surface-subtle)',
-              color: isJobDone
-                ? 'var(--status-success)'
-                : isJobRunning
-                  ? 'var(--brand-primary)'
-                  : isJobFailed
-                    ? 'var(--status-danger)'
-                    : 'var(--text-muted)'
-            }}
-          >
-            {isJobRunning && (
+
+          {/* Worker Queue vs Active Slot vs Finished State */}
+          {isJobPending && (
+            <span
+              className="worker-queue-badge queued"
+              title="Job is queued waiting for an available concurrency slot from the global worker pool (max 4 concurrent jobs)"
+            >
+              <Clock size={11} />
+              <span>Queued in Worker Pool</span>
+            </span>
+          )}
+
+          {isJobRunning && (
+            job.trial_count > 1 ? (
               <span
+                className="worker-queue-badge active-slot"
                 style={{
-                  width: '5px',
-                  height: '5px',
-                  borderRadius: '50%',
-                  background: 'var(--brand-primary)',
-                  animation: 'pulse 1.5s infinite'
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  color: 'var(--status-warning)',
+                  borderColor: 'rgba(245, 158, 11, 0.3)'
                 }}
-              />
-            )}
-            {isJobRunning && (job.trial_count > 1)
-              ? `AUTO-RETRYING (${job.trial_count}/3)`
-              : job.status.toUpperCase()}
-          </span>
-          {((isJobFailed || (isJobDone && job.actual_count < (job.target_count || 5))) && (job.trial_count >= 3)) && (
+                title={`Autonomous in-set replenishment trial ${job.trial_count} of 3`}
+              >
+                <RotateCcw size={11} />
+                <span>Replenishing Slot (Trial {job.trial_count}/3)</span>
+              </span>
+            ) : (
+              <span
+                className="worker-queue-badge active-slot"
+                title="Active worker slot executing LangGraph generation workflow"
+              >
+                <span
+                  style={{
+                    width: '5px',
+                    height: '5px',
+                    borderRadius: '50%',
+                    background: 'var(--brand-primary)',
+                    animation: 'pulse 1.5s infinite'
+                  }}
+                />
+                <span>Active Worker Slot</span>
+              </span>
+            )
+          )}
+
+          {isJobDone && (
+            <span
+              className="badge badge-success"
+              style={{
+                fontSize: '0.675rem',
+                padding: '1px 6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <CheckCircle2 size={11} />
+              <span>Completed</span>
+            </span>
+          )}
+
+          {isJobFailed && (
+            <span
+              className="badge badge-danger"
+              style={{
+                fontSize: '0.675rem',
+                padding: '1px 6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <AlertCircle size={11} />
+              <span>Failed</span>
+            </span>
+          )}
+
+          {((isJobFailed || (isJobDone && job.actual_count < targetCount)) && (job.trial_count >= 3)) && (
             <span
               className="badge"
               style={{
@@ -158,8 +212,60 @@ export default function BatchJobCard({
             color: isJobDone ? 'var(--status-success)' : 'var(--text-muted)'
           }}
         >
-          {job.actual_count} / {job.target_count || 5} Qs
+          {job.actual_count} / {targetCount} Qs
         </span>
+      </div>
+
+      {/* 5-Question Visual Progress Strip */}
+      <div className="job-q-pill-strip" role="group" aria-label={`Question progress for Set ${job.job_number}`}>
+        {Array.from({ length: targetCount }).map((_, idx) => {
+          const qNum = idx + 1;
+          const matchedQ = visibleQuestions[idx];
+          if (matchedQ) {
+            const st = resolveStatus(matchedQ);
+            const score = matchedQ.final_score ?? 95;
+            const isBank = st === 'in_bank';
+            return (
+              <span
+                key={matchedQ.id || idx}
+                className={`job-q-pill ${isBank ? 'in-bank' : 'done'}`}
+                title={`Question ${qNum}: Score ${score}/100 • ${isBank ? 'In Question Bank' : 'Ready for Review'}`}
+              >
+                <Check size={10} />
+                <span>Q{qNum} ({score})</span>
+              </span>
+            );
+          }
+          if (isJobRunning && idx === visibleQuestions.length) {
+            return (
+              <span
+                key={idx}
+                className="job-q-pill active"
+                title={`Question ${qNum}: Currently generating passage, stem & distractors`}
+              >
+                <span
+                  style={{
+                    width: '4px',
+                    height: '4px',
+                    borderRadius: '50%',
+                    background: 'var(--brand-primary)',
+                    animation: 'pulse 1.2s infinite'
+                  }}
+                />
+                <span>Q{qNum} drafting</span>
+              </span>
+            );
+          }
+          return (
+            <span
+              key={idx}
+              className="job-q-pill pending"
+              title={`Question ${qNum}: Pending in set`}
+            >
+              <span>Q{qNum}</span>
+            </span>
+          );
+        })}
       </div>
 
       {/* Job Details / Telemetry */}
@@ -174,7 +280,19 @@ export default function BatchJobCard({
       >
         <span>Tokens: {formatTokenCount(job.total_tokens)}</span>
         <span>{formatCostUsd(job.cost_usd)}</span>
-        {job.completed_at && (
+        {isJobRunning ? (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              color: 'var(--brand-primary)',
+              fontWeight: 600
+            }}
+          >
+            <LiveStopwatch isRunning={true} /> elapsed
+          </span>
+        ) : job.completed_at ? (
           <span>
             Finished{' '}
             {new Date(job.completed_at).toLocaleTimeString([], {
@@ -182,7 +300,7 @@ export default function BatchJobCard({
               minute: '2-digit'
             })}
           </span>
-        )}
+        ) : null}
       </div>
 
       {job.error_message && (

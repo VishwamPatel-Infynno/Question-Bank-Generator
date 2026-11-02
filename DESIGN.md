@@ -131,16 +131,21 @@ Streamlined 3-step authoring workflow:
   - **Advanced Settings Drawer (`WizardAdvancedSettings.jsx`)**: Decomposed collapsible accordion drawer giving fine-grained control over cognitive distractor traps, SIRS reasoning skills, and targeted student mistake patterns.
 
 ### 4.2 Live Batch Activity & Concurrency Monitor (`BatchActivityView.jsx`, `ActiveMultiBatchMonitor.jsx`)
-- **Global Concurrency & Worker Pool**: Live telemetry bar showing running background batches, active worker job slots (governed by the global semaphore pool), and real-time execution timers.
-- **Batch Header Banner (`BatchHeaderBanner.jsx`)**: Decomposed top banner rendering high-level aggregate statistics across active runs, multi-batch progress metrics, and fast-action controls.
-- **Empty State Display (`BatchEmptyState.jsx`)**: Clean zero-data slate guiding educators to launch their first practice set or full exam run.
-- **Batch Card Telemetry (`BatchCard.jsx`)**:
-  - Displays batch scope badge (Practice Set 5 Qs vs Full Exam 50 Qs), section accent, target question count, completed slots, and overall completion percentage.
-  - **Controlled Resumption ("Resume Sets")**: Replaces legacy ambiguous retry buttons. Strictly shown for manually paused/stopped batches with incomplete sets under 3 trials. Manual retry options are eliminated for completed, partially completed, and failed batches.
-  - Expandable accordion displaying individual job status items with their assigned thematic angles, cognitive traps, and generated question items.
-- **Job Card Live Telemetry (`BatchJobCard.jsx`)**:
-  - **Live Auto-Retrying Badge**: Displays animated `AUTO-RETRYING (X/3)` indicator when an incomplete set triggers an autonomous in-flight replenishment trial.
-  - **Exhaustion Indicator**: Displays a clear `3/3 TRIALS EXHAUSTED` warning badge when all 3 autonomous trials have concluded without fulfilling the target count.
+- **Dual-Track Progress Indication Architecture**:
+  - **Uncapped Mathematical Progress Bar**: Calculates true question delivery (`actual_count / target_count * 100%`), eliminating artificial 95% caps and render-time mutations. Completed batches lock at 100% emerald.
+  - **4-Stage Visual Lifecycle Stepper (`.batch-lifecycle-stepper`)**:
+    1. `Drafting Sets`: Parallel item generation across active worker slots (`Layers` icon).
+    2. `Duplicate Audit`: Autonomous pairwise clustering (>75% similarity) and quality rubric gate (`ShieldCheck` icon).
+    3. `In-Set Refill`: Autonomous replenishment trials (2-3) targeting deficient slots without passage drift (`RotateCcw` icon; marked `Fulfilled` if no refills required).
+    4. `Ready for Review`: Atomic elevation to Review Queue (`CheckCircle2` icon).
+- **Contextual Batch Outcome Banners (`.batch-outcome-card`)**:
+  - **Completed Batches**: High-leverage emerald card (*"All X Questions Successfully Generated & Verified"*) with direct 1-click `[Open Review Queue (X)]` and `[View in Bank]` CTAs.
+  - **Partially Completed Batches**: Amber notification detailing fulfilled vs shortfall counts after 3 exhausted trials with 1-click access to valid questions.
+  - **Stopped Batches**: Neutral summary showing safely preserved question counts with instant `[Resume Sets]` controlled resumption.
+- **Job Card Live Micro-Progress (`BatchJobCard.jsx`)**:
+  - **Worker Queue State**: Explicitly highlights `⏳ Queued in Worker Pool` for jobs waiting for semaphore capacity vs `⚡ Active Worker Slot` with pulsing indicator.
+  - **5-Question Progress Pills (`.job-q-pill-strip`)**: Micro-status pills (`Q1`–`Q5`) displaying individual item state: green check with score for validated items, pulsing dot for active drafting item, and dashed outline for pending slots.
+  - **Live Duration Stopwatch**: Self-contained runtime counter (`LiveStopwatch`) tracking elapsed generation duration on running sets and active batches.
 - **Set-Preserving Duplicate Resolution Section (`BatchDuplicateAuditSection.jsx`)**:
   - Interactive clustering panel analyzing pairwise question similarity (>75% threshold).
   - Permanent purge (`action="delete"`) of duplicate drafts with in-place slot replenishment preserving the original set's reading passage and thematic angle.
@@ -188,7 +193,9 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 - **Responsive Modes**: Supports `isCompact=true` for staged review decks and full expanded mode for in-depth editorial analysis.
 
 ### 4.7 Active Multi-Batch Concurrency Monitor (`ActiveMultiBatchMonitor.jsx`)
-- **Real-Time Telemetry Strip**: Displays live worker pool occupancy against configured limits (`Global Jobs: X / 4`, `Active Inference Calls: Y / 10`).
+- **Global Worker Pool Concurrency Gauge**: Displays live worker slot occupancy against server semaphore limits (`Worker Pool: X / 4 Active Slots Busy • Y Sets Queued in Pool`).
+- **Live Operational Stage Breakdown**: Aggregate status chips distinguishing sets generating in parallel, queued sets, and completed sets.
+- **Uncapped Progress Telemetry**: Accurate overall percentage across active batches without artificial progress throttling.
 - **Interactive Batch Lifecycle Actions**:
   - **1-Click Batch Stop**: Immediately halts running sub-tasks without deleting saved items.
   - **1-Click Batch Retry**: Relaunches failed or cancelled jobs into the global worker pool.

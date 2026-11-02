@@ -1548,4 +1548,254 @@ input:focus, select:focus, textarea:focus {
   gap: 14px;
 }
 
+/* ==========================================================================
+   Dual-Track Batch Progress & Lifecycle Stepper
+   ========================================================================== */
+.batch-lifecycle-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  overflow-x: auto;
+}
+
+.stepper-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 140px;
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.stepper-step.completed {
+  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.stepper-step.active {
+  background: rgba(79, 48, 185, 0.08);
+  border-color: rgba(79, 48, 185, 0.35);
+  box-shadow: 0 0 12px rgba(79, 48, 185, 0.15);
+}
+
+.stepper-step.pending {
+  background: transparent;
+  opacity: 0.55;
+}
+
+.stepper-step.skipped {
+  background: transparent;
+  opacity: 0.4;
+}
+
+.stepper-icon-pill {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.stepper-step.completed .stepper-icon-pill {
+  background: var(--status-success);
+  color: #ffffff;
+}
+
+.stepper-step.active .stepper-icon-pill {
+  background: var(--brand-primary);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(79, 48, 185, 0.6);
+  animation: pulse 1.8s infinite;
+}
+
+.stepper-step.pending .stepper-icon-pill {
+  background: var(--bg-surface-subtle);
+  color: var(--text-muted);
+  border: 1px dashed var(--border-medium);
+}
+
+.stepper-step.skipped .stepper-icon-pill {
+  background: var(--bg-surface-subtle);
+  color: var(--text-muted);
+}
+
+.stepper-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stepper-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stepper-step.active .stepper-title {
+  color: var(--brand-primary);
+}
+
+.stepper-step.completed .stepper-title {
+  color: var(--status-success);
+}
+
+.stepper-subtitle {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stepper-arrow {
+  color: var(--border-medium);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Job 5-Question Progress Pills & Worker Queue Badges
+   ========================================================================== */
+.job-q-pill-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.job-q-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.job-q-pill.done {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--status-success);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.job-q-pill.in-bank {
+  background: rgba(16, 185, 129, 0.16);
+  color: var(--status-success);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.job-q-pill.active {
+  background: rgba(51, 90, 207, 0.14);
+  color: var(--brand-primary);
+  border-color: rgba(51, 90, 207, 0.35);
+  box-shadow: 0 0 6px rgba(51, 90, 207, 0.25);
+  animation: pulse 1.6s infinite;
+}
+
+.job-q-pill.pending {
+  background: var(--bg-surface-subtle);
+  color: var(--text-muted);
+  border: 1px dashed var(--border-medium);
+  opacity: 0.7;
+}
+
+.worker-queue-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.worker-queue-badge.active-slot {
+  background: rgba(51, 90, 207, 0.14);
+  color: var(--brand-primary);
+  border-color: rgba(51, 90, 207, 0.3);
+}
+
+.worker-queue-badge.queued {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--status-warning);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+/* ==========================================================================
+   Contextual Batch Completion & Outcome Cards
+   ========================================================================== */
+.batch-outcome-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  border: 1px solid transparent;
+  flex-wrap: wrap;
+}
+
+.batch-outcome-card.completed {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.batch-outcome-card.warning {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.batch-outcome-card.stopped {
+  background: var(--bg-surface-elevated);
+  border-color: var(--border-medium);
+}
+
+.batch-outcome-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 280px;
+}
+
+.batch-outcome-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.batch-outcome-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.batch-outcome-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+
 
