@@ -20,6 +20,12 @@ async def review_question(
     section_name = MCAT_SECTION_LABELS.get(req.section, section_val)
     options_formatted = "\n".join([f"{opt.id}: {opt.text}" for opt in draft.options])
 
+    target_trap = (
+        req.primary_trap
+        if (req.primary_trap and req.primary_trap != "Automatic")
+        else (draft.primary_trap or "Author Diagnosed AAMC Trap")
+    )
+
     user_prompt = f"""Review the following candidate AAMC MCAT Multiple Choice Question:
 
 Metadata:
@@ -27,7 +33,7 @@ Metadata:
 - Subtopic: {req.subtopic or "General"}
 - Target Difficulty: {req.difficulty.value}
 - Interaction Format: {req.interaction_type or "single_choice"}
-- Target Trap to Audit: {req.primary_trap or "Automatic"}
+- Target Trap to Audit: {target_trap}
 - Passage Type: {"Yes (250-400 words)" if req.passage_required and str(req.passage_required).lower() in ("yes", "true") else "No"}
 - Iteration Attempt: {iteration}
 

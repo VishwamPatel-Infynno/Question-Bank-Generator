@@ -17,7 +17,7 @@ pytestmark = pytest.mark.live_e2e
 async def test_e2e_health_and_db_connectivity():
     """
     E2E Test 1: Verify health endpoint, PostgreSQL 16 connection,
-    active DeepInfra credentials, and model pricing parameters.
+    active provider credentials, and model pricing parameters.
     """
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=10.0) as client:
         resp = await client.get("/health")
@@ -30,12 +30,18 @@ async def test_e2e_health_and_db_connectivity():
         assert data["database_connected"] is True
         assert data["database_status"] == "ready"
 
-        # Verify inference models and pricing
-        assert data["default_text_model"] == "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017"
+        # Verify inference models and pricing dynamically based on active provider
+        assert data["default_text_model"] == config.DEFAULT_TEXT_MODEL
         assert "FLUX-2-klein-4b" in data["default_image_model"]
-        assert data["has_deepinfra_key"] is True
-        assert data["cost_per_million_input"] == 0.098
-        assert data["cost_per_million_output"] == 0.294
+        if data["active_provider"] == "anthropic":
+            assert data["has_anthropic_key"] is True
+            assert data["cost_per_million_input"] == config.ANTHROPIC_COST_PER_MILLION_INPUT_TOKENS
+            assert data["cost_per_million_output"] == config.ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS
+        else:
+            assert data["has_deepinfra_key"] is True
+            assert data["cost_per_million_input"] == config.DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS
+            assert data["cost_per_million_output"] == config.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS
+
         assert data["passing_threshold"] == 90
         assert data["max_regenerations"] == 3
 
@@ -75,8 +81,15 @@ async def test_e2e_config_endpoint():
         resp = await client.get("/config")
         assert resp.status_code == 200
         cfg = resp.json()
-        assert cfg["default_text_model"] == "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017"
-        assert cfg["has_deepinfra_key"] is True
+        assert cfg["default_text_model"] == config.DEFAULT_TEXT_MODEL
+        if cfg["active_provider"] == "anthropic":
+            assert cfg["has_anthropic_key"] is True
+            assert cfg["cost_per_million_input"] == config.ANTHROPIC_COST_PER_MILLION_INPUT_TOKENS
+            assert cfg["cost_per_million_output"] == config.ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS
+        else:
+            assert cfg["has_deepinfra_key"] is True
+            assert cfg["cost_per_million_input"] == config.DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS
+            assert cfg["cost_per_million_output"] == config.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS
         assert cfg["passing_threshold"] == 90
         assert cfg["current_image_cost_usd"] == 0.014
 
@@ -95,13 +108,14 @@ async def test_e2e_live_generation_sse_stream():
         "difficulty": "medium",
         "require_image": False,
         "passage_required": "Yes",
+        "questions_to_generate": 1,
     }
 
     events = []
     completed_question = None
 
     async with (
-        httpx.AsyncClient(base_url=BASE_URL, timeout=120.0) as client,
+        httpx.AsyncClient(base_url=BASE_URL, timeout=240.0) as client,
         client.stream("POST", "/generate", json=payload) as response,
     ):
         assert response.status_code == 200

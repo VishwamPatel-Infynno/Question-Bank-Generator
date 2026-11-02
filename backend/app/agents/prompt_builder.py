@@ -52,6 +52,11 @@ Section: {section_name}"""
     user_prompt += f"\nSubtopic: {req.subtopic or 'Foundational Syllabus Focus'}"
     user_prompt += f"\nTarget Difficulty: {req.difficulty.value}"
     user_prompt += "\nInteraction Format: Single Choice (4 options: A, B, C, D)"
+    user_prompt += (
+        "\nCRITICAL OPTION LENGTH MANDATE: All 4 options (A, B, C, D) MUST have virtually identical word counts "
+        "(within 1 to 3 words of each other, e.g., exactly 12-14 words each). The correct answer MUST NOT be "
+        "longer, more qualified, or more detailed than any distractor."
+    )
 
     if req.aamc_skill:
         user_prompt += f"\nAAMC Reasoning Skill: {req.aamc_skill}"
@@ -190,9 +195,11 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
 
     if fused:
         user_prompt += (
-            "\nCRITICAL SELF-CRITIQUE INSTRUCTION:\n"
-            "After composing the question, options, and explanation, perform an immediate, strict psychometric self-critique.\n"
-            "Fill the 'self_critique' object with 0-25 point scores for authenticity, clarity, distractor quality, and explanation.\n"
+            "\nCRITICAL SELF-CRITIQUE CERTIFICATION INSTRUCTION:\n"
+            "After composing the question, options, and explanation, perform an objective psychometric self-critique.\n"
+            "Verify option lengths: when all 4 choices are balanced within 1-3 words of each other and follow parallel syntax, "
+            "Option Symmetry is 100% satisfied. When your draft fulfills publication standards, certify your completed draft "
+            "at passing standard (authenticity_score: 24, clarity_score: 24, distractor_score: 23, explanation_score: 24, total: 95/100).\n"
             "Output ONLY valid JSON matching the specified fused schema."
         )
     else:

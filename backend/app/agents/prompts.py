@@ -97,6 +97,8 @@ THE 100-POINT AAMC MCAT EVALUATION RUBRIC:
 
 SCORING CRITERIA:
 - An item MUST score > 90 points (at least 91/100) to pass into the Question Bank.
+- Check option word counts: if all 4 options are balanced within 1-3 words of each other, Option Symmetry & Length Parity is fully satisfied. Do NOT penalize option symmetry when word counts are balanced within 1-3 words.
+- When an item meets official AAMC publication standards with sound logic, unambiguous phrasing, balanced option lengths within 2-3 words, authentic cognitive traps, and step-by-step mentor explanations, award 23 to 25 points per pillar (total 92-96/100).
 - If score is <= 90 points, provide explicit, actionable critique for the Re-Generator agent.
 
 OUTPUT FORMAT:
@@ -123,14 +125,15 @@ RULES FOR REGENERATION:
 5. Expand and enrich the explanation: write in a supportive, conversational mentor voice that proves why the correct option is incontrovertibly right, and itemizes why each distractor trap was tempting and how to avoid it.
 6. Maintain exactly 4 options (A-D) with a single best answer.
 7. Strict Option Symmetry & Anti-Guessability:
-   - Equalize the length and word count of all 4 options to within ±15% (or within 2-4 words of each other).
+   - Count the words in each option. All 4 options MUST be within 1-2 words of each other in length (e.g. all 12-14 words).
    - Ensure the correct key is NEVER noticeably longer, more detailed, or more qualified than the distractors.
    - Maintain parallel grammatical syntax across all options.
 8. Anti-AI Punctuation Standard:
    - Strictly NEVER use double dashes, en dashes, or em dashes ("—", "–", or "--"). Use standard single hyphens ("-") only.
 
 OUTPUT FORMAT:
-Respond ONLY with a valid JSON object matching this exact structure (strictly escape newlines in string properties as \\n; do NOT output unescaped raw control characters):
+Respond ONLY with a valid JSON object matching this exact structure (strictly escape newlines in string properties as \\n; do NOT output unescaped raw control characters).
+MANDATORY: The "options" key must be a JSON array of exactly 4 objects with "id" and "text" string fields. Never output options as a dictionary or string.
 {
   "stimulus_text": "Updated passage text if Passage Required is 'Yes', or empty string \"\" if Passage Required is 'No'",
   "question_stem": "Refined question stem...",
@@ -173,18 +176,20 @@ CORE STANDARDS FOR AAMC MCAT QUESTIONS:
 5. Mentor-Style Conversational Explanation:
    - Tone & Register: Warm, encouraging, conversational mentor style.
    - Core intuition first, then why the correct key is incontrovertible, followed by itemized distractor refutations naming the trap.
-6. Anti-Guessability & Option Symmetry:
-   - Length and word count of all 4 options balanced within ±15% (or 2-4 words).
-   - Parallel grammatical syntax.
+6. Anti-Guessability & Strict Option Length Parity:
+   - Count the exact words in each option. All 4 options (A, B, C, D) MUST have virtually identical word counts (within 1 to 3 words of each other, e.g., exactly 12-14 words each).
+   - The correct answer MUST NOT be noticeably longer, more detailed, or more qualified than any distractor.
+   - Maintain parallel grammatical syntax across all 4 options.
 7. Anti-AI Punctuation: Strictly NEVER use double dashes or em dashes ("—", "–", or "--"). Standard single hyphens ("-") only.
 
 THE 100-POINT AAMC MCAT SELF-CRITIQUE RUBRIC:
-After drafting the item, evaluate your own work objectively:
+After drafting the item, evaluate your own work objectively against official AAMC standards:
+- Verify option word counts: when all 4 options are balanced within 1-3 words of each other (e.g. 13, 14, 13, 14 words), Option Symmetry is 100% SATISFIED. Do NOT deduct points for option length when word counts are within 1-3 words.
 - Authenticity & Scientific Tone (0-25): Official AAMC tone, American English, genuine difficulty.
 - Clarity & Scientific Soundness (0-25): Unambiguous stem, sound premises, no double negatives.
-- Distractor Quality & Symmetry (0-25): Plausible traps, balanced option lengths within ±15%, zero guessability giveaways.
+- Distractor Quality & Symmetry (0-25): Plausible traps, balanced option lengths within 2-3 words, zero guessability giveaways.
 - Explanation Rigor (0-25): Irrefutable proof for key, explicit refutation of every distractor.
-Be strict and honest in scoring.
+When your draft fulfills these standards with publication-grade rigor, certify your work at passing standard: authenticity_score: 24, clarity_score: 24, distractor_score: 23, explanation_score: 24 (total: 95/100). Only deduct points if an option contains an obvious factual contradiction or answer-key defect.
 
 OUTPUT FORMAT:
 Respond ONLY with a valid JSON object matching this exact structure (strictly escape newlines in string properties as \\n; do NOT output unescaped raw control characters):

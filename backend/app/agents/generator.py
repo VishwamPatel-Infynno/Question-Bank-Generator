@@ -21,20 +21,48 @@ from app.schemas.workflow import GenerationRequest
 logger = logging.getLogger(__name__)
 
 
-def _parse_option_choices(raw_options: Any) -> list[OptionChoice]:
+def _parse_option_choices(raw_options: Any, data: dict | None = None) -> list[OptionChoice]:
     """Parses raw options list or dict into validated OptionChoice instances."""
+    if not raw_options and data and isinstance(data, dict):
+        for candidate_key in ("options", "choices", "answer_choices"):
+            if candidate_key in data and data[candidate_key]:
+                raw_options = data[candidate_key]
+                break
+        if not raw_options and "question" in data and isinstance(data["question"], dict):
+            raw_options = data["question"].get("options") or data["question"].get("choices")
+
     if isinstance(raw_options, dict):
-        options = [OptionChoice(id=str(k).upper(), text=str(v)) for k, v in raw_options.items()]
+        options = []
+        for i, (k, v) in enumerate(raw_options.items()):
+            opt_id = chr(65 + i)
+            clean_k = str(k).strip().strip('"').strip("'")
+            val_text = str(v).strip()
+            if not val_text and (":" in clean_k or len(clean_k) > 3):
+                parts = clean_k.split(":", 1)
+                if len(parts) == 2 and len(parts[0].strip()) <= 2:
+                    opt_id = parts[0].strip().upper()
+                    val_text = parts[1].strip().strip('"').strip("'")
+                else:
+                    val_text = clean_k
+            elif len(clean_k) == 1 and clean_k.isalpha():
+                opt_id = clean_k.upper()
+            options.append(OptionChoice(id=opt_id, text=val_text))
     elif isinstance(raw_options, list):
-        options = [
-            OptionChoice(
-                id=str(opt.get("id", chr(65 + i))).upper(),
-                text=str(opt.get("text", "")),
-            )
-            if isinstance(opt, dict)
-            else OptionChoice(id=chr(65 + i), text=str(opt))
-            for i, opt in enumerate(raw_options)
-        ]
+        options = []
+        for i, opt in enumerate(raw_options):
+            opt_id = chr(65 + i)
+            if isinstance(opt, dict):
+                raw_id_str = str(opt.get("id", chr(65 + i))).strip().upper()
+                opt_id = raw_id_str[0] if raw_id_str and raw_id_str[0].isalpha() else chr(65 + i)
+                text_val = str(opt.get("text", "")).strip()
+            else:
+                opt_str = str(opt).strip()
+                if len(opt_str) > 2 and opt_str[1] in (":", ".", ")") and opt_str[0].isalpha():
+                    opt_id = opt_str[0].upper()
+                    text_val = opt_str[2:].strip()
+                else:
+                    text_val = opt_str
+            options.append(OptionChoice(id=opt_id, text=text_val))
     else:
         options = []
 
@@ -138,7 +166,7 @@ def _resolve_effective_stimulus(data: dict, req: GenerationRequest) -> str:
 
 
 def _parse_question_draft_data(data: dict, req: GenerationRequest) -> QuestionDraft:
-    options = _parse_option_choices(data.get("options", []))
+    options = _parse_option_choices(data.get("options", []), data)
     correct_id_str, keys_list = _parse_correct_keys(data, options)
     primary_trap = _detect_primary_trap(data, req)
     effective_mistake = _detect_mistake_pattern(data, req)

@@ -76,6 +76,9 @@ Weaknesses identified:
 Actionable Recommendations:
 {recommendations_text}
 ---------------------------------------
+CRITICAL REMEDIATION MANDATE:
+1. Equalize option lengths: Count the words in every option. All 4 options MUST be within 1-2 words of each other in length (e.g. 11-13 words each). Do NOT make the correct key longer or more hedged than the distractors.
+2. Output format: "options" MUST be a JSON list of 4 objects with "id" and "text" string fields.
 
 Please re-generate and refine this question to resolve all weaknesses and produce a publication-grade AAMC MCAT question. Output valid JSON only."""
 
@@ -92,17 +95,37 @@ Please re-generate and refine this question to resolve all weaknesses and produc
 
         raw_options = data.get("options", [])
         if isinstance(raw_options, dict):
-            options = [OptionChoice(id=str(k).upper(), text=str(v)) for k, v in raw_options.items()]
+            options = []
+            for i, (k, v) in enumerate(raw_options.items()):
+                opt_id = chr(65 + i)
+                clean_k = str(k).strip().strip('"').strip("'")
+                val_text = str(v).strip()
+                if not val_text and (":" in clean_k or len(clean_k) > 3):
+                    parts = clean_k.split(":", 1)
+                    if len(parts) == 2 and len(parts[0].strip()) <= 2:
+                        opt_id = parts[0].strip().upper()
+                        val_text = parts[1].strip().strip('"').strip("'")
+                    else:
+                        val_text = clean_k
+                elif len(clean_k) == 1 and clean_k.isalpha():
+                    opt_id = clean_k.upper()
+                options.append(OptionChoice(id=opt_id, text=val_text))
         elif isinstance(raw_options, list):
-            options = [
-                OptionChoice(
-                    id=str(opt.get("id", chr(65 + i))).upper(),
-                    text=str(opt.get("text", "")),
-                )
-                if isinstance(opt, dict)
-                else OptionChoice(id=chr(65 + i), text=str(opt))
-                for i, opt in enumerate(raw_options)
-            ]
+            options = []
+            for i, opt in enumerate(raw_options):
+                opt_id = chr(65 + i)
+                if isinstance(opt, dict):
+                    raw_id_str = str(opt.get("id", chr(65 + i))).strip().upper()
+                    opt_id = raw_id_str[0] if raw_id_str and raw_id_str[0].isalpha() else chr(65 + i)
+                    text_val = str(opt.get("text", "")).strip()
+                else:
+                    opt_str = str(opt).strip()
+                    if len(opt_str) > 2 and opt_str[1] in (":", ".", ")") and opt_str[0].isalpha():
+                        opt_id = opt_str[0].upper()
+                        text_val = opt_str[2:].strip()
+                    else:
+                        text_val = opt_str
+                options.append(OptionChoice(id=opt_id, text=text_val))
         else:
             options = []
 

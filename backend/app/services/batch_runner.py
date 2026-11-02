@@ -31,7 +31,6 @@ from app.schemas import (
     is_question_active,
 )
 from app.services.deduplication import cluster_questions
-from app.workflow.engine import run_workflow_stream
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +157,8 @@ async def _run_single_job(
         job_prompt_tokens = 0
         job_completion_tokens = 0
         job_cost = 0.0
+
+        from app.workflow.engine import run_workflow_stream
 
         try:
             async for raw_chunk in run_workflow_stream(job_req):
@@ -312,6 +313,8 @@ async def _run_single_job_refill(
         )
 
         refill_qs: list[Question] = []
+        from app.workflow.engine import run_workflow_stream
+
         try:
             async for raw_chunk in run_workflow_stream(refill_req):
                 line = raw_chunk.strip()
