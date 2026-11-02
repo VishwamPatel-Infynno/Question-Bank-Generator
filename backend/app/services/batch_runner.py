@@ -9,6 +9,7 @@ from typing import Any
 from app.core.config import config
 from app.repositories.batch_repository import (
     get_batch_by_id,
+    promote_completed_batch_questions,
     refresh_batch_aggregates,
     save_batch,
 )
@@ -51,6 +52,12 @@ def get_global_job_semaphore() -> asyncio.Semaphore:
     if _GLOBAL_JOB_SEMAPHORE is None:
         _GLOBAL_JOB_SEMAPHORE = asyncio.Semaphore(config.GLOBAL_MAX_CONCURRENT_JOBS)
     return _GLOBAL_JOB_SEMAPHORE
+
+
+def _is_cars_section(section: Any) -> bool:
+    """Returns True if the section is CARS (Critical Analysis and Reasoning Skills)."""
+    val = section.value if hasattr(section, "value") else str(section)
+    return val.strip().lower() in ("cars", "mcatsection.cars")
 
 
 async def _persist_job_question(
@@ -124,10 +131,7 @@ async def _run_single_job(
         )
         await update_job_progress(job.id, status="running", started_at=now_iso)
 
-        is_cars = (
-            base_req.section.value if hasattr(base_req.section, "value") else str(base_req.section)
-        )
-        is_cars = is_cars in ("cars", "CARS")
+        is_cars = _is_cars_section(base_req.section)
         is_passage_mode = (
             is_cars
             or base_req.passage_mode == "single_passage"
@@ -274,9 +278,7 @@ async def _run_single_job_refill(
             if is_question_active(q.status)
         ]
 
-        is_cars = (
-            base_req.section.value if hasattr(base_req.section, "value") else str(base_req.section)
-        ) in ("cars", "CARS")
+        is_cars = _is_cars_section(base_req.section)
         is_passage_mode = (
             is_cars
             or base_req.passage_mode == "single_passage"
@@ -395,8 +397,6 @@ async def _execute_in_set_refill(
         if not refill_result.get("refill_launched"):
             final_b = await refresh_batch_aggregates(batch_id)
             if final_b and final_b.status == "completed":
-                from app.repositories.batch_repository import promote_completed_batch_questions
-
                 await promote_completed_batch_questions(batch_id)
     except asyncio.CancelledError:
         logger.info(f"In-set refill for batch {batch_id} was cancelled.")
@@ -467,8 +467,6 @@ async def _execute_batch_workflow(
             # Batch has fully concluded all processing, deduplication, and refilling
             final_b = await refresh_batch_aggregates(batch_id)
             if final_b and final_b.status == "completed":
-                from app.repositories.batch_repository import promote_completed_batch_questions
-
                 await promote_completed_batch_questions(batch_id)
 
     except asyncio.CancelledError:

@@ -63,8 +63,8 @@ export default function BatchFiltersBar({
         <div className="pill-track" style={{ padding: '2px' }}>
           {[
             { id: 'all', label: 'All Practice Sets' },
-            { id: 'mini', label: 'Quick Sets (5 Qs)' },
-            { id: 'full', label: 'Full Sections (50 Qs)' }
+            { id: 'mini', label: 'Quick Sets (5 Questions)' },
+            { id: 'full', label: 'Full Sets (50 Questions)' }
           ].map((scope) => (
             <button
               key={scope.id}

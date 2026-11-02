@@ -1,10 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  Layers,
-  RefreshCw,
-  Sparkles
-} from 'lucide-react';
-import {
   fetchBatches,
   fetchBatchDetail,
   deleteBatch,
@@ -22,7 +17,9 @@ import {
   BatchStatsHeader,
   BatchFiltersBar,
   BatchCard,
-  ActiveMultiBatchMonitor
+  ActiveMultiBatchMonitor,
+  BatchEmptyState,
+  BatchHeaderBanner
 } from '../components/batch';
 
 export default function BatchActivityView({
@@ -300,7 +297,7 @@ export default function BatchActivityView({
     setConfirmModal({
       isOpen: true,
       title: 'Delete Batch Record',
-      description: 'Are you sure you want to delete this batch and its logged jobs? Questions already saved will remain in your Question Bank.',
+      description: 'Are you sure you want to delete this batch history? Any questions you already saved to your Question Bank will remain safe.',
       confirmLabel: 'Delete Batch',
       variant: 'danger',
       itemCount: 1,
@@ -490,55 +487,11 @@ export default function BatchActivityView({
   return (
     <div className="batch-activity-container">
       {/* Header Bar */}
-      <div className="batch-activity-banner">
-        <div className="batch-activity-banner-left">
-          <div className="batch-activity-banner-icon">
-            <Layers size={20} />
-          </div>
-          <div>
-            <h1 className="batch-activity-banner-title">
-              Batch History
-            </h1>
-          </div>
-        </div>
-
-        {/* Global Action Tools */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => loadBatches(false)}
-            disabled={refreshing}
-            style={{
-              padding: '7px 12px',
-              fontSize: '0.8rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            title="Refresh history from database"
-          >
-            <RefreshCw size={13} className={refreshing ? 'spin-icon' : ''} />
-            <span>{refreshing ? 'Updating...' : 'Refresh'}</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={onNavigateToWizard}
-            style={{
-              padding: '7px 14px',
-              fontSize: '0.8rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <Sparkles size={14} />
-            <span>+ Create New Questions</span>
-          </button>
-        </div>
-      </div>
+      <BatchHeaderBanner
+        refreshing={refreshing}
+        onRefresh={() => loadBatches(false)}
+        onNavigateToWizard={onNavigateToWizard}
+      />
 
       {/* Active Multi-Batch Monitor Hero (Visible when 1+ batches running) */}
       {activeBatchesList.length > 0 && (
@@ -574,38 +527,12 @@ export default function BatchActivityView({
           <span className="view-loading-text">Loading batch records...</span>
         </div>
       ) : filteredBatches.length === 0 ? (
-        <div className="view-empty-state">
-          <div className="view-empty-icon-box">
-            <Layers size={26} />
-          </div>
-          <div>
-            <h3 className="view-empty-title">
-              No Batches Found
-            </h3>
-            <p className="view-empty-desc">
-              {searchQuery || statusFilter !== 'all' || sectionFilter !== 'all'
-                ? 'No generation batches match your active filters. Try clearing your search.'
-                : 'You have not executed any background batches yet. Launch a 50-question batch with 10 jobs to see live activity.'}
-            </p>
-          </div>
-          <div className="view-empty-actions">
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={onNavigateToWizard}
-              style={{
-                padding: '8px 20px',
-                fontSize: '0.85rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Sparkles size={14} />
-              <span>Start Background Batch</span>
-            </button>
-          </div>
-        </div>
+        <BatchEmptyState
+          searchQuery={searchQuery}
+          statusFilter={statusFilter}
+          sectionFilter={sectionFilter}
+          onNavigateToWizard={onNavigateToWizard}
+        />
       ) : (
         <>
           <div className="batch-activity-list">

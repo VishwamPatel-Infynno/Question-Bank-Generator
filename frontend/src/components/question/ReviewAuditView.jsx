@@ -1,11 +1,15 @@
 import React from 'react';
-import { X, CheckCircle, AlertTriangle, ShieldCheck, Sparkles, Target, Zap, Image as ImageIcon } from 'lucide-react';
-import { useFocusTrap } from '../../hooks';
+import { CheckCircle, AlertTriangle, ShieldCheck, Sparkles, Target, Zap, Image as ImageIcon } from 'lucide-react';
+import { Modal } from '../common';
 import { getEffectiveTrapInfo, formatTokenCount } from '../../utils';
 
+/**
+ * ReviewAuditView
+ *
+ * Detailed quality, token cost, and exam calibration modal for a question.
+ * Built on the unified Modal primitive with WCAG AA compliance.
+ */
 export default function ReviewAuditView({ question, onClose }) {
-  const modalRef = useFocusTrap({ isActive: Boolean(question), onClose });
-
   if (!question) return null;
 
   const review = question.review_rubric;
@@ -23,70 +27,49 @@ export default function ReviewAuditView({ question, onClose }) {
   );
 
   const pillars = [
-    { label: 'AAMC MCAT Style & Scientific Tone', score: review?.authenticity_score ?? 24, max: 25, color: 'var(--brand-primary)' },
+    { label: 'MCAT Scientific Style & Tone', score: review?.authenticity_score ?? 24, max: 25, color: 'var(--brand-primary)' },
     { label: 'Clarity & Logic', score: review?.clarity_score ?? 24, max: 25, color: 'var(--brand-indigo)' },
     { label: 'Wrong Answer Quality', score: review?.distractor_score ?? 23, max: 25, color: 'var(--status-warning)' },
     { label: 'Explanation & Key Accuracy', score: review?.explanation_score ?? 24, max: 25, color: 'var(--status-success)' },
   ];
 
-  return (
+  const iconElement = (
     <div
-      className="modal-backdrop"
-      onClick={onClose}
+      style={{
+        width: '38px',
+        height: '38px',
+        borderRadius: 'var(--radius-sm)',
+        background: 'var(--brand-light)',
+        border: '1px solid var(--border-brand)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--brand-primary)',
+        flexShrink: 0
+      }}
     >
-      <div
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="audit-modal-title"
-        className="modal-card"
-        style={{
-          maxWidth: '820px'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="modal-header">
-          <div className="modal-title-group">
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--brand-light)',
-                border: '1px solid var(--border-brand)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--brand-primary)',
-                flexShrink: 0
-              }}
-            >
-              <ShieldCheck size={20} />
-            </div>
-            <div>
-              <h2 id="audit-modal-title" className="modal-title">
-                Question Quality Review
-              </h2>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
-                Quality Breakdown &bull; Usage &amp; Cost &bull; Exam Standards
-              </p>
-            </div>
-          </div>
+      <ShieldCheck size={20} />
+    </div>
+  );
 
-          <button
-            onClick={onClose}
-            className="btn-ghost"
-            style={{ padding: '6px', borderRadius: 'var(--radius-sm)' }}
-            title="Close"
-          >
-            <X size={18} />
-          </button>
-        </div>
+  const footer = (
+    <button type="button" onClick={onClose} className="btn-secondary">
+      Close Review
+    </button>
+  );
 
-        {/* Modal Body */}
-        <div className="modal-body">
-
+  return (
+    <Modal
+      isOpen={Boolean(question)}
+      onClose={onClose}
+      title="Question Quality Review"
+      subtitle="Quality breakdown, token usage, and exam standards"
+      icon={iconElement}
+      maxWidth="820px"
+      footer={footer}
+      ariaLabelledBy="audit-modal-title"
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Overall Score Banner */}
         <div
           style={{
@@ -132,11 +115,11 @@ export default function ReviewAuditView({ question, onClose }) {
           {/* Metric Cards Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
             <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>INPUT TOKENS</div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>INPUT TOKENS (PROMPT)</div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>{formatTokenCount(question.prompt_tokens)}</div>
             </div>
             <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>OUTPUT TOKENS</div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>OUTPUT TOKENS (RESPONSE)</div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-indigo)' }}>{formatTokenCount(question.completion_tokens)}</div>
             </div>
             <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
@@ -386,15 +369,7 @@ export default function ReviewAuditView({ question, onClose }) {
             </div>
           </div>
         )}
-        </div>
-
-        {/* Modal Footer */}
-        <div className="modal-footer">
-          <button onClick={onClose} className="btn-secondary">
-            Close Review
-          </button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

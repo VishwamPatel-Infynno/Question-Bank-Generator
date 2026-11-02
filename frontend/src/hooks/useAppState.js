@@ -25,7 +25,34 @@ import {
  * App.jsx uses this as its single source of truth - it purely assembles
  * the layout while this hook manages everything stateful.
  *
- * @returns {Object} All app state values and event handler callbacks.
+ * @returns {{
+ *   theme: 'light' | 'dark',
+ *   toggleTheme: () => void,
+ *   activeTab: string,
+ *   setActiveTab: (tab: string) => void,
+ *   viewMode: 'hero' | 'wizard',
+ *   setViewMode: (mode: 'hero' | 'wizard') => void,
+ *   wizardStep: number,
+ *   setWizardStep: (step: number) => void,
+ *   handleNavigateToGenerator: () => void,
+ *   handleNavigateToWizard: (step?: number) => void,
+ *   handleNavigateToPassages: () => void,
+ *   passagesResetSignal: number,
+ *   sectionsData: Array<any>,
+ *   backendStatus: boolean,
+ *   activeBatchCount: number,
+ *   generatorForm: ReturnType<typeof useGeneratorForm>,
+ *   auditQuestion: any,
+ *   setAuditQuestion: (q: any) => void,
+ *   toasts: Array<any>,
+ *   showToast: (opts: { type?: string, title: string, message?: string, duration?: number }) => void,
+ *   dismissToast: (id: string) => void,
+ *   handleGenerate: () => void,
+ *   handleApplyPreset: (cfg: any) => void,
+ *   validatedCount: number,
+ *   refreshCounts: () => void,
+ *   isLaunchingBatch: boolean
+ * }} All app state values and event handler callbacks.
  */
 export function useAppState() {
   // ─── Theme ───────────────────────────────────────────────────────────────
@@ -206,7 +233,6 @@ export function useAppState() {
       content_domains: contentDomains && contentDomains.length > 0 ? contentDomains : undefined,
       content_domain: contentDomain || (contentDomains && contentDomains.length > 0 ? contentDomains.join(', ') : undefined),
       additional_instructions: additionalInstructions?.trim() || undefined,
-      custom_prompt: additionalInstructions?.trim() || undefined,
       allow_ai_images: isVisualsPermitted,
       require_image: isVisualsPermitted && passageMode !== 'single_passage' && totalQuestions === 1,
       visual_type: isVisualsPermitted ? 'AI_FLUX_Image' : 'None',

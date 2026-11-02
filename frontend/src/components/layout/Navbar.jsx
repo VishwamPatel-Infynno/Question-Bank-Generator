@@ -85,8 +85,8 @@ export default function Navbar({
             }
           }}
           className="brand-refresh-link"
-          title="Refresh application and return to home"
-          aria-label="Infynno MCAT Question Bank Generator home - click to reload application"
+          title="Return to home"
+          aria-label="Infynno MCAT Question Studio home - click to return to home"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -134,7 +134,7 @@ export default function Navbar({
           onClick={() => setActiveTab('batches')}
           className={`pill-track-btn ${activeTab === 'batches' ? 'active' : ''}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          title="View batch history and generation progress"
+          title="Batch Progress - Track active and past question generation runs"
         >
           <Layers size={12} color={activeTab === 'batches' ? 'var(--brand-primary)' : 'currentColor'} />
           <span>Batch Progress</span>
@@ -161,7 +161,7 @@ export default function Navbar({
           onClick={() => setActiveTab('validated')}
           className={`pill-track-btn ${activeTab === 'validated' ? 'active' : ''}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          title="Review validated questions in queue"
+          title="Review Queue - Review newly generated questions ready for your bank"
         >
           <CheckCircle2 size={12} color={activeTab === 'validated' ? 'var(--brand-primary)' : 'currentColor'} />
           <span>Review Queue</span>
@@ -187,7 +187,7 @@ export default function Navbar({
           type="button"
           onClick={() => setActiveTab('bank')}
           className={`pill-track-btn ${activeTab === 'bank' ? 'active' : ''}`}
-          title="Question Bank"
+          title="Question Bank - Browse, search, and export saved questions"
         >
           <Database size={12} color={activeTab === 'bank' ? 'var(--brand-primary)' : 'currentColor'} />
           <span>Question Bank</span>
@@ -204,7 +204,7 @@ export default function Navbar({
             }
           }}
           className={`pill-track-btn ${activeTab === 'passages' ? 'active' : ''}`}
-          title="Passage Bank & Editorial Desk"
+          title="Passage Bank - View and edit reading passages and linked questions"
         >
           <BookOpen size={12} color={activeTab === 'passages' ? 'var(--brand-primary)' : 'currentColor'} />
           <span>Passage Bank</span>

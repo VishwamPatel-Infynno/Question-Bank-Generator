@@ -40,7 +40,7 @@ function PassageInlineQuestionEditor({ question, onSave, onCancel }) {
             fontWeight: 600
           }}
         >
-          Question Stem
+          Question Text
         </label>
         <textarea
           rows={3}
@@ -229,7 +229,7 @@ export default function PassageLinkedQuestionCard({
             <span
               className="badge badge-purple"
               style={{ fontSize: '0.64rem' }}
-              title={`Primary AAMC Distractor Trap: ${trapInfo.label}`}
+              title={`Common Test Trap: ${trapInfo.label}`}
             >
               {trapInfo.label}
             </span>
@@ -247,7 +247,7 @@ export default function PassageLinkedQuestionCard({
             alignItems: 'center',
             gap: '4px'
           }}
-          title={isEditing ? 'Close editor' : 'Edit question stem, choices, or explanation'}
+          title={isEditing ? 'Close editor' : 'Edit question text, choices, or explanation'}
         >
           {isEditing ? <X size={12} /> : <Edit3 size={12} color="var(--brand-primary)" />}
           <span>{isEditing ? 'Cancel' : 'Edit Question'}</span>

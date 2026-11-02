@@ -19,14 +19,14 @@ export default function QuestionScorecardTab({ question, pillars = EMPTY_PILLARS
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            Question Quality Scorecard
+            Question Quality Checklist
           </h4>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Checked against 100-point quality standards
+            Checked against 100-point exam standards
           </p>
         </div>
         <span className="badge badge-emerald" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>
-          Overall Score: {question.final_score}/100
+          Overall Quality Score: {question.final_score}/100
         </span>
       </div>
 

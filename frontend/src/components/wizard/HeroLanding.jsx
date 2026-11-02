@@ -17,7 +17,7 @@ export default function HeroLanding({
   const PRESETS = [
     {
       label: 'Chem / Phys',
-      tag: '50 Qs',
+      tag: '50 Questions',
       icon: FlaskConical,
       config: {
         section: 'chem_phys',
@@ -32,7 +32,7 @@ export default function HeroLanding({
     },
     {
       label: 'CARS',
-      tag: '50 Qs',
+      tag: '50 Questions',
       icon: BookOpen,
       config: {
         section: 'cars',
@@ -47,7 +47,7 @@ export default function HeroLanding({
     },
     {
       label: 'Bio / Biochem',
-      tag: '50 Qs',
+      tag: '50 Questions',
       icon: Dna,
       config: {
         section: 'bio_biochem',
@@ -62,7 +62,7 @@ export default function HeroLanding({
     },
     {
       label: 'Psych / Soc',
-      tag: '50 Qs',
+      tag: '50 Questions',
       icon: Brain,
       config: {
         section: 'psych_soc',
@@ -100,7 +100,7 @@ export default function HeroLanding({
 
         {/* Tagline */}
         <p className="hero-tagline">
-          Create calibrated AAMC MCAT practice questions.
+          Create exam-ready MCAT practice questions with reading passages, diagrams, and step-by-step answer explanations.
         </p>
 
         {/* Centered CTA Buttons */}
@@ -111,7 +111,7 @@ export default function HeroLanding({
             id="btn-hero-get-started"
             onClick={onGetStarted}
           >
-            <span>Create Questions</span>
+            <span>Start Creating Questions</span>
             <ArrowRight size={16} />
           </button>
 
@@ -122,7 +122,7 @@ export default function HeroLanding({
             onClick={onOpenBank}
           >
             <Database size={15} />
-            <span>Question Bank</span>
+            <span>Browse Question Bank</span>
           </button>
         </div>
 

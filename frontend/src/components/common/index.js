@@ -5,4 +5,5 @@ export { default as LiveStopwatch } from './LiveStopwatch';
 export { ToastItem, ToastContainer } from './Toast';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as PaginationBar } from './PaginationBar';
+export { default as Modal } from './Modal';
 

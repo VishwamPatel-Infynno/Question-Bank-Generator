@@ -113,9 +113,9 @@ function AiValidatedQuestionCard({
                 color: 'var(--status-warning, #d97706)',
                 border: '1px solid rgba(245, 158, 11, 0.3)'
               }}
-              title={`Targeted Student Misconception: ${q.likely_mistake_pattern}`}
+              title={`Common Student Mistake: ${q.likely_mistake_pattern}`}
             >
-              <Target size={10} /> Watch Out: {q.likely_mistake_pattern}
+              <Target size={10} /> Common Mistake: {q.likely_mistake_pattern}
             </span>
           )}
           {hasDiagram && (

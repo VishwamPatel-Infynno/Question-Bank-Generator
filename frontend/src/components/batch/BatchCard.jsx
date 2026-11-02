@@ -216,7 +216,7 @@ function BatchCard({
                 color: 'var(--text-primary)'
               }}
             >
-              {batch.subtopic || 'Comprehensive Section Batch'}
+              {batch.subtopic || 'All Topics (Balanced Practice)'}
             </div>
             <div
               style={{
@@ -251,7 +251,7 @@ function BatchCard({
               {completedJobs} / {totalJobs} {totalJobs === 1 ? 'Set' : 'Sets'} Completed
             </span>
             <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>
-              {actualTotal} / {totalTarget} Questions ({progressPercent}%)
+              {actualTotal} / {totalTarget} Questions Ready ({progressPercent}%)
             </span>
           </div>
 

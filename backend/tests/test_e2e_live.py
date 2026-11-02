@@ -36,11 +36,15 @@ async def test_e2e_health_and_db_connectivity():
         if data["active_provider"] == "anthropic":
             assert data["has_anthropic_key"] is True
             assert data["cost_per_million_input"] == config.ANTHROPIC_COST_PER_MILLION_INPUT_TOKENS
-            assert data["cost_per_million_output"] == config.ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS
+            assert (
+                data["cost_per_million_output"] == config.ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS
+            )
         else:
             assert data["has_deepinfra_key"] is True
             assert data["cost_per_million_input"] == config.DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS
-            assert data["cost_per_million_output"] == config.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS
+            assert (
+                data["cost_per_million_output"] == config.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS
+            )
 
         assert data["passing_threshold"] == 90
         assert data["max_regenerations"] == 3
@@ -172,52 +176,42 @@ async def test_e2e_question_bank_crud_and_filtering():
     difficulty, search term, and question retrieval by ID.
     """
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=10.0) as client:
-        # 1. Fetch all questions (seed sample question if database is empty)
-        resp = await client.get("/questions")
-        assert resp.status_code == 200
-        data = resp.json()
-        questions = data.get("questions", [])
-        if len(questions) == 0:
-            seed_payload = {
-                "section": "cars",
-                "section_label": "Critical Analysis and Reasoning Skills",
-                "subtopic": "Reasoning Within the Text",
-                "difficulty": "medium",
-                "stimulus_text": "Clinical audit in acute tertiary hospitals demonstrated a 34% reduction in catheter-associated urinary tract infections following protocolized catheter removal policies.",
-                "question_stem": "Which conclusion is most robustly supported by the clinical audit findings?",
-                "options": [
-                    {
-                        "id": "A",
-                        "text": "Protocolized catheter removal policies contributed to lower infection incidence.",
-                    },
-                    {
-                        "id": "B",
-                        "text": "All hospital wards eliminated urinary tract infections entirely.",
-                    },
-                    {
-                        "id": "C",
-                        "text": "Nurses refused to follow catheter protocols in surgical departments.",
-                    },
-                    {
-                        "id": "D",
-                        "text": "Infection rates increased across non-acute medical settings.",
-                    },
-                ],
-                "correct_answer_id": "A",
-                "correct_answer_ids": ["A"],
-                "explanation": "Option A is directly corroborated by the 34% observed reduction in catheter-associated infections.",
-                "final_score": 96,
-                "total_tokens": 750,
-                "cost_usd": 0.0003,
-            }
-            save_resp = await client.post("/questions", json=seed_payload)
-            assert save_resp.status_code == 200
-            resp = await client.get("/questions")
-            questions = resp.json().get("questions", [])
-
-        assert len(questions) > 0, "Question bank should contain saved questions"
-
-        sample_q = questions[0]
+        # 1. Seed a known 4-option test question to verify CRUD & filtering
+        seed_payload = {
+            "section": "cars",
+            "section_label": "Critical Analysis and Reasoning Skills",
+            "subtopic": "Reasoning Within the Text",
+            "difficulty": "medium",
+            "stimulus_text": "Clinical audit in acute tertiary hospitals demonstrated a 34% reduction in catheter-associated urinary tract infections following protocolized catheter removal policies.",
+            "question_stem": "Which conclusion is most robustly supported by the clinical audit findings?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Protocolized catheter removal policies contributed to lower infection incidence.",
+                },
+                {
+                    "id": "B",
+                    "text": "All hospital wards eliminated urinary tract infections entirely.",
+                },
+                {
+                    "id": "C",
+                    "text": "Nurses refused to follow catheter protocols in surgical departments.",
+                },
+                {
+                    "id": "D",
+                    "text": "Infection rates increased across non-acute medical settings.",
+                },
+            ],
+            "correct_answer_id": "A",
+            "correct_answer_ids": ["A"],
+            "explanation": "Option A is directly corroborated by the 34% observed reduction in catheter-associated infections.",
+            "final_score": 96,
+            "total_tokens": 750,
+            "cost_usd": 0.0003,
+        }
+        save_resp = await client.post("/questions", json=seed_payload)
+        assert save_resp.status_code == 200
+        sample_q = save_resp.json()
         q_id = sample_q["id"]
 
         # 2. Fetch single question by ID
@@ -232,6 +226,7 @@ async def test_e2e_question_bank_crud_and_filtering():
         resp_sec = await client.get(f"/questions?section={sec}")
         assert resp_sec.status_code == 200
         sec_questions = resp_sec.json().get("questions", [])
+        assert any(q["id"] == q_id for q in sec_questions)
         for q in sec_questions:
             assert q["section"] == sec
 
@@ -240,6 +235,7 @@ async def test_e2e_question_bank_crud_and_filtering():
         resp_diff = await client.get(f"/questions?difficulty={diff}")
         assert resp_diff.status_code == 200
         diff_questions = resp_diff.json().get("questions", [])
+        assert any(q["id"] == q_id for q in diff_questions)
         for q in diff_questions:
             assert q["difficulty"].lower() == diff.lower()
 
@@ -249,6 +245,7 @@ async def test_e2e_question_bank_crud_and_filtering():
         assert resp_search.status_code == 200
         search_results = resp_search.json().get("questions", [])
         assert len(search_results) >= 1
+        assert any(q["id"] == q_id for q in search_results)
 
 
 @pytest.mark.asyncio

@@ -17,10 +17,14 @@ from typing import Any
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
 from app.core.config import config
-from app.repositories.batch_repository import refresh_batch_aggregates
+from app.repositories.batch_repository import (
+    promote_completed_batch_questions,
+    refresh_batch_aggregates,
+)
 from app.repositories.job_repository import update_job_progress
 from app.repositories.question_repository import save_question
 from app.schemas import (
+    ALT_TRAP_ROTATION,
     GenerationRequest,
     MCATSection,
     OptionChoice,
@@ -625,8 +629,6 @@ async def _finalize_live_job_progress(
         )
         await refresh_batch_aggregates(batch_id)
         if job_status == "completed":
-            from app.repositories.batch_repository import promote_completed_batch_questions
-
             await promote_completed_batch_questions(batch_id)
     except Exception as db_err:
         logger.warning(f"Could not finalize live job progress (DB offline): {db_err}")
@@ -745,21 +747,10 @@ async def _run_deduplication_anti_collision_loop(
         cur_draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
     )
 
-    alt_traps = [
-        "CONCEPT_CONFUSION",
-        "FORMULA_MISAPPLICATION",
-        "SIGN_CONVENTION",
-        "PROPORTIONALITY_ERROR",
-        "VARIABLE_CONFUSION",
-        "CAUSE_EFFECT_CONFUSION",
-        "TREND_EXTRAPOLATION",
-        "ASSUMPTION_MISSED",
-    ]
-
     dedup_retry = 0
     while dup_result.is_duplicate and dedup_retry < max_retries:
         dedup_retry += 1
-        alt_trap = alt_traps[(idx + dedup_retry) % len(alt_traps)]
+        alt_trap = ALT_TRAP_ROTATION[(idx + dedup_retry) % len(ALT_TRAP_ROTATION)]
         logger.warning(
             f"Worker {idx + 1} generated duplicate question ({int(dup_result.similarity_score * 100)}% match). "
             f"Triggering anti-collision regeneration with trap '{alt_trap}' (attempt {dedup_retry}/{max_retries})..."

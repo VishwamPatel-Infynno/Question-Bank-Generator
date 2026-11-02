@@ -84,4 +84,4 @@ class CleanLifespanMiddleware:
         return getattr(self._app, name)
 
 
-app = CleanLifespanMiddleware(core_app)
+app: FastAPI = CleanLifespanMiddleware(core_app)  # type: ignore[assignment]

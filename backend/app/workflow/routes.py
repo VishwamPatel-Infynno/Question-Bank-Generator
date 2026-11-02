@@ -9,12 +9,16 @@ logger = logging.getLogger(__name__)
 
 def _is_image_required(req: GenerationRequest, draft: dict) -> bool:
     """Evaluates whether an image is required based on section restrictions, autonomous AI discretion, or explicit flags."""
-    if req.section in (MCATSection.CARS, "CARS", "cars"):
+    sec_val = req.section.value if hasattr(req.section, "value") else str(req.section)
+    if sec_val in (
+        MCATSection.CARS.value,
+        "CARS",
+        "cars",
+        "critical_analysis_and_reasoning_skills",
+    ):
         return False
     if req.require_image or req.requires_visual_stimulus:
         return True
-    if req.allow_ai_images:
-        return bool(draft.get("image_needed", False))
     return bool(draft.get("image_needed", False))
 
 

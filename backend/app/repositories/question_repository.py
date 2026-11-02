@@ -645,8 +645,6 @@ async def override_question_duplicate(question_id: str) -> Question | None:
 
 
 __all__ = [
-    "_model_to_schema",
-    "_schema_to_model",
     "batch_update_question_status",
     "delete_question",
     "delete_questions_batch",

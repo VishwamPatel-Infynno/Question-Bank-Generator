@@ -146,9 +146,14 @@ export default function MentorExplanationView({
             <GraduationCap size={isCompact ? 13 : 15} />
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: isCompact ? '0.825rem' : '0.875rem', color: 'var(--text-primary)' }}>
-              Answer Explanation
+            <div style={{ fontWeight: 700, fontSize: isCompact ? '0.825rem' : '0.875rem', color: 'var(--text-primary)' }}>
+              Why Each Choice is Right or Wrong
             </div>
+            {!isCompact && (
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '1px' }}>
+                Detailed breakdown of the correct solution and why the other options are wrong.
+              </div>
+            )}
           </div>
         </div>
 
@@ -178,7 +183,7 @@ export default function MentorExplanationView({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-success)' }}>
           <CheckCircle2 size={13} />
-          <span>Why the correct answer is right ({keyLabel})</span>
+          <span>Correct Answer Explanation ({keyLabel})</span>
         </div>
 
         {parsed.steps && parsed.steps.length > 0 ? (
@@ -249,7 +254,7 @@ export default function MentorExplanationView({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-warning)' }}>
               <AlertTriangle size={13} color="var(--status-warning)" />
-              <span>Why other choices are wrong</span>
+              <span>Why Other Choices Are Incorrect (Common Traps &amp; Mistakes)</span>
             </div>
             <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>
               {parsed.distractors.length} other choices
@@ -330,12 +335,12 @@ export default function MentorExplanationView({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-purple)' }}>
               <Target size={13} />
-              <span>Common Exam Trap &bull; {parsed.resolvedTrap.label}</span>
+              <span>Exam Trap to Watch Out For &bull; {parsed.resolvedTrap.label}</span>
             </div>
           </div>
 
           <div style={{ fontSize: isCompact ? '0.76rem' : '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            <strong style={{ color: 'var(--text-primary)' }}>How to avoid this trap: </strong>
+            <strong style={{ color: 'var(--text-primary)' }}>How to avoid this trap on test day: </strong>
             {parsed.resolvedTrap.advice}
           </div>
         </div>
@@ -356,7 +361,7 @@ export default function MentorExplanationView({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-warning)' }}>
             <AlertTriangle size={13} />
-            <span>Watch Out: Common Student Mistake &bull; {likelyMistakePattern}</span>
+            <span>Common Student Mistake in Choices &bull; {likelyMistakePattern}</span>
           </div>
 
           <div style={{ fontSize: isCompact ? '0.76rem' : '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>

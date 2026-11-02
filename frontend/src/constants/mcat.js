@@ -224,8 +224,8 @@ export const SECTION_METADATA = {
     icon: FlaskConical,
     tag: 'Chemistry & Physics',
     color: '#0284c7',
-    desc: 'Solve chemical mechanisms, thermodynamics, fluid dynamics, and physics problems in biological systems.',
-    coachTip: '⚡ MCAT Coach Tip: In Chem/Phys (~96s / Q), check dimensional units and estimate orders of magnitude before doing exact arithmetic!'
+    desc: 'Chemistry, physics, thermodynamics, and math applied to biological systems.',
+    coachTip: '⚡ MCAT Coach Tip: Check units and estimate orders of magnitude before doing exact arithmetic to save time!'
   },
   cars: {
     id: 'cars',
@@ -234,8 +234,8 @@ export const SECTION_METADATA = {
     icon: BookOpen,
     tag: 'Critical Reasoning',
     color: '#e11d48',
-    desc: 'Analyze dense scholarly arguments in humanities and social sciences with zero external knowledge.',
-    coachTip: '⚡ MCAT Coach Tip: In CARS (~101s / Q), strictly avoid outside knowledge! Every correct answer is anchored solely in the author’s tone and textual evidence.'
+    desc: 'Passage analysis, logic, and arguments in humanities and social sciences with no outside knowledge needed.',
+    coachTip: '⚡ MCAT Coach Tip: Rely only on what is in the passage. Every correct answer is anchored solely in the text and author’s argument.'
   },
   bio_biochem: {
     id: 'bio_biochem',
@@ -244,8 +244,8 @@ export const SECTION_METADATA = {
     icon: Dna,
     tag: 'Biology & Biochem',
     color: '#059669',
-    desc: 'Analyze metabolic pathways, enzyme inhibition kinetics, genetics, and organ physiology experiments.',
-    coachTip: '⚡ MCAT Coach Tip: In Bio/Biochem (~96s / Q), map experimental figures and identify controls before reading the question stem.'
+    desc: 'Biology, biochemistry, enzyme pathways, genetics, and cell physiology experiments.',
+    coachTip: '⚡ MCAT Coach Tip: Study graphs and experiment controls first before reading the question prompt.'
   },
   psych_soc: {
     id: 'psych_soc',
@@ -254,30 +254,30 @@ export const SECTION_METADATA = {
     icon: Brain,
     tag: 'Behavioral Sciences',
     color: '#7c3aed',
-    desc: 'Evaluate psychological paradigms, sociological theories, cognitive biases, and health disparities.',
-    coachTip: '⚡ MCAT Coach Tip: In Psych/Soc (~96s / Q), distinguish subtle nuances between related sociological theories (e.g., Conflict Theory vs. Functionalism).'
+    desc: 'Psychology, sociology, behavior, and social factors in health.',
+    coachTip: '⚡ MCAT Coach Tip: Pay close attention to subtle differences between similar theories (e.g., Conflict Theory vs. Functionalism).'
   }
 };
 
 export const DIFFICULTY_TIERS = [
   {
     id: 'low',
-    title: 'Low',
-    desc: 'Basic concepts & direct questions, ideal for foundational review.',
+    title: 'Easy',
+    desc: 'Core science concepts and straightforward questions — great for foundational practice.',
     color: '#10b981',
     badgeClass: 'badge-emerald'
   },
   {
     id: 'medium',
     title: 'Medium',
-    desc: 'Standard balanced exam challenge matching authentic test-day pacing.',
+    desc: 'Standard exam difficulty with multi-step reasoning and realistic test timing.',
     color: '#f59e0b',
     badgeClass: 'badge-amber'
   },
   {
     id: 'high',
-    title: 'High',
-    desc: 'Advanced multi-step reasoning, complex data interpretation & tricky distractors.',
+    title: 'Hard',
+    desc: 'Challenging questions with multi-step logic, tricky answer choices, and complex data.',
     color: '#f43f5e',
     badgeClass: 'badge-rose'
   }
@@ -285,8 +285,8 @@ export const DIFFICULTY_TIERS = [
 
 export const formatDifficulty = (diff) => {
   const d = (diff || '').toLowerCase();
-  if (d === 'low' || d === 'easy') return 'Low';
-  if (d === 'high' || d === 'hard') return 'High';
+  if (d === 'low' || d === 'easy') return 'Easy';
+  if (d === 'high' || d === 'hard') return 'Hard';
   return 'Medium';
 };
 

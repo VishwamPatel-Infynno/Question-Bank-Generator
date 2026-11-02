@@ -24,6 +24,7 @@ from app.repositories.batch_repository import (
 from app.repositories.job_repository import save_job
 from app.repositories.question_repository import get_subtopic_reference_questions
 from app.schemas import (
+    ALT_TRAP_ROTATION,
     GenerationBatch,
     GenerationJob,
     GenerationRequest,
@@ -273,21 +274,13 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                                 f"Question Item {idx + 1} Attempt {attempt + 1}"
                             )
 
-                        alt_traps = [
-                            "CONCEPT_CONFUSION",
-                            "FORMULA_MISAPPLICATION",
-                            "SIGN_CONVENTION",
-                            "PROPORTIONALITY_ERROR",
-                            "VARIABLE_CONFUSION",
-                            "CAUSE_EFFECT_CONFUSION",
-                            "TREND_EXTRAPOLATION",
-                            "ASSUMPTION_MISSED",
-                        ]
                         diversity_context = None
                         if total_qty > 1 or attempt > 0:
                             parts = [f"Item {idx + 1} of {total_qty} in this question set."]
                             if attempt > 0:
-                                alt_trap = alt_traps[(idx + attempt) % len(alt_traps)]
+                                alt_trap = ALT_TRAP_ROTATION[
+                                    (idx + attempt) % len(ALT_TRAP_ROTATION)
+                                ]
                                 parts.append(
                                     f"REPLENISHMENT ATTEMPT {attempt + 1}: The previous attempt did not satisfy quality or uniqueness standards. "
                                     f"You MUST formulate a fresh scenario testing cognitive trap '{alt_trap}' for variety."

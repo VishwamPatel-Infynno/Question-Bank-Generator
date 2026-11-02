@@ -116,7 +116,9 @@ Please re-generate and refine this question to resolve all weaknesses and produc
                 opt_id = chr(65 + i)
                 if isinstance(opt, dict):
                     raw_id_str = str(opt.get("id", chr(65 + i))).strip().upper()
-                    opt_id = raw_id_str[0] if raw_id_str and raw_id_str[0].isalpha() else chr(65 + i)
+                    opt_id = (
+                        raw_id_str[0] if raw_id_str and raw_id_str[0].isalpha() else chr(65 + i)
+                    )
                     text_val = str(opt.get("text", "")).strip()
                 else:
                     opt_str = str(opt).strip()

@@ -31,18 +31,18 @@ export default function ExportPaperPreview({
               Infynno MCAT Practice Examination
             </h3>
             <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', fontWeight: 500 }}>
-              {paperMode === 'student' ? 'Student Exam Paper (Practice Mode - Unsolved)' : 'Complete Study Pack with Diagnostic Rationales'}
+              {paperMode === 'student' ? 'Practice Test (Student Mode - Unsolved Questions)' : 'Complete Study Pack (With Explanations & Answer Key)'}
             </p>
           </div>
           <div style={{ border: '1.5px solid #0f172a', borderRadius: '4px', padding: '4px 10px', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.62rem', textTransform: 'uppercase', fontWeight: 700, color: '#64748b' }}>Total Marks</div>
+            <div style={{ fontSize: '0.62rem', textTransform: 'uppercase', fontWeight: 700, color: '#64748b' }}>Score</div>
             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>___ / {exportQuestions.length}</div>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 12px', fontSize: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontWeight: 700, color: '#334155' }}>Candidate:</span>
+            <span style={{ fontWeight: 700, color: '#334155' }}>Student Name:</span>
             <span style={{ flex: 1, borderBottom: '1px dotted #94a3b8', height: '12px' }}></span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -50,7 +50,7 @@ export default function ExportPaperPreview({
             <span style={{ color: '#475569' }}>Today</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontWeight: 700, color: '#334155' }}>Time Allowed:</span>
+            <span style={{ fontWeight: 700, color: '#334155' }}>Estimated Time:</span>
             <span style={{ color: '#0f172a', fontWeight: 700 }}>{timeAllowed}</span>
           </div>
         </div>

@@ -2,6 +2,21 @@
 const API_BASE = '/api';
 
 /**
+ * Serializes an object into URLSearchParams, omitting undefined, null, and empty values.
+ * @param {Record<string, any>} params
+ * @returns {URLSearchParams}
+ */
+function buildQuery(params = {}) {
+  const query = new URLSearchParams();
+  for (const [key, val] of Object.entries(params)) {
+    if (val !== undefined && val !== null && val !== '') {
+      query.append(key, val);
+    }
+  }
+  return query;
+}
+
+/**
  * Asserts that a fetch Response is successful (2xx).
  * Extracts the server error detail from JSON body when available.
  * @param {Response} res - The fetch Response object.
@@ -17,7 +32,7 @@ async function assertOk(res, context = 'API call') {
       detail = body?.detail || body?.message || '';
     } catch { /* ignore parse failures - use status code only */ }
     throw new Error(
-      `${context} failed (HTTP ${res.status})${detail ? ': ' + detail : ''}`
+      `${context} failed (HTTP ${res.status})${detail ? `: ${detail}` : ''}`
     );
   }
   return res;
@@ -46,18 +61,7 @@ export async function fetchTaxonomy() {
 }
 
 export async function fetchQuestions(params = {}, signal = null) {
-  const query = new URLSearchParams();
-  if (params.section) query.append('section', params.section);
-  if (params.difficulty) query.append('difficulty', params.difficulty);
-  if (params.search) query.append('search', params.search);
-  if (params.status) query.append('status', params.status);
-  if (params.batch_id) query.append('batch_id', params.batch_id);
-  if (params.job_id) query.append('job_id', params.job_id);
-  if (params.passage_id) query.append('passage_id', params.passage_id);
-  if (params.limit !== undefined && params.limit !== null) query.append('limit', params.limit);
-  if (params.offset !== undefined && params.offset !== null) query.append('offset', params.offset);
-  if (params.slim !== undefined && params.slim !== null) query.append('slim', params.slim);
-
+  const query = buildQuery(params);
   const res = await fetch(`${API_BASE}/questions?${query.toString()}`, { signal });
   await assertOk(res, 'Fetch questions');
   return res.json();
@@ -179,10 +183,7 @@ export async function startBackgroundBatch(payload) {
 }
 
 export async function fetchBatches(params = {}, signal = null) {
-  const query = new URLSearchParams();
-  if (params.section) query.append('section', params.section);
-  if (params.status) query.append('status', params.status);
-
+  const query = buildQuery(params);
   const res = await fetch(`${API_BASE}/batches?${query.toString()}`, { signal });
   await assertOk(res, 'Fetch batches');
   return res.json();
@@ -250,11 +251,7 @@ export async function refillBatchQuestions(batchId) {
 // ── Passages API ─────────────────────────────────────────────────────────────
 
 export async function fetchPassages(params = {}, signal = null) {
-  const query = new URLSearchParams();
-  if (params.section) query.append('section', params.section);
-  if (params.subtopic) query.append('subtopic', params.subtopic);
-  if (params.search) query.append('search', params.search);
-
+  const query = buildQuery(params);
   const res = await fetch(`${API_BASE}/passages?${query.toString()}`, { signal });
   await assertOk(res, 'Fetch passages');
   return res.json();

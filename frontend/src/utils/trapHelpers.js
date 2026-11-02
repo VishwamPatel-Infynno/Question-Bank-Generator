@@ -29,7 +29,7 @@ export function resolveTrapInfo(trapKeyOrName) {
   return {
     key: clean,
     label: clean.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-    advice: 'Watch out for subtle cognitive traps and unwarranted inferential leaps under MCAT timing pressure.'
+    advice: 'Read question stems carefully and watch out for tempting choices that look true but do not answer what was asked.'
   };
 }
 

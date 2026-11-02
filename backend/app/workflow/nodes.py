@@ -293,28 +293,6 @@ async def regenerator_node(state: AgentWorkflowState) -> dict[str, Any]:
         "stage_outcomes": outcomes,
     }
 
-    outcomes = dict(state.get("stage_outcomes", {}))
-    outcomes["option_symmetry"] = reg_symmetry
-    outcomes["polish_refine"] = {
-        "iteration": next_iteration,
-        "improved_draft": new_draft.model_dump(),
-        "usage": usage.model_dump(),
-    }
-
-    return {
-        "current_draft": new_draft.model_dump(),
-        "iteration_count": next_iteration,
-        "active_agent": "Question Re-Generator",
-        "status": f"regenerated_draft_{next_iteration}",
-        "total_tokens": t_tokens,
-        "total_prompt_tokens": p_tokens,
-        "total_completion_tokens": c_tokens,
-        "total_cost_usd": t_cost,
-        "agent_usage_breakdown": breakdown,
-        "latest_usage": usage.model_dump(),
-        "stage_outcomes": outcomes,
-    }
-
 
 async def reject_node(state: AgentWorkflowState) -> dict[str, Any]:
     """

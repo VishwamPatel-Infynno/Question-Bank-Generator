@@ -256,6 +256,18 @@ PRIMARY_TRAPS = [item.get("id") for item in _gen_options.get("primary_trap", [])
 
 PRIMARY_TRAPS_DETAILED = _gen_options.get("primary_trap", [])
 
+# Canonical cognitive trap rotation sequence for batch diversity & anti-collision re-prompting
+ALT_TRAP_ROTATION: tuple[str, ...] = (
+    "CONCEPT_CONFUSION",
+    "FORMULA_MISAPPLICATION",
+    "SIGN_CONVENTION",
+    "PROPORTIONALITY_ERROR",
+    "VARIABLE_CONFUSION",
+    "CAUSE_EFFECT_CONFUSION",
+    "TREND_EXTRAPOLATION",
+    "ASSUMPTION_MISSED",
+)
+
 LIKELY_MISTAKE_PATTERNS = _gen_options.get("likely_mistake_pattern", {}).get("values", [])
 
 TAXONOMY_SKILLS = DEPENDENT_TAXONOMY.get("skills", [])

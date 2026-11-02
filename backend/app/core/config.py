@@ -34,12 +34,16 @@ class Settings(BaseSettings):
     _override_cascade: list[str] | None = PrivateAttr(default=None)
 
     @property
+    def active_provider_key(self) -> str:
+        """Normalized active provider identifier."""
+        return (self.ACTIVE_LLM_PROVIDER or "").strip().lower()
+
+    @property
     def DEFAULT_TEXT_MODEL(self) -> str:
         """Active primary text model identifier, dynamically resolved from ACTIVE_LLM_PROVIDER."""
         if self._override_default_text_model is not None:
             return self._override_default_text_model
-        provider = (self.ACTIVE_LLM_PROVIDER or "").strip().lower()
-        if provider == "anthropic":
+        if self.active_provider_key == "anthropic":
             return self.ANTHROPIC_MODEL
         return self.DEEPINFRA_MODEL
 
@@ -55,8 +59,7 @@ class Settings(BaseSettings):
         """Active input token price per million tokens, dynamically resolved from ACTIVE_LLM_PROVIDER."""
         if self._override_cost_input is not None:
             return self._override_cost_input
-        provider = (self.ACTIVE_LLM_PROVIDER or "").strip().lower()
-        if provider == "anthropic":
+        if self.active_provider_key == "anthropic":
             return self.ANTHROPIC_COST_PER_MILLION_INPUT_TOKENS
         return self.DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS
 
@@ -75,8 +78,7 @@ class Settings(BaseSettings):
         """Active output token price per million tokens, dynamically resolved from ACTIVE_LLM_PROVIDER."""
         if self._override_cost_output is not None:
             return self._override_cost_output
-        provider = (self.ACTIVE_LLM_PROVIDER or "").strip().lower()
-        if provider == "anthropic":
+        if self.active_provider_key == "anthropic":
             return self.ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS
         return self.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS
 
@@ -95,8 +97,7 @@ class Settings(BaseSettings):
         """Candidate models for fallback, aware of the active provider."""
         if self._override_cascade is not None:
             return self._override_cascade
-        provider = (self.ACTIVE_LLM_PROVIDER or "").strip().lower()
-        if provider == "anthropic":
+        if self.active_provider_key == "anthropic":
             return [self.ANTHROPIC_MODEL]
         return [self.DEEPINFRA_MODEL]
 
@@ -149,7 +150,7 @@ class Settings(BaseSettings):
         """Returns the primary provider ('anthropic' or 'deepinfra') for the active or given model."""
         if model:
             return "anthropic" if self.is_anthropic_model(model) else "deepinfra"
-        if self.ACTIVE_LLM_PROVIDER and self.ACTIVE_LLM_PROVIDER.strip().lower() == "anthropic":
+        if self.active_provider_key == "anthropic":
             return "anthropic"
         return "anthropic" if self.is_anthropic_model() else "deepinfra"
 

@@ -303,7 +303,7 @@ export default function ExportPrintModal({
                       style={{ gap: '6px', fontSize: '0.78rem' }}
                     >
                       <GraduationCap size={13} />
-                      <span>Student Test Paper (Questions Only)</span>
+                      <span>Student Practice Test (Questions Only)</span>
                     </button>
                     <button
                       type="button"
@@ -312,14 +312,14 @@ export default function ExportPrintModal({
                       style={{ gap: '6px', fontSize: '0.78rem' }}
                     >
                       <BookOpen size={13} />
-                      <span>Study Pack (Questions + Explanations)</span>
+                      <span>Full Study Pack (With Explanations &amp; Key)</span>
                     </button>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={13} color="var(--brand-primary)" /> Target: <strong>{timeAllowed}</strong>
+                    <Clock size={13} color="var(--brand-primary)" /> Estimated Time: <strong>{timeAllowed}</strong>
                   </span>
                   <span>&bull;</span>
                   <span><strong>{exportQuestions.length}</strong> Questions</span>

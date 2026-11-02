@@ -121,7 +121,7 @@ const QuestionBankCardRow = React.memo(function QuestionBankCardRow({
               ) : (q.passage_required === 'Yes' || (q.stimulus_text && q.stimulus_text.split(/\s+/).length >= 180)) ? (
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Passage</span>
               ) : (
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Discrete</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Standalone</span>
               )}
 
               {(q.image_svg || q.image_url || q.stage_outcomes?.visual_stimulus?.image_svg || q.stage_outcomes?.visual_stimulus?.image_url || q.stage_outcomes?.passage_visual_stimulus?.image_svg) && (
@@ -137,7 +137,7 @@ const QuestionBankCardRow = React.memo(function QuestionBankCardRow({
                   <span
                     className="badge badge-purple"
                     style={{ fontSize: '0.62rem', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                    title={`Primary Cognitive Trap: ${trapInfo.label}`}
+                    title={`Common Test Trap: ${trapInfo.label}`}
                   >
                     <AlertTriangle size={9} /> {trapInfo.label}
                   </span>

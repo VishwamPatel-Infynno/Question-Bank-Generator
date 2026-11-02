@@ -5,4 +5,6 @@ export { default as BatchJobCard } from './BatchJobCard';
 export { default as BatchQuestionItem } from './BatchQuestionItem';
 export { default as ActiveMultiBatchMonitor } from './ActiveMultiBatchMonitor';
 export { default as BatchDuplicateAuditSection } from './BatchDuplicateAuditSection';
+export { default as BatchEmptyState } from './BatchEmptyState';
+export { default as BatchHeaderBanner } from './BatchHeaderBanner';
 // BatchActivityView lives under src/views/BatchActivityView.jsx for React.lazy code-splitting
