@@ -241,6 +241,8 @@ The system coordinates specialized autonomous engines with a deterministic quali
     }
   }
   ```
+- **Batch Duplicate Cluster Resolution & Permanent Purge**:
+  When clustering batch questions via `GET /api/batches/{id}/duplicate-clusters`, educators can resolve duplicate groups via `POST /api/batches/{id}/resolve-duplicates`. Under `action="delete"`, identified redundant duplicates are permanently hard-deleted from PostgreSQL via `hard_delete_questions_batch`, completely eliminating ghost records from batch monitors and ensuring clean subsequent refills. Alternatively, `action="archive"` marks duplicate items with status `discarded`.
 
 ---
 
@@ -354,9 +356,11 @@ To support heavy concurrent workloads and prevent thread starvation or provider 
 4. **Atomic Database State Aggregation (`refresh_batch_aggregates`)**:
    - Executes atomic SQL subqueries to calculate `completed_jobs`, `failed_jobs`, `actual_count`, `total_tokens`, and `cost_usd` directly inside PostgreSQL.
    - Eliminates read-modify-write race conditions between parallel background worker tasks.
-5. **1-Click Batch Lifecycle Controls**:
+5. **Autonomous In-Flight 3-Trials Policy & Resilient Batch Lifecycle**:
+   - **Autonomous In-Flight Retries**: When executing batch jobs (`_run_single_job`), if fewer than the target number of questions are generated (e.g., due to strict psychometric threshold rejections), the runner automatically executes in-flight retries up to `3 max trials per set`. Each trial is tracked in `job.trial_count` and persisted to PostgreSQL.
+   - **Live Telemetry & Trial State Indicators**: Active jobs undergoing shortfall retries broadcast live `AUTO-RETRYING (X/3)` status. If all 3 trials are completed without achieving the target count, the UI displays `3/3 TRIALS EXHAUSTED`, clearly signaling that no further autonomous trials remain.
    - **Graceful Batch Halt (`POST /api/batches/{id}/stop`)**: Cancels running asyncio worker tasks and updates remaining pending jobs to `"cancelled"` while preserving all successfully generated questions in the bank.
-   - **Resilient Batch Retry (`POST /api/batches/{id}/retry`)**: Re-queues incomplete (failed or cancelled) jobs into the global worker pool, automatically picking up from where execution stopped without generating duplicate questions.
+   - **Controlled Resume Sets (`POST /api/batches/{id}/retry`)**: Strictly reserved for manually stopped or cancelled batches that have incomplete jobs with remaining trials (`trial_count < 3`). Re-launches incomplete jobs into the worker pool. If all incomplete jobs have already exhausted 3 trials, the endpoint returns an explicit **HTTP 400 Bad Request** (`All incomplete sets in batch have already reached the maximum 3-trial limit or have already completed, and cannot be retried.`), preventing infinite retry loops.
    - **Global Halt (`POST /api/batches/cancel-all`)**: System-wide fail-safe terminating all active runner tasks cleanly.
 ### 5.2 Question Lifecycle State Machine
 Every question in the system progresses through an explicit, strictly guarded lifecycle state:
@@ -412,10 +416,10 @@ stateDiagram-v2
    This prevents questions from running batches from appearing in the "Ready for Review" tab or inflating repository status counts until the entire batch has cleanly completed.
 
 2. **Atomic Batch Promotion (`promote_completed_batch_questions`)**:
-   Implemented in [`backend/app/repositories/batch_repository.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/repositories/batch_repository.py), this function runs atomically when a batch transitions to `"completed"`:
-   - High-scoring questions (`final_score > 90`) in `batch_only` are promoted to `ai_validated`.
+   Implemented in [`backend/app/repositories/batch_repository.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/repositories/batch_repository.py), this function runs atomically when a batch concludes and transitions to `"completed"` or `"partially_completed"`:
+   - High-scoring questions (`final_score > 90`) in `batch_only` are promoted to `ai_validated` (making them immediately available in the educator's review queue).
    - Questions scoring between 86 and 90 (`85 < final_score <= 90`) remain in `batch_only` for historical inspection.
-   - If a batch is stopped, cancelled, or fails, `promote_completed_batch_questions` is bypassed entirely, safely retaining questions in `batch_only` without polluting review queues.
+   - If a batch is actively stopped, cancelled, or aborted mid-run, `promote_completed_batch_questions` is bypassed entirely, safely retaining questions in `batch_only` without polluting review queues.
 
 3. **Dynamic Job Allocation & Exact Target Count Guarantees**:
    In [`backend/app/services/batch_runner.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/services/batch_runner.py), `launch_background_batch` dynamically partitions target quotas into parallel jobs capped at 5 questions per job:
@@ -459,7 +463,7 @@ erDiagram
         TEXT visual_stimulus_url "External diagram URL"
         TEXT visual_description "Alt text description"
         INTEGER question_count "Number of questions sharing this passage"
-        BOOLEAN is_deleted "Soft-delete flag preserving batch integrity"
+        BOOLEAN is_deleted "Soft-delete flag (admin DELETE triggers cascade question purge)"
         VARCHAR(64) deleted_at "ISO-8601 UTC deletion timestamp"
         VARCHAR(64) created_at "ISO-8601 UTC timestamp"
     }
@@ -478,10 +482,11 @@ erDiagram
     JOBS {
         VARCHAR(64) id PK "Unique UUID4 job identifier"
         VARCHAR(64) batch_id FK "Reference to parent BATCHES"
-        INTEGER job_index "Sequential index (1 to 10)"
+        INTEGER job_number "Sequential index (1 to 10)"
         VARCHAR(32) status "pending | in_progress | completed | failed"
-        INTEGER questions_target "Target items for this job (e.g. 5)"
-        INTEGER questions_completed "Completed items count"
+        INTEGER target_count "Target items for this job (e.g. 5)"
+        INTEGER actual_count "Completed items count"
+        INTEGER trial_count "Autonomous trial count (1 to 3 max)"
         VARCHAR(64) created_at "ISO-8601 UTC timestamp"
     }
 

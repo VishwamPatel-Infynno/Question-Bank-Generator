@@ -42,10 +42,12 @@ frontend/src/
 │   ├── batch/
 │   │   ├── index.js              # Batch barrel export
 │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live multi-batch controller
-│   │   ├── BatchCard.jsx         # Summary status card for generation batches
+│   │   ├── BatchCard.jsx         # Summary status card for generation batches & Resume Sets action
 │   │   ├── BatchDuplicateAuditSection.jsx # Set-preserving duplicate resolution & in-place refill
+│   │   ├── BatchEmptyState.jsx   # Decomposed zero-state canvas for batch activity
 │   │   ├── BatchFiltersBar.jsx   # Section, status, and search filters
-│   │   ├── BatchJobCard.jsx      # Per-question job card with lifecycle status
+│   │   ├── BatchHeaderBanner.jsx # Decomposed top summary banner for active batch metrics
+│   │   ├── BatchJobCard.jsx      # Per-question job card with live auto-retry & exhaustion badges
 │   │   ├── BatchQuestionItem.jsx # Staged question item with review modal
 │   │   └── BatchStatsHeader.jsx  # High-level aggregate batch statistics
 │   ├── common/
@@ -55,6 +57,7 @@ frontend/src/
 │   │   ├── FormattedText.jsx     # Inline markdown & cognitive trap chip highlighter
 │   │   ├── InfynnoLogo.jsx       # Official corporate vector logo primitive
 │   │   ├── LiveStopwatch.jsx     # High-precision live stopwatch timer
+│   │   ├── Modal.jsx             # Base accessible modal wrapper with focus trap & keyboard escape
 │   │   ├── PaginationBar.jsx     # Accessible pagination bar with page range counter & controls
 │   │   └── Toast.jsx             # Floating toast notification system
 │   ├── layout/
@@ -78,8 +81,11 @@ frontend/src/
 │   ├── question/
 │   │   ├── index.js              # Question review desk barrel export
 │   │   ├── MentorExplanationView.jsx # 3-card mentor explanation view (Intuition, Distractors, Trap)
-│   │   ├── QuestionCard.jsx      # Interactive student practice & review card
+│   │   ├── QuestionCard.jsx      # Primary student practice & review card orchestrator
+│   │   ├── QuestionCardFooter.jsx# Decomposed footer with token metrics, cost in USD & actions
+│   │   ├── QuestionCardHeader.jsx# Decomposed header with status badge, score, trap & timers
 │   │   ├── QuestionInlineEditor.jsx # In-place authoring & remediation editor
+│   │   ├── QuestionOptionsList.jsx# Decomposed 4-choice options renderer with symmetry validation
 │   │   ├── QuestionScorecardTab.jsx # 100-point rubric breakdown accordion
 │   │   ├── ReviewAuditView.jsx   # 100-point rubric breakdown & token cost modal (Focus Trapped)
 │   │   ├── SharedPassageCard.jsx # Shared reading passage stimulus display card
@@ -96,9 +102,11 @@ frontend/src/
 │       ├── HeroLanding.jsx       # Welcome landing hero header
 │       └── steps/                # Streamlined 3-step modular components
 │           ├── index.js          # Steps barrel export
+│           ├── WizardAdvancedSettings.jsx    # Decomposed collapsible advanced settings drawer
+│           ├── WizardReviewSummary.jsx       # Decomposed compact parameter review summary table
 │           ├── WizardStep1SectionFocus.jsx   # Step 1: Section, pacing & focus
 │           ├── WizardStep2LevelFormat.jsx    # Step 2: Level (Low/Med/High), format & scope (5/50)
-│           └── WizardStep3ReviewAdvanced.jsx # Step 3: Compact review table & advanced accordion
+│           └── WizardStep3ReviewAdvanced.jsx # Step 3: Streamlined review & launch orchestrator
 ├── constants/
 │   ├── index.js                  # Constants barrel export
 │   ├── mcat.js                   # MCAT sections, pacing specs, icons, and fallback topics
@@ -135,12 +143,13 @@ In the repository root or `frontend` directory, you can run:
 
 ```bash
 # Start local development server with Hot Module Replacement (HMR)
+# Automatically runs 'predev' hook to clean ports 8000 and 5173
 pnpm dev
 
-# Run Oxlint high-speed linter across 97 frontend files (0 errors, 0 warnings policy)
+# Run Oxlint high-speed linter across 90 frontend files (0 errors, 0 warnings policy)
 pnpm lint
 
-# Build production bundle with Vite (compiles in ~218ms)
+# Build production bundle with Vite (compiles cleanly)
 pnpm build
 
 # Preview the production build locally

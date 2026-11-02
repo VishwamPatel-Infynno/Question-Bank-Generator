@@ -18,8 +18,8 @@ graph TD
     end
 
     subgraph "Tier 2: Backend Pytest Engine"
-        UnitTests[90 Deterministic Unit & Integration Tests across 17 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests (100 Total Backend Tests)]
+        UnitTests[96 Deterministic Unit & Integration Tests across 19 Modules]
+        LiveE2E[10 Live LLM API E2E Integration Tests (106 Total Backend Tests)]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -40,9 +40,9 @@ graph TD
 
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
-| **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (82 frontend files, 100% ruff compliance across backend) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **90 passing tests across 17 modules** (~31.0s) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (100 total backend tests across 18 modules) |
+| **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (90 frontend files, 100% ruff compliance across backend) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **96 passing tests across 19 modules** (~28.6s) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (106 total backend tests across 20 modules) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | **15/15 passed (100.0%)** |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **LangGraph StateGraph** | Threshold $> 90$ points |
 
@@ -61,6 +61,8 @@ backend/tests/
 ├── test_agents.py                    # Multi-agent worker nodes, heuristics, and blind solver
 ├── test_anthropic.py                 # Multi-provider switching, Anthropic models, prompt cache pricing & API keys
 ├── test_api.py                       # REST endpoints, CRUD, batch staging, approval, pagination, and duplicate override flow
+├── test_batch_autonomous_retry.py    # Autonomous 3-trials policy, trial count persistence, HTTP 400 rejection, and in-flight retries
+├── test_batch_dedup_hard_delete.py   # Hard-delete duplicate purge during batch deduplication and completion guards
 ├── test_batch_jobs_flow.py           # Background batch execution lifecycle (10 jobs x 5 questions) and refill integrity
 ├── test_batch_review_withholding.py  # Review queue withholding during batch execution and atomic promotion
 ├── test_database_structure.py        # SQLAlchemy schema, hybrid FTS, cascade deletion, and atomic aggregations
@@ -80,20 +82,23 @@ backend/tests/
 ### 2.2 Test Suite Execution Commands & Execution Modes
 
 #### Execution Modes Breakdown
-- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 36 database-dependent tests, executing all 54 algorithmic, schema, prompt builder, and token pricing unit tests in ~12 seconds (`54 passed, 36 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 90 deterministic unit and integration tests execute across all 17 modules in ~31 seconds (`90 passed, 0 failed, 10 deselected`).
+- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 42 database-dependent tests, executing all 54 algorithmic, schema, prompt builder, and token pricing unit tests in ~12 seconds (`54 passed, 42 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 96 deterministic unit and integration tests execute across all 19 modules in ~28.6 seconds (`96 passed, 0 failed, 10 deselected`).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 100 backend tests across 18 test files.
+- **Total Suite**: 106 backend tests across 20 test files.
 
 ```bash
 # 1. Activate backend virtual environment
 source .venv/bin/activate
 
-# 2. Run all deterministic unit and integration tests across 17 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 54 pure unit tests pass and 36 DB tests cleanly skip
-PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
+# 2. Run all deterministic unit and integration tests across 19 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 54 pure unit tests pass and 42 DB tests cleanly skip
+# Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
+ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
 # 3. Run specific test modules
+PYTHONPATH=backend pytest backend/tests/test_batch_autonomous_retry.py -v
+PYTHONPATH=backend pytest backend/tests/test_batch_dedup_hard_delete.py -v
 PYTHONPATH=backend pytest backend/tests/test_anthropic.py -v
 PYTHONPATH=backend pytest backend/tests/test_soft_delete_batch_integrity.py -v
 PYTHONPATH=backend pytest backend/tests/test_additional_instructions.py -v
@@ -107,7 +112,7 @@ PYTHONPATH=backend pytest backend/tests/test_api.py -v
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
-### 2.3 Detailed Test Module Coverage (90 Deterministic Tests across 17 Modules / 100 Total Backend Tests)
+### 2.3 Detailed Test Module Coverage (96 Deterministic Tests across 19 Modules / 106 Total Backend Tests)
 
 1. **`test_additional_instructions.py` (3 tests)**:
    - `test_generation_request_additional_instructions`: Validates Pydantic serialization and round-trip payload persistence of educator instructions.
@@ -148,14 +153,22 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
    - `test_batch_duplicate_clusters_and_resolve_endpoints`: Validates cluster inspection and duplicate archive/deletion resolution via REST API.
    - `test_cors_patch_allowed`: Confirms that HTTP PATCH methods are fully permitted under CORS policy.
    - `test_questions_pagination_and_slim_projection`: Validates `limit`, `offset`, and `slim=True` payload projection, reducing response payload by 70%+ by omitting heavy diagnostics.
-5. **`test_batch_jobs_flow.py` (3 tests)**:
+5. **`test_batch_autonomous_retry.py` (4 tests)**:
+   - `test_job_trial_count_persistence`: Verifies `trial_count` is properly initialized on `GenerationJobModel` (default 1) and persisted across updates in PostgreSQL.
+   - `test_resume_stopped_jobs_under_3_trials`: Confirms that `retry_incomplete_jobs_for_batch` resumes incomplete sets for manually paused batches when `trial_count < 3`.
+   - `test_retry_strictly_blocked_after_3_trials`: Validates that `POST /api/batches/{id}/retry` strictly raises HTTP 400 when all incomplete jobs have exhausted 3 trials.
+   - `test_run_single_job_autonomous_in_flight_retry`: Validates in-flight automatic replenishment up to 3 trials when question shortfall occurs due to psychometric threshold rejections.
+6. **`test_batch_dedup_hard_delete.py` (2 tests)**:
+   - `test_hard_delete_purges_duplicate_questions`: Confirms that resolving duplicates with `action="delete"` permanently purges redundant question rows from PostgreSQL via `hard_delete_questions_batch`, preventing ghost records in batch activity views.
+   - `test_refresh_batch_aggregates_completion_guard`: Verifies that batch aggregate refreshes correctly calculate active questions and guard completion status.
+7. **`test_batch_jobs_flow.py` (3 tests)**:
    - `test_batch_and_jobs_lifecycle`: End-to-end multi-job batch lifecycle (10 jobs x 5 questions = 50 total).
    - `test_mini_batch_lifecycle`: Validates single-job Practice Set lifecycle (1 job x 5 questions).
    - `test_refill_preserves_job_count_without_adding_sets`: Confirms that replenishment restores exact question deficits without creating redundant job sets.
-6. **`test_batch_review_withholding.py` (2 tests)**:
+8. **`test_batch_review_withholding.py` (2 tests)**:
    - `test_withhold_questions_until_batch_completed`: Confirms that questions from running batches stay in `batch_only` status, are excluded from the `GET /api/questions?status=ai_validated` review queue during generation, and are atomically promoted to `ai_validated` upon batch completion.
    - `test_cancelled_batch_does_not_promote_questions`: Verifies that questions from stopped or cancelled batches remain in `batch_only` and are never promoted to `ai_validated`.
-7. **`test_database_structure.py` (8 tests)**:
+9. **`test_database_structure.py` (8 tests)**:
    - `test_database_schema_initialization`: Verifies PostgreSQL tables, columns, and foreign key relations.
    - `test_passage_auto_sync_and_retrieval`: Validates passage synchronization and caching.
    - `test_batch_auto_sync_and_atomic_aggregation`: Ensures atomic calculation of batch metrics.
@@ -164,59 +177,59 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
    - `test_centralized_repository_package_exports`: Ensures clean package exports across DAL layers.
    - `test_model_to_schema_none_options_safety`: Verifies null-safe deserialization when question options are null or empty.
    - `test_cascade_passage_deletion_multi_status_and_metrics`: Confirms that soft-deleting a passage soft-deletes associated questions across all statuses while maintaining batch metrics.
-8. **`test_deduplication.py` (8 tests)**:
-   - `test_normalize_text`: Verifies text normalization, case folding, punctuation removal, and whitespace trimming.
-   - `test_extract_content_tokens`: Confirms extraction of domain-specific content tokens while filtering stop words.
-   - `test_identical_questions_duplicate_detection`: Validates 1.0 similarity for verbatim question stems and options.
-   - `test_paraphrased_high_similarity`: Evaluates token containment and hybrid similarity for paraphrased scientific stems sharing key terms ($> 0.80$).
-   - `test_distinct_questions_in_same_subtopic_no_duplicate`: Confirms scoping isolation; distinct scientific concepts evaluate below the collision threshold ($< 0.35$).
-   - `test_two_tier_threshold_and_soft_warning`: Verifies hard duplicate threshold ($\ge 0.80$) and soft warning threshold ($0.65 - 0.79$).
-   - `test_cluster_questions_groups_duplicates_correctly`: Verifies pairwise similarity clustering of question batches into leader and duplicate items.
-   - `test_auto_resolve_batch_and_refill`: Tests end-to-end auto-resolve and refill pipeline on duplicate clusters.
-9. **`test_multi_batch_concurrency.py` (4 tests)**:
-   - `test_global_concurrency_semaphores`: Confirms `GLOBAL_MAX_CONCURRENT_JOBS = 4` prevents thread saturation.
-   - `test_call_llm_rate_limit_backoff`: Validates exponential backoff and jitter under HTTP 429 rate limit responses.
-   - `test_refresh_batch_aggregates_atomic`: Ensures atomic SQL aggregation eliminates race conditions between parallel jobs.
-   - `test_simultaneous_multi_batch_launch_and_metrics`: Tests simultaneous execution of multiple 50-question batches.
-10. **`test_pedagogy.py` (4 tests)**:
+10. **`test_deduplication.py` (8 tests)**:
+    - `test_normalize_text`: Verifies text normalization, case folding, punctuation removal, and whitespace trimming.
+    - `test_extract_content_tokens`: Confirms extraction of domain-specific content tokens while filtering stop words.
+    - `test_identical_questions_duplicate_detection`: Validates 1.0 similarity for verbatim question stems and options.
+    - `test_paraphrased_high_similarity`: Evaluates token containment and hybrid similarity for paraphrased scientific stems sharing key terms ($> 0.80$).
+    - `test_distinct_questions_in_same_subtopic_no_duplicate`: Confirms scoping isolation; distinct scientific concepts evaluate below the collision threshold ($< 0.35$).
+    - `test_two_tier_threshold_and_soft_warning`: Verifies hard duplicate threshold ($\ge 0.80$) and soft warning threshold ($0.65 - 0.79$).
+    - `test_cluster_questions_groups_duplicates_correctly`: Verifies pairwise similarity clustering of question batches into leader and duplicate items.
+    - `test_auto_resolve_batch_and_refill`: Tests end-to-end auto-resolve and refill pipeline on duplicate clusters.
+11. **`test_multi_batch_concurrency.py` (4 tests)**:
+    - `test_global_concurrency_semaphores`: Confirms `GLOBAL_MAX_CONCURRENT_JOBS = 4` prevents thread saturation.
+    - `test_call_llm_rate_limit_backoff`: Validates exponential backoff and jitter under HTTP 429 rate limit responses.
+    - `test_refresh_batch_aggregates_atomic`: Ensures atomic SQL aggregation eliminates race conditions between parallel jobs.
+    - `test_simultaneous_multi_batch_launch_and_metrics`: Tests simultaneous execution of multiple 50-question batches.
+12. **`test_pedagogy.py` (4 tests)**:
     - `test_option_symmetry_and_anti_guessability_engine`: Mathematical validation that options stay within $\pm 15\%$ word count.
     - `test_smart_ai_trap_and_explanation_breakdown`: Tests automatic cognitive trap assignment and 3-card mentor breakdown.
     - `test_manager_dependent_taxonomy_integration`: Verifies official AAMC syllabus tree mapping.
     - `test_taxonomy_json_parity_between_backend_and_frontend`: Enforces identical taxonomy trees across client and server.
-11. **`test_question_status_refill.py` (4 tests)**:
+13. **`test_question_status_refill.py` (4 tests)**:
     - `test_question_status_enum_values`: Validates all explicit enum values in `QuestionStatus`.
     - `test_is_question_active_helper`: Confirms active status recognition (`in_bank`, `ai_validated`, `batch_only`, `approved`).
     - `test_status_update_requests_validation`: Validates Pydantic payloads for single and bulk status updates.
     - `test_batch_refill_deficit_calculation_with_discarded_questions`: Validates exact deficit computation when duplicate items are archived.
-12. **`test_schemas.py` (1 test)**:
+14. **`test_schemas.py` (1 test)**:
     - `test_schemas_validation`: Comprehensive Pydantic V2 schema boundary and validation tests.
-13. **`test_soft_delete_batch_integrity.py` (2 tests)**:
+15. **`test_soft_delete_batch_integrity.py` (2 tests)**:
     - `test_soft_delete_passage_and_batch_integrity`: Confirms soft-deleting a passage preserves parent batch metrics and linked job counters.
     - `test_soft_delete_question_and_restore`: Tests question soft-deletion, restoration via `POST /api/questions/{id}/restore`, and linked passage revival.
-14. **`test_target_count_guarantee.py` (4 tests)**:
+16. **`test_target_count_guarantee.py` (4 tests)**:
     - `test_dynamic_job_allocation_in_batch_runner`: Verifies dynamic job partitioning for 5, 50, and arbitrary question counts (e.g., 12 Qs $\to$ 5, 5, 2).
     - `test_auto_resolve_caps_excess_to_exact_target`: Verifies that auto-resolve preserves exact target count without excess items.
     - `test_refresh_batch_aggregates_reflects_active_questions`: Confirms that batch counters accurately aggregate active questions only.
     - `test_interactive_slot_replenishment_recovers_from_quality_rejection`: Tests automated in-place slot replenishment when quality gate drops a candidate.
-15. **`test_tokens.py` (6 tests)**:
+17. **`test_tokens.py` (6 tests)**:
     - `test_deepinfra_model_configuration`: Verifies model identifier, cascade settings, and endpoint parameters.
     - `test_token_and_cost_calculation`: Sub-micro-cent mathematical calculation verification ($0.098/$0.294 per 1M).
     - `test_workflow_token_accumulation`: Verifies cumulative token tracking across multi-agent cycles.
     - `test_deepinfra_strict_api_key_enforcement`: Ensures missing API keys fail fast with actionable guidance.
     - `test_max_tokens_settings_and_config_endpoint`: Validates token limit configuration contracts on `/api/config`.
     - `test_call_llm_effective_max_tokens_and_temperature`: Confirms temperature, fast model cascade, and token constraints per agent.
-16. **`test_visuals.py` (5 tests)**:
+18. **`test_visuals.py` (5 tests)**:
     - `test_strict_ai_image_generator`: Validates SVG vector generator and AI visual filters.
     - `test_flux_image_cost_formula`: Verifies FLUX unit cost scaling ($0.014 normalized baseline).
     - `test_image_node_workflow_accumulation`: Ensures visual synthesis costs accumulate into total run cost.
     - `test_visual_stimulus_persistence_in_finalize_node`: Confirms diagram SVG/URL persistence to PostgreSQL.
     - `test_autonomous_ai_determined_image_workflow`: Validates AI-determined visual stimulus routing.
-17. **`test_workflow.py` (4 tests)**:
+19. **`test_workflow.py` (4 tests)**:
     - `test_per_question_stage_metadata_in_events`: Verifies SSE event payload metadata and stage tracking.
     - `test_fused_generator_node_passing_and_routing`: Validates fused single-pass drafting and fast-path routing.
     - `test_fused_workflow_bypasses_reviewer_when_self_critique_passed`: Confirms reviewer bypass when score > 90.
     - `test_safe_json_loads_and_resilient_parsing`: Ensures resilient JSON parsing of LLM outputs.
-18. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
+20. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
     - `test_e2e_health_and_db_connectivity`: Confirms health endpoint connectivity to live PostgreSQL and LiteLLM models.
     - `test_e2e_all_four_sections_metadata`: Verifies live metadata and taxonomy tree across all 4 AAMC sections.
     - `test_e2e_config_endpoint`: Validates live runtime model configuration and token rate parameters.
@@ -243,7 +256,7 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
 - All **54 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **90 deterministic tests across 17 modules** execute and pass automatically.
+- Once PostgreSQL is started (`docker compose up -d`), all **96 deterministic tests across 19 modules** execute and pass automatically in ~28.6 seconds.
 
 ---
 

@@ -42,12 +42,12 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `GET` | `/api/batches/{batch_id}` | Retrieves a generation batch with all jobs and grouped questions |
 | `POST` | `/api/batches/start` | Launches an asynchronous background batch generation (dynamically allocated, e.g., 50 Qs = 10 jobs) |
 | `POST` | `/api/batches/{batch_id}/stop` | **Batch Control**: Gracefully halts active background jobs for a batch without deleting questions |
-| `POST` | `/api/batches/{batch_id}/retry` | **Batch Control**: Re-launches failed or cancelled jobs for a batch into the global worker pool |
+| `POST` | `/api/batches/{batch_id}/retry` | **Batch Control**: Resumes incomplete sets for manually paused batches with remaining trials (HTTP 400 when 3 trials exhausted) |
 | `POST` | `/api/batches/cancel-all` | **Batch Control**: Gracefully halts all active background batches across the system |
 | `DELETE` | `/api/batches/{batch_id}` | Deletes a generation batch and cascades delete to jobs and questions |
 | `POST` | `/api/batches` | Admin endpoint to create or update a generation batch record |
 | `GET` | `/api/batches/{batch_id}/duplicate-clusters` | Clusters batch questions by similarity to identify leader items and redundant duplicates |
-| `POST` | `/api/batches/{batch_id}/resolve-duplicates` | Resolves duplicate clusters by keeping designated leaders and archiving/deleting duplicates |
+| `POST` | `/api/batches/{batch_id}/resolve-duplicates` | Resolves duplicate clusters by keeping designated leaders and hard-deleting or archiving duplicates |
 | `POST` | `/api/batches/{batch_id}/refill` | Replenishes batch question deficit up to target count using pedagogical thematic variations |
 | `GET` | `/api/export` | Exports repository in standardized JSON or CSV format |
 | `GET` | `/api/health` | Service health, database connectivity, active provider, models, and pricing |
@@ -670,10 +670,20 @@ Gracefully halts active background jobs for a specific batch. Cancels running as
 
 ---
 
-### 3.19 Retry Incomplete Batch Jobs
+### 3.19 Resume Incomplete Batch Jobs (3-Trials Policy)
 `POST /api/batches/{batch_id}/retry`
 
-Re-launches failed, cancelled, or pending jobs for an incomplete batch into the global worker pool. Re-engages the global semaphore without duplicating completed questions.
+Resumes incomplete, failed, or cancelled jobs for a batch into the global worker pool. 
+
+#### 3-Trial Ceiling & Policy Rules
+- **Autonomous Retries**: Incomplete sets automatically undergo in-flight autonomous retries up to **3 trials maximum** during active batch execution.
+- **Controlled Manual Resumption**: The manual `/retry` endpoint is strictly reserved for manually stopped or cancelled batches where incomplete jobs still have trials remaining (`trial_count < 3`).
+- **HTTP 400 Enforcement**: If all incomplete sets have already reached the maximum 3-trial limit or have completed, the endpoint rejects the request with **HTTP 400 Bad Request**:
+  ```json
+  {
+    "detail": "All incomplete sets in batch 6ba7b810-9dad-11d1-80b4-00c04fd430c8 have already reached the maximum 3-trial limit or have already completed, and cannot be retried."
+  }
+  ```
 
 #### Request Body (Optional)
 Optionally accepts an updated `GenerationRequest` payload to override parameters (e.g. difficulty or guidance) during retry.
@@ -682,7 +692,7 @@ Optionally accepts an updated `GenerationRequest` payload to override parameters
 ```json
 {
   "success": true,
-  "message": "Retrying incomplete jobs for batch 6ba7b810-9dad-11d1-80b4-00c04fd430c8.",
+  "message": "Resuming incomplete jobs for batch 6ba7b810-9dad-11d1-80b4-00c04fd430c8.",
   "batch": {
     "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
     "status": "in_progress"
@@ -691,7 +701,10 @@ Optionally accepts an updated `GenerationRequest` payload to override parameters
     {
       "id": "job-uuid-3",
       "job_number": 3,
-      "status": "pending"
+      "status": "pending",
+      "trial_count": 2,
+      "target_count": 5,
+      "actual_count": 0
     }
   ]
 }
@@ -798,12 +811,12 @@ Performs pairwise similarity clustering on questions within a batch to identify 
 ### 3.24 Resolve Batch Duplicates
 `POST /api/batches/{batch_id}/resolve-duplicates`
 
-Resolves duplicate clusters in a batch by preserving the designated leader question and archiving (`status='discarded'`) or deleting redundant duplicate questions. Refreshes batch aggregates and computes any remaining question deficit.
+Resolves duplicate clusters in a batch by preserving the designated leader question and permanently deleting (`action="delete"`, default) or archiving (`action="archive"`) redundant duplicate questions. Under `action="delete"`, duplicates are hard-deleted from PostgreSQL via `hard_delete_questions_batch` to eliminate ghost records in the UI and ensure clean subsequent refills. Refreshes batch aggregates and computes any remaining question deficit.
 
 #### Request Body
 ```json
 {
-  "action": "archive",
+  "action": "delete",
   "cluster_ids": ["cluster-1"],
   "custom_leader_ids": ["q-lead-uuid"]
 }
@@ -811,7 +824,7 @@ Resolves duplicate clusters in a batch by preserving the designated leader quest
 
 | Field | Type | Required | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `action` | `string` | No | `"archive"` | Resolution action: `"archive"` (marks `discarded`) or `"delete"` (hard delete) |
+| `action` | `string` | No | `"delete"` | Resolution action: `"delete"` (permanently hard-deletes duplicates) or `"archive"` (marks status as `discarded`) |
 | `cluster_ids` | `list[str]`| No | `null` | Specific cluster IDs to resolve (null resolves all clusters in batch) |
 | `custom_leader_ids` | `list[str]`| No | `null` | Optional list of question IDs to designate as leaders over default score leaders |
 
@@ -819,10 +832,10 @@ Resolves duplicate clusters in a batch by preserving the designated leader quest
 ```json
 {
   "success": true,
-  "message": "Successfully resolved 1 cluster(s). 1 duplicate question(s) archived.",
-  "action": "archive",
+  "message": "Successfully resolved 1 cluster(s). 1 duplicate question(s) deleted.",
+  "action": "delete",
   "resolved_clusters_count": 1,
-  "archived_count": 1,
+  "deleted_count": 1,
   "remaining_active_questions": 49,
   "target_count": 50,
   "deficit": 1

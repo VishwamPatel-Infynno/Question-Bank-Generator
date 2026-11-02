@@ -131,6 +131,7 @@ In a new terminal window:
 pnpm install
 
 # 2. Start Vite development server
+# Note: 'predev' hook automatically executes 'clean:ports' to kill any stale processes on ports 8000 and 5173
 pnpm dev
 ```
 
@@ -156,14 +157,15 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 100-test backend verification suite across 18 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full test specifications):
+Run the complete 106-test backend verification suite across 20 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 90 deterministic unit and integration tests across 17 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 54 pure unit tests pass and 36 DB tests skip cleanly
-PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
+# 1. Run all 96 deterministic unit and integration tests across 19 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 54 pure unit tests pass and 42 DB tests skip cleanly
+# Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
+ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
 # 2. Run Python linting and code quality checks (enforces SIM, RET, B, C4, E, W, F, I, UP)
 ruff check backend/
@@ -171,13 +173,15 @@ ruff format --check .
 ```
 
 #### Dual Test Execution Modes
-- **Offline Mode** (PostgreSQL offline): Executes all 54 algorithmic, schema, agent, and mathematical tests in ~12 seconds (`54 passed, 36 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 90 deterministic tests across 17 modules in ~31 seconds (`90 passed, 0 failed, 10 deselected`).
+- **Offline Mode** (PostgreSQL offline): Executes all 54 algorithmic, schema, agent, and mathematical tests in ~12 seconds (`54 passed, 42 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 96 deterministic tests across 19 modules in ~28.6 seconds (`96 passed, 0 failed, 10 deselected`).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 100 tests across 18 test files.
+- **Total Backend Suite**: 106 tests across 20 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.
+- Autonomous 3-trials retry policy, trial count persistence, and HTTP 400 enforcement upon trial exhaustion.
+- Set-preserving hard-delete duplicate resolution (`action="delete"`) and completion guards.
 - Soft-deletion and restoration mechanics (`POST /api/questions/{id}/restore`) preserving batch review counts and integrity.
 - Server-side question pagination (`limit`, `offset`) and lightweight projection (`slim=True`).
 - Pydantic schema validation across all 4 official AAMC MCAT sections and custom authoring instructions.

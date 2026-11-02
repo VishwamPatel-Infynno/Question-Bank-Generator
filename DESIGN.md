@@ -124,21 +124,26 @@ Streamlined 3-step authoring workflow:
 - **Step 2: Level & Format (`WizardStep2LevelFormat.jsx`)**: Calibrated challenge level (**Low**, **Medium**, **High**), question format (Passage-Based vs Independent Single-Choice), and 2 calibrated Generation Scopes governed by the unified 5-question Job architecture, presented as streamlined cards without redundant badge pills:
   1. **Practice Set (5 Qs)**: 1 Single Job consisting of 5 questions linked to a shared reading passage (or 5 discretes), dispatched to the background worker pool (~35-50s) with automated AI validation and real-time telemetry streaming into Validated Bank and Batch Activity.
   2. **Full Exam (50 Qs)**: Enterprise background multi-job batch across 10 concurrent worker jobs (5 questions each) governed by the Global Worker Pool with automatic AI validation.
-- **Step 3: Review & Advanced Calibration (`WizardStep3ReviewAdvanced.jsx`)**: Clean high-density review interface featuring:
-  - **Compact Parameter Summary Table**: Instant tabular overview of selected section, topic, difficulty, and question count.
-  - **Scientific Diagrams & Reaction Schemes Card**: Dedicated toggle card for natural science sections with full-card clickability and animated pill switch.
-  - **Additional Authoring Instructions Textarea**: Dedicated textarea (`border: 1px solid var(--border-light)`, `background: var(--bg-surface-subtle)`) allowing educators to supply explicit clinical scenarios, Lineweaver-Burk derivation mandates, or custom distractor traps.
-  - **Custom Instructions Active Badge**: An animated indicator pill badge (`border: 1px solid var(--border-brand)`, `background: var(--brand-light)`, `color: var(--brand-primary)`) rendered dynamically in the Advanced Settings drawer header when custom instructions are present.
-  - **Expandable Advanced Configuration Accordion**: Collapsible drawer controlling cognitive distractor traps, reasoning skills, and targeted student misconception patterns.
+- **Step 3: Review & Advanced Calibration (`WizardStep3ReviewAdvanced.jsx`)**: Modular, high-density review interface cleanly decomposed into two dedicated components:
+  - **Review Summary (`WizardReviewSummary.jsx`)**: Instant tabular overview of selected section, topic, challenge level, and question count in a compact parameter summary card.
+  - **Scientific Diagrams Toggle**: Prominently positioned toggle card for natural science sections with full-card clickability and animated pill switch.
+  - **Additional Authoring Instructions**: Dedicated textarea (`border: 1px solid var(--border-light)`, `background: var(--bg-surface-subtle)`) allowing educators to supply explicit clinical scenarios, Lineweaver-Burk derivation mandates, or custom distractor traps. When populated, an animated indicator badge (`+ Custom Prompt Active`) is rendered dynamically in the card header.
+  - **Advanced Settings Drawer (`WizardAdvancedSettings.jsx`)**: Decomposed collapsible accordion drawer giving fine-grained control over cognitive distractor traps, SIRS reasoning skills, and targeted student mistake patterns.
 
 ### 4.2 Live Batch Activity & Concurrency Monitor (`BatchActivityView.jsx`, `ActiveMultiBatchMonitor.jsx`)
-- **Global Concurrency & Worker Pool**: Live telemetry bar showing running background batches, active worker job slots (governed by the 10-worker pool), and real-time execution timers.
+- **Global Concurrency & Worker Pool**: Live telemetry bar showing running background batches, active worker job slots (governed by the global semaphore pool), and real-time execution timers.
+- **Batch Header Banner (`BatchHeaderBanner.jsx`)**: Decomposed top banner rendering high-level aggregate statistics across active runs, multi-batch progress metrics, and fast-action controls.
+- **Empty State Display (`BatchEmptyState.jsx`)**: Clean zero-data slate guiding educators to launch their first practice set or full exam run.
 - **Batch Card Telemetry (`BatchCard.jsx`)**:
   - Displays batch scope badge (Practice Set 5 Qs vs Full Exam 50 Qs), section accent, target question count, completed slots, and overall completion percentage.
+  - **Controlled Resumption ("Resume Sets")**: Replaces legacy ambiguous retry buttons. Strictly shown for manually paused/stopped batches with incomplete sets under 3 trials. Manual retry options are eliminated for completed, partially completed, and failed batches.
   - Expandable accordion displaying individual job status items with their assigned thematic angles, cognitive traps, and generated question items.
+- **Job Card Live Telemetry (`BatchJobCard.jsx`)**:
+  - **Live Auto-Retrying Badge**: Displays animated `AUTO-RETRYING (X/3)` indicator when an incomplete set triggers an autonomous in-flight replenishment trial.
+  - **Exhaustion Indicator**: Displays a clear `3/3 TRIALS EXHAUSTED` warning badge when all 3 autonomous trials have concluded without fulfilling the target count.
 - **Set-Preserving Duplicate Resolution Section (`BatchDuplicateAuditSection.jsx`)**:
   - Interactive clustering panel analyzing pairwise question similarity (>75% threshold).
-  - Permanent purge of duplicate drafts with in-place slot replenishment preserving the original set's reading passage and thematic angle.
+  - Permanent purge (`action="delete"`) of duplicate drafts with in-place slot replenishment preserving the original set's reading passage and thematic angle.
   - Manual or automatic one-click "Purge & Refill" action ensuring exact target count delivery (e.g. exactly 50 questions across 10 jobs).
 
 ### 4.3 Editorial Review Desk & AI-Validated Triage (`AiValidatedQuestionsView.jsx`, `QuestionCard.jsx`)
@@ -245,11 +250,17 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 
 ### 4.13 Interactive Practice & Editorial Question Card (`QuestionCard.jsx`)
 - **Component**: [`frontend/src/components/question/QuestionCard.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/question/QuestionCard.jsx) serves as the primary presentation surface for reviewing, practicing, and editing candidate items.
+- **Decomposed Architectural Structure**:
+  To maintain high maintainability, reduce re-render cycles, and enforce strict single-responsibility boundaries, `QuestionCard` is decomposed into four specialized subcomponents:
+  1. **Question Card Header (`QuestionCardHeader.jsx`)**: Renders the section badge, calibrated scaled score pill (`118–132`), primary cognitive trap chip (`primary_trap`), question index counter, elapsed generation timer, and top action buttons (approve, edit, inspect, compare).
+  2. **Question Card Footer (`QuestionCardFooter.jsx`)**: Renders itemized prompt and completion token counters, calculated micro-dollar inference cost in USD, and primary lifecycle transition actions (e.g., Approve into Bank, Discard).
+  3. **Question Options List (`QuestionOptionsList.jsx`)**: Renders the 4 options ($A, B, C, D$) with length-symmetry indicators ($\pm 15\%$), interactive student practice selection, correct key highlighting (emerald), and distractor failure indications (crimson).
+  4. **Conversational Mentor Explanations (`MentorExplanationView.jsx`)**: 3-part structured breakdown cards (*Why Correct*, *Why Other Options Incorrect*, *Primary Cognitive Trap Spotlight*).
 - **Multi-Tab Workspace Architecture**:
   - **Preview Tab (`preview`)**: Standard student practice canvas with 4-choice interactive selection, immediate feedback, and collapsible mentor explanation cards.
   - **Scorecard Tab (`scorecard`)**: 100-point rubric accordion breaking down the 4 pillars with itemized reviewer feedback.
   - **Telemetry Tab (`telemetry`)**: Deep stage JSON inspector displaying raw inference payloads, timing metrics, and token costs.
-- **Editorial Quick-Edit Mode**:
+- **Editorial Quick-Edit Mode (`QuestionInlineEditor.jsx`)**:
   - Toggles in-place inputs for the question stem, optional passage/scenario, 4 options, and explanation without navigating away.
   - Integrates the **Option Length Symmetry Engine** (`calculateOptionSymmetry`), showing live percentage word-count deviations to guarantee options stay within the AAMC $\pm 15\%$ anti-guessability standard.
 - **Collision & Override Integration**:
@@ -275,9 +286,17 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - Modal Card: Uses `.modal-card-theme` with `backgroundColor: 'var(--bg-surface-elevated)'`, `borderRadius: 'var(--radius-lg, 16px)'`, `border: '1px solid var(--border-light)'`, and `boxShadow: 'var(--shadow-lg)'`.
   - Header: Styled with `var(--status-danger-bg)` and `var(--status-danger)` accents for high-visibility destructive action confirmation.
 - **Features & Architecture**:
-  - **Linked Questions Audit Counter**: Queries and itemizes the exact number of linked questions across all lifecycle statuses (`in_bank`, `ai_validated`, `batch_only`) that will be soft-deleted.
-  - **Batch Preservation Notice**: Clearly communicates to educators that soft-deleting the passage removes it from active catalogs while preserving batch progress history intact.
+  - **Linked Questions Cascade Audit Counter**: Queries and itemizes the exact number of linked questions across all lifecycle statuses (`in_bank`, `ai_validated`, `batch_only`) that will be soft-deleted.
+  - **Batch Preservation Notice**: Clearly communicates to educators that soft-deleting the passage removes it and its linked questions from active catalogs while preserving batch progress history intact.
   - **Accessible Focus Management**: Implements `useFocusTrap` to contain keyboard focus, with `Escape` key cancellation and autofocus on the cancel action for safety.
+
+### 4.16 Base Accessible Modal Primitive (`components/common/Modal.jsx`)
+- **Component**: [`frontend/src/components/common/Modal.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/common/Modal.jsx) provides the underlying accessible dialog framework for all system overlays.
+- **Core Contracts**:
+  - **React Portal Mounting**: Mounts dialogs directly into `document.body` to avoid parent container CSS clipping (`overflow: hidden`) and z-index stacking conflicts.
+  - **Backdrop Blur & Scrim**: Smooth animated backdrop fade with keyboard escape listener.
+  - **WCAG AA Focus Trap**: Intercepts `Tab` and `Shift+Tab` keystrokes to ensure focus cycles within the modal boundaries, restoring focus to the origin element upon close.
+  - **Standardized Size Constraints**: Accommodates `sm`, `md`, `lg`, `xl`, and `full` widths with automatic vertical scrolling on overflow.
 
 ---
 
@@ -347,4 +366,8 @@ To ensure the product feels thoughtfully crafted by human educators rather than 
   - *Save All Ready* or *Save Selected*
   - *Discard*
   - *Edit Question*
+- **Score Decoupling & Streamlined UI Copy**:
+  - Internal rubric score ranges (`>90`, `86-90`) are removed from user-facing badges, stats bars, and cards to keep the UI clean and student-focused.
+  - Telemetry badges show clean status labels (*Ready for Review*, *In Bank*, *Auto-Retrying (X/3)*, *3/3 Trials Exhausted*) without internal score math cluttering the visual hierarchy.
+  - Unused or noisy auxiliary counters (such as *Discarded* or *Needs Polish* counters on review desks) are pruned in favor of direct actionable items with permanent purge confirmation.
 - **Tone of Voice**: Professional, clear, direct, and unpretentious editor voice (seasoned pre-med instructor explaining concepts to colleagues and students without AI filler or marketing hype).

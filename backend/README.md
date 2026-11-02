@@ -49,12 +49,12 @@ backend/
 │   │   ├── question_repository.py # Clean CRUD, soft-deletion, restoration, duplicate overrides, reference queries, hybrid FTS & token analytics
 │   │   ├── batch_repository.py    # Staged batch run queries & persistence
 │   │   ├── job_repository.py      # Background worker job state tracking
-│   │   └── passage_repository.py  # Shared stimulus reading passage queries & soft-deletion
+│   │   └── passage_repository.py  # Shared stimulus reading passage queries, soft-deletion, and cascade question removal
 │   ├── models/              # Persistence Layer (SQLAlchemy 2.0 ORM Entities)
 │   │   ├── question.py      # QuestionModel with JSONB duplicate_info, is_deleted, deleted_at & 7 composite indexes
 │   │   ├── passage.py       # PassageModel for multi-item shared reading stimuli with is_deleted & deleted_at
 │   │   ├── batch.py         # BatchModel for multi-question generation runs
-│   │   └── job.py           # JobModel for tracking individual background batch jobs
+│   │   └── job.py           # JobModel for tracking individual background batch jobs with persisted trial_count
 │   ├── schemas/             # Domain Transfer Layer (Pydantic V2)
 │   │   ├── mcat.py          # MCAT sections, difficulty tiers (low/medium/high) & subtopic taxonomy
 │   │   ├── token.py         # TokenUsage & TokenCostAccumulator schemas
@@ -71,12 +71,14 @@ backend/
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (17 deterministic modules / 90 tests + 1 live E2E module = 100 total)
+└── tests/                   # Deterministic Automated Test Suite (19 deterministic modules / 96 tests + 1 live E2E module = 106 total)
     ├── conftest.py          # Pytest fixtures, offline DB socket probe & async test client
     ├── test_additional_instructions.py # Educator custom instructions and prompt builder integration
     ├── test_agents.py       # Cognitive agent unit tests
     ├── test_anthropic.py    # Multi-provider switching, Anthropic models, prompt cache pricing & API keys
     ├── test_api.py          # REST & SSE endpoint integration tests, CRUD, batch staging, pagination & duplicate overrides
+    ├── test_batch_autonomous_retry.py # Autonomous 3-trials policy, trial count persistence, HTTP 400 rejection, and in-flight retries
+    ├── test_batch_dedup_hard_delete.py # Hard-delete duplicate purge during batch deduplication and completion guards
     ├── test_batch_jobs_flow.py # Background batch runner, job concurrency, and refill preservation
     ├── test_batch_review_withholding.py # Review queue withholding during batch execution and atomic promotion
     ├── test_database_structure.py # SQLAlchemy models, cascade deletion, and constraint tests
@@ -185,10 +187,10 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (90 deterministic tests across 17 modules)
-# Smart auto-skip: 54 pure unit tests pass offline, 36 DB-dependent tests skip cleanly if PostgreSQL is offline
+# Run all unit and integration tests (96 deterministic tests across 19 modules)
+# Smart auto-skip: 54 pure unit tests pass offline, 42 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
-PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
+ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
 # Run database relational structure tests
 PYTHONPATH=backend pytest backend/tests/test_database_structure.py -v

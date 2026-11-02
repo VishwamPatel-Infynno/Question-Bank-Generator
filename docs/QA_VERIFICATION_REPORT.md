@@ -14,16 +14,15 @@
 This report establishes comprehensive, verifiable proof of product readiness across every system layer of the **Infynno MCAT Question Bank Generator**. Testing was performed methodically from minute code hygiene standards (PEP 8, lint rules, anti-AI formatting) up to distributed multi-agent autonomous generation workflows with real PostgreSQL 16 persistence and live LLM token streaming.
 
 ### Key Quality Metrics
-- **Automated Backend Tests:** **100 / 100 Tests Passed (100% Pass Rate)**
-  - Unit & Algorithmic Heuristics: **54 / 54 Passed**
-  - Database Integration Tests (PostgreSQL 16): **36 / 36 Passed**
-  - Live End-to-End Tests (SSE + DeepInfra LLM + DB CRUD): **10 / 10 Passed**
+- **Automated Backend Tests:** **106 / 106 Tests Passed (100% Pass Rate)**
+  - Deterministic Unit & Integration Tests (19 modules): **96 / 96 Passed** in 28.61s
+  - Live End-to-End Tests (SSE + DeepInfra / Anthropic LLM + DB CRUD): **10 / 10 Passed**
   - Failures: **0** | Skipped: **0** | Deselected: **0**
 - **Static Code Analysis:** **0 Errors, 0 Warnings**
-  - Frontend Linting (`oxlint`): **82 files verified clean (0 warnings, 0 errors)**
+  - Frontend Linting (`oxlint`): **90 files verified clean (0 warnings, 0 errors)**
   - Backend Linting (`ruff check`): **100% compliant with SIM (simplify) and RET (return) rules**
-  - Formatting Compliance (`ruff format`): **108 files verified clean across repository**
-- **Frontend Production Build:** **184 ms** via Vite 8.3.4 & Rolldown (zero bundle errors or warnings)
+  - Formatting Compliance (`ruff format`): **100% compliant across repository**
+- **Frontend Production Build:** Clean build via Vite 8 & Rolldown (zero bundle errors or warnings)
 - **UI Surfaces Audited:** **5 of 5 workspace surfaces + 4 modal dialogs** verified against `DESIGN.md` in both Light (Alabaster) and Dark (Obsidian) themes with zero token drift and full keyboard navigation.
 
 ---
@@ -32,8 +31,8 @@ This report establishes comprehensive, verifiable proof of product readiness acr
 
 | Component | Target / Environment | Verification Result |
 | :--- | :--- | :--- |
-| **Backend Runtime** | Python 3.11.15 / FastAPI / Uvicorn | ✅ Healthy, running on `http://127.0.0.1:8000` |
-| **Frontend Runtime** | React 19.2.8 / Vite 8.3.4 / Rolldown | ✅ Clean build, dev server active on `http://localhost:5173` |
+| **Backend Runtime** | Python 3.11+ / FastAPI / Uvicorn | ✅ Healthy, running on `http://127.0.0.1:8000` |
+| **Frontend Runtime** | React 19 / Vite 8 / Rolldown | ✅ Clean build, dev server active on `http://localhost:5173` |
 | **Primary Database** | PostgreSQL 16 Alpine (`mcat_postgres`) | ✅ Active container on `localhost:5432` with connection pool |
 | **Autonomous LLM** | DeepInfra (DeepSeek V4.1 Flash) & Anthropic (Claude Haiku 5.5 / Sonnet / Opus) | ✅ Dual first-class provider routing verified with live SSE streaming |
 | **Image Generator** | Black Forest Labs FLUX.2 Klein 4b + Programmatic SVG | ✅ Strict schema & cost calculation formula verified ($0.014/unit) |
@@ -43,8 +42,8 @@ This report establishes comprehensive, verifiable proof of product readiness acr
 
 ## 3. Automated Test Execution Matrix
 
-### 3.1 Backend Deterministic Test Suite (`pytest backend/tests -m "not live_e2e"`)
-Executed against live PostgreSQL 16 Docker container: **90 Passed in 30.46s (100% Pass Rate)**.
+### 3.1 Backend Deterministic Test Suite (`ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -m "not live_e2e"`)
+Executed against live PostgreSQL 16 Docker container: **96 Passed in 28.61s (100% Pass Rate)**.
 
 | Test File | Category | Tests | Status | Details |
 | :--- | :--- | :---: | :---: | :--- |
@@ -52,6 +51,8 @@ Executed against live PostgreSQL 16 Docker container: **90 Passed in 30.46s (100
 | `test_agents.py` | Multi-Agent Logic | 7 | ✅ Passed | Fused generator, reviewer heuristics, image guards, blind-solver agreement & discrepancy routing. |
 | `test_anthropic.py` | Multi-Provider LLM | 12 | ✅ Passed | Provider switching, API key enforcement, Claude Haiku/Sonnet/Opus pricing, and prompt cache math. |
 | `test_api.py` | FastAPI REST & CRUD | 13 | ✅ Passed | Database CRUD, admin approval, passage sets, independent questions, duplicate clusters, CORS, and slim pagination. |
+| `test_batch_autonomous_retry.py` | Resilient Batch Lifecycle | 4 | ✅ Passed | Job trial count persistence, resume stopped jobs under 3 trials, 3-trial exhaustion HTTP 400 rejection, and autonomous in-flight replenishment. |
+| `test_batch_dedup_hard_delete.py` | Duplicate Hard-Deletion | 2 | ✅ Passed | Hard delete purges duplicate questions from DB preventing ghost records, and completion status guards. |
 | `test_batch_jobs_flow.py` | Async Batch Processing | 3 | ✅ Passed | Full batch & jobs lifecycle, status transitions, mini-batch job management, and refill preservation. |
 | `test_batch_review_withholding.py`| Review Queue Guards | 2 | ✅ Passed | Withholds batch questions until completion (`batch_only`) and blocks promotion on cancelled runs. |
 | `test_database_structure.py`| Relational Schema & Search| 8 | ✅ Passed | Schema auto-init, hybrid FTS, foreign keys, batch auto-sync, cascade deletion, and null-safe options. |
@@ -65,7 +66,7 @@ Executed against live PostgreSQL 16 Docker container: **90 Passed in 30.46s (100
 | `test_tokens.py` | Telemetry & Costing | 6 | ✅ Passed | DeepInfra model configuration, fast cascade settings, token accumulation, and cost math. |
 | `test_visuals.py` | Diagram / Stimulus | 5 | ✅ Passed | AI image generator, FLUX cost formulas, and autonomous AI-determined image workflow. |
 | `test_workflow.py` | LangGraph State Graph | 4 | ✅ Passed | Event metadata, fused generator pass-through, reviewer bypass, and resilient JSON parsing. |
-| **Subtotal (Pytest Deterministic)**| | **90** | ✅ **90 Passed** | **0 Failed, 0 Skipped** |
+| **Subtotal (Pytest Deterministic)**| | **96** | ✅ **96 Passed** | **0 Failed, 0 Skipped** |
 
 ### 3.2 Live E2E Integration Suite (`pytest backend/tests/test_e2e_live.py -m live_e2e`)
 Executed against live backend on `http://127.0.0.1:8000`: **10 Passed in 99.85s (100% Pass Rate)**.
