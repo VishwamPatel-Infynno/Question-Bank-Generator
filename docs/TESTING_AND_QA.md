@@ -18,8 +18,8 @@ graph TD
     end
 
     subgraph "Tier 2: Backend Pytest Engine"
-        UnitTests[96 Deterministic Unit & Integration Tests across 19 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests (106 Total Backend Tests)]
+        UnitTests[97 Deterministic Unit & Integration Tests across 20 Modules]
+        LiveE2E[10 Live LLM API E2E Integration Tests (107 Total Backend Tests)]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -41,8 +41,8 @@ graph TD
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (90 frontend files, 100% ruff compliance across backend) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **96 passing tests across 19 modules** (~28.6s) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (106 total backend tests across 20 modules) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **97 passing tests across 20 modules** (~23-28s) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (107 total backend tests across 21 modules) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | **15/15 passed (100.0%)** |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **LangGraph StateGraph** | Threshold $> 90$ points |
 
@@ -82,21 +82,28 @@ backend/tests/
 ### 2.2 Test Suite Execution Commands & Execution Modes
 
 #### Execution Modes Breakdown
-- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 42 database-dependent tests, executing all 54 algorithmic, schema, prompt builder, and token pricing unit tests in ~12 seconds (`54 passed, 42 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 96 deterministic unit and integration tests execute across all 19 modules in ~28.6 seconds (`96 passed, 0 failed, 10 deselected`).
+- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 42 database-dependent tests, executing all 55 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`55 passed, 42 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 97 deterministic unit and integration tests execute across all 20 modules in ~23-28 seconds (`97 passed, 0 failed, 10 deselected`).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 106 backend tests across 20 test files.
+- **Total Suite**: 107 backend tests across 21 test files.
 
 ```bash
 # 1. Activate backend virtual environment
 source .venv/bin/activate
 
-# 2. Run all deterministic unit and integration tests across 19 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 54 pure unit tests pass and 42 DB tests cleanly skip
+# 2. Run all deterministic unit and integration tests across 20 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 55 pure unit tests pass and 42 DB tests cleanly skip
 # Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
+# Or run via root package.json
+pnpm run test
+
+# Database maintenance: purge discarded duplicate questions
+pnpm run db:clean-duplicates
+
 # 3. Run specific test modules
+PYTHONPATH=backend pytest backend/tests/test_taxonomy_sync.py -v
 PYTHONPATH=backend pytest backend/tests/test_batch_autonomous_retry.py -v
 PYTHONPATH=backend pytest backend/tests/test_batch_dedup_hard_delete.py -v
 PYTHONPATH=backend pytest backend/tests/test_anthropic.py -v
@@ -112,7 +119,7 @@ PYTHONPATH=backend pytest backend/tests/test_api.py -v
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
-### 2.3 Detailed Test Module Coverage (96 Deterministic Tests across 19 Modules / 106 Total Backend Tests)
+### 2.3 Detailed Test Module Coverage (97 Deterministic Tests across 20 Modules / 107 Total Backend Tests)
 
 1. **`test_additional_instructions.py` (3 tests)**:
    - `test_generation_request_additional_instructions`: Validates Pydantic serialization and round-trip payload persistence of educator instructions.
@@ -211,25 +218,27 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - `test_auto_resolve_caps_excess_to_exact_target`: Verifies that auto-resolve preserves exact target count without excess items.
     - `test_refresh_batch_aggregates_reflects_active_questions`: Confirms that batch counters accurately aggregate active questions only.
     - `test_interactive_slot_replenishment_recovers_from_quality_rejection`: Tests automated in-place slot replenishment when quality gate drops a candidate.
-17. **`test_tokens.py` (6 tests)**:
+17. **`test_taxonomy_sync.py` (1 test)**:
+    - `test_taxonomy_files_are_synchronized`: Guarantees that the backend taxonomy definition (`backend/app/data/mcat_dependent_taxonomy.json`) and frontend constant (`frontend/src/constants/mcat_dependent_taxonomy.json`) remain byte-for-byte synchronized, preventing drift in syllabus topics, disciplines, and foundational concepts.
+18. **`test_tokens.py` (6 tests)**:
     - `test_deepinfra_model_configuration`: Verifies model identifier, cascade settings, and endpoint parameters.
     - `test_token_and_cost_calculation`: Sub-micro-cent mathematical calculation verification ($0.098/$0.294 per 1M).
     - `test_workflow_token_accumulation`: Verifies cumulative token tracking across multi-agent cycles.
     - `test_deepinfra_strict_api_key_enforcement`: Ensures missing API keys fail fast with actionable guidance.
     - `test_max_tokens_settings_and_config_endpoint`: Validates token limit configuration contracts on `/api/config`.
     - `test_call_llm_effective_max_tokens_and_temperature`: Confirms temperature, fast model cascade, and token constraints per agent.
-18. **`test_visuals.py` (5 tests)**:
+19. **`test_visuals.py` (5 tests)**:
     - `test_strict_ai_image_generator`: Validates SVG vector generator and AI visual filters.
     - `test_flux_image_cost_formula`: Verifies FLUX unit cost scaling ($0.014 normalized baseline).
     - `test_image_node_workflow_accumulation`: Ensures visual synthesis costs accumulate into total run cost.
     - `test_visual_stimulus_persistence_in_finalize_node`: Confirms diagram SVG/URL persistence to PostgreSQL.
     - `test_autonomous_ai_determined_image_workflow`: Validates AI-determined visual stimulus routing.
-19. **`test_workflow.py` (4 tests)**:
+20. **`test_workflow.py` (4 tests)**:
     - `test_per_question_stage_metadata_in_events`: Verifies SSE event payload metadata and stage tracking.
     - `test_fused_generator_node_passing_and_routing`: Validates fused single-pass drafting and fast-path routing.
     - `test_fused_workflow_bypasses_reviewer_when_self_critique_passed`: Confirms reviewer bypass when score > 90.
     - `test_safe_json_loads_and_resilient_parsing`: Ensures resilient JSON parsing of LLM outputs.
-20. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
+21. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
     - `test_e2e_health_and_db_connectivity`: Confirms health endpoint connectivity to live PostgreSQL and LiteLLM models.
     - `test_e2e_all_four_sections_metadata`: Verifies live metadata and taxonomy tree across all 4 AAMC sections.
     - `test_e2e_config_endpoint`: Validates live runtime model configuration and token rate parameters.
@@ -255,8 +264,8 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 ```
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
-- All **54 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **96 deterministic tests across 19 modules** execute and pass automatically in ~28.6 seconds.
+- All **55 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
+- Once PostgreSQL is started (`docker compose up -d`), all **97 deterministic tests across 20 modules** execute and pass automatically in ~23-28 seconds.
 
 ---
 

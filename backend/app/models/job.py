@@ -33,9 +33,7 @@ class GenerationJobModel(Base):
     )  # pending, running, completed, failed, cancelled
     target_count: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     actual_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    trial_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1, server_default="1"
-    )
+    trial_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     passage_id: Mapped[str | None] = mapped_column(
         String(64),
         nullable=True,

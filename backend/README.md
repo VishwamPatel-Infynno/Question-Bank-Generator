@@ -14,11 +14,11 @@ The backend is engineered with clear separation of concerns across presentation,
 ```
 backend/
 ├── app/
-│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 34 operations across 28 paths)
+│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 36 operations across 30 paths)
 │   │   ├── router.py        # Central API v1 router aggregator
 │   │   └── v1/
 │   │       ├── generation.py # SSE streaming multi-agent orchestrator endpoint
-│   │       ├── questions.py  # Question Bank CRUD, review approval, duplicate check & override, restoration, CSV/JSON exports
+│   │       ├── questions.py  # Question Bank CRUD, review approval, duplicate check & override, restoration, permanent purge & exports
 │   │       ├── passages.py   # Shared clinical stimulus passages endpoints (list, retrieve, save, soft-delete)
 │   │       ├── batches.py    # Multi-question batch execution run endpoints, clustering & refill
 │   │       ├── taxonomy.py   # AAMC syllabus hierarchy & dependent taxonomy tree endpoints
@@ -71,7 +71,7 @@ backend/
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (19 deterministic modules / 96 tests + 1 live E2E module = 106 total)
+└── tests/                   # Deterministic Automated Test Suite (20 deterministic modules / 97 tests + 1 live E2E module = 107 total)
     ├── conftest.py          # Pytest fixtures, offline DB socket probe & async test client
     ├── test_additional_instructions.py # Educator custom instructions and prompt builder integration
     ├── test_agents.py       # Cognitive agent unit tests
@@ -90,6 +90,7 @@ backend/
     ├── test_schemas.py      # Pydantic schema validation tests
     ├── test_soft_delete_batch_integrity.py # Soft deletion & restoration preserving batch progress integrity
     ├── test_target_count_guarantee.py # Dynamic job allocation, slot replenishment, and target count guarantees
+    ├── test_taxonomy_sync.py # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
     ├── test_tokens.py       # Mathematical token cost accumulation tests across providers
     ├── test_visuals.py      # SVG & neural image generation tests
     └── test_workflow.py     # LangGraph StateGraph execution tests
@@ -187,8 +188,8 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (96 deterministic tests across 19 modules)
-# Smart auto-skip: 54 pure unit tests pass offline, 42 DB-dependent tests skip cleanly if PostgreSQL is offline
+# Run all unit and integration tests (97 deterministic tests across 20 modules)
+# Smart auto-skip: 55 pure unit tests pass offline, 42 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 

@@ -157,15 +157,18 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 106-test backend verification suite across 20 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full test specifications):
+Run the complete 107-test backend verification suite across 21 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 96 deterministic unit and integration tests across 19 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 54 pure unit tests pass and 42 DB tests skip cleanly
+# 1. Run all 97 deterministic unit and integration tests across 20 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 55 pure unit tests pass and 42 DB tests skip cleanly
 # Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
+
+# Or run via root package.json
+pnpm run test
 
 # 2. Run Python linting and code quality checks (enforces SIM, RET, B, C4, E, W, F, I, UP)
 ruff check backend/
@@ -173,10 +176,10 @@ ruff format --check .
 ```
 
 #### Dual Test Execution Modes
-- **Offline Mode** (PostgreSQL offline): Executes all 54 algorithmic, schema, agent, and mathematical tests in ~12 seconds (`54 passed, 42 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 96 deterministic tests across 19 modules in ~28.6 seconds (`96 passed, 0 failed, 10 deselected`).
+- **Offline Mode** (PostgreSQL offline): Executes all 55 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`55 passed, 42 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 97 deterministic tests across 20 modules in ~23-28 seconds (`97 passed, 0 failed, 10 deselected`).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 106 tests across 20 test files.
+- **Total Backend Suite**: 107 tests across 21 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.
@@ -207,7 +210,7 @@ The application includes 15 automated Playwright E2E browser tests covering guid
 ### 5.3 Frontend Quality & Production Verification
 
 ```bash
-# 1. High-speed Oxlint check across 82 frontend files (Zero warnings, zero errors required)
+# 1. High-speed Oxlint check across 90 frontend files (Zero warnings, zero errors required)
 pnpm --dir frontend lint
 
 # 2. Compile optimized production bundle with Vite (builds in ~218ms)
@@ -216,8 +219,19 @@ pnpm --dir frontend build
 
 ---
 
-### 5.3 Database Seeding & Mock Practice Questions
+### 5.4 Database Maintenance & Seeding Utilities
 
+#### 1. Clean Discarded Duplicate Question Artifacts
+To permanently purge existing discarded duplicate questions and clean up test remnants from PostgreSQL:
+```bash
+# Run via root pnpm script
+pnpm run db:clean-duplicates
+
+# Or directly via Python
+PYTHONPATH=backend ./.venv/bin/python scripts/clean_duplicate_artifacts.py
+```
+
+#### 2. Seed Mock Practice Questions
 To ensure a clean, deterministic state upon initial development startup, auto-seeding mock questions on server launch is disabled by default.
 
 To explicitly populate the database with authentic, high-quality MCAT practice questions across all 4 sections (complete with rubrics and evolution histories):

@@ -16,7 +16,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 
 ---
 
-## 2. API Endpoints Summary (34 Operations / 28 Endpoint Paths)
+## 2. API Endpoints Summary (36 Operations / 30 Endpoint Paths)
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -31,6 +31,8 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `POST` | `/api/questions/check-duplicate` | Evaluates a candidate question draft against the bank for similarity & collisions |
 | `DELETE` | `/api/questions/{question_id}` | **Admin Action**: Soft-deletes a question by UUID4, preserving it for batch progress history |
 | `POST` | `/api/questions/delete-batch` | **Admin Action**: Bulk soft-deletes multiple questions atomically, preserving batch progress |
+| `DELETE` | `/api/questions/{question_id}/permanent` | **Admin Action**: Permanently hard-deletes a single question from PostgreSQL by ID, bypassing soft-delete flags |
+| `POST` | `/api/questions/purge-batch` | **Admin Action**: Permanently hard-deletes multiple questions by IDs from PostgreSQL, eliminating database ghost records |
 | `POST` | `/api/questions/update-status` | **Admin Action**: Bulk-updates question lifecycle status (`in_bank`, `ai_validated`, `discarded`) |
 | `PATCH` | `/api/questions/{question_id}/status` | Updates lifecycle status for an individual question |
 | `GET` | `/api/questions/{question_id}/image` | Serves visual stimulus (FLUX AI image or Vector SVG diagram) with content negotiation |
@@ -494,7 +496,75 @@ Soft-deletes multiple questions atomically in a single SQL transaction (`is_dele
 
 ---
 
-### 3.14 Restore Soft-Deleted Question
+### 3.14 Permanently Delete Single Question
+`DELETE /api/questions/{question_id}/permanent`
+
+Permanently hard-deletes a single question from PostgreSQL by its UUID4 primary key via `hard_delete_question`, completely bypassing soft-deletion flags. This action permanently frees foreign keys and cleanses the database of duplicate or discarded test artifacts.
+
+#### Parameters
+| Parameter | Type | In | Required | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `question_id` | `string` | path | Yes | UUID4 primary key of the question to permanently delete |
+
+#### cURL Example
+```bash
+curl -X DELETE "http://localhost:8000/api/questions/e2a39281-b51c-4b6b-88a2-11e2f389a9c1/permanent" \
+  -H "Accept: application/json"
+```
+
+#### Response (`200 OK`)
+```json
+{
+  "success": true
+}
+```
+
+#### Error Response (`404 Not Found`)
+```json
+{
+  "detail": "Question not found"
+}
+```
+
+---
+
+### 3.15 Bulk Permanently Purge Questions
+`POST /api/questions/purge-batch`
+
+Permanently purges multiple questions from PostgreSQL in a single atomic SQL transaction via `hard_delete_questions_batch`. Eliminates ghost artifacts, discarded batch duplicates, and orphaned draft items permanently from database tables.
+
+#### Request Body
+```json
+{
+  "ids": [
+    "e2a39281-b51c-4b6b-88a2-11e2f389a9c1",
+    "7a1f590b-193e-436d-9861-f09c2a7e780d"
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `ids` | `list[string]` | Yes | Array of UUID4 question identifiers to permanently purge |
+
+#### cURL Example
+```bash
+curl -X POST "http://localhost:8000/api/questions/purge-batch" \
+  -H "Content-Type: application/json" \
+  -d '{"ids": ["e2a39281-b51c-4b6b-88a2-11e2f389a9c1", "7a1f590b-193e-436d-9861-f09c2a7e780d"]}'
+```
+
+#### Response (`200 OK`)
+```json
+{
+  "success": true,
+  "purged_count": 2
+}
+```
+
+---
+
+### 3.16 Restore Soft-Deleted Question
 `POST /api/questions/{question_id}/restore`
 
 Restores a soft-deleted question back to active status (`is_deleted = false`, `deleted_at = null`). If the question is linked to a shared reading passage that was also soft-deleted, the linked passage is automatically restored to active status as well.
@@ -546,7 +616,7 @@ Restores a soft-deleted question back to active status (`is_deleted = false`, `d
 
 ---
 
-### 3.15 Start Background Batch Generation (50 Qs)
+### 3.17 Start Background Batch Generation (50 Qs)
 `POST /api/batches/start`
 
 Launches an asynchronous background batch generation. Creates 1 batch record and 10 parallel job records (each job producing 5 questions for 50 total items). Returns `202 Accepted` immediately while generation runs in the background.
@@ -580,7 +650,7 @@ Accepts a `GenerationRequest` payload (same schema as `POST /api/generate`).
 
 ---
 
-### 3.16 List Batches & Concurrency Metrics
+### 3.18 List Batches & Concurrency Metrics
 `GET /api/batches`
 
 Lists generation batches with job progress counts, active running batch numbers, and real-time global concurrency metrics.
@@ -619,7 +689,7 @@ Lists generation batches with job progress counts, active running batch numbers,
 
 ---
 
-### 3.17 Get Single Batch with Grouped Jobs & Questions
+### 3.19 Get Single Batch with Grouped Jobs & Questions
 `GET /api/batches/{batch_id}`
 
 Retrieves a generation batch along with all 10 jobs (augmented with their generated questions) and flat question records.
@@ -651,7 +721,7 @@ Retrieves a generation batch along with all 10 jobs (augmented with their genera
 
 ---
 
-### 3.18 Stop Single Batch
+### 3.20 Stop Single Batch
 `POST /api/batches/{batch_id}/stop`
 
 Gracefully halts active background jobs for a specific batch. Cancels running asyncio sub-tasks and updates remaining pending jobs to `"cancelled"` status without deleting questions already generated and saved to PostgreSQL.
@@ -670,7 +740,7 @@ Gracefully halts active background jobs for a specific batch. Cancels running as
 
 ---
 
-### 3.19 Resume Incomplete Batch Jobs (3-Trials Policy)
+### 3.21 Resume Incomplete Batch Jobs (3-Trials Policy)
 `POST /api/batches/{batch_id}/retry`
 
 Resumes incomplete, failed, or cancelled jobs for a batch into the global worker pool. 
@@ -712,7 +782,7 @@ Optionally accepts an updated `GenerationRequest` payload to override parameters
 
 ---
 
-### 3.20 Cancel All Active Batches
+### 3.22 Cancel All Active Batches
 `POST /api/batches/cancel-all`
 
 System-wide administrative action that gracefully halts all currently executing background batches. Cancels active worker tasks, sets status to `"cancelled"` or `"partially_completed"`, and safely flushes aggregate metrics to the database.
@@ -728,7 +798,7 @@ System-wide administrative action that gracefully halts all currently executing 
 
 ---
 
-### 3.21 Delete Batch
+### 3.23 Delete Batch
 `DELETE /api/batches/{batch_id}`
 
 Cancels any active runner task for the batch, then permanently deletes the generation batch record and cascades deletion to all associated jobs and question items.
@@ -743,7 +813,7 @@ Cancels any active runner task for the batch, then permanently deletes the gener
 
 ---
 
-### 3.22 Create or Update Batch Record
+### 3.24 Create or Update Batch Record
 `POST /api/batches`
 
 Admin endpoint to create or update a generation batch entity directly in PostgreSQL.
@@ -762,7 +832,7 @@ Admin endpoint to create or update a generation batch entity directly in Postgre
 
 ---
 
-### 3.23 Get Batch Duplicate Clusters
+### 3.25 Get Batch Duplicate Clusters
 `GET /api/batches/{batch_id}/duplicate-clusters`
 
 Performs pairwise similarity clustering on questions within a batch to identify redundant items and designate primary leader questions. Automatically excludes previously discarded questions.
@@ -808,7 +878,7 @@ Performs pairwise similarity clustering on questions within a batch to identify 
 
 ---
 
-### 3.24 Resolve Batch Duplicates
+### 3.26 Resolve Batch Duplicates
 `POST /api/batches/{batch_id}/resolve-duplicates`
 
 Resolves duplicate clusters in a batch by preserving the designated leader question and permanently deleting (`action="delete"`, default) or archiving (`action="archive"`) redundant duplicate questions. Under `action="delete"`, duplicates are hard-deleted from PostgreSQL via `hard_delete_questions_batch` to eliminate ghost records in the UI and ensure clean subsequent refills. Refreshes batch aggregates and computes any remaining question deficit.
@@ -844,7 +914,7 @@ Resolves duplicate clusters in a batch by preserving the designated leader quest
 
 ---
 
-### 3.25 Refill Batch Question Deficit
+### 3.27 Refill Batch Question Deficit
 `POST /api/batches/{batch_id}/refill`
 
 Replenishes a batch up to its target question count by launching targeted background jobs for archived or missing questions with diverse pedagogical thematic angles to avoid re-generating similar concepts.
@@ -874,7 +944,7 @@ Replenishes a batch up to its target question count by launching targeted backgr
 
 ---
 
-### 3.26 Passages Management Endpoints
+### 3.28 Passages Management Endpoints
 `GET /api/passages` | `GET /api/passages/{passage_id}` | `POST /api/passages` | `DELETE /api/passages/{passage_id}`
 
 - **List Passages (`GET /api/passages`)**: Lists reading passages with optional `section`, `subtopic`, and `search` query parameters. Soft-deleted passages are excluded by default.
@@ -998,7 +1068,7 @@ curl -X DELETE "http://localhost:8000/api/passages/550e8400-e29b-41d4-a716-44665
 
 ---
 
-### 3.27 Export Repository
+### 3.29 Export Repository
 `GET /api/export`
 
 Exports the entire Question Bank (or filtered subsets) in standardized JSON or CSV format.
@@ -1016,7 +1086,7 @@ curl -X GET "http://localhost:8000/api/export?format=csv" -o mcat_question_bank.
 
 ---
 
-### 3.28 Service Health Check
+### 3.30 Service Health Check
 `GET /api/health`
 
 Evaluates system status, database connectivity, active text reasoning model, neural image model, provider configuration, and active token pricing.
@@ -1047,7 +1117,7 @@ Evaluates system status, database connectivity, active text reasoning model, neu
 
 ---
 
-### 3.29 Runtime Configuration & Settings
+### 3.31 Runtime Configuration & Settings
 `GET /api/config`
 
 Retrieves active runtime engine configuration, active provider (`deepinfra` or `anthropic`), cascade fallbacks, worker concurrency limits, gateway secrets status (masked booleans), and pricing parameters across all 28 runtime fields.
@@ -1090,7 +1160,7 @@ Retrieves active runtime engine configuration, active provider (`deepinfra` or `
 
 ---
 
-### 3.30 Official AAMC Sections & Syllabus Hierarchy
+### 3.32 Official AAMC Sections & Syllabus Hierarchy
 `GET /api/sections`
 
 Returns the complete cached syllabus hierarchy across all 4 official AAMC MCAT sections, including subjects, units, topics, subtopics, reasoning skills, and target pacing.
@@ -1137,7 +1207,7 @@ Returns the complete cached syllabus hierarchy across all 4 official AAMC MCAT s
 
 ---
 
-### 3.31 Official AAMC Dependent Taxonomy Tree
+### 3.33 Official AAMC Dependent Taxonomy Tree
 `GET /api/taxonomy`
 
 Returns the comprehensive hierarchical AAMC Dependent Taxonomy tree powering the multi-level Guided Wizard selection flow.

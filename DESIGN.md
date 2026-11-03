@@ -143,8 +143,16 @@ Streamlined 3-step authoring workflow:
   - **Partially Completed Batches**: Amber notification detailing fulfilled vs shortfall counts after 3 exhausted trials with 1-click access to valid questions.
   - **Stopped Batches**: Neutral summary showing safely preserved question counts with instant `[Resume Sets]` controlled resumption.
 - **Job Card Live Micro-Progress (`BatchJobCard.jsx`)**:
-  - **Worker Queue State**: Explicitly highlights `⏳ Queued in Worker Pool` for jobs waiting for semaphore capacity vs `⚡ Active Worker Slot` with pulsing indicator.
-  - **5-Question Progress Pills (`.job-q-pill-strip`)**: Micro-status pills (`Q1`–`Q5`) displaying individual item state: green check with score for validated items, pulsing dot for active drafting item, and dashed outline for pending slots.
+  - **Worker Queue State**: Explicitly highlights `⏳ Queued in Worker Pool` for jobs waiting for semaphore capacity vs `⚡ Active Worker Slot` with pulsing electric conduit indicator.
+  - **5-Question Progress Pills (`.job-q-pill-strip`)**: Micro-status pills (`Q1`–`Q5`) displaying exact question slot lifecycle states via `resolveStatus`:
+    - `.done`: Completed and ready for review (`✓ Q1`), emerald accent (`var(--emerald)`).
+    - `.in-bank`: Completed and already approved into the Question Bank (`✓ Q1`), royal violet accent (`var(--infynno-violet)`).
+    - `.active`: Currently generating or self-evaluating candidate (`● Q2`), pulsing electric conduit cyan animation (`animate-pulse`).
+    - `.pending`: Muted placeholder slot awaiting worker assignment (`Q3`), hairline dashed outline (`var(--border-light)`).
+  - **Resilient Autonomous Trial Telemetry Badges**:
+    - `AUTO-RETRYING (X/3)`: Pulsing amber badge (`.job-retry-badge`) indicating active in-flight shortfall replenishment.
+    - `3/3 TRIALS EXHAUSTED`: Crimson warning badge (`.job-exhausted-badge`) signaling that the maximum 3 trial attempts have completed without hitting full target count.
+    - `CANCELLED`: Neutral badge for user-aborted sets.
   - **Live Duration Stopwatch**: Self-contained runtime counter (`LiveStopwatch`) tracking elapsed generation duration on running sets and active batches.
 - **Set-Preserving Duplicate Resolution Section (`BatchDuplicateAuditSection.jsx`)**:
   - Interactive clustering panel analyzing pairwise question similarity (>75% threshold).

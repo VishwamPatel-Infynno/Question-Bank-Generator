@@ -347,7 +347,9 @@ async def _run_single_job_refill(
             f"Replenishing Set #{job.job_number} (Job ID: {job.id}) in Batch {batch_id} "
             f"with {job_deficit} replacement question(s) [Trial {new_trial}/3]..."
         )
-        await update_job_progress(job.id, status="running", trial_count=new_trial, started_at=now_iso)
+        await update_job_progress(
+            job.id, status="running", trial_count=new_trial, started_at=now_iso
+        )
 
         # Determine passage and stimulus from existing questions in this job
         job_existing_qs = [

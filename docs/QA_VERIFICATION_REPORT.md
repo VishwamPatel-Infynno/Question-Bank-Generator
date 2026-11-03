@@ -14,8 +14,8 @@
 This report establishes comprehensive, verifiable proof of product readiness across every system layer of the **Infynno MCAT Question Bank Generator**. Testing was performed methodically from minute code hygiene standards (PEP 8, lint rules, anti-AI formatting) up to distributed multi-agent autonomous generation workflows with real PostgreSQL 16 persistence and live LLM token streaming.
 
 ### Key Quality Metrics
-- **Automated Backend Tests:** **106 / 106 Tests Passed (100% Pass Rate)**
-  - Deterministic Unit & Integration Tests (19 modules): **96 / 96 Passed** in 28.61s
+- **Automated Backend Tests:** **107 / 107 Tests Passed (100% Pass Rate)**
+  - Deterministic Unit & Integration Tests (20 modules): **97 / 97 Passed** in 23.37s
   - Live End-to-End Tests (SSE + DeepInfra / Anthropic LLM + DB CRUD): **10 / 10 Passed**
   - Failures: **0** | Skipped: **0** | Deselected: **0**
 - **Static Code Analysis:** **0 Errors, 0 Warnings**
@@ -43,7 +43,7 @@ This report establishes comprehensive, verifiable proof of product readiness acr
 ## 3. Automated Test Execution Matrix
 
 ### 3.1 Backend Deterministic Test Suite (`ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -m "not live_e2e"`)
-Executed against live PostgreSQL 16 Docker container: **96 Passed in 28.61s (100% Pass Rate)**.
+Executed against live PostgreSQL 16 Docker container: **97 Passed in 23.37s (100% Pass Rate)**.
 
 | Test File | Category | Tests | Status | Details |
 | :--- | :--- | :---: | :---: | :--- |
@@ -63,10 +63,11 @@ Executed against live PostgreSQL 16 Docker container: **96 Passed in 28.61s (100
 | `test_schemas.py` | Pydantic V2 Models | 1 | ✅ Passed | Complete schema validation and enum serialization. |
 | `test_soft_delete_batch_integrity.py` | Soft Deletion & Batch Integrity | 2 | ✅ Passed | Verifies non-destructive soft deletion of passages/questions and restoration preserving batch counts. |
 | `test_target_count_guarantee.py` | Quota & Replenish | 4 | ✅ Passed | Dynamic job allocation, excess capping, active question aggregates, and in-place recovery. |
+| `test_taxonomy_sync.py` | Taxonomy Parity | 1 | ✅ Passed | Guarantees byte-for-byte synchronization between backend and frontend AAMC taxonomy definitions. |
 | `test_tokens.py` | Telemetry & Costing | 6 | ✅ Passed | DeepInfra model configuration, fast cascade settings, token accumulation, and cost math. |
 | `test_visuals.py` | Diagram / Stimulus | 5 | ✅ Passed | AI image generator, FLUX cost formulas, and autonomous AI-determined image workflow. |
 | `test_workflow.py` | LangGraph State Graph | 4 | ✅ Passed | Event metadata, fused generator pass-through, reviewer bypass, and resilient JSON parsing. |
-| **Subtotal (Pytest Deterministic)**| | **96** | ✅ **96 Passed** | **0 Failed, 0 Skipped** |
+| **Subtotal (Pytest Deterministic)**| | **97** | ✅ **97 Passed** | **0 Failed, 0 Skipped** |
 
 ### 3.2 Live E2E Integration Suite (`pytest backend/tests/test_e2e_live.py -m live_e2e`)
 Executed against live backend on `http://127.0.0.1:8000`: **10 Passed in 99.85s (100% Pass Rate)**.
@@ -153,7 +154,7 @@ All 5 top-level views and 4 modal dialogs were audited in interactive Chromium b
 
 > **Manager Sign-Off Readiness Statement:**
 > Every layer of the **Infynno MCAT Question Bank Generator v2.0** application has been exhaustively tested and validated:
-> 1. **100 out of 100 automated backend tests pass with 100% success** (90 deterministic unit/DB tests + 10 live multi-agent E2E tests).
+> 1. **107 out of 107 automated backend tests pass with 100% success** (97 deterministic unit/DB tests across 20 modules + 10 live multi-agent E2E tests).
 > 2. **0 linter errors or warnings** across Python (Ruff) and JavaScript (Oxlint) with 100% code formatting compliance.
 > 3. **0 build errors**; production bundle compiles in 184 ms via Vite and Rolldown.
 > 4. **Live multi-agent AI generation** functions end-to-end with real SSE streaming, 90+ psychometric scoring, micro-dollar cost tracking, and PostgreSQL 16 persistence.

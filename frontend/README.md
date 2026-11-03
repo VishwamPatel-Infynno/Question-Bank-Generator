@@ -47,7 +47,7 @@ frontend/src/
 │   │   ├── BatchEmptyState.jsx   # Decomposed zero-state canvas for batch activity
 │   │   ├── BatchFiltersBar.jsx   # Section, status, and search filters
 │   │   ├── BatchHeaderBanner.jsx # Decomposed top summary banner for active batch metrics
-│   │   ├── BatchJobCard.jsx      # Per-question job card with live auto-retry & exhaustion badges
+│   │   ├── BatchJobCard.jsx      # Per-set worker card with 5-question visual progress strip (in-bank, done, active, pending) & autonomous retry telemetry
 │   │   ├── BatchQuestionItem.jsx # Staged question item with review modal
 │   │   └── BatchStatsHeader.jsx  # High-level aggregate batch statistics
 │   ├── common/

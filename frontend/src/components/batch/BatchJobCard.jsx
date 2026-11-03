@@ -218,16 +218,19 @@ export default function BatchJobCard({
 
       {/* 5-Question Visual Progress Strip */}
       <div className="job-q-pill-strip" role="group" aria-label={`Question progress for Set ${job.job_number}`}>
-        {Array.from({ length: targetCount }).map((_, idx) => {
-          const qNum = idx + 1;
-          const matchedQ = visibleQuestions[idx];
+        {Array.from({ length: targetCount }, (_, i) => ({
+          slotNum: i + 1,
+          slotKey: `${job.id || 'job'}-slot-${i + 1}`
+        })).map((slot) => {
+          const qNum = slot.slotNum;
+          const matchedQ = visibleQuestions[qNum - 1];
           if (matchedQ) {
             const st = resolveStatus(matchedQ);
             const score = matchedQ.final_score ?? 95;
             const isBank = st === 'in_bank';
             return (
               <span
-                key={matchedQ.id || idx}
+                key={matchedQ.id || slot.slotKey}
                 className={`job-q-pill ${isBank ? 'in-bank' : 'done'}`}
                 title={`Question ${qNum}: Score ${score}/100 • ${isBank ? 'In Question Bank' : 'Ready for Review'}`}
               >
@@ -236,10 +239,10 @@ export default function BatchJobCard({
               </span>
             );
           }
-          if (isJobRunning && idx === visibleQuestions.length) {
+          if (isJobRunning && qNum - 1 === visibleQuestions.length) {
             return (
               <span
-                key={idx}
+                key={`active-${slot.slotKey}`}
                 className="job-q-pill active"
                 title={`Question ${qNum}: Currently generating passage, stem & distractors`}
               >
@@ -258,7 +261,7 @@ export default function BatchJobCard({
           }
           return (
             <span
-              key={idx}
+              key={`pending-${slot.slotKey}`}
               className="job-q-pill pending"
               title={`Question ${qNum}: Pending in set`}
             >

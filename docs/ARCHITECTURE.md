@@ -362,7 +362,55 @@ To support heavy concurrent workloads and prevent thread starvation or provider 
    - **Graceful Batch Halt (`POST /api/batches/{id}/stop`)**: Cancels running asyncio worker tasks and updates remaining pending jobs to `"cancelled"` while preserving all successfully generated questions in the bank.
    - **Controlled Resume Sets (`POST /api/batches/{id}/retry`)**: Strictly reserved for manually stopped or cancelled batches that have incomplete jobs with remaining trials (`trial_count < 3`). Re-launches incomplete jobs into the worker pool. If all incomplete jobs have already exhausted 3 trials, the endpoint returns an explicit **HTTP 400 Bad Request** (`All incomplete sets in batch have already reached the maximum 3-trial limit or have already completed, and cannot be retried.`), preventing infinite retry loops.
    - **Global Halt (`POST /api/batches/cancel-all`)**: System-wide fail-safe terminating all active runner tasks cleanly.
-### 5.2 Question Lifecycle State Machine
+
+### 5.2 Dual-Track Progress Architecture & Worker Telemetry Engine
+
+The batch execution engine implements a **Dual-Track Progress Architecture** that decouples localized set-level replenishment from global batch milestone progress:
+
+```mermaid
+flowchart TD
+    subgraph DualTrack["Dual-Track Batch Progress System"]
+        subgraph Track1["Track 1: Batch-Level Aggregated Progress"]
+            TotalTarget["Total Target: 50 Questions"] --> TotalAgg["Atomic DB Aggregation: actual_count / target_count"]
+            TotalAgg --> TopBar["Top Progress Meter & Overall % Completion"]
+        end
+
+        subgraph Track2["Track 2: Job-Level Set Progress Strip"]
+            SetTarget["Set Target: 5 Questions"] --> VisibleQs["Visible Validated Questions"]
+            VisibleQs --> Pill1["Slot 1: in_bank / done"]
+            VisibleQs --> Pill2["Slot 2: in_bank / done"]
+            VisibleQs --> Pill3["Slot 3: active (generating)"]
+            VisibleQs --> Pill4["Slot 4: pending"]
+            VisibleQs --> Pill5["Slot 5: pending"]
+        end
+    end
+
+    subgraph RefillLoop["In-Flight Replenishment Loop (_run_single_job_refill)"]
+        Trial1["Trial 1: Draft Initial 5 Questions"] --> CheckShortfall{"Deficit > 0 & trial < 3?"}
+        CheckShortfall -->|Yes| BumpTrial["Increment trial_count (e.g., Trial 2/3)"]
+        BumpTrial --> ExtractPassage["Reuse Initial Set Passage & Stimulus"]
+        ExtractPassage --> GenDeficit["Generate Exactly (target - actual) Replacements"]
+        GenDeficit --> Recheck{"Passed Quality Gate?"}
+        Recheck -->|Yes| FillSlots["Fill Pending Slots Atomically"]
+        Recheck -->|No| CheckShortfall
+        CheckShortfall -->|No / Exhausted| TerminateJob["Mark Job completed / failed"]
+    end
+
+    Track2 --> RefillLoop
+```
+
+1. **Job-Level Set Progress Track**:
+   - Each set displays a 5-question visual progress strip (`job-q-pill-strip`) rendering the exact state of each question slot in the set:
+     - `.in-bank`: Formally approved question in the Question Bank (purple accent).
+     - `.done`: Validated question passing psychometric audit and ready for review (emerald accent).
+     - `.active`: Currently generating or self-evaluating candidate (pulsing electric conduit animation).
+     - `.pending`: Muted placeholder slot awaiting worker assignment.
+2. **Batch-Level Aggregate Track**:
+   - Aggregates accepted questions across all 10 concurrent worker jobs against the total batch target (50 questions), recalculating completion percentage atomically via PostgreSQL subqueries.
+3. **In-Flight Deficit Replenishment (`_run_single_job_refill`)**:
+   - When a job produces fewer than 5 valid questions on its first attempt, the runner does not discard the existing approved items or create a redundant passage. Instead, it extracts the passage and stimulus from existing set items and launches targeted generation for only the shortfall deficit, incrementing `trial_count` up to 3.
+
+### 5.3 Question Lifecycle State Machine
 Every question in the system progresses through an explicit, strictly guarded lifecycle state:
 
 ```mermaid
@@ -398,7 +446,7 @@ stateDiagram-v2
 - **`below_threshold`**: Drafts that failed to achieve >85 points after remediation cycles (flagged or discarded).
 - **`discarded`**: Archived or rejected items removed from active question banks or resolved during duplicate clustering.
 
-### 5.3 Canonical Status Determination, Withholding Guards & Batch Idempotency
+### 5.4 Canonical Status Determination, Withholding Guards & Batch Idempotency
 
 1. **Review Queue Withholding Safeguard**:
    During active batch execution, candidate questions scoring $> 85$ are saved with `status = 'batch_only'`. All repository search and count queries ([`backend/app/repositories/question_repository.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/repositories/question_repository.py)) enforce an active subquery guard:
@@ -653,8 +701,10 @@ frontend/src/
 │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live multi-batch controller
 │   │   ├── BatchCard.jsx         # Summary status card for generation batches
 │   │   ├── BatchDuplicateAuditSection.jsx # Set-preserving duplicate resolution & in-place refill
+│   │   ├── BatchEmptyState.jsx   # Decomposed zero-state canvas for batch activity
 │   │   ├── BatchFiltersBar.jsx   # Section, status, and search filters
-│   │   ├── BatchJobCard.jsx      # Per-question job card with lifecycle status
+│   │   ├── BatchHeaderBanner.jsx # Top summary banner for active batch metrics
+│   │   ├── BatchJobCard.jsx      # Per-set worker card with 5-question visual progress strip & retry telemetry
 │   │   ├── BatchQuestionItem.jsx # Staged question item with review modal
 │   │   ├── BatchStatsHeader.jsx  # High-level aggregate batch statistics
 │   │   └── index.js              # Batch barrel export
