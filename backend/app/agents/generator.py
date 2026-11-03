@@ -85,8 +85,8 @@ def _parse_option_choices(raw_options: Any, data: dict | None = None) -> list[Op
     else:
         options = []
 
-    if len(options) not in (4, 5):
-        raise ValueError(f"Expected 4 or 5 options, got {len(options)}")
+    if len(options) != 4:
+        raise ValueError(f"Expected exactly 4 options for AAMC MCAT, got {len(options)}")
     return options
 
 

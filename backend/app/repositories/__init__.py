@@ -22,6 +22,7 @@ from app.repositories.passage_repository import (
 )
 from app.repositories.question_repository import (
     batch_update_question_status,
+    count_questions,
     delete_question,
     delete_questions_batch,
     get_question_by_id,
@@ -38,6 +39,7 @@ from app.repositories.question_repository import (
 
 __all__ = [
     "batch_update_question_status",
+    "count_questions",
     "delete_batch",
     "delete_passage",
     "delete_question",

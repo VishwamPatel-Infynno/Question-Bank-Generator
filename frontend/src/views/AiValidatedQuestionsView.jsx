@@ -67,7 +67,7 @@ export default function AiValidatedQuestionsView({
         fetchQuestions({ status: 'ai_validated', section: sectionFilter || undefined, slim: true }),
         fetchQuestionCounts()
       ]);
-      const loadedQs = (qsRes.questions || []).filter(q => (q.final_score || 0) > 90);
+      const loadedQs = qsRes.questions || [];
       setQuestions(loadedQs);
       setCounts(countsRes || {});
       if (onRefreshCounts) onRefreshCounts();

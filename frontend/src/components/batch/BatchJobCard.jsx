@@ -394,11 +394,11 @@ export default function BatchJobCard({
           {deletedCount > 0 && (
             <span
               style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: 'var(--status-danger, #ef4444)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
+                background: 'var(--status-danger-bg)',
+                color: 'var(--status-danger)',
+                border: '1px solid var(--status-danger-border)',
                 padding: '2px 7px',
-                borderRadius: '4px',
+                borderRadius: 'var(--radius-xs)',
                 fontWeight: 700,
                 display: 'inline-flex',
                 alignItems: 'center',

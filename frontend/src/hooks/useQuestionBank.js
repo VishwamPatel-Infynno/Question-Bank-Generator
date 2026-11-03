@@ -34,6 +34,7 @@ export function useQuestionBank() {
         difficulty: diffFilter || undefined,
         search: debouncedSearch || undefined,
         status: statusFilter || 'in_bank',
+        sort_by: sortBy || 'newest',
         slim: true
       },
       controller.signal
@@ -43,7 +44,9 @@ export function useQuestionBank() {
           setRawQuestions(data.questions || []);
           setRepoStats({
             total_tokens: data.total_tokens || 0,
-            total_cost_usd: data.total_cost_usd || 0
+            total_cost_usd: data.total_cost_usd || 0,
+            total_count: data.total_count || 0,
+            bank_total_count: data.bank_total_count || 0
           });
           setLoading(false);
         }
@@ -58,7 +61,7 @@ export function useQuestionBank() {
       isCancelled = true;
       controller.abort();
     };
-  }, [sectionFilter, diffFilter, statusFilter, debouncedSearch, refreshCount]);
+  }, [sectionFilter, diffFilter, statusFilter, debouncedSearch, sortBy, refreshCount]);
 
   const loadQuestions = useCallback(() => {
     setLoading(true);

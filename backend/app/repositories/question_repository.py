@@ -4,7 +4,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import and_, delete, func, or_, select, update
+from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.db.base import to_datetime, to_iso_str
@@ -340,6 +340,130 @@ async def get_repository_metrics(status: str | None = None) -> dict[str, Any]:
         }
 
 
+def _build_question_filters(
+    section: str | None = None,
+    difficulty: str | None = None,
+    search: str | None = None,
+    combination_id: str | None = None,
+    run_id: str | None = None,
+    batch_id: str | None = None,
+    job_id: str | None = None,
+    passage_id: str | None = None,
+    status: str | None = None,
+    include_deleted: bool = False,
+) -> list[Any]:
+    """Builds shared SQLAlchemy filter conditions across list and count queries."""
+    conditions: list[Any] = []
+    if not include_deleted:
+        conditions.append(QuestionModel.is_deleted.is_(False))
+
+    if section:
+        conditions.append(QuestionModel.section == section)
+    if difficulty:
+        diff_lower = difficulty.strip().lower()
+        if diff_lower in ["low", "easy"]:
+            conditions.append(QuestionModel.difficulty.in_(["low", "Low", "easy", "Easy"]))
+        elif diff_lower in ["high", "hard"]:
+            conditions.append(QuestionModel.difficulty.in_(["high", "High", "hard", "Hard"]))
+        elif diff_lower in ["medium", "standard"]:
+            conditions.append(
+                QuestionModel.difficulty.in_(["medium", "Medium", "standard", "Standard"])
+            )
+        else:
+            conditions.append(QuestionModel.difficulty == difficulty)
+    if combination_id:
+        conditions.append(QuestionModel.combination_id == combination_id)
+    if run_id:
+        conditions.append(QuestionModel.run_id == run_id)
+    if batch_id:
+        conditions.append(QuestionModel.batch_id == batch_id)
+    if job_id:
+        conditions.append(QuestionModel.job_id == job_id)
+    if passage_id:
+        conditions.append(QuestionModel.passage_id == passage_id)
+    if status and status != "all":
+        conditions.append(QuestionModel.status == status)
+        if status == "ai_validated":
+            conditions.append(QuestionModel.final_score > 90)
+            in_progress_batches = select(GenerationBatchModel.id).where(
+                GenerationBatchModel.status == "in_progress"
+            )
+            conditions.append(
+                or_(
+                    QuestionModel.batch_id.is_(None),
+                    QuestionModel.batch_id.notin_(in_progress_batches),
+                )
+            )
+
+    if search:
+        search_clean = search.strip()
+        wildcard = f"%{search_clean}%"
+
+        # Hybrid PostgreSQL search: tsvector full-text match + ILIKE substring fallback
+        fts_vector = func.to_tsvector(
+            "english",
+            func.coalesce(QuestionModel.question_stem, "")
+            + " "
+            + func.coalesce(QuestionModel.stimulus_text, "")
+            + " "
+            + func.coalesce(QuestionModel.subtopic, "")
+            + " "
+            + func.coalesce(QuestionModel.explanation, ""),
+        )
+        fts_condition = fts_vector.op("@@")(func.plainto_tsquery("english", search_clean))
+
+        conditions.append(
+            or_(
+                fts_condition,
+                QuestionModel.id.ilike(wildcard),
+                QuestionModel.question_stem.ilike(wildcard),
+                QuestionModel.stimulus_text.ilike(wildcard),
+                QuestionModel.subtopic.ilike(wildcard),
+                QuestionModel.explanation.ilike(wildcard),
+                QuestionModel.combination_id.ilike(wildcard),
+                QuestionModel.content_domain.ilike(wildcard),
+                QuestionModel.run_id.ilike(wildcard),
+                QuestionModel.batch_id.ilike(wildcard),
+                QuestionModel.passage_id.ilike(wildcard),
+            )
+        )
+
+    return conditions
+
+
+async def count_questions(
+    section: str | None = None,
+    difficulty: str | None = None,
+    search: str | None = None,
+    combination_id: str | None = None,
+    run_id: str | None = None,
+    batch_id: str | None = None,
+    job_id: str | None = None,
+    passage_id: str | None = None,
+    status: str | None = None,
+    include_deleted: bool = False,
+) -> int:
+    """Returns the total number of questions matching specific filter criteria."""
+    filters = _build_question_filters(
+        section=section,
+        difficulty=difficulty,
+        search=search,
+        combination_id=combination_id,
+        run_id=run_id,
+        batch_id=batch_id,
+        job_id=job_id,
+        passage_id=passage_id,
+        status=status,
+        include_deleted=include_deleted,
+    )
+    async with async_session_factory() as session:
+        stmt = select(func.count(QuestionModel.id))
+        for cond in filters:
+            stmt = stmt.where(cond)
+        res = await session.execute(stmt)
+        return int(res.scalar() or 0)
+
+
 async def get_questions(
     section: str | None = None,
     difficulty: str | None = None,
@@ -350,91 +474,45 @@ async def get_questions(
     job_id: str | None = None,
     passage_id: str | None = None,
     status: str | None = None,
+    sort_by: str | None = "newest",
     limit: int | None = None,
     offset: int | None = 0,
     slim: bool = False,
     include_deleted: bool = False,
 ) -> list[Question]:
     """Retrieves questions from PostgreSQL with optional filtering, hybrid full-text search, pagination, and slim payload projection."""
+    filters = _build_question_filters(
+        section=section,
+        difficulty=difficulty,
+        search=search,
+        combination_id=combination_id,
+        run_id=run_id,
+        batch_id=batch_id,
+        job_id=job_id,
+        passage_id=passage_id,
+        status=status,
+        include_deleted=include_deleted,
+    )
     async with async_session_factory() as session:
         stmt = select(QuestionModel)
+        for cond in filters:
+            stmt = stmt.where(cond)
 
-        if not include_deleted:
-            stmt = stmt.where(QuestionModel.is_deleted.is_(False))
-
-        if section:
-            stmt = stmt.where(QuestionModel.section == section)
-        if difficulty:
-            diff_lower = difficulty.strip().lower()
-            if diff_lower in ["low", "easy"]:
-                stmt = stmt.where(QuestionModel.difficulty.in_(["low", "Low", "easy", "Easy"]))
-            elif diff_lower in ["high", "hard"]:
-                stmt = stmt.where(QuestionModel.difficulty.in_(["high", "High", "hard", "Hard"]))
-            elif diff_lower in ["medium", "standard"]:
-                stmt = stmt.where(
-                    QuestionModel.difficulty.in_(["medium", "Medium", "standard", "Standard"])
-                )
-            else:
-                stmt = stmt.where(QuestionModel.difficulty == difficulty)
-        if combination_id:
-            stmt = stmt.where(QuestionModel.combination_id == combination_id)
-        if run_id:
-            stmt = stmt.where(QuestionModel.run_id == run_id)
-        if batch_id:
-            stmt = stmt.where(QuestionModel.batch_id == batch_id)
-        if job_id:
-            stmt = stmt.where(QuestionModel.job_id == job_id)
-        if passage_id:
-            stmt = stmt.where(QuestionModel.passage_id == passage_id)
-        if status and status != "all":
-            stmt = stmt.where(QuestionModel.status == status)
-            if status == "ai_validated":
-                stmt = stmt.where(QuestionModel.final_score > 90)
-                # Strictly withhold questions whose parent batch is actively in progress
-                in_progress_batches = select(GenerationBatchModel.id).where(
-                    GenerationBatchModel.status == "in_progress"
-                )
-                stmt = stmt.where(
-                    or_(
-                        QuestionModel.batch_id.is_(None),
-                        QuestionModel.batch_id.notin_(in_progress_batches),
-                    )
-                )
-
-        if search:
-            search_clean = search.strip()
-            wildcard = f"%{search_clean}%"
-
-            # Hybrid PostgreSQL search: tsvector full-text match + ILIKE substring fallback
-            fts_vector = func.to_tsvector(
-                "english",
-                func.coalesce(QuestionModel.question_stem, "")
-                + " "
-                + func.coalesce(QuestionModel.stimulus_text, "")
-                + " "
-                + func.coalesce(QuestionModel.subtopic, "")
-                + " "
-                + func.coalesce(QuestionModel.explanation, ""),
+        if sort_by == "score_desc":
+            stmt = stmt.order_by(QuestionModel.final_score.desc(), QuestionModel.created_at.desc())
+        elif sort_by == "score_asc":
+            stmt = stmt.order_by(QuestionModel.final_score.asc(), QuestionModel.created_at.desc())
+        elif sort_by == "difficulty":
+            diff_order = case(
+                (QuestionModel.difficulty.in_(["low", "Low", "easy", "Easy"]), 1),
+                (QuestionModel.difficulty.in_(["medium", "Medium", "standard", "Standard"]), 2),
+                (QuestionModel.difficulty.in_(["high", "High", "hard", "Hard"]), 3),
+                else_=4,
             )
-            fts_condition = fts_vector.op("@@")(func.plainto_tsquery("english", search_clean))
+            stmt = stmt.order_by(diff_order, QuestionModel.created_at.desc())
+        else:
+            stmt = stmt.order_by(QuestionModel.created_at.desc())
 
-            stmt = stmt.where(
-                or_(
-                    fts_condition,
-                    QuestionModel.id.ilike(wildcard),
-                    QuestionModel.question_stem.ilike(wildcard),
-                    QuestionModel.stimulus_text.ilike(wildcard),
-                    QuestionModel.subtopic.ilike(wildcard),
-                    QuestionModel.explanation.ilike(wildcard),
-                    QuestionModel.combination_id.ilike(wildcard),
-                    QuestionModel.content_domain.ilike(wildcard),
-                    QuestionModel.run_id.ilike(wildcard),
-                    QuestionModel.batch_id.ilike(wildcard),
-                    QuestionModel.passage_id.ilike(wildcard),
-                )
-            )
-
-        stmt = stmt.order_by(QuestionModel.created_at.desc())
         if offset and offset > 0:
             stmt = stmt.offset(offset)
         if limit and limit > 0:

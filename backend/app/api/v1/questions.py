@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.repositories.question_repository import (
     batch_update_question_status,
+    count_questions,
     delete_question,
     delete_questions_batch,
     get_question_by_id,
@@ -50,6 +51,7 @@ async def list_questions(
     batch_id: Annotated[str | None, Query()] = None,
     passage_id: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = "in_bank",
+    sort_by: Annotated[str | None, Query()] = "newest",
     limit: Annotated[int | None, Query(ge=1, le=500)] = None,
     offset: Annotated[int | None, Query(ge=0)] = 0,
     slim: Annotated[bool, Query()] = False,
@@ -65,9 +67,20 @@ async def list_questions(
         batch_id=batch_id,
         passage_id=passage_id,
         status=effective_status,
+        sort_by=sort_by,
         limit=limit,
         offset=offset,
         slim=slim,
+    )
+    matching_count = await count_questions(
+        section=section,
+        difficulty=difficulty,
+        search=search,
+        combination_id=combination_id,
+        run_id=run_id,
+        batch_id=batch_id,
+        passage_id=passage_id,
+        status=effective_status,
     )
     dumped = [q.model_dump() for q in questions]
 
@@ -75,7 +88,8 @@ async def list_questions(
 
     return {
         "questions": dumped,
-        "total_count": metrics["total_count"],
+        "total_count": matching_count,
+        "bank_total_count": metrics["total_count"],
         "total_tokens": metrics["total_tokens"],
         "total_cost_usd": metrics["total_cost_usd"],
     }

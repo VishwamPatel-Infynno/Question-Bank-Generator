@@ -141,12 +141,6 @@ export default function GuidedWizard({
         questionType: 'PASSAGE_BASED_MCQ',
         passageQuestionCount: totalQuestions,
         passageCount: totalQuestions,
-        passageSingleCount: totalQuestions,
-        passageMultiCount: 0,
-        singleChoiceCount: totalQuestions,
-        multiChoiceCount: 0,
-        independentSingleCount: 0,
-        independentMultiCount: 0,
         requireImage: false,
         allowAiImages: false,
         requirePassageImage: false,
@@ -163,8 +157,6 @@ export default function GuidedWizard({
         selectedSkill: firstSkill?.id || 'S1',
         selectedSubskill: firstSkill?.subskills?.[0] || '',
         selectedSubskills: [],
-        singleChoiceCount: totalQuestions,
-        multiChoiceCount: 0,
         allowAiImages: true,
         requireImage: true,
         requirePassageImage: true,
@@ -180,13 +172,7 @@ export default function GuidedWizard({
         passageRequired: 'Yes',
         questionType: 'PASSAGE_BASED_MCQ',
         passageQuestionCount: totalQuestions,
-        passageCount: totalQuestions === 50 ? 10 : 1,
-        passageSingleCount: totalQuestions,
-        passageMultiCount: 0,
-        singleChoiceCount: totalQuestions,
-        multiChoiceCount: 0,
-        independentSingleCount: 0,
-        independentMultiCount: 0
+        passageCount: totalQuestions === 50 ? 10 : 1
       });
     } else {
       updateFields({
@@ -194,13 +180,7 @@ export default function GuidedWizard({
         passageRequired: 'No',
         questionType: 'DISCRETE_MCQ',
         passageQuestionCount: 0,
-        passageCount: 0,
-        passageSingleCount: 0,
-        passageMultiCount: 0,
-        singleChoiceCount: totalQuestions,
-        multiChoiceCount: 0,
-        independentSingleCount: totalQuestions,
-        independentMultiCount: 0
+        passageCount: 0
       });
     }
   };

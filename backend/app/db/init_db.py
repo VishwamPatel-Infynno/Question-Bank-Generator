@@ -329,6 +329,9 @@ async def init_db_schema(engine: AsyncEngine):
         await conn.execute(
             text("ALTER TABLE generation_batches ADD COLUMN IF NOT EXISTS error_message TEXT;")
         )
+        await conn.execute(
+            text("ALTER TABLE generation_batches ADD COLUMN IF NOT EXISTS request_payload JSONB;")
+        )
 
         # Safe indexes and image columns for passages and batches
         await conn.execute(text("ALTER TABLE passages ADD COLUMN IF NOT EXISTS image_url TEXT;"))

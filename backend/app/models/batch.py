@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, DateTime, Float, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -32,6 +33,7 @@ class GenerationBatchModel(Base):
     total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True, default=0.0)
     status: Mapped[str | None] = mapped_column(String(32), nullable=True, default="completed")
+    request_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     total_jobs: Mapped[int | None] = mapped_column(Integer, nullable=True, default=10)
     completed_jobs: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
     failed_jobs: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)

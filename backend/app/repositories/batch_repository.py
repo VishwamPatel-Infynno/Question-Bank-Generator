@@ -4,6 +4,7 @@ import logging
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
 from app.db.base import to_datetime, to_iso_str
@@ -33,6 +34,7 @@ def _batch_model_to_schema(m: GenerationBatchModel) -> GenerationBatch:
         total_tokens=m.total_tokens or 0,
         cost_usd=float(m.cost_usd) if m.cost_usd is not None else 0.0,
         status=m.status or "completed",
+        request_payload=getattr(m, "request_payload", None),
         created_at=to_iso_str(m.created_at),
         updated_at=to_iso_str(m.updated_at) if m.updated_at else None,
     )
@@ -55,6 +57,7 @@ def _batch_schema_to_model(b: GenerationBatch) -> GenerationBatchModel:
         total_tokens=b.total_tokens,
         cost_usd=b.cost_usd,
         status=b.status,
+        request_payload=b.request_payload,
         created_at=to_datetime(b.created_at),
         updated_at=to_datetime(b.updated_at) if b.updated_at else datetime.now(UTC),
     )
@@ -95,6 +98,25 @@ async def save_batch(batch: GenerationBatch) -> GenerationBatch:
         await session.merge(model)
         await session.commit()
         return batch
+
+
+async def _execute_promote_batch_questions(
+    session: AsyncSession, batch_id: str, timestamp: datetime | None = None
+) -> int:
+    """Updates qualifying batch_only questions (score > threshold) to ai_validated within an active session."""
+    ts = timestamp or datetime.now(UTC)
+    promote_stmt = (
+        update(QuestionModel)
+        .where(
+            QuestionModel.batch_id == batch_id,
+            QuestionModel.status == "batch_only",
+            QuestionModel.is_deleted.is_(False),
+            QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD,
+        )
+        .values(status="ai_validated", updated_at=ts)
+    )
+    res = await session.execute(promote_stmt)
+    return res.rowcount or 0
 
 
 async def delete_batch(batch_id: str) -> bool:
@@ -180,17 +202,7 @@ async def refresh_batch_aggregates(
 
         # If batch is completed or partially completed, promote qualifying active questions (>90 score) to 'ai_validated'
         if batch_model.status in ("completed", "partially_completed"):
-            promote_stmt = (
-                update(QuestionModel)
-                .where(
-                    QuestionModel.batch_id == batch_id,
-                    QuestionModel.status == "batch_only",
-                    QuestionModel.is_deleted.is_(False),
-                    QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD,
-                )
-                .values(status="ai_validated", updated_at=datetime.now(UTC))
-            )
-            await session.execute(promote_stmt)
+            await _execute_promote_batch_questions(session, batch_id)
 
         await session.commit()
         await session.refresh(batch_model)
@@ -203,19 +215,8 @@ async def promote_completed_batch_questions(batch_id: str) -> int:
     from 'batch_only' to 'ai_validated' (Ready for Review).
     """
     async with async_session_factory() as session:
-        stmt = (
-            update(QuestionModel)
-            .where(
-                QuestionModel.batch_id == batch_id,
-                QuestionModel.status == "batch_only",
-                QuestionModel.is_deleted.is_(False),
-                QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD,
-            )
-            .values(status="ai_validated", updated_at=datetime.now(UTC))
-        )
-        res = await session.execute(stmt)
+        promoted = await _execute_promote_batch_questions(session, batch_id)
         await session.commit()
-        promoted = res.rowcount or 0
         if promoted > 0:
             logger.info(
                 f"Promoted {promoted} questions in completed batch {batch_id} to 'ai_validated'."
@@ -244,17 +245,7 @@ async def reconcile_interrupted_batches() -> int:
             b.status = "stopped"
             b.updated_at = now
             b.error_message = "Server restarted while batch was generating. Progress preserved."
-            promote_stmt = (
-                update(QuestionModel)
-                .where(
-                    QuestionModel.batch_id == b.id,
-                    QuestionModel.status == "batch_only",
-                    QuestionModel.is_deleted.is_(False),
-                    QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD,
-                )
-                .values(status="ai_validated", updated_at=now)
-            )
-            await session.execute(promote_stmt)
+            await _execute_promote_batch_questions(session, b.id, timestamp=now)
 
         await session.commit()
         logger.info(

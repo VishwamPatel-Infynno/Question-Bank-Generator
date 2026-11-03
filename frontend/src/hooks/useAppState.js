@@ -277,9 +277,7 @@ export function useAppState() {
       ...(cfg.section && { selectedSection: cfg.section }),
       ...(cfg.difficulty && { difficulty: cfg.difficulty }),
       ...(cfg.totalQuestions !== undefined && { totalQuestions: cfg.totalQuestions }),
-      ...(cfg.singleChoiceCount !== undefined && { singleChoiceCount: cfg.singleChoiceCount }),
       interactionType: 'single_choice',
-      multiChoiceCount: 0,
       ...(cfg.passageCount !== undefined && {
         passageCount: cfg.passageCount,
         passageRequired: cfg.passageCount > 0 ? 'Yes' : 'No'
@@ -289,8 +287,6 @@ export function useAppState() {
         questionType: cfg.passageMode === 'single_passage' ? 'PASSAGE_BASED_MCQ' : 'DISCRETE_MCQ'
       }),
       ...(cfg.passageQuestionCount !== undefined && { passageQuestionCount: cfg.passageQuestionCount }),
-      ...(cfg.passageSingleCount !== undefined && { passageSingleCount: cfg.passageSingleCount }),
-      ...(cfg.independentSingleCount !== undefined && { independentSingleCount: cfg.independentSingleCount }),
       ...(cfg.primaryTrap && { primaryTrap: cfg.primaryTrap })
     });
     showToast({

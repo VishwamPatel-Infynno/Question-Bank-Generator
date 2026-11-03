@@ -39,9 +39,9 @@ async def test_database_crud():
         OptionChoice(id="D", text="Option D"),
     ]
     test_q = Question(
-        section="decision_making",
-        section_label="Decision Making",
-        subtopic="Logical Syllogisms",
+        section=MCATSection.PSYCH_SOC.value,
+        section_label="Psychological, Social, and Biological Foundations of Behavior",
+        subtopic="Cognitive Psychology & Behavioral Decision Making",
         difficulty="medium",
         stimulus_text="Test stimulus",
         question_stem="Test question stem?",
@@ -55,7 +55,7 @@ async def test_database_crud():
     saved = await save_question(test_q)
     assert saved.id == test_q.id
 
-    retrieved = await get_questions(section="decision_making")
+    retrieved = await get_questions(section=MCATSection.PSYCH_SOC.value)
     assert any(q.id == test_q.id for q in retrieved)
 
     deleted = await delete_question(test_q.id)
@@ -134,9 +134,9 @@ async def test_admin_approval_and_persistence_endpoints():
     # 3. Test Batch Approval: POST /questions/batch
     batch_q1 = Question(
         id=str(uuid.uuid4()),
-        section="decision_making",
-        section_label="Decision Making",
-        subtopic="Syllogisms",
+        section=MCATSection.PSYCH_SOC.value,
+        section_label="Psychological, Social, and Biological Foundations of Behavior",
+        subtopic="Cognitive Bias & Heuristics",
         difficulty="Medium",
         stimulus_text="All doctors are certified.",
         question_stem="Is Dr. Smith certified?",
@@ -152,9 +152,9 @@ async def test_admin_approval_and_persistence_endpoints():
     )
     batch_q2 = Question(
         id=str(uuid.uuid4()),
-        section="quantitative_reasoning",
-        section_label="Quantitative Reasoning",
-        subtopic="Dosage Calculation",
+        section=MCATSection.CHEM_PHYS.value,
+        section_label="Chemical and Physical Foundations of Biological Systems",
+        subtopic="Thermodynamics & Kinetics",
         difficulty="Easy",
         stimulus_text="Dosage is 10mg/kg.",
         question_stem="What is the dose for 70kg?",

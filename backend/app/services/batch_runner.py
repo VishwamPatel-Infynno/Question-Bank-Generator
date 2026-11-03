@@ -767,6 +767,11 @@ async def retry_incomplete_jobs_for_batch(
 
     # Resolve GenerationRequest
     effective_req = req or _batch_requests.get(batch_id)
+    if not effective_req and b and b.request_payload:
+        try:
+            effective_req = GenerationRequest(**b.request_payload)
+        except Exception as err:
+            logger.warning(f"Could not deserialize stored batch request_payload: {err}")
     if not effective_req:
         effective_req = GenerationRequest(
             section=b.section or "chem_phys",
@@ -836,6 +841,11 @@ async def refill_batch_deficit(
     await save_batch(b)
 
     effective_req = _batch_requests.get(batch_id)
+    if not effective_req and b and b.request_payload:
+        try:
+            effective_req = GenerationRequest(**b.request_payload)
+        except Exception as err:
+            logger.warning(f"Could not deserialize stored batch request_payload: {err}")
     if not effective_req:
         effective_req = GenerationRequest(
             section=b.section or "chem_phys",
@@ -904,6 +914,7 @@ async def launch_background_batch(
         completed_jobs=0,
         failed_jobs=0,
         status="in_progress",
+        request_payload=req.model_dump(),
         created_at=now_iso,
     )
     await save_batch(batch)

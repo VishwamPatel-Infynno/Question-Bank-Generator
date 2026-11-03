@@ -5,19 +5,50 @@ Fixtures defined here are automatically discovered and available to all tests
 in this directory without explicit import.
 """
 
+import asyncio
 import socket
+from urllib.parse import urlparse
 
+import asyncpg
 import pytest
+from app.core.config import config
 from app.main import app
 from httpx import ASGITransport, AsyncClient
 
 
-def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: float = 0.5) -> bool:
-    """Probes whether a local PostgreSQL server is actively listening on the target port."""
+def is_postgres_available(timeout: float = 1.0) -> bool:
+    """Probes whether PostgreSQL is listening AND accepts the configured credentials."""
+    db_url = config.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+    parsed = urlparse(db_url)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 5432
+
+    # Fast TCP socket pre-check to fail immediately if the port is not open
     try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
+        with socket.create_connection((host, port), timeout=0.2):
+            pass
     except OSError:
+        return False
+
+    async def _try_connect() -> bool:
+        try:
+            conn = await asyncpg.connect(
+                user=parsed.username,
+                password=parsed.password,
+                database=parsed.path.lstrip("/"),
+                host=host,
+                port=port,
+                timeout=timeout,
+            )
+            await conn.execute("SELECT 1;")
+            await conn.close()
+            return True
+        except Exception:
+            return False
+
+    try:
+        return asyncio.run(_try_connect())
+    except Exception:
         return False
 
 
@@ -26,9 +57,12 @@ POSTGRES_AVAILABLE = is_postgres_available()
 
 @pytest.fixture(autouse=True)
 def auto_skip_db_tests(request):
-    """Automatically skips tests marked with @pytest.mark.requires_db if PostgreSQL is not reachable."""
+    """Automatically skips tests marked with @pytest.mark.requires_db if PostgreSQL is not reachable or unauthenticated."""
     if request.node.get_closest_marker("requires_db") and not POSTGRES_AVAILABLE:
-        pytest.skip("PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.")
+        pytest.skip(
+            "PostgreSQL database on localhost:5432 is offline or credentials for mcat_user failed. "
+            "Skipping database-dependent test."
+        )
 
 
 @pytest.fixture(autouse=True)

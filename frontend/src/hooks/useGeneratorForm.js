@@ -13,15 +13,9 @@ export const DEFAULT_GENERATOR_FORM = {
   totalQuestions: 50,
   contentDomains: [],
   contentDomain: '',
-  singleChoiceCount: 50,
-  multiChoiceCount: 0,
   passageCount: 10,
   passageMode: 'single_passage', // 'single_passage' | 'independent'
   passageQuestionCount: 50,
-  passageSingleCount: 50,
-  passageMultiCount: 0,
-  independentSingleCount: 0,
-  independentMultiCount: 0,
   interactionType: 'single_choice',
   passageRequired: 'Yes',
   primaryTrap: 'Automatic',
@@ -167,46 +161,6 @@ export function useGeneratorForm(initialValues = {}) {
     });
   }, []);
 
-  const setSingleImageCount = useCallback((count, singleIndices = [], multiIndices = []) => {
-    setFormData(prev => {
-      const current = prev.imageQuestionIndices || [];
-      const clamped = Math.max(0, Math.min(singleIndices.length, count));
-      const newSingleIndices = singleIndices.slice(0, clamped);
-      const activeMultiIndices = current.filter(i => multiIndices.includes(i));
-      const combined = [...newSingleIndices, ...activeMultiIndices].sort((a, b) => a - b);
-      const totalCandidateCount = singleIndices.length + multiIndices.length;
-      let mode = 'specific';
-      if (combined.length === 0) mode = 'none';
-      else if (combined.length === totalCandidateCount && totalCandidateCount > 0) mode = 'all';
-      return {
-        ...prev,
-        imageMode: mode,
-        imageQuestionIndices: combined,
-        requireImage: combined.length > 0 || prev.requirePassageImage
-      };
-    });
-  }, []);
-
-  const setMultiImageCount = useCallback((count, singleIndices = [], multiIndices = []) => {
-    setFormData(prev => {
-      const current = prev.imageQuestionIndices || [];
-      const clamped = Math.max(0, Math.min(multiIndices.length, count));
-      const newMultiIndices = multiIndices.slice(0, clamped);
-      const activeSingleIndices = current.filter(i => singleIndices.includes(i));
-      const combined = [...activeSingleIndices, ...newMultiIndices].sort((a, b) => a - b);
-      const totalCandidateCount = singleIndices.length + multiIndices.length;
-      let mode = 'specific';
-      if (combined.length === 0) mode = 'none';
-      else if (combined.length === totalCandidateCount && totalCandidateCount > 0) mode = 'all';
-      return {
-        ...prev,
-        imageMode: mode,
-        imageQuestionIndices: combined,
-        requireImage: combined.length > 0 || prev.requirePassageImage
-      };
-    });
-  }, []);
-
   const resetForm = useCallback((overrides = {}) => {
     setFormData({
       ...DEFAULT_GENERATOR_FORM,
@@ -221,14 +175,8 @@ export function useGeneratorForm(initialValues = {}) {
       return {
         ...prev,
         totalQuestions: validTotal,
-        singleChoiceCount: validTotal,
-        multiChoiceCount: 0,
         passageCount: isPassage ? (validTotal === 50 ? 10 : 1) : 0,
         passageQuestionCount: isPassage ? validTotal : 0,
-        passageSingleCount: isPassage ? validTotal : 0,
-        passageMultiCount: 0,
-        independentSingleCount: isPassage ? 0 : validTotal,
-        independentMultiCount: 0,
         imageQuestionIndices: (prev.imageQuestionIndices || []).filter(idx => idx <= validTotal)
       };
     });
@@ -347,8 +295,6 @@ export function useGeneratorForm(initialValues = {}) {
     toggleSubtopic,
     setImageMode,
     setImageCount,
-    setSingleImageCount,
-    setMultiImageCount,
     setRequirePassageImage,
     setAllowAiImages,
     resetForm,

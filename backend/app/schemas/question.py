@@ -317,6 +317,7 @@ class GenerationBatch(BaseModel):
     total_tokens: int = 0
     cost_usd: float = 0.0
     status: str = "completed"
+    request_payload: dict[str, Any] | None = None
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str | None = None
 
