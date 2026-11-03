@@ -1797,5 +1797,65 @@ input:focus, select:focus, textarea:focus {
   flex-wrap: wrap;
 }
 
+/* ==========================================================================
+   View Layout & Header Helpers
+   ========================================================================== */
+.validated-questions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
+.validated-questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.question-bank-container,
+.passage-bank-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.view-header-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+.view-header-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.view-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.view-header-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.view-header-divider {
+  color: var(--border-light);
+}
 

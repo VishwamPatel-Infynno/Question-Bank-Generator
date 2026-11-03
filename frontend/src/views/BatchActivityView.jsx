@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   fetchBatches,
   fetchBatchDetail,
@@ -12,7 +12,7 @@ import {
 import { SECTION_CODE_MAP } from '../constants/mcat';
 import { PaginationBar } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
-import { usePagination } from '../hooks';
+import { usePagination, useConfirmModal, useKeyboardShortcuts } from '../hooks';
 import {
   BatchStatsHeader,
   BatchFiltersBar,
@@ -42,16 +42,9 @@ export default function BatchActivityView({
   const searchInputRef = useRef(null);
 
   // Focus search on '/'
-  useEffect(() => {
-    const handleSlash = (e) => {
-      if (e.key === '/' && document.activeElement?.tagName.toLowerCase() !== 'input' && document.activeElement?.tagName.toLowerCase() !== 'textarea') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleSlash);
-    return () => window.removeEventListener('keydown', handleSlash);
-  }, []);
+  useKeyboardShortcuts({
+    onFocusSearch: () => searchInputRef.current?.focus()
+  });
 
   // Multi-expand batch details cache: Set of expanded batch IDs
   const [expandedBatchIds, setExpandedBatchIds] = useState(new Set());
@@ -63,17 +56,8 @@ export default function BatchActivityView({
   const [retryingBatchIds, setRetryingBatchIds] = useState({});
   const [isDeletingBatch, setIsDeletingBatch] = useState(false);
 
-  // Accessible confirmation modal state
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    title: '',
-    description: '',
-    confirmLabel: 'Confirm',
-    variant: 'danger',
-    itemCount: null,
-    itemLabel: 'batch',
-    onConfirm: null
-  });
+  // Standardized accessible confirmation modal state hook
+  const { confirmModal, openConfirmModal, closeConfirmModal } = useConfirmModal('batch');
   const [isCancellingAll, setIsCancellingAll] = useState(false);
 
   // Expanded job within the expanded batches: { [jobId]: boolean }
@@ -294,8 +278,7 @@ export default function BatchActivityView({
   // Delete a batch via Confirmation Modal
   const handleDeleteBatch = (e, batchId) => {
     e.stopPropagation();
-    setConfirmModal({
-      isOpen: true,
+    openConfirmModal({
       title: 'Delete Batch Record',
       description: 'Are you sure you want to delete this batch history? Any questions you already saved to your Question Bank will remain safe.',
       confirmLabel: 'Delete Batch',
@@ -319,7 +302,7 @@ export default function BatchActivityView({
               message: 'The batch log has been deleted.'
             });
           }
-          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          closeConfirmModal();
         } catch (err) {
           console.error('Failed to delete batch:', err);
           if (onShowToast) {
@@ -581,7 +564,7 @@ export default function BatchActivityView({
       {/* ── Standardized Accessible Confirmation Modal ───────────────────── */}
       <ConfirmationModal
         isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onClose={closeConfirmModal}
         onConfirm={confirmModal.onConfirm}
         title={confirmModal.title}
         description={confirmModal.description}

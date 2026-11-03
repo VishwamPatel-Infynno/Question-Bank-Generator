@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { BookOpen, Sparkles, Plus } from 'lucide-react';
 import {
   fetchPassages,
@@ -8,7 +8,7 @@ import {
   approveQuestion
 } from '../services/api';
 import { PaginationBar } from '../components/common';
-import { usePagination } from '../hooks';
+import { usePagination, useKeyboardShortcuts } from '../hooks';
 import PassageBankFilters from '../components/passage/PassageBankFilters';
 import PassageBankTable from '../components/passage/PassageBankTable';
 import PassageEditorialDesk from '../components/passage/PassageEditorialDesk';
@@ -56,16 +56,9 @@ export default function PassageBankView({ onShowToast, onNavigateToWizard, reset
   }
 
   // Focus search on '/'
-  useEffect(() => {
-    const handleSlash = (e) => {
-      if (e.key === '/' && document.activeElement?.tagName.toLowerCase() !== 'input' && document.activeElement?.tagName.toLowerCase() !== 'textarea') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleSlash);
-    return () => window.removeEventListener('keydown', handleSlash);
-  }, []);
+  useKeyboardShortcuts({
+    onFocusSearch: () => searchInputRef.current?.focus()
+  });
 
   // Fetch all passages and build question counts directly from server aggregation
   const performFetchPassages = useCallback(async (isSilent = false, signal = null) => {
@@ -349,42 +342,21 @@ export default function PassageBankView({ onShowToast, onNavigateToWizard, reset
           />
         )
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="passage-bank-container">
       {/* ── Header & Stats Strip ─────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          paddingBottom: '4px'
-        }}
-      >
+      <div className="view-header-strip">
         <div>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
+          <h2 className="view-header-title">
             Passage Bank
           </h2>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '5px 12px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '0.78rem',
-              color: 'var(--text-secondary)'
-            }}
-          >
+        <div className="view-header-actions">
+          <div className="view-header-badge">
             <span>
               <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{passages.length}</strong> {passages.length === 1 ? 'passage' : 'passages'}
             </span>
-            <span style={{ color: 'var(--border-light)' }}>•</span>
+            <span className="view-header-divider">•</span>
             <span>
               <strong style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>{avgWordCount}</strong>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}> words avg</span>

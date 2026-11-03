@@ -19,7 +19,7 @@ export const PACING_SECONDS = {
  * @returns {string} Human-readable time duration e.g. "8 minutes"
  */
 export function formatExamTime(questions) {
-  if (!questions || questions.length === 0) return '0 mins';
+  if (!questions || questions.length === 0) return '0 minutes';
   const totalSeconds = questions.reduce((acc, q) => {
     const sec = PACING_SECONDS[q.section] || 96;
     return acc + sec;

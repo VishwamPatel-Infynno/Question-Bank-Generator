@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   CheckCircle2,
   ArrowRight
 } from 'lucide-react';
 import { PaginationBar } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
-import { usePagination } from '../hooks';
+import { usePagination, useConfirmModal, useKeyboardShortcuts } from '../hooks';
 import {
   fetchQuestions,
   fetchQuestionCounts,
@@ -34,17 +34,8 @@ export default function AiValidatedQuestionsView({
   const [refreshing, setRefreshing] = useState(false);
   const [actionInProgress, setActionInProgress] = useState(false);
 
-  // Standardized confirmation modal state
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    title: '',
-    description: '',
-    confirmLabel: 'Confirm',
-    variant: 'danger',
-    itemCount: null,
-    itemLabel: 'question',
-    onConfirm: null
-  });
+  // Standardized accessible confirmation modal state hook
+  const { confirmModal, openConfirmModal, closeConfirmModal } = useConfirmModal('question');
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,16 +53,9 @@ export default function AiValidatedQuestionsView({
   }, [searchQuery]);
 
   // Focus search on '/'
-  useEffect(() => {
-    const handleSlash = (e) => {
-      if (e.key === '/' && document.activeElement?.tagName.toLowerCase() !== 'input' && document.activeElement?.tagName.toLowerCase() !== 'textarea') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleSlash);
-    return () => window.removeEventListener('keydown', handleSlash);
-  }, []);
+  useKeyboardShortcuts({
+    onFocusSearch: () => searchInputRef.current?.focus()
+  });
 
   // Multi-selection state
   const [selectedIds, setSelectedIds] = useState([]);
@@ -251,8 +235,7 @@ export default function AiValidatedQuestionsView({
   const handleBulkDiscard = () => {
     if (selectedIds.length === 0) return;
     const count = selectedIds.length;
-    setConfirmModal({
-      isOpen: true,
+    openConfirmModal({
       title: 'Discard Selected Questions',
       description: `Are you sure you want to discard ${count} selected question${count !== 1 ? 's' : ''}? They will be permanently removed from the system.`,
       confirmLabel: `Discard ${count} Question${count !== 1 ? 's' : ''}`,
@@ -274,7 +257,7 @@ export default function AiValidatedQuestionsView({
           setSelectedIds([]);
           if (onRefreshCounts) onRefreshCounts();
           loadData(true);
-          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          closeConfirmModal();
         } catch (err) {
           console.error('Bulk discard failed:', err);
           if (onShowToast) {
@@ -324,7 +307,7 @@ export default function AiValidatedQuestionsView({
     filteredQuestions.length > 0 && filteredQuestions.every(q => selectedIds.includes(q.id));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="validated-questions-stack">
       {/* Header and Metrics */}
       <AiValidatedStatsBar
         counts={counts}
@@ -400,7 +383,7 @@ export default function AiValidatedQuestionsView({
       ) : (
         /* Questions List */
         <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="validated-questions-list">
             {paginatedQuestions.map((q, idx) => (
               <AiValidatedQuestionCard
                 key={q.id}
@@ -443,7 +426,7 @@ export default function AiValidatedQuestionsView({
       {/* ── Standardized Accessible Confirmation Modal ───────────────────── */}
       <ConfirmationModal
         isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onClose={closeConfirmModal}
         onConfirm={confirmModal.onConfirm}
         title={confirmModal.title}
         description={confirmModal.description}

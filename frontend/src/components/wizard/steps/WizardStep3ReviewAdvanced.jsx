@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import WizardReviewSummary from './WizardReviewSummary';
 import WizardAdvancedSettings from './WizardAdvancedSettings';

@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo, useMemo } from 'react';
 import {
   Award,
   Copy,
@@ -32,7 +32,7 @@ const SECTION_SHORT_LABEL = {
  * Isolated, memoized card row preventing full-table re-render cascades
  * during multi-item selection, clipboard copying, and inline expansion.
  */
-const QuestionBankCardRow = React.memo(function QuestionBankCardRow({
+const QuestionBankCardRow = memo(function QuestionBankCardRow({
   q,
   isSelected,
   isExpanded,
@@ -351,7 +351,7 @@ export default function QuestionBankTable({
   onDelete,
   onSelectQuestion,
 }) {
-  const selectedSet = React.useMemo(() => new Set(selectedIds), [selectedIds]);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

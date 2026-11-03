@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Database, Sparkles, Eye } from 'lucide-react';
 import { batchDeleteQuestions, approveQuestion } from '../services/api';
-import { useQuestionBank, usePagination } from '../hooks';
+import { useQuestionBank, usePagination, useConfirmModal, useKeyboardShortcuts } from '../hooks';
 import { PaginationBar, Modal } from '../components/common';
 import { QuestionCard } from '../components/question';
 import { ExportPrintModal, ConfirmationModal } from '../components/modals';
@@ -36,17 +36,8 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const [showExportModal, setShowExportModal] = useState(false);
   const [inspectingQuestion, setInspectingQuestion] = useState(null);
 
-  // Standardized accessible confirmation modal state
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    title: '',
-    description: '',
-    confirmLabel: 'Confirm',
-    variant: 'danger',
-    itemCount: null,
-    itemLabel: 'question',
-    onConfirm: null
-  });
+  // Standardized accessible confirmation modal state hook
+  const { confirmModal, openConfirmModal, closeConfirmModal } = useConfirmModal('question');
 
   const handleUpdateInspectedQuestion = async (updated) => {
     try {
@@ -100,16 +91,9 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const handleSortChange = (val) => setSortBy(val);
 
   // Focus search on '/'
-  useEffect(() => {
-    const handleSlash = (e) => {
-      if (e.key === '/' && document.activeElement?.tagName.toLowerCase() !== 'input') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleSlash);
-    return () => window.removeEventListener('keydown', handleSlash);
-  }, []);
+  useKeyboardShortcuts({
+    onFocusSearch: () => searchInputRef.current?.focus()
+  });
 
   // ─── Selection Handlers ────────────────────────────────────────────────────
   const handleToggleSelect = useCallback((id, e) => {
@@ -130,8 +114,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   // ─── Single Item Delete via Confirmation Modal ────────────────────────────
   const handleConfirmSingleDelete = (id, e) => {
     if (e) e.stopPropagation();
-    setConfirmModal({
-      isOpen: true,
+    openConfirmModal({
       title: 'Delete Question',
       description: 'Are you sure you want to remove this question from your Question Bank? It will remain safely preserved and viewable in Batch Progress history.',
       confirmLabel: 'Delete Question',
@@ -149,7 +132,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
               message: 'Successfully removed question from the Question Bank.'
             });
           }
-          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          closeConfirmModal();
         } catch (err) {
           console.error('Failed to delete question:', err);
           if (onShowToast) {
@@ -166,8 +149,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
     const countToDelete = selectedIds.length;
-    setConfirmModal({
-      isOpen: true,
+    openConfirmModal({
       title: 'Delete Selected Questions',
       description: `Are you sure you want to remove ${countToDelete} selected question${countToDelete !== 1 ? 's' : ''} from the Question Bank? They will remain safely preserved and viewable in Batch Progress history.`,
       confirmLabel: `Delete ${countToDelete} Question${countToDelete !== 1 ? 's' : ''}`,
@@ -187,7 +169,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
               message: `Successfully removed ${countToDelete} question(s) from the Question Bank.`
             });
           }
-          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          closeConfirmModal();
         } catch (err) {
           console.error('Failed to bulk delete questions:', err);
           if (onShowToast) {
@@ -201,40 +183,19 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="question-bank-container">
       {/* ── Header & Stats Strip ─────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          paddingBottom: '4px'
-        }}
-      >
+      <div className="view-header-strip">
         <div>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
+          <h2 className="view-header-title">
             Question Bank
           </h2>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '5px 12px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '0.78rem',
-              color: 'var(--text-secondary)'
-            }}
-          >
+        <div className="view-header-actions">
+          <div className="view-header-badge">
             <span><strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{questions.length}</strong> {questions.length === 1 ? 'question' : 'questions'}</span>
-            <span style={{ color: 'var(--border-light)' }}>•</span>
+            <span className="view-header-divider">•</span>
             <span>
               <strong style={{ color: 'var(--status-success)', fontWeight: 600 }}>{avgScore}</strong>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>/100 avg</span>
@@ -388,7 +349,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       {/* ── Reusable Accessible Confirmation Modal ──────────────────────── */}
       <ConfirmationModal
         isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onClose={closeConfirmModal}
         onConfirm={confirmModal.onConfirm}
         title={confirmModal.title}
         description={confirmModal.description}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, Trash2, BookOpen, Layers } from 'lucide-react';
 import { Modal } from '../common';
 

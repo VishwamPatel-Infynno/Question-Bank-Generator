@@ -1,4 +1,3 @@
-import React from 'react';
 import { AlertTriangle, Trash2, Info, Loader2 } from 'lucide-react';
 import { Modal } from '../common';
 

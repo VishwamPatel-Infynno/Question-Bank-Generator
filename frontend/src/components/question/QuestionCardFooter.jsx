@@ -1,4 +1,3 @@
-import React from 'react';
 import { CheckCircle, Trash2, Sparkles } from 'lucide-react';
 
 /**

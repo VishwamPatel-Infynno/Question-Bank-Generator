@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
@@ -49,7 +51,7 @@ def is_question_active(status: str | QuestionStatus | None) -> bool:
     """Returns True if the question status represents an active, non-discarded question."""
     if not status:
         return False
-    val = status.value if hasattr(status, "value") else str(status)
+    val = status.value if isinstance(status, QuestionStatus) else str(status)
     return val in ACTIVE_QUESTION_STATUSES
 
 

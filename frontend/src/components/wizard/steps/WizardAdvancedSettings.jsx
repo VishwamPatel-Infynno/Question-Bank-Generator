@@ -1,4 +1,3 @@
-import React from 'react';
 import { ChevronDown, ChevronUp, Sliders, CheckCircle2 } from 'lucide-react';
 
 const EMPTY_ARRAY = Object.freeze([]);

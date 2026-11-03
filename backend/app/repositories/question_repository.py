@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -144,8 +146,8 @@ def _schema_to_model(q: Question) -> QuestionModel:
         likely_mistake_pattern=q.likely_mistake_pattern,
         duplicate_info=dup_data,
         is_duplicate_override=q.is_duplicate_override,
-        is_deleted=bool(getattr(q, "is_deleted", False)),
-        deleted_at=to_datetime(q.deleted_at) if getattr(q, "deleted_at", None) else None,
+        is_deleted=bool(q.is_deleted),
+        deleted_at=to_datetime(q.deleted_at) if q.deleted_at else None,
         stage_outcomes=q.stage_outcomes,
     )
 

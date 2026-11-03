@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sparkles, Database, BookOpen, Layers, CheckCircle2, Sun, Moon } from 'lucide-react';
 import InfynnoLogo from '../common/InfynnoLogo';
 

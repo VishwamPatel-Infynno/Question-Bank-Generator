@@ -1,4 +1,3 @@
-import React from 'react';
 import { Award, Edit3, ShieldCheck, Image as ImageIcon, Tag } from 'lucide-react';
 import { formatDifficulty, getDifficultyBadgeClass, getSectionBadgeClass } from '../../constants/mcat';
 

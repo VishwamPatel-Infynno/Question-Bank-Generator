@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from typing import Annotated
 
@@ -60,10 +62,10 @@ async def start_batch_generation(req: GenerationRequest):
 @router.get("/batches")
 async def list_batches(
     section: Annotated[str | None, Query()] = None,
-    status: Annotated[str | None, Query()] = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
 ):
     """Lists generation batches in the question bank with job progress counts and concurrency metrics."""
-    batches = await get_batches(section=section, status=status)
+    batches = await get_batches(section=section, status=status_filter)
     active_count = sum(1 for b in batches if b.status == "in_progress")
     metrics = get_active_batch_metrics()
     return {
