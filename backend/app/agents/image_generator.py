@@ -1,3 +1,10 @@
+"""
+image_generator.py - Visual Stimulus & Diagram Generation Agent.
+
+Generates AI medical/scientific illustrations (via FLUX on DeepInfra) or vector SVG charts
+for MCAT passage stimuli and independent questions, including cost estimation and heuristic fallbacks.
+"""
+
 import asyncio
 import logging
 from typing import Any

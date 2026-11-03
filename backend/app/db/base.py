@@ -1,3 +1,10 @@
+"""
+base.py - SQLAlchemy declarative base and datetime utility helpers.
+
+Provides the common Base declarative class for all SQLAlchemy ORM models,
+along with timezone-safe conversions between Python datetimes and ISO-8601 strings.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

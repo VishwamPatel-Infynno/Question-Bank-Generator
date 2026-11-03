@@ -27,34 +27,32 @@ export function useQuestionBank() {
     let isCancelled = false;
     const controller = new AbortController();
 
-    // Trigger reload when refreshCount changes
-    if (refreshCount >= 0) {
-      fetchQuestions(
-        {
-          section: sectionFilter || undefined,
-          difficulty: diffFilter || undefined,
-          search: debouncedSearch || undefined,
-          status: statusFilter || 'in_bank',
-          slim: true
-        },
-        controller.signal
-      )
-        .then((data) => {
-          if (!isCancelled) {
-            setRawQuestions(data.questions || []);
-            setRepoStats({
-              total_tokens: data.total_tokens || 0,
-              total_cost_usd: data.total_cost_usd || 0
-            });
-            setLoading(false);
-          }
-        })
-        .catch((err) => {
-          if (err.name === 'AbortError') return;
-          console.error('Failed to load question bank:', err);
-          if (!isCancelled) setLoading(false);
-        });
-    }
+    // Trigger reload when dependencies or refreshCount change
+    fetchQuestions(
+      {
+        section: sectionFilter || undefined,
+        difficulty: diffFilter || undefined,
+        search: debouncedSearch || undefined,
+        status: statusFilter || 'in_bank',
+        slim: true
+      },
+      controller.signal
+    )
+      .then((data) => {
+        if (!isCancelled) {
+          setRawQuestions(data.questions || []);
+          setRepoStats({
+            total_tokens: data.total_tokens || 0,
+            total_cost_usd: data.total_cost_usd || 0
+          });
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
+        console.error('Failed to load question bank:', err);
+        if (!isCancelled) setLoading(false);
+      });
 
     return () => {
       isCancelled = true;

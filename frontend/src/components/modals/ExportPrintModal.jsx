@@ -181,13 +181,13 @@ export default function ExportPrintModal({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop-theme" onClick={onClose}>
       <div 
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-modal-title"
-        className="modal-card" 
+        className="modal-card modal-card-theme" 
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: '960px', width: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
       >

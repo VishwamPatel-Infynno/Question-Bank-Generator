@@ -55,18 +55,6 @@ export default function Modal({
       aria-modal="true"
       aria-labelledby={title ? ariaLabelledBy : undefined}
       onClick={handleBackdropClick}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(8, 12, 20, 0.72)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}
     >
       <div
         ref={modalRef}

@@ -1,3 +1,13 @@
+"""
+question.py - Pydantic schemas for MCAT questions, passages, batches, and jobs.
+
+Defines the core data contracts for the MCAT Question Bank Generator:
+- Question lifecycle statuses and validation
+- QuestionDraft, ReviewScore, and OptionChoice schemas
+- Passage and GenerationBatch/Job structures
+- Request/response payloads for status updates and duplicate checking
+"""
+
 from __future__ import annotations
 
 import uuid
@@ -342,6 +352,16 @@ class BatchDeleteRequest(BaseModel):
     ids: list[str]
 
 
+def _validate_question_status(v: Any) -> str:
+    """Shared validator: normalizes and guards the question lifecycle status field."""
+    val = v.value if hasattr(v, "value") else str(v)
+    if val not in VALID_QUESTION_STATUSES:
+        raise ValueError(
+            f"Invalid status '{val}'. Must be one of {sorted(VALID_QUESTION_STATUSES)}"
+        )
+    return val
+
+
 class StatusUpdateRequest(BaseModel):
     """Request body for updating lifecycle status of questions."""
 
@@ -351,12 +371,7 @@ class StatusUpdateRequest(BaseModel):
     @field_validator("status", mode="before")
     @classmethod
     def validate_status(cls, v: Any) -> str:
-        val = v.value if hasattr(v, "value") else str(v)
-        if val not in VALID_QUESTION_STATUSES:
-            raise ValueError(
-                f"Invalid status '{val}'. Must be one of {sorted(VALID_QUESTION_STATUSES)}"
-            )
-        return val
+        return _validate_question_status(v)
 
 
 class SingleStatusUpdateRequest(BaseModel):
@@ -367,12 +382,7 @@ class SingleStatusUpdateRequest(BaseModel):
     @field_validator("status", mode="before")
     @classmethod
     def validate_status(cls, v: Any) -> str:
-        val = v.value if hasattr(v, "value") else str(v)
-        if val not in VALID_QUESTION_STATUSES:
-            raise ValueError(
-                f"Invalid status '{val}'. Must be one of {sorted(VALID_QUESTION_STATUSES)}"
-            )
-        return val
+        return _validate_question_status(v)
 
 
 class DuplicateCheckRequest(BaseModel):

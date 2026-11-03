@@ -1,3 +1,11 @@
+"""
+batch_runner.py - Background batch orchestration for multi-job MCAT question generation.
+
+Manages the lifecycle of background asyncio tasks that run multiple GenerationJobs
+within a GenerationBatch. Governs the global worker pool semaphore, job scheduling,
+retry logic, deficit refill, and clean cancellation.
+"""
+
 import asyncio
 import contextlib
 import json
@@ -32,8 +40,12 @@ from app.schemas import (
     is_question_active,
 )
 from app.services.deduplication import cluster_questions
+from app.workflow._section_utils import is_cars_section as _is_cars_section
 
 logger = logging.getLogger(__name__)
+
+# Each generation job targets exactly 5 questions
+QUESTIONS_PER_JOB: int = 5
 
 # NOTE: These module-level dicts are process-local and will be lost on restart.
 # For multi-process or distributed deployments, migrate to a Redis-backed store.
@@ -52,12 +64,6 @@ def get_global_job_semaphore() -> asyncio.Semaphore:
     if _GLOBAL_JOB_SEMAPHORE is None:
         _GLOBAL_JOB_SEMAPHORE = asyncio.Semaphore(config.GLOBAL_MAX_CONCURRENT_JOBS)
     return _GLOBAL_JOB_SEMAPHORE
-
-
-def _is_cars_section(section: Any) -> bool:
-    """Returns True if the section is CARS (Critical Analysis and Reasoning Skills)."""
-    val = section.value if hasattr(section, "value") else str(section)
-    return val.strip().lower() in ("cars", "mcatsection.cars")
 
 
 async def _persist_job_question(
@@ -880,7 +886,7 @@ async def launch_background_batch(
     diff_val = req.difficulty.value if hasattr(req.difficulty, "value") else str(req.difficulty)
 
     target_count = req.questions_to_generate or 50
-    total_jobs = max(1, (target_count + 4) // 5)
+    total_jobs = max(1, (target_count + (QUESTIONS_PER_JOB - 1)) // QUESTIONS_PER_JOB)
 
     # Cache request for potential 1-click retries
     _batch_requests[b_id] = req
@@ -905,7 +911,10 @@ async def launch_background_batch(
     # 2. Create GenerationJob stubs
     jobs: list[GenerationJob] = []
     for num in range(1, total_jobs + 1):
-        job_target = min(5, target_count - (num - 1) * 5)
+        job_target = min(
+            QUESTIONS_PER_JOB,
+            target_count - (num - 1) * QUESTIONS_PER_JOB,
+        )
         j = GenerationJob(
             id=str(uuid.uuid4()),
             batch_id=b_id,

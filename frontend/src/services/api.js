@@ -1,3 +1,9 @@
+/**
+ * @module api
+ * @description Typed HTTP client for the Question Bank Generator REST API.
+ * All functions throw a descriptive Error on non-2xx responses via {@link assertOk}.
+ */
+
 // API Service for communicating with backend API
 const API_BASE = '/api';
 

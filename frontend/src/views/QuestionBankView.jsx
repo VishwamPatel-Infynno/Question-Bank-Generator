@@ -8,7 +8,17 @@ import { ExportPrintModal, ConfirmationModal } from '../components/modals';
 import QuestionBankFilters from '../components/bank/QuestionBankFilters';
 import QuestionBankTable from '../components/bank/QuestionBankTable';
 
-
+/**
+ * QuestionBankView - Primary view for browsing, searching, and managing questions in the bank.
+ *
+ * Provides multi-facet filtering (section, difficulty, search query), pagination,
+ * bulk operations (delete, export, status transitions), and detailed modal audit inspects.
+ *
+ * @param {Object} props
+ * @param {(toast: { type?: string, title: string, message?: string }) => void} props.onShowToast - Toast trigger callback.
+ * @param {(step?: number) => void} props.onNavigateToWizard - Navigation callback to wizard view.
+ * @returns {JSX.Element}
+ */
 export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const {
     questions,
@@ -270,7 +280,6 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
                 id="btn-bank-empty-create"
                 onClick={onNavigateToWizard}
                 className="btn-primary"
-                style={{ padding: '8px 18px', fontSize: '0.825rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
                 <Sparkles size={14} />
                 <span>Create New Questions</span>

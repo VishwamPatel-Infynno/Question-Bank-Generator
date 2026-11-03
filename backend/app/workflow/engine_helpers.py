@@ -26,13 +26,13 @@ from app.repositories.question_repository import save_question
 from app.schemas import (
     ALT_TRAP_ROTATION,
     GenerationRequest,
-    MCATSection,
     OptionChoice,
     Question,
     QuestionDraft,
     WorkflowEvent,
 )
 from app.services.deduplication import evaluate_duplicate
+from app.workflow._section_utils import is_cars_section
 from app.workflow.nodes import (
     blind_solver_node,
     fused_generator_node,
@@ -107,7 +107,7 @@ def _build_batch_worker_request(
 
     # For independent questions in science sections, when AI diagrams are permitted,
     # calibrate authentic AAMC frequency (~40%: items 0 and 2 in every 5 questions, or single question)
-    sec_is_cars = req.section in (MCATSection.CARS, "CARS", "cars")
+    sec_is_cars = is_cars_section(req.section)
     has_diagrams_enabled = (
         req.allow_ai_images
         or req.require_image
@@ -169,7 +169,7 @@ def _determine_item_diagram_requirement(
     visual_type = req_data.get("visual_type", "None")
 
     # CARS strictly has no figures, data tables or diagrams in official AAMC format
-    if section_val in (MCATSection.CARS.value, "CARS", "cars"):
+    if is_cars_section(section_val):
         return False
     if is_passage_item:
         # Passage question items share the passage diagram; they never have internal images
@@ -494,7 +494,7 @@ async def _prepare_shared_passage_and_visual(
         events.append(passage_done_evt)
 
     requires_passage_image = bool(
-        req.section not in (MCATSection.CARS, "CARS", "cars")
+        not is_cars_section(req.section)
         and (
             req.allow_ai_images
             or passage_image_needed

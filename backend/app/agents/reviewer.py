@@ -1,5 +1,17 @@
+"""
+reviewer.py - Question Reviewer Agent for MCAT Question Bank.
+
+Scores a candidate question draft against the 100-point psychometric rubric,
+breaking down Authenticity (0-25), Clarity (0-25), Distractors (0-25), and
+Explanation (0-25) into a ``ReviewScore``. A score above 90 signals publication-grade quality.
+"""
+
 import logging
 
+from app.agents._mock_tokens import (
+    REVIEWER_MOCK_COMPLETION_TOKENS,
+    REVIEWER_MOCK_PROMPT_TOKENS,
+)
 from app.agents.base import calculate_token_cost, call_llm, safe_json_loads
 from app.agents.mock_fixtures import evaluate_heuristically
 from app.agents.prompts import REVIEWER_SYSTEM_PROMPT
@@ -88,12 +100,13 @@ Evaluate this question thoroughly and return your 100-point rubric breakdown as 
         return review, usage
     except Exception as e:
         logger.warning(f"Reviewer LLM failed or not configured, using heuristic review: {e}")
-        mock_p_tokens = 380
-        mock_c_tokens = 210
         mock_usage = TokenUsage(
-            prompt_tokens=mock_p_tokens,
-            completion_tokens=mock_c_tokens,
-            total_tokens=mock_p_tokens + mock_c_tokens,
-            cost_usd=calculate_token_cost(mock_p_tokens, mock_c_tokens),
+            prompt_tokens=REVIEWER_MOCK_PROMPT_TOKENS,
+            completion_tokens=REVIEWER_MOCK_COMPLETION_TOKENS,
+            total_tokens=REVIEWER_MOCK_PROMPT_TOKENS + REVIEWER_MOCK_COMPLETION_TOKENS,
+            cost_usd=calculate_token_cost(
+                REVIEWER_MOCK_PROMPT_TOKENS,
+                REVIEWER_MOCK_COMPLETION_TOKENS,
+            ),
         )
         return evaluate_heuristically(draft, req, iteration), mock_usage

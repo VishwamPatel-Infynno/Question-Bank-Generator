@@ -344,15 +344,11 @@ export default function GuidedWizard({
             selectedSection={selectedSection}
             onSelectSection={handleSelectSection}
             SECTION_METADATA={SECTION_METADATA}
-            sectionMeta={sectionMeta}
-            pacing={pacing}
             selectedSubject={selectedSubject}
             onSelectSubject={(v) => update('selectedSubject', v)}
-            selectedUnit={selectedUnit}
             onSelectUnit={(v) => update('selectedUnit', v)}
             selectedTopic={selectedTopic}
             onSelectTopic={(v) => update('selectedTopic', v)}
-            selectedSubtopic={selectedSubtopic}
             onSelectSubtopic={(v) => update('selectedSubtopic', v)}
             selectedSubtopics={selectedSubtopics}
             onToggleSubtopic={toggleSubtopic}

@@ -1,7 +1,26 @@
+"""
+generator.py - Question Generator Agent for MCAT Question Bank.
+
+Provides three public entry-points:
+- ``generate_passage_stimulus``: Drafts a reading passage stimulus for a passage set.
+- ``generate_question``: Single-pass generator that produces a question draft.
+- ``generate_question_with_self_critique``: Fused draft-and-critique generator that
+  produces a question draft AND a self-scored rubric in a single LLM round-trip.
+
+Internal helpers ``_parse_option_choices`` and ``_parse_correct_keys`` are shared
+with ``regenerator.py`` to avoid duplication.
+"""
+
 import logging
 import re
 from typing import Any
 
+from app.agents._mock_tokens import (
+    PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS,
+    PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS,
+    QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
+    QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
+)
 from app.agents.base import calculate_token_cost, call_llm, safe_json_loads
 from app.agents.mock_fixtures import evaluate_heuristically, get_mock_draft
 from app.agents.option_balancer import balance_and_shuffle_options
@@ -372,13 +391,15 @@ STANDARDS FOR AAMC MCAT PASSAGES:
                 "These findings demonstrate that cellular energy charge (AMP/ATP ratio) coupled with local proton concentration precisely regulates "
                 "glycolytic flux through coordinated conformational switching of PFK-1."
             )
-        mock_p_tokens = 380
-        mock_c_tokens = 290
         mock_usage = TokenUsage(
-            prompt_tokens=mock_p_tokens,
-            completion_tokens=mock_c_tokens,
-            total_tokens=mock_p_tokens + mock_c_tokens,
-            cost_usd=calculate_token_cost(mock_p_tokens, mock_c_tokens),
+            prompt_tokens=PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS,
+            completion_tokens=PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS,
+            total_tokens=PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS
+            + PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS,
+            cost_usd=calculate_token_cost(
+                PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS,
+                PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS,
+            ),
         )
         fallback_image_needed = bool(allow_visuals and not is_cars)
         fallback_image_prompt = (
@@ -413,13 +434,15 @@ async def generate_question(
         return draft, usage
     except Exception as e:
         logger.warning(f"Generator LLM failed or not configured, using authentic mock draft: {e}")
-        mock_p_tokens = 450
-        mock_c_tokens = 320
         mock_usage = TokenUsage(
-            prompt_tokens=mock_p_tokens,
-            completion_tokens=mock_c_tokens,
-            total_tokens=mock_p_tokens + mock_c_tokens,
-            cost_usd=calculate_token_cost(mock_p_tokens, mock_c_tokens),
+            prompt_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
+            completion_tokens=QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
+            total_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS
+            + QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
+            cost_usd=calculate_token_cost(
+                QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
+                QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
+            ),
         )
         mock_draft = get_mock_draft(req)
         if req.shared_stimulus:
@@ -482,13 +505,15 @@ async def generate_question_with_self_critique(
         logger.warning(
             f"Fused Generator LLM failed or not configured, using authentic mock draft: {e}"
         )
-        mock_p_tokens = 450
-        mock_c_tokens = 320
         mock_usage = TokenUsage(
-            prompt_tokens=mock_p_tokens,
-            completion_tokens=mock_c_tokens,
-            total_tokens=mock_p_tokens + mock_c_tokens,
-            cost_usd=calculate_token_cost(mock_p_tokens, mock_c_tokens),
+            prompt_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
+            completion_tokens=QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
+            total_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS
+            + QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
+            cost_usd=calculate_token_cost(
+                QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
+                QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
+            ),
         )
         mock_draft = get_mock_draft(req)
         if req.shared_stimulus:

@@ -48,12 +48,15 @@ export default function PassageBankView({ onShowToast, onNavigateToWizard, reset
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
   // Return to master catalog whenever resetSignal changes (e.g. clicking Passages tab in Navbar)
-  const [prevResetSignal, setPrevResetSignal] = useState(resetSignal);
-  if (resetSignal !== prevResetSignal) {
-    setPrevResetSignal(resetSignal);
+  const isFirstMountRef = useRef(true);
+  useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
     setSelectedPassage(null);
     setSelectedPassageQuestions([]);
-  }
+  }, [resetSignal]);
 
   // Focus search on '/'
   useKeyboardShortcuts({
@@ -368,7 +371,6 @@ export default function PassageBankView({ onShowToast, onNavigateToWizard, reset
             id="btn-new-passage-header"
             onClick={handleCreateNewPassage}
             className="btn-primary"
-            style={{ padding: '6px 12px', fontSize: '0.78rem', gap: '6px' }}
           >
             <Plus size={13} />
             <span>Create New Passage</span>
@@ -417,7 +419,6 @@ export default function PassageBankView({ onShowToast, onNavigateToWizard, reset
               type="button"
               onClick={handleCreateNewPassage}
               className="btn-primary"
-              style={{ padding: '8px 18px', fontSize: '0.825rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
               <Plus size={14} />
               <span>Create New Passage</span>
@@ -428,7 +429,6 @@ export default function PassageBankView({ onShowToast, onNavigateToWizard, reset
                 type="button"
                 onClick={onNavigateToWizard}
                 className="btn-secondary"
-                style={{ padding: '8px 18px', fontSize: '0.825rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
                 <Sparkles size={14} />
                 <span>Generate Questions Set</span>

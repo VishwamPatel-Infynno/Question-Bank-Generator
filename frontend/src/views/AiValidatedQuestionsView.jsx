@@ -362,7 +362,6 @@ export default function AiValidatedQuestionsView({
                 type="button"
                 className="btn-primary"
                 onClick={onNavigateToBatches}
-                style={{ padding: '8px 18px', fontSize: '0.825rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
                 <span>View Progress & History</span>
                 <ArrowRight size={14} />
@@ -373,7 +372,6 @@ export default function AiValidatedQuestionsView({
                 type="button"
                 className="btn-secondary"
                 onClick={onNavigateToWizard}
-                style={{ padding: '8px 18px', fontSize: '0.825rem' }}
               >
                 Create Questions
               </button>

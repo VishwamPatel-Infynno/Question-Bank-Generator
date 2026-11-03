@@ -14,63 +14,25 @@ export default function Navbar({
   validatedCount = 0
 }) {
   return (
-    <header
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
-        alignItems: 'center',
-        padding: '10px 24px',
-        borderBottom: '1px solid var(--border-light)',
-        background: 'var(--bg-surface)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)'
-      }}
-    >
+    <header className="navbar-header">
       {/* Brand & Subtitle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', justifySelf: 'start', minWidth: 0 }}>
+      <div className="navbar-brand-section">
         {/* Infynno Solutions Logo & Corporate Anchor */}
         <a
           href="https://infynno.com/"
           target="_blank"
           rel="noopener noreferrer"
           title="Visit Infynno Solutions LLP (https://infynno.com)"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            textDecoration: 'none',
-            padding: '4px 8px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--bg-surface-subtle)',
-            border: '1px solid var(--border-light)',
-            transition: 'all var(--transition-fast)'
-          }}
+          className="navbar-brand-anchor"
         >
           <InfynnoLogo width={26} height={17} />
-          <span
-            style={{
-              fontWeight: 800,
-              fontSize: '0.725rem',
-              letterSpacing: '0.05em',
-              color: 'var(--text-primary)'
-            }}
-          >
+          <span className="navbar-brand-text">
             INFYNNO
           </span>
         </a>
 
         {/* Hairline Divider */}
-        <div
-          style={{
-            width: '1px',
-            height: '18px',
-            background: 'var(--border-light)'
-          }}
-          aria-hidden="true"
-        />
+        <div className="navbar-divider" aria-hidden="true" />
 
         {/* Product Identity */}
         <a
@@ -83,27 +45,11 @@ export default function Navbar({
               window.location.href = '/';
             }
           }}
-          className="brand-refresh-link"
+          className="brand-refresh-link navbar-brand-title-link"
           title="Return to home"
           aria-label="Infynno MCAT Question Studio home - click to return to home"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            textDecoration: 'none',
-            cursor: 'pointer'
-          }}
         >
-          <h1
-            style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              letterSpacing: '-0.01em',
-              color: 'var(--text-primary)',
-              margin: 0,
-              transition: 'color var(--transition-fast)'
-            }}
-          >
+          <h1 className="navbar-product-title">
             MCAT Question Studio
           </h1>
         </a>
@@ -139,17 +85,7 @@ export default function Navbar({
           <Layers size={12} color={activeTab === 'batches' ? 'var(--brand-primary)' : 'currentColor'} />
           <span>Batches</span>
           {activeBatchCount > 0 && (
-            <span
-              style={{
-                background: 'var(--border-medium)',
-                color: 'var(--text-secondary)',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.625rem',
-                fontWeight: 600,
-                padding: '1px 5px',
-                lineHeight: 1
-              }}
-            >
+            <span className="navbar-pill-count">
               {activeBatchCount}
             </span>
           )}
@@ -166,17 +102,7 @@ export default function Navbar({
           <CheckCircle2 size={12} color={activeTab === 'validated' ? 'var(--brand-primary)' : 'currentColor'} />
           <span>Review</span>
           {validatedCount > 0 && (
-            <span
-              style={{
-                background: 'var(--border-medium)',
-                color: 'var(--text-secondary)',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.625rem',
-                fontWeight: 600,
-                padding: '1px 5px',
-                lineHeight: 1
-              }}
-            >
+            <span className="navbar-pill-count">
               {validatedCount}
             </span>
           )}
@@ -212,31 +138,13 @@ export default function Navbar({
       </nav>
 
       {/* Right Tools */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifySelf: 'end', minWidth: 0 }}>
-
+      <div className="navbar-tools">
         {/* Backend Status Indicator */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 8px',
-            background: 'var(--bg-surface-subtle)',
-            borderRadius: 'var(--radius-xs)',
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            border: '1px solid var(--border-light)'
-          }}
-        >
+        <div className="navbar-status-indicator">
           <span
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: backendStatus ? 'var(--status-success)' : 'var(--status-warning)'
-            }}
+            className={`navbar-status-dot ${backendStatus ? 'online' : 'offline'}`}
           />
-          <span style={{ color: 'var(--text-secondary)' }}>
+          <span className="navbar-status-text">
             {backendStatus ? 'Online' : 'Connecting...'}
           </span>
         </div>

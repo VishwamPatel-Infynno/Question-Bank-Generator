@@ -27,7 +27,6 @@ from app.repositories.question_repository import (
     update_question_status,
 )
 from app.schemas import (
-    VALID_QUESTION_STATUSES,
     BatchDeleteRequest,
     DuplicateCheckRequest,
     Question,
@@ -195,11 +194,6 @@ async def restore_single_question(question_id: str):
 async def batch_update_status(payload: StatusUpdateRequest):
     """Bulk update question lifecycle status."""
     status_val = payload.status.value if hasattr(payload.status, "value") else str(payload.status)
-    if status_val not in VALID_QUESTION_STATUSES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status '{status_val}'. Must be one of {sorted(VALID_QUESTION_STATUSES)}",
-        )
     updated_count = await batch_update_question_status(payload.ids, status_val)
     logger.info(f"Bulk updated {updated_count} questions to status '{status_val}'.")
     return {"success": True, "updated_count": updated_count, "status": status_val}
@@ -211,11 +205,6 @@ async def update_single_status(question_id: str, payload: SingleStatusUpdateRequ
     if isinstance(payload, dict):
         payload = SingleStatusUpdateRequest(**payload)
     new_status = payload.status.value if hasattr(payload.status, "value") else str(payload.status)
-    if not new_status or new_status not in VALID_QUESTION_STATUSES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Missing or invalid 'status'. Must be one of {sorted(VALID_QUESTION_STATUSES)}",
-        )
     success = await update_question_status(question_id, new_status)
     if not success:
         raise HTTPException(status_code=404, detail="Question not found")

@@ -182,7 +182,7 @@ export function useAppState() {
   }, [refreshGlobalCounts]);
 
   // ─── Generate Handler ─────────────────────────────────────────────────────
-  const handleGenerate = useCallback(() => {
+  const handleGenerate = useCallback(async () => {
     const {
       selectedSection,
       selectedSubject,
@@ -243,28 +243,27 @@ export function useAppState() {
     if (isLaunchingBatch) return;
     setIsLaunchingBatch(true);
     const isQuickSet = totalQuestions === 5;
-    startBackgroundBatch(payload)
-      .then(() => {
-        showToast({
-          type: 'success',
-          title: isQuickSet ? '5-Question Quick Set Launched' : '50-Question Exam Batch Launched',
-          message: isQuickSet
-            ? 'Generating 5 practice questions in the background.'
-            : 'Generating 50 questions across 10 jobs in the background.'
-        });
-        setActiveTab('batches');
-        refreshGlobalCounts();
-      })
-      .catch((err) => {
-        showToast({
-          type: 'error',
-          title: 'Batch Launch Failed',
-          message: err.message || 'Could not launch background batch.'
-        });
-      })
-      .finally(() => {
-        setIsLaunchingBatch(false);
+
+    try {
+      await startBackgroundBatch(payload);
+      showToast({
+        type: 'success',
+        title: isQuickSet ? '5-Question Quick Set Launched' : '50-Question Exam Batch Launched',
+        message: isQuickSet
+          ? 'Generating 5 practice questions in the background.'
+          : 'Generating 50 questions across 10 jobs in the background.'
       });
+      setActiveTab('batches');
+      refreshGlobalCounts();
+    } catch (err) {
+      showToast({
+        type: 'error',
+        title: 'Batch Launch Failed',
+        message: err.message || 'Could not launch background batch.'
+      });
+    } finally {
+      setIsLaunchingBatch(false);
+    }
   }, [
     generatorForm.formData,
     showToast,

@@ -28,10 +28,10 @@ from app.schemas import (
     GenerationBatch,
     GenerationJob,
     GenerationRequest,
-    MCATSection,
     Question,
     WorkflowEvent,
 )
+from app.workflow._section_utils import is_cars_section
 from app.workflow.engine_helpers import (
     _build_batch_worker_request,
     _determine_item_diagram_requirement,
@@ -67,7 +67,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
     is_standalone_live_run = req.job_id is None
 
     # Resolve binary passage mode: either all 5 linked or all 5 independent
-    is_cars = req.section in (MCATSection.CARS, "cars", "CARS")
+    is_cars = is_cars_section(req.section)
     is_independent = not is_cars and (
         req.passage_mode == "independent"
         or str(req.passage_required).lower() in ("no", "false", "0")

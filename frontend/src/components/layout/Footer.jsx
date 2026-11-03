@@ -5,34 +5,14 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 export default function Footer() {
   return (
-    <footer
-      style={{
-        marginTop: 'auto',
-        borderTop: '1px solid var(--border-light)',
-        background: 'var(--bg-surface)',
-        padding: '14px 24px',
-        color: 'var(--text-secondary)',
-        fontSize: '0.75rem'
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '1440px',
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}
-      >
+    <footer className="footer-container">
+      <div className="footer-inner">
         {/* Left: Brand Identity */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="footer-brand">
           <a
             href="https://infynno.com/"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}
             title="Infynno Solutions LLP"
           >
             <InfynnoLogo width={24} height={15} showText={true} />
@@ -40,7 +20,7 @@ export default function Footer() {
         </div>
 
         {/* Right: Link & Copyright */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="footer-links">
           <a
             href="https://infynno.com/"
             target="_blank"
@@ -51,7 +31,7 @@ export default function Footer() {
             <span>infynno.com</span>
             <ExternalLink size={10} />
           </a>
-          <span style={{ color: 'var(--text-muted)' }}>
+          <span className="footer-copyright">
             © {CURRENT_YEAR} Infynno Solutions LLP
           </span>
         </div>

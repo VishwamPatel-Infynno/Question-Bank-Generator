@@ -84,16 +84,25 @@ export default function BatchActivityView({
       setBatches(data.batches || []);
       setActiveCount(data.active_running_batches || 0);
 
-      // Re-fetch details for any expanded batches that are in progress
+      // Re-fetch details for any expanded batches that are in progress atomically
       const expandedIds = Array.from(expandedBatchIdsRef.current);
-      for (const bId of expandedIds) {
+      const inProgressIds = expandedIds.filter((bId) => {
         const matchingBatch = data.batches?.find((b) => b.id === bId);
-        if (matchingBatch && matchingBatch.status === 'in_progress') {
-          fetchBatchDetail(bId)
-            .then((detail) => {
-              setBatchDetails((prev) => ({ ...prev, [bId]: detail }));
-            })
-            .catch(() => {});
+        return matchingBatch && matchingBatch.status === 'in_progress';
+      });
+
+      if (inProgressIds.length > 0) {
+        const results = await Promise.allSettled(
+          inProgressIds.map((bId) => fetchBatchDetail(bId))
+        );
+        const nextDetails = {};
+        results.forEach((res, idx) => {
+          if (res.status === 'fulfilled' && res.value) {
+            nextDetails[inProgressIds[idx]] = res.value;
+          }
+        });
+        if (Object.keys(nextDetails).length > 0) {
+          setBatchDetails((prev) => ({ ...prev, ...nextDetails }));
         }
       }
     } catch (err) {
