@@ -1,4 +1,3 @@
-import React from 'react';
 import { CheckCircle, Scale } from 'lucide-react';
 
 const EMPTY_ARRAY = Object.freeze([]);

@@ -1,4 +1,3 @@
-import React from 'react';
 
 /**
  * Infynno Solutions LLP Official Vector Logo

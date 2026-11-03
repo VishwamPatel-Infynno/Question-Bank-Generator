@@ -1,4 +1,3 @@
-import React from 'react';
 import { ShieldCheck, RefreshCw, Database } from 'lucide-react';
 
 const EMPTY_COUNTS = {};

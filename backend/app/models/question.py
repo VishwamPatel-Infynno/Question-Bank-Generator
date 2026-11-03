@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -136,12 +138,10 @@ class QuestionModel(Base):
     stage_outcomes: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Bidirectional relationships
-    passage: Mapped["PassageModel | None"] = relationship(
-        "PassageModel", back_populates="questions"
-    )
-    batch: Mapped["GenerationBatchModel | None"] = relationship(
+    passage: Mapped[PassageModel | None] = relationship("PassageModel", back_populates="questions")
+    batch: Mapped[GenerationBatchModel | None] = relationship(
         "GenerationBatchModel", back_populates="questions"
     )
-    job: Mapped["GenerationJobModel | None"] = relationship(
+    job: Mapped[GenerationJobModel | None] = relationship(
         "GenerationJobModel", back_populates="questions"
     )

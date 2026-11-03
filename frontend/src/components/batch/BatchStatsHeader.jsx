@@ -1,4 +1,3 @@
-import React from 'react';
 import { Layers, Zap, ShieldCheck } from 'lucide-react';
 
 const EMPTY_BATCHES = [];

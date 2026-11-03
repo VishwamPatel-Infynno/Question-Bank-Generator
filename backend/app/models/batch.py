@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -42,9 +44,9 @@ class GenerationBatchModel(Base):
     )
 
     # Relationships
-    jobs: Mapped[list["GenerationJobModel"]] = relationship(
+    jobs: Mapped[list[GenerationJobModel]] = relationship(
         "GenerationJobModel", back_populates="batch", cascade="all, delete-orphan", lazy="selectin"
     )
-    questions: Mapped[list["QuestionModel"]] = relationship(
+    questions: Mapped[list[QuestionModel]] = relationship(
         "QuestionModel", back_populates="batch", lazy="selectin"
     )

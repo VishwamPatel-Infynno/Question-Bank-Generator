@@ -1,4 +1,4 @@
-import React from 'react';
+import { Fragment } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
@@ -84,7 +84,7 @@ export default function PaginationBar({
               const isCurrent = p === safeCurrentPage;
 
               return (
-                <React.Fragment key={p}>
+                <Fragment key={p}>
                   {showEllipsis && <span className="pagination-ellipsis">...</span>}
                   <button
                     onClick={() => onPageChange(p)}
@@ -93,7 +93,7 @@ export default function PaginationBar({
                   >
                     {p}
                   </button>
-                </React.Fragment>
+                </Fragment>
               );
             })}
 

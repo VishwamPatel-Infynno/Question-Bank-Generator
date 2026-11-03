@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -34,7 +36,7 @@ class PassageModel(Base):
     )
 
     # Bidirectional relationships
-    questions: Mapped[list["QuestionModel"]] = relationship(
+    questions: Mapped[list[QuestionModel]] = relationship(
         "QuestionModel",
         back_populates="passage",
         cascade="all, delete-orphan",

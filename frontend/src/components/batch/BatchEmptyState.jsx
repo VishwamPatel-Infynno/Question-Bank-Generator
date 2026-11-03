@@ -1,4 +1,3 @@
-import React from 'react';
 import { Layers, Sparkles } from 'lucide-react';
 
 /**

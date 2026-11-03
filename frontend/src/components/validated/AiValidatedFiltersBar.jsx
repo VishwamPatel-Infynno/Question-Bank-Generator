@@ -1,4 +1,3 @@
-import React from 'react';
 import { Search, Database, Trash2 } from 'lucide-react';
 import { MCAT_SECTIONS_FALLBACK } from '../../constants/mcat';
 

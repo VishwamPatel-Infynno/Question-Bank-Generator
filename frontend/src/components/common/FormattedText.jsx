@@ -1,4 +1,3 @@
-import React from 'react';
 import { TRAP_PATTERN_STR } from '../../constants/mcatTraps';
 
 /**

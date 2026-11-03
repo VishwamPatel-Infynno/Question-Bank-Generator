@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from datetime import UTC, datetime
 
@@ -45,8 +47,8 @@ def _passage_schema_to_model(p: Passage) -> PassageModel:
         image_url=p.image_url,
         image_svg=p.image_svg,
         image_description=p.image_description,
-        is_deleted=getattr(p, "is_deleted", False) or False,
-        deleted_at=to_datetime(p.deleted_at) if getattr(p, "deleted_at", None) else None,
+        is_deleted=bool(p.is_deleted),
+        deleted_at=to_datetime(p.deleted_at) if p.deleted_at else None,
         created_at=to_datetime(p.created_at),
         updated_at=to_datetime(p.updated_at) if p.updated_at else datetime.now(UTC),
     )

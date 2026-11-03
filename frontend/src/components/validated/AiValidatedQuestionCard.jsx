@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import {
   CheckCircle2,
   Trash2,
@@ -409,4 +409,4 @@ function AiValidatedQuestionCard({
   );
 }
 
-export default React.memo(AiValidatedQuestionCard);
+export default memo(AiValidatedQuestionCard);

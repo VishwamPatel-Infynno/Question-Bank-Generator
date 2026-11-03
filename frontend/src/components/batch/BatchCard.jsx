@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo, Fragment } from 'react';
 import {
   Layers,
   CheckCircle2,
@@ -540,7 +540,7 @@ function BatchCard({
             }
 
             return (
-              <React.Fragment key={stage.id}>
+              <Fragment key={stage.id}>
                 <div className={`stepper-step ${stepState}`} title={stage.desc}>
                   <div className="stepper-icon-pill">
                     {stepState === 'completed' ? (
@@ -565,7 +565,7 @@ function BatchCard({
                 {idx < BATCH_LIFECYCLE_STAGES.length - 1 && (
                   <ChevronRight size={14} className="stepper-arrow" />
                 )}
-              </React.Fragment>
+              </Fragment>
             );
           })}
         </div>
@@ -814,4 +814,4 @@ function BatchCard({
   );
 }
 
-export default React.memo(BatchCard);
+export default memo(BatchCard);
