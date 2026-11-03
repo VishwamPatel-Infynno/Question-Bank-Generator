@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 
 from playwright import async_api
 from playwright.async_api import expect
@@ -36,10 +37,8 @@ async def run_test():
         # Interact with the page elements to simulate user flow
         # -> navigate
         await page.goto("http://localhost:5173/")
-        try:
+        with contextlib.suppress(Exception):
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
 
         # -> Open the question creation workspace using “Get Started - Create Questions.”
         # Get Started - Create Questions button

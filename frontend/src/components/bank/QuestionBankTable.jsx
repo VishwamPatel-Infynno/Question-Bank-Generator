@@ -153,9 +153,9 @@ const QuestionBankCardRow = React.memo(function QuestionBankCardRow({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '3px',
-                    background: 'rgba(245, 158, 11, 0.12)',
-                    color: 'var(--status-warning, #d97706)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)'
+                    background: 'var(--status-warning-bg)',
+                    color: 'var(--status-warning)',
+                    border: '1px solid var(--status-warning-border)'
                   }}
                   title={`Targeted Student Misconception: ${q.likely_mistake_pattern}`}
                 >

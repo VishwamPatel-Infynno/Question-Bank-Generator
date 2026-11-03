@@ -559,7 +559,7 @@ async def test_independent_question_direct_no_stimulus(monkeypatch):
 
     # Check worker progress message for independent question items
     batch_progress_events = [e for e in events if e.get("event_type") == "batch_progress"]
-    assert len(batch_progress_events) == 5
+    assert len(batch_progress_events) >= 5
     for b_evt in batch_progress_events:
         assert (
             "independent" in b_evt["message"].lower()

@@ -1,10 +1,9 @@
 import asyncio
 import logging
 
-from sqlalchemy import delete, select
-
 from app.db.session import async_session_factory
 from app.models.question import QuestionModel
+from sqlalchemy import delete, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 
 from playwright import async_api
 
@@ -35,10 +36,8 @@ async def run_test():
         # Interact with the page elements to simulate user flow
         # -> navigate
         await page.goto("http://localhost:5173/")
-        try:
+        with contextlib.suppress(Exception):
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
 
         # -> Open the Question Bank view and inspect the listed questions and their available actions.
         # Question Bank button

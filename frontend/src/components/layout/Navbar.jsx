@@ -250,7 +250,7 @@ export default function Navbar({
           style={{ padding: '5px 8px', fontSize: '0.75rem', borderRadius: 'var(--radius-xs)' }}
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode (Press T)`}
         >
-          {theme === 'dark' ? <Sun size={13} color="var(--status-warning, #fbbf24)" /> : <Moon size={13} color="var(--brand-primary)" />}
+          {theme === 'dark' ? <Sun size={13} color="var(--status-warning)" /> : <Moon size={13} color="var(--infynno-blue)" />}
           <span className="kbd-hint" style={{ fontSize: '0.575rem', padding: '1px 3px', marginLeft: '3px' }}>T</span>
         </button>
       </div>

@@ -31,6 +31,23 @@ def auto_skip_db_tests(request):
         pytest.skip("PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.")
 
 
+@pytest.fixture(autouse=True)
+def neutralize_llm_credentials(request, monkeypatch):
+    """
+    Ensures all non-live unit/integration tests run completely offline and free of cost.
+    Strips external provider API credentials unless explicitly marked with @pytest.mark.live_e2e.
+    """
+    if request.node.get_closest_marker("live_e2e"):
+        return
+
+    from app.core.config import config
+
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
+
+
 @pytest.fixture(autouse=True, scope="session")
 async def ensure_db_initialized():
     """Automatically initializes the database schema if PostgreSQL is reachable."""

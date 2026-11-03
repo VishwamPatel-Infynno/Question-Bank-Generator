@@ -1,4 +1,3 @@
-import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,7 +14,8 @@ from app.workflow.graph import (
 
 
 @pytest.mark.asyncio
-async def test_deepinfra_model_configuration():
+async def test_deepinfra_model_configuration(monkeypatch):
+    monkeypatch.setattr(config, "ACTIVE_LLM_PROVIDER", "deepinfra")
     assert "deepinfra" in config.DEFAULT_TEXT_MODEL.lower()
     assert "DeepSeek-V4.1-Flash-1017" in config.DEFAULT_TEXT_MODEL
     assert config.COST_PER_MILLION_INPUT_TOKENS == 0.098
@@ -26,21 +26,34 @@ async def test_deepinfra_model_configuration():
 async def test_token_and_cost_calculation(monkeypatch):
     from app.agents.base import calculate_token_cost
 
+    monkeypatch.setattr(config, "ACTIVE_LLM_PROVIDER", "deepinfra")
     monkeypatch.setattr(config, "COST_PER_MILLION_INPUT_TOKENS", 0.098)
     monkeypatch.setattr(config, "COST_PER_MILLION_OUTPUT_TOKENS", 0.294)
 
     # 1,000 prompt tokens @ $0.098/1M = $0.000098
     # 1,000 completion tokens @ $0.294/1M = $0.000294
     # Total = $0.000392
-    cost = calculate_token_cost(prompt_tokens=1000, completion_tokens=1000)
+    cost = calculate_token_cost(
+        prompt_tokens=1000,
+        completion_tokens=1000,
+        model="deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    )
     assert cost == 0.000392
 
     # 1,000,000 input tokens = $0.098
-    cost_in = calculate_token_cost(prompt_tokens=1_000_000, completion_tokens=0)
+    cost_in = calculate_token_cost(
+        prompt_tokens=1_000_000,
+        completion_tokens=0,
+        model="deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    )
     assert cost_in == 0.098
 
     # 1,000,000 output tokens = $0.294
-    cost_out = calculate_token_cost(prompt_tokens=0, completion_tokens=1_000_000)
+    cost_out = calculate_token_cost(
+        prompt_tokens=0,
+        completion_tokens=1_000_000,
+        model="deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    )
     assert cost_out == 0.294
 
 
@@ -75,27 +88,19 @@ async def test_workflow_token_accumulation(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_deepinfra_strict_api_key_enforcement():
+async def test_deepinfra_strict_api_key_enforcement(monkeypatch):
     from app.agents.base import call_llm
 
-    # Save original key
-    original_key = config.DEEPINFRA_API_KEY
-    original_env = os.environ.get("DEEPINFRA_API_KEY")
-    try:
-        config.DEEPINFRA_API_KEY = ""
-        if "DEEPINFRA_API_KEY" in os.environ:
-            del os.environ["DEEPINFRA_API_KEY"]
+    monkeypatch.setattr(config, "ACTIVE_LLM_PROVIDER", "deepinfra")
+    monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
+    monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
 
-        with pytest.raises(ValueError, match="AI Gateway API Key is required"):
-            await call_llm(
-                prompt="test prompt",
-                system_prompt="test system",
-                model="deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017",
-            )
-    finally:
-        config.DEEPINFRA_API_KEY = original_key
-        if original_env:
-            os.environ["DEEPINFRA_API_KEY"] = original_env
+    with pytest.raises(ValueError, match="AI Gateway API Key is required"):
+        await call_llm(
+            prompt="test prompt",
+            system_prompt="test system",
+            model="deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        )
 
 
 @pytest.mark.asyncio
