@@ -443,15 +443,21 @@ export default function GuidedWizard({
 
         {/* Step dots for compact view */}
         <div className="wizard-step-indicators">
-          {STEP_CONFIG.map((cfg) => (
-            <div
-              key={cfg.num}
-              onClick={() => step > cfg.num && setStep(cfg.num)}
-              style={{ cursor: step > cfg.num ? 'pointer' : 'default' }}
-              className={`wizard-dot ${step === cfg.num ? 'active' : step > cfg.num ? 'completed' : ''}`}
-              title={`Step ${cfg.num}: ${cfg.label}`}
-            />
-          ))}
+          {STEP_CONFIG.map((cfg) => {
+            const isClickable = step > cfg.num;
+            return (
+              <button
+                type="button"
+                key={cfg.num}
+                onClick={() => isClickable && setStep(cfg.num)}
+                disabled={!isClickable}
+                style={{ cursor: isClickable ? 'pointer' : 'default', padding: 0, border: 'none', background: 'none' }}
+                className={`wizard-dot ${step === cfg.num ? 'active' : isClickable ? 'completed' : ''}`}
+                title={`Step ${cfg.num}: ${cfg.label}`}
+                aria-label={`Go to Step ${cfg.num}: ${cfg.label}`}
+              />
+            );
+          })}
         </div>
 
         {/* Action Buttons */}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, Edit3, ShieldCheck, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Award, Edit3, ShieldCheck, Image as ImageIcon, Tag } from 'lucide-react';
 import { formatDifficulty, getDifficultyBadgeClass, getSectionBadgeClass } from '../../constants/mcat';
 
 /**
@@ -71,19 +71,44 @@ export default function QuestionCardHeader({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              background: 'rgba(139, 92, 246, 0.12)',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
+              background: 'var(--status-purple-bg)',
+              border: '1px solid var(--status-purple-border)',
               color: 'var(--status-purple)'
             }}
             title={`Trap: ${effectiveTrapInfo.label}`}
           >
-            <AlertTriangle size={11} /> {effectiveTrapInfo.label}
+            <Tag size={11} /> {effectiveTrapInfo.label}
+          </span>
+        )}
+
+        {question.aamc_skill && (
+          <span
+            className="badge badge-cyan"
+            style={{ fontSize: '0.65rem', padding: '1px 6px' }}
+            title={`AAMC Reasoning Skill: ${question.aamc_skill}`}
+          >
+            {question.aamc_skill}
           </span>
         )}
 
         <span className="badge badge-emerald" style={{ fontSize: '0.675rem', fontWeight: 600 }}>
           <Award size={11} /> {question.final_score}/100
         </span>
+
+        {question.mcat_scaled_score && (
+          <span
+            className="badge"
+            style={{
+              fontSize: '0.675rem',
+              fontWeight: 700,
+              background: 'var(--brand-light)',
+              color: 'var(--brand-primary)',
+              border: '1px solid var(--border-brand)'
+            }}
+          >
+            MCAT {question.mcat_scaled_score}
+          </span>
+        )}
       </div>
 
       {/* Top Actions */}

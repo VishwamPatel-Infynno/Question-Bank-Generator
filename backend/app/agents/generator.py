@@ -25,7 +25,7 @@ def _parse_option_choices(raw_options: Any, data: dict | None = None) -> list[Op
     """Parses raw options list or dict into validated OptionChoice instances."""
     if not raw_options and data and isinstance(data, dict):
         for candidate_key in ("options", "choices", "answer_choices"):
-            if candidate_key in data and data[candidate_key]:
+            if data.get(candidate_key):
                 raw_options = data[candidate_key]
                 break
         if not raw_options and "question" in data and isinstance(data["question"], dict):

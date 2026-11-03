@@ -42,6 +42,7 @@ export default function CustomSelect({
 }) {
   const generatedId = useId();
   const selectId = id || generatedId;
+  const listboxId = `${selectId}-listbox`;
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -202,6 +203,7 @@ export default function CustomSelect({
         type="button"
         role="combobox"
         aria-expanded={isOpen}
+        aria-controls={isOpen ? listboxId : undefined}
         aria-haspopup="listbox"
         aria-label={label || placeholder}
         disabled={disabled}
@@ -282,6 +284,7 @@ export default function CustomSelect({
       {/* Popover Floating Listbox */}
       {isOpen && (
         <div
+          id={listboxId}
           ref={listboxRef}
           role="listbox"
           tabIndex={-1}
@@ -370,7 +373,14 @@ export default function CustomSelect({
                     key={String(opt.value)}
                     role="option"
                     aria-selected={isSelected}
+                    tabIndex={opt.disabled ? -1 : 0}
                     onClick={() => handleSelect(opt)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSelect(opt);
+                      }
+                    }}
                     onMouseEnter={() => setHighlightedIndex(idx)}
                     style={{
                       padding: isSmall ? '6px 10px' : '8px 12px',

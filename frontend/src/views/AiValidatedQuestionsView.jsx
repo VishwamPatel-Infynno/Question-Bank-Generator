@@ -48,9 +48,18 @@ export default function AiValidatedQuestionsView({
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
   const [expandedPassageIds, setExpandedPassageIds] = useState({});
   const searchInputRef = useRef(null);
+
+  // Debounce search query by 250ms to ensure responsive filtering
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   // Focus search on '/'
   useEffect(() => {
@@ -71,7 +80,7 @@ export default function AiValidatedQuestionsView({
   const performFetchValidated = useCallback(async (isSilent = false) => {
     try {
       const [qsRes, countsRes] = await Promise.all([
-        fetchQuestions({ status: 'ai_validated', section: sectionFilter || undefined }),
+        fetchQuestions({ status: 'ai_validated', section: sectionFilter || undefined, slim: true }),
         fetchQuestionCounts()
       ]);
       const loadedQs = (qsRes.questions || []).filter(q => (q.final_score || 0) > 90);
@@ -115,15 +124,15 @@ export default function AiValidatedQuestionsView({
   // Filtered in-memory questions by search query (strictly preserving score > 90 benchmark)
   const filteredQuestions = useMemo(() => {
     const validQuestions = questions.filter(item => (item.final_score || 0) > 90);
-    if (!searchQuery.trim()) return validQuestions;
-    const q = searchQuery.toLowerCase().trim();
+    if (!debouncedSearch.trim()) return validQuestions;
+    const q = debouncedSearch.toLowerCase().trim();
     return validQuestions.filter(item =>
       (item.question_stem && item.question_stem.toLowerCase().includes(q)) ||
       (item.subtopic && item.subtopic.toLowerCase().includes(q)) ||
       (item.explanation && item.explanation.toLowerCase().includes(q)) ||
       (item.stimulus_text && item.stimulus_text.toLowerCase().includes(q))
     );
-  }, [questions, searchQuery]);
+  }, [questions, debouncedSearch]);
 
   // ─── Pagination ────────────────────────────────────────────────────────────
   const {
@@ -137,7 +146,7 @@ export default function AiValidatedQuestionsView({
   } = usePagination({
     items: filteredQuestions,
     initialPageSize: 15,
-    resetDeps: [searchQuery, sectionFilter]
+    resetDeps: [debouncedSearch, sectionFilter]
   });
 
   // Toggle single selection

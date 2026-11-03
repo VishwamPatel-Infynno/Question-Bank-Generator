@@ -219,3 +219,43 @@ async def promote_completed_batch_questions(batch_id: str) -> int:
                 f"Promoted {promoted} questions in completed batch {batch_id} to 'ai_validated'."
             )
         return promoted
+
+
+async def reconcile_interrupted_batches() -> int:
+    """Safely transitions orphan in_progress batches to 'stopped' on backend startup.
+
+    When the backend restarts or experiences an unexpected process termination,
+    background worker tasks cease running. This sweep updates any orphan in_progress
+    batches to 'stopped', preserves all fulfilled questions, and promotes questions
+    that passed the quality threshold so users can inspect them or resume the batch.
+    """
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(GenerationBatchModel).where(GenerationBatchModel.status == "in_progress")
+        )
+        orphans = list(result.scalars().all())
+        if not orphans:
+            return 0
+
+        now = datetime.now(UTC)
+        for b in orphans:
+            b.status = "stopped"
+            b.updated_at = now
+            b.error_message = "Server restarted while batch was generating. Progress preserved."
+            promote_stmt = (
+                update(QuestionModel)
+                .where(
+                    QuestionModel.batch_id == b.id,
+                    QuestionModel.status == "batch_only",
+                    QuestionModel.is_deleted.is_(False),
+                    QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD,
+                )
+                .values(status="ai_validated", updated_at=now)
+            )
+            await session.execute(promote_stmt)
+
+        await session.commit()
+        logger.info(
+            f"Startup batch reconciliation: safely marked {len(orphans)} orphan batch(es) as 'stopped'."
+        )
+        return len(orphans)

@@ -124,7 +124,7 @@ def normalize_model_for_litellm(model: str) -> str:
     """
     m = model.strip()
     if config.is_anthropic_model(m):
-        if m.startswith("anthropic/") or m.startswith("anthropic."):
+        if m.startswith(("anthropic/", "anthropic.")):
             return m
         try:
             litellm.get_llm_provider(m)

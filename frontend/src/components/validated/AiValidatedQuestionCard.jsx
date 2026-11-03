@@ -8,7 +8,7 @@ import {
   ChevronUp,
   Image as ImageIcon,
   BookOpen,
-  AlertTriangle,
+  Tag,
   Target
 } from 'lucide-react';
 import { MCAT_SECTION_LABELS, formatDifficulty, getSectionBadgeClass } from '../../constants/mcat';
@@ -94,10 +94,28 @@ function AiValidatedQuestionCard({
           {trapInfo?.label && (
             <span
               className="badge badge-purple"
-              style={{ fontSize: '0.675rem', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              style={{
+                fontSize: '0.675rem',
+                padding: '1px 6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'var(--status-purple-bg)',
+                border: '1px solid var(--status-purple-border)',
+                color: 'var(--status-purple)'
+              }}
               title={`Trap: ${trapInfo.label}`}
             >
-              <AlertTriangle size={10} /> {trapInfo.label}
+              <Tag size={10} /> {trapInfo.label}
+            </span>
+          )}
+          {q.aamc_skill && (
+            <span
+              className="badge badge-cyan"
+              style={{ fontSize: '0.65rem', padding: '1px 6px' }}
+              title={`AAMC Reasoning Skill: ${q.aamc_skill}`}
+            >
+              {q.aamc_skill}
             </span>
           )}
           {q.likely_mistake_pattern && (
@@ -109,9 +127,9 @@ function AiValidatedQuestionCard({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                background: 'rgba(245, 158, 11, 0.12)',
-                color: 'var(--status-warning, #d97706)',
-                border: '1px solid rgba(245, 158, 11, 0.3)'
+                background: 'var(--status-warning-bg)',
+                color: 'var(--status-warning)',
+                border: '1px solid var(--status-warning-border)'
               }}
               title={`Mistake: ${q.likely_mistake_pattern}`}
             >
@@ -129,12 +147,28 @@ function AiValidatedQuestionCard({
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {q.mcat_scaled_score && (
+            <span
+              className="badge"
+              style={{
+                background: 'var(--brand-light)',
+                color: 'var(--brand-primary)',
+                border: '1px solid var(--border-brand)',
+                borderRadius: '12px',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                padding: '2px 10px'
+              }}
+            >
+              MCAT {q.mcat_scaled_score}
+            </span>
+          )}
           <span
             style={{
-              background: 'rgba(16, 185, 129, 0.12)',
+              background: 'var(--status-success-bg)',
               color: 'var(--status-success)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
+              border: '1px solid var(--status-success-border)',
               borderRadius: '12px',
               fontSize: '0.72rem',
               fontWeight: 800,
@@ -249,8 +283,8 @@ function AiValidatedQuestionCard({
                 gap: '8px',
                 padding: '6px 10px',
                 borderRadius: 'var(--radius-xs)',
-                background: isCorrect ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-surface-subtle)',
-                border: isCorrect ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border-light)',
+                background: isCorrect ? 'var(--status-success-bg)' : 'var(--bg-surface-subtle)',
+                border: isCorrect ? '1px solid var(--status-success-border)' : '1px solid var(--border-light)',
                 fontSize: '0.78rem'
               }}
             >

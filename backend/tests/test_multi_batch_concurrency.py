@@ -58,8 +58,9 @@ async def test_call_llm_rate_limit_backoff(monkeypatch):
         message = MockMessage()
 
     class MockResponse:
-        choices = [MockChoice()]
-        usage = MockUsage()
+        def __init__(self):
+            self.choices = [MockChoice()]
+            self.usage = MockUsage()
 
     async def mock_acompletion(**_kwargs):
         nonlocal attempt_count

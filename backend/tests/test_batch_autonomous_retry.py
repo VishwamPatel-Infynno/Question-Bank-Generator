@@ -163,7 +163,7 @@ async def test_retry_strictly_blocked_after_3_trials():
     )
 
     # Calling service directly yields empty jobs list
-    b, retried_jobs = await retry_incomplete_jobs_for_batch(batch_id)
+    _b, retried_jobs = await retry_incomplete_jobs_for_batch(batch_id)
     assert len(retried_jobs) == 0
 
     # Calling API endpoint returns 400 Bad Request

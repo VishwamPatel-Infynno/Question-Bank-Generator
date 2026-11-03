@@ -227,3 +227,37 @@ async def test_refill_preserves_job_count_without_adding_sets(monkeypatch):
     job_nums = [j.job_number for j in db_jobs]
     assert job_nums == list(range(1, 11))
     assert 11 not in job_nums
+
+
+@pytest.mark.asyncio
+async def test_reconcile_interrupted_batches_on_startup():
+    from app.repositories.batch_repository import (
+        get_batch_by_id,
+        reconcile_interrupted_batches,
+        save_batch,
+    )
+    from app.schemas import GenerationBatch
+
+    test_b_id = "test-orphan-batch-startup"
+    orphan_b = GenerationBatch(
+        id=test_b_id,
+        section="bio_biochem",
+        subtopic="Enzymes",
+        difficulty="medium",
+        status="in_progress",
+        target_count=5,
+        actual_count=0,
+    )
+    await save_batch(orphan_b)
+
+    before = await get_batch_by_id(test_b_id)
+    assert before is not None
+    assert before.status == "in_progress"
+
+    reconciled_count = await reconcile_interrupted_batches()
+    assert reconciled_count >= 1
+
+    after = await get_batch_by_id(test_b_id)
+    assert after is not None
+    assert after.status == "stopped"
+    assert "Server restarted" in (after.error_message or "")

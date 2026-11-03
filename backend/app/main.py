@@ -10,6 +10,7 @@ from app.api.router import api_router
 from app.core.config import config
 from app.core.logging import configure_logging
 from app.db.session import init_db
+from app.repositories.batch_repository import reconcile_interrupted_batches
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,10 @@ async def lifespan(_app: FastAPI):
     configure_logging()
     logger.info("Initializing Infynno MCAT Question Bank Generator backend...")
     await init_db()
+    try:
+        await reconcile_interrupted_batches()
+    except Exception as exc:
+        logger.warning(f"Batch startup reconciliation skipped or deferred: {exc}")
     try:
         yield
     except (asyncio.CancelledError, KeyboardInterrupt):

@@ -288,6 +288,26 @@ async def init_db_schema(engine: AsyncEngine):
             )
         )
 
+        # Composite indexes for accelerated repository filtering, metrics, and pagination
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_questions_status_is_del_created "
+                "ON questions (status, is_deleted, created_at DESC);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_questions_section_status "
+                "ON questions (section, status);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_batches_status_created "
+                "ON generation_batches (status, created_at DESC);"
+            )
+        )
+
         # Safe schema update for batch job tracking columns
         await conn.execute(
             text(

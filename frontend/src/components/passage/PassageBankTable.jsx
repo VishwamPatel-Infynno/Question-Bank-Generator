@@ -55,7 +55,15 @@ export default function PassageBankTable({
         return (
           <div
             key={passage.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onSelectPassage(passage)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelectPassage(passage);
+              }
+            }}
             style={{
               padding: '16px 20px',
               display: 'flex',

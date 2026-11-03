@@ -10,7 +10,7 @@ import {
   Square,
   Trash2,
   Image as ImageIcon,
-  AlertTriangle,
+  Tag,
   Target
 } from 'lucide-react';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
@@ -105,12 +105,22 @@ const QuestionBankCardRow = React.memo(function QuestionBankCardRow({
                   style={{
                     fontSize: '0.65rem',
                     fontWeight: 700,
-                    background: 'rgba(2, 132, 199, 0.12)',
+                    background: 'var(--brand-light)',
                     color: 'var(--brand-primary)',
-                    border: '1px solid rgba(2, 132, 199, 0.28)'
+                    border: '1px solid var(--border-brand)'
                   }}
                 >
                   MCAT {q.mcat_scaled_score}
+                </span>
+              )}
+
+              {q.aamc_skill && (
+                <span
+                  className="badge badge-cyan"
+                  style={{ fontSize: '0.625rem', padding: '1px 6px' }}
+                  title={`AAMC Reasoning Skill: ${q.aamc_skill}`}
+                >
+                  {q.aamc_skill}
                 </span>
               )}
 
@@ -136,10 +146,19 @@ const QuestionBankCardRow = React.memo(function QuestionBankCardRow({
                 return (
                   <span
                     className="badge badge-purple"
-                    style={{ fontSize: '0.62rem', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                    style={{
+                      fontSize: '0.62rem',
+                      padding: '1px 6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      background: 'var(--status-purple-bg)',
+                      border: '1px solid var(--status-purple-border)',
+                      color: 'var(--status-purple)'
+                    }}
                     title={`Common Test Trap: ${trapInfo.label}`}
                   >
-                    <AlertTriangle size={9} /> {trapInfo.label}
+                    <Tag size={9} /> {trapInfo.label}
                   </span>
                 );
               })()}

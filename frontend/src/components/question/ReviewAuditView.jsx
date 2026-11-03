@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertTriangle, ShieldCheck, Sparkles, Target, Zap, Image as ImageIcon } from 'lucide-react';
 import { Modal } from '../common';
 import { getEffectiveTrapInfo, formatTokenCount } from '../../utils';
+import { fetchQuestionById } from '../../services/api';
 
 /**
  * ReviewAuditView
@@ -9,7 +10,33 @@ import { getEffectiveTrapInfo, formatTokenCount } from '../../utils';
  * Detailed quality, token cost, and exam calibration modal for a question.
  * Built on the unified Modal primitive with WCAG AA compliance.
  */
-export default function ReviewAuditView({ question, onClose }) {
+export default function ReviewAuditView({ question: initialQuestion, onClose }) {
+  const [hydratedQuestion, setHydratedQuestion] = useState(null);
+
+  const initialId = initialQuestion?.id;
+  const hasHistory = Boolean(initialQuestion?.iterations_history?.length);
+  const hasStages = Boolean(initialQuestion?.stage_outcomes);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (initialId && (!hasHistory || !hasStages)) {
+      fetchQuestionById(initialId)
+        .then((fullQ) => {
+          if (!isCancelled && fullQ) {
+            setHydratedQuestion(fullQ);
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not hydrate full audit diagnostics:', err);
+        });
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [initialId, hasHistory, hasStages]);
+
+  const question = hydratedQuestion || initialQuestion;
+
   if (!question) return null;
 
   const review = question.review_rubric;
