@@ -95,7 +95,7 @@ graph LR
 - **Multi-Metric Mathematical Similarity**: Hybrid algorithm combining Token Containment (35%), 1-Gram Jaccard (25%), 2-Gram Jaccard (20%), and SequenceMatcher Ratio (20%), elevated by an options set overlap penalty when distractor choices match ($\ge 75\%$).
 - **Scoped Reference Pool**: Real-time evaluation scoped to the exact **Section** and **Subtopic** in PostgreSQL, plus sibling items drafted in the active batch session.
 - **Autonomous Anti-Collision Loop**: If a candidate item triggers $\ge 0.80$ similarity, the engine re-prompts the generator with an explicit avoidance directive, steering generation toward alternative clinical presentations or distinct enzymatic mechanisms.
-- **Side-by-Side Duplicate Comparison Modal (`DuplicateComparisonModal.jsx`)**: Educators can inspect candidate questions alongside matched historical bank items with similarity scores, visual diff cues, and choice breakdowns.
+- **Autonomous Set-Preserving Duplicate Resolution (`batch_resolution.py`)**: Batches automatically detect pairwise duplicate clusters (>75% similarity), purge redundant drafts, and dispatch in-place replenishment trials while strictly preserving reading passages and target question quotas.
 - **Permanent Audit Trail & Protected Shield**: Educators can **"Override & Approve"** legitimate edge cases (`is_duplicate_override = true`, `overridden_at = ISO_TIMESTAMP`), rendering a distinct blue shield badge (`🛡️ Overridden`) across question cards and bank tables. Alternatively, educators can choose **"Regenerate Fresh Angle"** or **"Discard"**.
 
 ---
@@ -331,7 +331,6 @@ Question Bank Generator/
         │   ├── batch/           # Batch Activity cards & job monitors
         │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live monitor
         │   │   ├── BatchCard.jsx               # Summary status card for generation batches
-        │   │   ├── BatchDuplicateAuditSection.jsx # Set-preserving duplicate resolution & refill
         │   │   ├── BatchFiltersBar.jsx         # Section, status, and search filters
         │   │   ├── BatchJobCard.jsx            # Per-question job card with lifecycle status
         │   │   ├── BatchQuestionItem.jsx       # Staged question item with review modal trigger
@@ -353,7 +352,6 @@ Question Bank Generator/
         │   ├── modals/          # Dialog modals (WCAG AA Focus Trapped)
         │   │   ├── ConfirmationModal.jsx # Accessible confirmation modal replacing window.confirm
         │   │   ├── DeletePassageModal.jsx# Dedicated passage deletion and cascade warning dialog (Hoisted)
-        │   │   ├── DuplicateComparisonModal.jsx # Side-by-side duplicate candidate vs bank comparison & override modal
         │   │   ├── ExportPaperPreview.jsx # Live print layout previewer
         │   │   ├── ExportPrintModal.jsx   # Exam Paper (PDF), Study Pack, CSV/JSON export modal
         │   │   └── index.js

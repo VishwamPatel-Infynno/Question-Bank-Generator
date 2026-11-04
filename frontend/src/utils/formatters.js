@@ -29,16 +29,6 @@ export function formatExamTime(questions) {
 }
 
 /**
- * Strips whitespace and counts words in text.
- * @param {string} text - The input string
- * @returns {number} Word count
- */
-export function countWords(text) {
-  if (!text) return 0;
-  return String(text).trim().split(/\s+/).filter(Boolean).length;
-}
-
-/**
  * Formats a numeric USD cost to a fixed fractional display string with micro-dollar accuracy.
  * @param {number} cost - Cost in USD
  * @param {number} [decimals=5] - Number of decimal places

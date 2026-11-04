@@ -5,6 +5,8 @@ Governs the global worker pool semaphore, active batch asyncio task tracking,
 and graceful cancellation/stopping routines.
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import logging

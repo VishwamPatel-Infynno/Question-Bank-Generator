@@ -1,5 +1,7 @@
 """Centralized logging configuration for the Infynno MCAT Question Bank Generator backend."""
 
+from __future__ import annotations
+
 import logging
 import sys
 

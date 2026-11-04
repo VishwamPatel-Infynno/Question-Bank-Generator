@@ -5,6 +5,8 @@ Assembles and compiles the StateGraph connecting the Fused Generator, Reviewer,
 Regenerator, Diagram Generator, Quality Gate Reject, and Finalize nodes.
 """
 
+from __future__ import annotations
+
 from langgraph.graph import END, StateGraph
 
 from app.workflow.engine import (

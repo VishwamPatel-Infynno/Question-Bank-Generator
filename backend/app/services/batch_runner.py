@@ -6,6 +6,8 @@ within a GenerationBatch. Governs job scheduling, retry logic, deficit refill,
 deduplication resolution, and clean cancellation across modular helper services.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import uuid

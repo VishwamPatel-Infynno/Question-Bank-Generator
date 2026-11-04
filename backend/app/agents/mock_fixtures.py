@@ -1,5 +1,7 @@
 """Isolated mock drafts and heuristic evaluation fixtures for offline testing and graceful fallback."""
 
+from __future__ import annotations
+
 import re
 
 from app.schemas.mcat import MCATSection, normalize_section

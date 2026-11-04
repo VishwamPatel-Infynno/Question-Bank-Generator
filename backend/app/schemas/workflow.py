@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -165,7 +167,7 @@ class GenerationRequest(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def resolve_binary_passage_and_fixed_count(self) -> "GenerationRequest":
+    def resolve_binary_passage_and_fixed_count(self) -> GenerationRequest:
         """Enforces 1 to 50 questions for batch runs and binary passage mode (all linked or all independent)."""
         if not (1 <= self.questions_to_generate <= 50):
             raise ValueError(

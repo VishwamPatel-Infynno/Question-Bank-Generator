@@ -43,7 +43,6 @@ frontend/src/
 │   │   ├── index.js              # Batch barrel export
 │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live multi-batch controller
 │   │   ├── BatchCard.jsx         # Summary status card for generation batches & Resume Sets action
-│   │   ├── BatchDuplicateAuditSection.jsx # Set-preserving duplicate resolution & in-place refill
 │   │   ├── BatchEmptyState.jsx   # Decomposed zero-state canvas for batch activity
 │   │   ├── BatchFiltersBar.jsx   # Section, status, and search filters
 │   │   ├── BatchHeaderBanner.jsx # Decomposed top summary banner for active batch metrics
@@ -68,7 +67,6 @@ frontend/src/
 │   │   ├── index.js              # Modals barrel export
 │   │   ├── ConfirmationModal.jsx # Accessible WCAG AA confirmation modal replacing native window.confirm
 │   │   ├── DeletePassageModal.jsx# Dedicated passage deletion and cascade warning dialog
-│   │   ├── DuplicateComparisonModal.jsx # Side-by-side duplicate candidate vs bank comparison & override modal
 │   │   ├── ExportPaperPreview.jsx# Live print layout previewer
 │   │   └── ExportPrintModal.jsx  # Exam Paper (PDF), Study Pack, CSV and JSON export modal (Focus Trapped)
 │   ├── passage/

@@ -3,17 +3,6 @@ import { FlaskConical, BookOpen, Dna, Brain } from 'lucide-react';
 // synchronized with backend/app/data/mcat_dependent_taxonomy.json
 import mcatTaxonomy from './mcat_dependent_taxonomy.json';
 
-export const SECTION_ICONS = {
-  chem_phys: FlaskConical,
-  cars: BookOpen,
-  bio_biochem: Dna,
-  psych_soc: Brain,
-  CP: FlaskConical,
-  CARS: BookOpen,
-  BB: Dna,
-  PS: Brain
-};
-
 export const PACING_INFO = {
   chem_phys: { target: '~96s / question', desc: '59 questions in 95 mins' },
   cars: { target: '~101s / question', desc: '53 questions in 90 mins' },
@@ -25,7 +14,7 @@ export const PACING_INFO = {
   PS: { target: '~96s / question', desc: '59 questions in 95 mins' }
 };
 
-export const SECTION_ID_TO_CODE = {
+const SECTION_ID_TO_CODE = {
   chem_phys: 'CP',
   cars: 'CARS',
   bio_biochem: 'BB',
@@ -36,7 +25,7 @@ export const SECTION_ID_TO_CODE = {
   PS: 'PS'
 };
 
-export const SECTION_CODE_TO_ID = {
+const SECTION_CODE_TO_ID = {
   CP: 'chem_phys',
   CARS: 'cars',
   BB: 'bio_biochem',
@@ -49,7 +38,7 @@ export const SECTION_CODE_TO_ID = {
 
 export const SECTION_CODE_MAP = SECTION_ID_TO_CODE;
 
-export const SECTION_BADGE_CLASSES = {
+const SECTION_BADGE_CLASSES = {
   chem_phys: 'badge-cyan',
   cars: 'badge-rose',
   bio_biochem: 'badge-emerald',
@@ -65,7 +54,7 @@ export function getSectionBadgeClass(section) {
   return SECTION_BADGE_CLASSES[section] || SECTION_BADGE_CLASSES[SECTION_CODE_TO_ID[section]] || 'badge-neutral';
 }
 
-export const SECTION_COLORS = {
+const SECTION_COLORS = {
   chem_phys: '#38bdf8',
   cars: '#f43f5e',
   bio_biochem: '#10b981',
@@ -100,8 +89,6 @@ export const MCAT_SECTION_LABELS = {
   PS: 'Psychological, Social, and Biological Foundations'
 };
 
-export const DEPENDENT_TAXONOMY = mcatTaxonomy;
-
 /**
  * Builds fallback sections list with aggregated subtopics.
  */
@@ -130,34 +117,6 @@ export const MCAT_SECTIONS_FALLBACK = (mcatTaxonomy.sections || []).map((sec) =>
 });
 
 /**
- * Skills extracted from manager taxonomy.
- */
-export const AAMC_REASONING_SKILLS = (mcatTaxonomy.skills || []).map((sk) => ({
-  id: sk.id,
-  code: sk.id,
-  label: sk.name,
-  applies_to: sk.applies_to || [],
-  subskills: sk.subskills || []
-}));
-
-/**
- * All 33 Content Domains from manager taxonomy.
- */
-export const CONTENT_DOMAINS = (mcatTaxonomy.generation_options?.content_domain || []).map((d) => ({
-  id: d.id,
-  label: d.value
-}));
-
-/**
- * All 8 Question Types with official descriptions.
- */
-export const QUESTION_TYPES = (mcatTaxonomy.generation_options?.question_type || []).map((qt) => ({
-  id: qt.id,
-  label: qt.value,
-  description: qt.description
-}));
-
-/**
  * All 25 Primary Traps with Automatic option.
  */
 export const COGNITIVE_TRAPS = [
@@ -177,8 +136,7 @@ export const LIKELY_MISTAKE_PATTERNS = (mcatTaxonomy.generation_options?.likely_
   label: m.value
 }));
 
-// Traversal Helper Functions
-export function getSectionTree(sectionIdOrCode) {
+function getSectionTree(sectionIdOrCode) {
   const code = SECTION_ID_TO_CODE[sectionIdOrCode] || String(sectionIdOrCode).toUpperCase();
   return (mcatTaxonomy.sections || []).find((s) => s.id === code) || null;
 }
@@ -188,32 +146,9 @@ export function getSubjectsForSection(sectionIdOrCode) {
   return sec?.subjects || [];
 }
 
-export function getUnitsForSubject(sectionIdOrCode, subjectId) {
-  const subjects = getSubjectsForSection(sectionIdOrCode);
-  const subj = subjects.find((s) => s.id === subjectId || s.name === subjectId);
-  return subj?.units || [];
-}
-
-export function getTopicsForUnit(sectionIdOrCode, subjectId, unitId) {
-  const units = getUnitsForSubject(sectionIdOrCode, subjectId);
-  const u = units.find((un) => un.id === unitId || un.name === unitId);
-  return u?.topics || [];
-}
-
-export function getSubtopicsForTopic(sectionIdOrCode, subjectId, unitId, topicId) {
-  const topics = getTopicsForUnit(sectionIdOrCode, subjectId, unitId);
-  const top = topics.find((t) => t.id === topicId || t.name === topicId);
-  return top?.subtopics || [];
-}
-
 export function getSkillsForSection(sectionIdOrCode) {
   const code = SECTION_ID_TO_CODE[sectionIdOrCode] || String(sectionIdOrCode).toUpperCase();
   return (mcatTaxonomy.skills || []).filter((sk) => (sk.applies_to || []).includes(code));
-}
-
-export function getSubskillsForSkill(skillId) {
-  const sk = (mcatTaxonomy.skills || []).find((s) => s.id === skillId);
-  return sk?.subskills || [];
 }
 
 export const SECTION_METADATA = {
@@ -297,6 +232,4 @@ export const getDifficultyBadgeClass = (diff) => {
   return 'badge-amber';
 };
 
-
 export * from './mcatTraps';
-

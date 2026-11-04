@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS: float = 0.294
     DEEPINFRA_API_KEY: str = ""
     DEEPINFRA_IMAGE_MODEL: str = "black-forest-labs/FLUX-2-klein-4b"
+    DEEPINFRA_IMAGE_COST_PER_UNIT: float = 0.014
 
     # Dedicated OpenAI settings
     OPENAI_MODEL: str = "gpt-4o-mini"
@@ -169,6 +170,18 @@ class Settings(BaseSettings):
         else:
             self._override_default_image_model = value
 
+    @property
+    def ACTIVE_IMAGE_COST_PER_UNIT(self) -> float:
+        """Active base unit image cost, dynamically resolved from active image provider."""
+        provider = self.get_active_image_provider()
+        if provider == "openai":
+            return self.OPENAI_IMAGE_COST_PER_UNIT
+        return (
+            self.DEEPINFRA_IMAGE_COST_PER_UNIT
+            if self.DEEPINFRA_IMAGE_COST_PER_UNIT != 0.014
+            else self.IMAGE_COST_PER_BASE_UNIT
+        )
+
     def calculate_flux_image_cost(
         self,
         width: int | None = None,
@@ -191,15 +204,18 @@ class Settings(BaseSettings):
                 width=w, height=h, iters=iters, model=model, quality=quality
             )
 
+        base_rate = (
+            self.DEEPINFRA_IMAGE_COST_PER_UNIT
+            if self.DEEPINFRA_IMAGE_COST_PER_UNIT != 0.014
+            else self.IMAGE_COST_PER_BASE_UNIT
+        )
+
         # If iters is explicitly passed (>0), compute per-step rate (FLUX-1-schnell standard)
         if iters is not None and iters > 0:
-            rate = (
-                0.0005 if self.IMAGE_COST_PER_BASE_UNIT == 0.014 else self.IMAGE_COST_PER_BASE_UNIT
-            )
+            rate = 0.0005 if base_rate == 0.014 else base_rate
             return round(rate * (w / 1024.0) * (h / 1024.0) * iters, 7)
 
-        rate = self.IMAGE_COST_PER_BASE_UNIT
-        return round(rate * (w / 1024.0) * (h / 1024.0), 7)
+        return round(base_rate * (w / 1024.0) * (h / 1024.0), 7)
 
     def calculate_image_cost(
         self,

@@ -2,7 +2,6 @@
 export {
   PACING_SECONDS,
   formatExamTime,
-  countWords,
   formatCostUsd,
   formatTokenCount,
   formatDate

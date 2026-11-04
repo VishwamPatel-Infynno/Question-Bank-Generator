@@ -124,27 +124,6 @@ def extract_content_tokens(text: str | None) -> list[str]:
     return [t for t in normalized.split() if t not in STOP_WORDS and len(t) > 1]
 
 
-def compute_token_jaccard(tokens1: list[str], tokens2: list[str], n_gram: int = 1) -> float:
-    """
-    Calculates Jaccard intersection-over-union similarity between token lists or n-grams.
-    """
-    if not tokens1 or not tokens2:
-        return 0.0
-
-    if n_gram <= 1:
-        s1, s2 = set(tokens1), set(tokens2)
-    else:
-        s1 = {tuple(tokens1[i : i + n_gram]) for i in range(len(tokens1) - n_gram + 1)}
-        s2 = {tuple(tokens2[i : i + n_gram]) for i in range(len(tokens2) - n_gram + 1)}
-
-    if not s1 or not s2:
-        return 0.0
-
-    intersection = len(s1 & s2)
-    union = len(s1 | s2)
-    return round(intersection / union, 4) if union > 0 else 0.0
-
-
 # In-memory LRU token cache for reference bank questions: keyed by reference ID or stem hash
 _STEM_TOKEN_CACHE: dict[str, tuple[str, list[str], set[str], set[tuple[str, str]]]] = {}
 _MAX_STEM_CACHE_SIZE = 2000

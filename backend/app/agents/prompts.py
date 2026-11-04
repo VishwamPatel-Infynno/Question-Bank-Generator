@@ -1,5 +1,7 @@
 """Centralized System Prompts for Official AAMC MCAT Autonomous Agents."""
 
+from __future__ import annotations
+
 GENERATOR_SYSTEM_PROMPT = """You are a Master AAMC MCAT Psychometrician and Lead Question Writer for official medical college admissions examinations.
 Your task is to write authentic, publication-grade MCAT Multiple Choice Questions adhering strictly to official Association of American Medical Colleges (AAMC) conventions.
 

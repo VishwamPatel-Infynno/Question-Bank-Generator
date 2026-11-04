@@ -196,11 +196,8 @@ When an item with potential overlap is presented for editorial review:
 ```
 
 1. **Visual Alert**: Question cards in the staging deck and bank display an unmistakable warning pill: `⚠️ Duplicate Risk (86%)`.
-2. **Side-by-Side Comparison Modal (`DuplicateComparisonModal.jsx`)**:
-   - Clicking **"Inspect Duplicate"** launches an accessible, dual-theme comparison modal.
-   - **Left Column**: Displays the candidate question draft, its 4 choices ($A, B, C, D$), correct key, and mentor rationale.
-   - **Right Column**: Displays the conflicting existing question already residing in the Question Bank.
-   - **Header Card**: Shows the exact similarity percentage and the primary collision cause (e.g. *"High question stem textual overlap (86%)"*).
+2. **Collision Diagnostics & Context**:
+   - The card displays the exact similarity percentage and the primary collision cause (e.g. *"High question stem textual overlap (86%)"*), giving educators full context on the potential duplicate.
 3. **Three Editorial Paths**:
    - **Override & Approve (Emerald Shield)**: If the educator verifies that the question explores a distinct scientific principle (for example, competitive vs uncompetitive inhibition under identical kinetics conditions), clicking "Override & Approve" persists the item, sets `is_duplicate_override=true`, and records the exact override timestamp. The question card badge transitions to a protected blue badge: `🛡️ Overridden`.
    - **Regenerate Fresh Angle (Indigo Refresh)**: Dispatches an autonomous re-generation task requiring the engine to pick a completely different scientific angle while discarding the collision.

@@ -154,10 +154,10 @@ Streamlined 3-step authoring workflow:
     - `3/3 TRIALS EXHAUSTED`: Crimson warning badge (`.job-exhausted-badge`) signaling that the maximum 3 trial attempts have completed without hitting full target count.
     - `CANCELLED`: Neutral badge for user-aborted sets.
   - **Live Duration Stopwatch**: Self-contained runtime counter (`LiveStopwatch`) tracking elapsed generation duration on running sets and active batches.
-- **Set-Preserving Duplicate Resolution Section (`BatchDuplicateAuditSection.jsx`)**:
-  - Interactive clustering panel analyzing pairwise question similarity (>75% threshold).
-  - Permanent purge (`action="delete"`) of duplicate drafts with in-place slot replenishment preserving the original set's reading passage and thematic angle.
-  - Manual or automatic one-click "Purge & Refill" action ensuring exact target count delivery (e.g. exactly 50 questions across 10 jobs).
+- **Autonomous Set-Preserving Duplicate Resolution Engine (`batch_resolution.py`)**:
+  - Autonomous pairwise clustering analyzing question similarity (>75% threshold).
+  - Permanent purge (`action="delete"`) of duplicate drafts with automatic in-place slot replenishment preserving the original set's reading passage and thematic angle.
+  - Guaranteed exact target count delivery (e.g. exactly 50 questions across 10 jobs) without requiring manual educator intervention.
 
 ### 4.3 Editorial Review Desk & AI-Validated Triage (`AiValidatedQuestionsView.jsx`, `QuestionCard.jsx`)
 - **Top Metadata Strip**: Displays section badge, difficulty chip, dual score pills (AAMC Scaled Score `118-132` + 100-pt Audit Score), AAMC Skill badge (SIRS 1-4 / CARS 1-3), cumulative token/cost telemetry, and a dedicated **Primary Cognitive Trap Badge Chip** (`rgba(139, 92, 246, 0.12)` background, purple border, `Tag` icon).
@@ -232,24 +232,14 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - `.view-empty-state`: Clean empty state box with icon badge and descriptive guidance.
   - `.batch-activity-banner`: Top status information banner for batch execution monitors.
 
-### 4.11 Duplicate Comparison & Override Modal (`DuplicateComparisonModal.jsx`)
-- **Component**: [`frontend/src/components/modals/DuplicateComparisonModal.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/modals/DuplicateComparisonModal.jsx) provides a side-by-side inspection canvas comparing newly generated candidate items against conflicting Question Bank items.
-- **Layout & Structure**:
-  - Accessible dialog modal with keyboard focus trapping (`useFocusTrap.js`) and `Escape` key dismissal.
-  - Responsive 2-column comparative layout (`grid grid-cols-1 lg:grid-cols-2 gap-6`).
-  - **Left Column (Candidate Question Draft)**: Elevated card with primary accent header highlighting the staged item, its difficulty, section, 4 options, and explanation.
-  - **Right Column (Existing Bank Item)**: Subtle card displaying the matched historical question from PostgreSQL.
-- **Similarity Header & Warning Bar**:
-  - Prominent alert bar styled with `--status-warning` (`bg-amber-500/10 border-amber-500/20 text-amber-300`).
-  - Visual similarity pill: `⚠️ Duplicate Risk (86%)` indicating composite multi-metric collision score.
-  - Match reason explanation (e.g. *"High question stem textual overlap (86%)"*).
-- **Interactive Action Matrix**:
-  - **"Override & Approve"**: Emerald button (`bg-emerald-600 hover:bg-emerald-500 text-white`) with shield icon that marks the candidate as explicitly approved, sets `is_duplicate_override = true`, and saves it to the Question Bank.
-  - **"Regenerate Fresh Angle"**: Indigo button (`bg-indigo-600 hover:bg-indigo-500 text-white`) with refresh icon to re-draft the question from a novel clinical/scientific angle.
-  - **"Discard Candidate"**: Rose outlined button (`bg-rose-600/20 border-rose-500/30 text-rose-300 hover:bg-rose-600/30`) with trash icon to purge the duplicate.
+### 4.11 Autonomous Duplicate Resolution & Collision Avoidance
+- **Architecture**: Question deduplication is handled autonomously in the background pipeline (`services/deduplication.py` and `services/batch_resolution.py`) using multi-metric mathematical similarity (token containment, 1-gram & 2-gram Jaccard, SequenceMatcher ratio).
+- **Candidate Warnings & Overrides**:
+  - **Similarity Alert Bar**: When a candidate question exhibits $\ge 80\%$ similarity to an existing Question Bank item, `QuestionCard` renders an amber collision alert (`--status-warning`) detailing the overlap score and match rationale.
+  - **Audit Shield Badge (`🛡️ Overridden`)**: When an educator approves an item with duplicate warnings, the system marks `is_duplicate_override = true`, displaying a royal blue shield pill (`rgba(51, 90, 207, 0.12)`, text `#60a5fa`, border `rgba(51, 90, 207, 0.25)`) across staging cards and verified bank cards to signify audited editorial exemptions.
 - **Badge Specifications**:
   - `⚠️ Duplicate Risk (XX%)`: Amber pill (`rgba(245, 158, 11, 0.12)`, text `#f59e0b`, border `rgba(245, 158, 11, 0.25)`).
-  - `🛡️ Overridden`: Royal blue shield pill (`rgba(51, 90, 207, 0.12)`, text `#60a5fa`, border `rgba(51, 90, 207, 0.25)`), rendered in both staging cards and verified bank cards to signify audited editorial exemptions.
+  - `🛡️ Overridden`: Royal blue shield pill (`rgba(51, 90, 207, 0.12)`, text `#60a5fa`, border `rgba(51, 90, 207, 0.25)`).
 
 ### 4.12 Polymorphic Figure & Diagram Viewer (`VisualStimulusViewer.jsx`)
 - **Component**: [`frontend/src/components/question/VisualStimulusViewer.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/question/VisualStimulusViewer.jsx) provides a publication-grade viewer for AAMC scientific figures, reaction pathways, and experimental charts.
@@ -279,7 +269,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - Toggles in-place inputs for the question stem, optional passage/scenario, 4 options, and explanation without navigating away.
   - Integrates the **Option Length Symmetry Engine** (`calculateOptionSymmetry`), showing live percentage word-count deviations to guarantee options stay within the AAMC $\pm 15\%$ anti-guessability standard.
 - **Collision & Override Integration**:
-  - Evaluates `duplicate_info`: displays amber collision warning banner when similarity $\ge 80\%$, and opens `DuplicateComparisonModal` upon clicking "Compare with Existing Question".
+  - Evaluates `duplicate_info`: displays amber collision warning banner when similarity $\ge 80\%$ with matched question stem and similarity metrics.
   - Displays persistent `🛡️ Overridden` badge when an educator has verified and cleared the candidate for bank storage.
 
 ### 4.14 Reusable Accessible Confirmation Dialog (`ConfirmationModal.jsx`)

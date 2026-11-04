@@ -64,6 +64,7 @@ async def get_settings(request: Request = None):
         "has_openai_key": bool(config.OPENAI_API_KEY),
         "openai_model": config.OPENAI_MODEL,
         "openai_image_model": config.OPENAI_IMAGE_MODEL,
+        "deepinfra_image_model": config.DEEPINFRA_IMAGE_MODEL,
         "fast_model_cascade": config.FAST_MODEL_CASCADE
         if isinstance(config.FAST_MODEL_CASCADE, list)
         else [config.FAST_MODEL_CASCADE],

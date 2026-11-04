@@ -6,6 +6,8 @@ and response-parsing logic. This module has no side-effects and does not call an
 external services.
 """
 
+from __future__ import annotations
+
 from app.schemas.mcat import (
     MCAT_SECTION_LABELS,
     MCATSection,

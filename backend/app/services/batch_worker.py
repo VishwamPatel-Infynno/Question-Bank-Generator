@@ -5,6 +5,8 @@ Governs workflow stream invocation for individual GenerationJobs within a batch,
 enforcing autonomous in-flight retries (up to 3 trials) to fulfill target count guarantees.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging

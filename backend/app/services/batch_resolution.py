@@ -6,6 +6,8 @@ partitioning questions per set/job, trimming excess questions to guarantee targe
 and calculating in-set replenishment shortfalls.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any
 
@@ -48,31 +50,6 @@ def partition_questions_by_job(
         if j_key:
             qs_by_job.setdefault(j_key, []).append(q)
     return qs_by_job
-
-
-def identify_excess_questions_per_job(
-    jobs: list[GenerationJob],
-    qs_by_job: dict[str, list[Question]],
-) -> tuple[list[str], dict[str, int]]:
-    """
-    Enforces exact target count per job by identifying excess question IDs to purge
-    (retaining highest-scoring questions first).
-    Returns: (excess_ids_to_delete, updated_actual_counts_by_job)
-    """
-    excess_ids: list[str] = []
-    actual_counts: dict[str, int] = {}
-
-    for job in jobs:
-        job_qs = qs_by_job.get(job.id, [])
-        if len(job_qs) > job.target_count:
-            job_qs.sort(key=lambda q: q.final_score or 0, reverse=True)
-            excess_to_delete = [q.id for q in job_qs[job.target_count :]]
-            excess_ids.extend(excess_to_delete)
-            actual_counts[job.id] = job.target_count
-        else:
-            actual_counts[job.id] = len(job_qs)
-
-    return excess_ids, actual_counts
 
 
 def identify_batch_buffer_excess(

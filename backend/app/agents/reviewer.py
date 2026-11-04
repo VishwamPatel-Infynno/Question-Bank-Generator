@@ -6,6 +6,8 @@ breaking down Authenticity (0-25), Clarity (0-25), Distractors (0-25), and
 Explanation (0-25) into a ``ReviewScore``. A score above 90 signals publication-grade quality.
 """
 
+from __future__ import annotations
+
 import logging
 
 from app.agents._mock_tokens import (

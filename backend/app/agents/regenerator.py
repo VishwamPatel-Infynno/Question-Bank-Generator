@@ -9,6 +9,8 @@ Option parsing is shared with ``generator.py`` via ``_parse_option_choices`` and
 ``_parse_correct_keys`` to ensure consistent, DRY response handling.
 """
 
+from __future__ import annotations
+
 import logging
 
 from app.agents._mock_tokens import (

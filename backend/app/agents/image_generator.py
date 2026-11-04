@@ -5,6 +5,8 @@ Generates AI medical/scientific illustrations (via OpenAI GPT Image 2.5 or FLUX 
 for MCAT passage stimuli and independent questions, including cost estimation and strict error handling.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Any
@@ -290,7 +292,9 @@ async def generate_image_stimulus(
     active_provider = config.get_active_image_provider()
 
     if active_provider == "openai":
-        model_id = config.OPENAI_IMAGE_MODEL.replace("openai/", "").strip() or "gpt-image-2.5-flare"
+        model_id = (config.OPENAI_IMAGE_MODEL or config.DEFAULT_IMAGE_MODEL).replace(
+            "openai/", ""
+        ).strip() or "gpt-image-2.5-flare"
         api_key = config.OPENAI_API_KEY
         if not api_key:
             logger.error(
@@ -377,11 +381,10 @@ async def generate_image_stimulus(
         }
         return (None, None, prompt_for_image, failure_usage)
 
-    # Fallback to DeepInfra FLUX provider
-    model_id = (
-        config.DEFAULT_IMAGE_MODEL.replace("deepinfra/", "").strip()
-        or "black-forest-labs/FLUX-2-klein-4b"
-    )
+    # DeepInfra FLUX provider
+    model_id = (config.DEEPINFRA_IMAGE_MODEL or config.DEFAULT_IMAGE_MODEL).replace(
+        "deepinfra/", ""
+    ).strip() or "black-forest-labs/FLUX-2-klein-4b"
 
     if not config.DEEPINFRA_API_KEY:
         logger.error(

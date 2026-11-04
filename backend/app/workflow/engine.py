@@ -6,6 +6,8 @@ Orchestrates multi-agent pipelines for generating single or multiple questions
 to the client, manages worker pool concurrency, and stages questions for user confirmation.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging

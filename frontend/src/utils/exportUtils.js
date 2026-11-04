@@ -5,7 +5,7 @@ import { formatExamTime } from './formatters';
  * @param {any} val - Value to escape
  * @returns {string} Escaped string wrapped in double quotes if needed
  */
-export function escapeCsv(val) {
+function escapeCsv(val) {
   if (val === null || val === undefined) return '""';
   const str = String(val).replace(/"/g, '""');
   return `"${str}"`;

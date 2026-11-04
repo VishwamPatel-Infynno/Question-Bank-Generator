@@ -700,7 +700,6 @@ frontend/src/
 │   ├── batch/                    # Batch monitoring components
 │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live multi-batch controller
 │   │   ├── BatchCard.jsx         # Summary status card for generation batches
-│   │   ├── BatchDuplicateAuditSection.jsx # Set-preserving duplicate resolution & in-place refill
 │   │   ├── BatchEmptyState.jsx   # Decomposed zero-state canvas for batch activity
 │   │   ├── BatchFiltersBar.jsx   # Section, status, and search filters
 │   │   ├── BatchHeaderBanner.jsx # Top summary banner for active batch metrics
@@ -716,7 +715,6 @@ frontend/src/
 │   ├── modals/                   # Accessible dialog modals (WCAG AA Focus Trapped)
 │   │   ├── ConfirmationModal.jsx # Accessible confirmation modal replacing window.confirm
 │   │   ├── DeletePassageModal.jsx# Dedicated passage deletion and cascade warning dialog (Hoisted)
-│   │   ├── DuplicateComparisonModal.jsx # Side-by-side duplicate candidate vs bank comparison modal
 │   │   ├── ExportPaperPreview.jsx# Live print layout previewer
 │   │   ├── ExportPrintModal.jsx  # Exam Paper (PDF), Study Pack, CSV and JSON export modal
 │   │   └── index.js              # Modals barrel export

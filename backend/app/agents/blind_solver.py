@@ -6,6 +6,8 @@ WITHOUT seeing the intended correct key or explanation. Verifies that the correc
 is incontrovertible and that no ambiguous interpretations or flawed distractors exist.
 """
 
+from __future__ import annotations
+
 import logging
 
 from pydantic import BaseModel, Field

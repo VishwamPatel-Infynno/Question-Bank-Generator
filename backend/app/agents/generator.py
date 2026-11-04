@@ -11,6 +11,8 @@ Internal helpers ``_parse_option_choices`` and ``_parse_correct_keys`` are share
 with ``regenerator.py`` to avoid duplication.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from typing import Any

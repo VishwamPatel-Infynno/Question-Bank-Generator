@@ -7,6 +7,8 @@ tracking continuity.  All per-agent constants live here so they are maintained i
 one place rather than scattered as magic numbers across agent modules.
 """
 
+from __future__ import annotations
+
 # ── Passage Generator ─────────────────────────────────────────────────────────
 PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS: int = 380
 PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS: int = 290

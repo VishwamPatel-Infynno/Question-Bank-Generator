@@ -6,6 +6,8 @@ on orchestration. Contains request building, visual requirements determination,
 passage drafting and visual preparation, review/critique loops, and live job persistence.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import uuid

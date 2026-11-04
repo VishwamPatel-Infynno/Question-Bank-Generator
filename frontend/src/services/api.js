@@ -168,7 +168,8 @@ export async function approveQuestion(question) {
 }
 
 /**
- * Manually overrides a duplicate warning on a question and approves it to Question Bank.
+ * Programmatic SDK Method: Manually overrides a duplicate warning on a question and approves it to Question Bank.
+ * Available for administrative API operations and external scripting.
  * @param {string} id - Question ID.
  * @returns {Promise<Object>} The updated question record.
  */
@@ -182,7 +183,8 @@ export async function overrideQuestionDuplicate(id) {
 }
 
 /**
- * Checks a candidate question for duplicates against the Question Bank on demand.
+ * Programmatic SDK Method: Checks a candidate question for duplicates against the Question Bank on demand.
+ * Available for administrative API operations and external pre-validation pipelines.
  * @param {Object} payload - Question payload with section, subtopic, question_stem, options.
  * @returns {Promise<Object>} Duplicate check result with similarity score and matched question.
  */
@@ -247,12 +249,27 @@ export async function cancelAllBatches() {
   return res.json();
 }
 
+/**
+ * Programmatic SDK Method: Fetches pairwise duplicate clusters for questions within a batch.
+ * Available for administrative API operations and batch clustering audits.
+ * @param {string} batchId - Target batch identifier.
+ * @param {number} [threshold=0.75] - Similarity threshold.
+ * @param {AbortSignal} [signal=null] - Optional fetch abort signal.
+ * @returns {Promise<Object>} Cluster details and leader question metadata.
+ */
 export async function fetchBatchDuplicateClusters(batchId, threshold = 0.75, signal = null) {
   const res = await fetch(`${API_BASE}/batches/${batchId}/duplicate-clusters?threshold=${threshold}`, { signal });
   await assertOk(res, `Fetch duplicate clusters for batch ${batchId}`);
   return res.json();
 }
 
+/**
+ * Programmatic SDK Method: Resolves duplicate clusters in a batch by pruning non-leader questions.
+ * Available for administrative batch reconciliation.
+ * @param {string} batchId - Target batch identifier.
+ * @param {Object} [payload={ action: 'delete' }] - Resolution action ('delete' or 'archive').
+ * @returns {Promise<Object>} Reconciliation summary.
+ */
 export async function resolveBatchDuplicates(batchId, payload = { action: 'delete' }) {
   const res = await fetch(`${API_BASE}/batches/${batchId}/resolve-duplicates`, {
     method: 'POST',
@@ -263,6 +280,12 @@ export async function resolveBatchDuplicates(batchId, payload = { action: 'delet
   return res.json();
 }
 
+/**
+ * Programmatic SDK Method: Replenishes a batch up to its target count by dispatching replacement jobs.
+ * Available for administrative deficit recovery.
+ * @param {string} batchId - Target batch identifier.
+ * @returns {Promise<Object>} Refill outcome and launched jobs.
+ */
 export async function refillBatchQuestions(batchId) {
   const res = await fetch(`${API_BASE}/batches/${batchId}/refill`, {
     method: 'POST',
