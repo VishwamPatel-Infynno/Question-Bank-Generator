@@ -41,33 +41,10 @@ export default function PassageBankFilters({
   onCreateNewPassage
 }) {
   return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-md)',
-        padding: '10px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px'
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+    <div className="passage-bank-filters">
+      <div className="passage-bank-filters-row">
         {/* Search Input */}
-        <div
-          style={{
-            flex: '1 1 220px',
-            minWidth: '180px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'var(--bg-surface)',
-            padding: '0 10px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-light)',
-            height: '32px'
-          }}
-        >
+        <div className="passage-bank-search">
           <Search size={13} color="var(--text-muted)" />
           <input
             ref={searchInputRef}
@@ -77,30 +54,21 @@ export default function PassageBankFilters({
             placeholder="Search passages (Press /)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              padding: '6px 0',
-              width: '100%',
-              fontSize: '0.78rem',
-              color: 'var(--text-primary)',
-              outline: 'none'
-            }}
+            className="passage-bank-search-input"
           />
-          <span className="kbd-hint" style={{ fontSize: '0.6rem' }}>/</span>
+          <span className="kbd-hint passage-bank-filters-kbd">/</span>
         </div>
 
         {/* Section Filter Pills */}
-        <div className="pill-track" style={{ flexShrink: 0 }}>
+        <div className="pill-track passage-bank-track-wrap">
           {SECTION_FILTER_OPTIONS.map(sec => {
             const isActive = sectionFilter === sec.id;
             return (
               <button
                 key={sec.id}
                 type="button"
-                className={`pill-track-btn ${isActive ? 'active' : ''}`}
+                className={`pill-track-btn passage-bank-pill-btn ${isActive ? 'active' : ''}`}
                 onClick={() => setSectionFilter(sec.id)}
-                style={{ fontSize: '0.72rem', padding: '4px 9px' }}
               >
                 <span>{sec.label}</span>
               </button>
@@ -109,8 +77,8 @@ export default function PassageBankFilters({
         </div>
 
         {/* Sort Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', flexShrink: 0 }}>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}>
+        <div className="passage-bank-sort-wrap">
+          <span className="passage-bank-sort-label">
             <ArrowUpDown size={11} /> Sort:
           </span>
           <CustomSelect
@@ -122,23 +90,14 @@ export default function PassageBankFilters({
             options={SORT_OPTIONS.map((opt) => ({ value: opt.id, label: opt.label }))}
             searchable={false}
             align="right"
-            style={{ width: '150px' }}
+            className="passage-bank-sort-select"
           />
 
           {hasActiveFilters && (
             <button
               type="button"
               onClick={onClearAllFilters}
-              className="btn-ghost"
-              style={{
-                fontSize: '0.72rem',
-                color: 'var(--text-muted)',
-                padding: '4px 8px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
+              className="btn-ghost passage-bank-reset-btn"
               title="Reset all search queries and section filters"
             >
               <RotateCcw size={11} />
@@ -151,13 +110,7 @@ export default function PassageBankFilters({
               type="button"
               id="btn-create-new-passage"
               onClick={onCreateNewPassage}
-              className="btn-primary"
-              style={{
-                fontSize: '0.75rem',
-                padding: '6px 12px',
-                gap: '5px',
-                height: '32px'
-              }}
+              className="btn-primary passage-bank-create-btn"
               title="Manually create a new reading passage"
             >
               <Plus size={13} />
@@ -169,4 +122,3 @@ export default function PassageBankFilters({
     </div>
   );
 }
-

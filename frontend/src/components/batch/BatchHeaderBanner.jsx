@@ -25,19 +25,12 @@ export default function BatchHeaderBanner({
       </div>
 
       {/* Global Action Tools */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="batch-header-actions">
         <button
           type="button"
-          className="btn-secondary"
+          className="btn-secondary batch-btn-refresh"
           onClick={onRefresh}
           disabled={refreshing}
-          style={{
-            padding: '7px 12px',
-            fontSize: '0.8rem',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
           title="Refresh history from database"
         >
           <RefreshCw size={13} className={refreshing ? 'spin-icon' : ''} />
@@ -47,15 +40,8 @@ export default function BatchHeaderBanner({
         {onNavigateToWizard && (
           <button
             type="button"
-            className="btn-primary"
+            className="btn-primary batch-btn-create"
             onClick={onNavigateToWizard}
-            style={{
-              padding: '7px 14px',
-              fontSize: '0.8rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
           >
             <Sparkles size={14} />
             <span>+ Create New Questions</span>
@@ -65,4 +51,3 @@ export default function BatchHeaderBanner({
     </div>
   );
 }
-

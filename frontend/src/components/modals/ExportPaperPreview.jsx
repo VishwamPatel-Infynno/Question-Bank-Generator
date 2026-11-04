@@ -1,4 +1,3 @@
-
 const EMPTY_QUESTIONS = [];
 
 export default function ExportPaperPreview({
@@ -10,53 +9,43 @@ export default function ExportPaperPreview({
   return (
     <div 
       ref={previewRef}
-      style={{
-        background: '#ffffff',
-        color: '#0f172a',
-        borderRadius: 'var(--radius-sm)',
-        border: '1px solid rgba(0,0,0,0.12)',
-        padding: '24px 28px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-        maxHeight: '440px',
-        overflowY: 'auto',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}
+      className="exam-paper-sheet"
     >
       {/* Simulated Paper Header */}
-      <div style={{ borderBottom: '2px solid #0f172a', paddingBottom: '12px', marginBottom: '18px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+      <div className="exam-paper-header">
+        <div className="exam-paper-header-top">
           <div>
-            <h3 style={{ margin: '0 0 2px 0', fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+            <h3 className="exam-paper-title">
               Infynno MCAT Practice Examination
             </h3>
-            <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', fontWeight: 500 }}>
+            <p className="exam-paper-subtitle">
               {paperMode === 'student' ? 'Practice Test (Student Mode - Unsolved Questions)' : 'Complete Study Pack (With Explanations & Answer Key)'}
             </p>
           </div>
-          <div style={{ border: '1.5px solid #0f172a', borderRadius: '4px', padding: '4px 10px', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.62rem', textTransform: 'uppercase', fontWeight: 700, color: '#64748b' }}>Score</div>
-            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>___ / {exportQuestions.length}</div>
+          <div className="exam-paper-score-box">
+            <div className="exam-paper-score-label">Score</div>
+            <div className="exam-paper-score-val">___ / {exportQuestions.length}</div>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 12px', fontSize: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontWeight: 700, color: '#334155' }}>Student Name:</span>
-            <span style={{ flex: 1, borderBottom: '1px dotted #94a3b8', height: '12px' }}></span>
+        <div className="exam-paper-meta-grid">
+          <div className="exam-paper-meta-item">
+            <span className="exam-paper-meta-label">Student Name:</span>
+            <span className="exam-paper-meta-line"></span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontWeight: 700, color: '#334155' }}>Date:</span>
-            <span style={{ color: '#475569' }}>Today</span>
+          <div className="exam-paper-meta-item">
+            <span className="exam-paper-meta-label">Date:</span>
+            <span className="exam-paper-meta-val">Today</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontWeight: 700, color: '#334155' }}>Estimated Time:</span>
-            <span style={{ color: '#0f172a', fontWeight: 700 }}>{timeAllowed}</span>
+          <div className="exam-paper-meta-item">
+            <span className="exam-paper-meta-label">Estimated Time:</span>
+            <span className="exam-paper-meta-val-highlight">{timeAllowed}</span>
           </div>
         </div>
       </div>
 
       {/* Simulated Question Items */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="exam-paper-questions-list">
         {exportQuestions.map((q, idx) => {
           const qNum = idx + 1;
           const svgDiagram = q.image_svg || q.stage_outcomes?.visual_stimulus?.image_svg || '';
@@ -64,60 +53,56 @@ export default function ExportPaperPreview({
           const imgDesc = q.image_description || q.stage_outcomes?.visual_stimulus?.description || '';
 
           return (
-            <div key={q.id || idx} style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0f172a' }}>
+            <div key={q.id || idx} className="exam-paper-question-block">
+              <div className="exam-paper-question-header">
+                <span className="exam-paper-question-num">
                   Question {qNum}
                 </span>
-                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                <span className="exam-paper-question-tag">
                   {q.section_label || q.section} &bull; {q.subtopic || ''}
                 </span>
               </div>
 
               {q.stimulus_text && (
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '10px 12px', marginBottom: '10px', fontSize: '0.8rem', fontFamily: 'Georgia, serif', lineHeight: 1.5, color: '#1e293b' }}>
+                <div className="exam-paper-stimulus">
                   {q.stimulus_text}
                 </div>
               )}
 
               {svgDiagram ? (
-                <div 
-                  style={{ margin: '8px auto', textAlign: 'center', padding: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', maxWidth: '380px' }}
-                >
+                <div className="exam-paper-diagram-box">
                   <div dangerouslySetInnerHTML={{ __html: svgDiagram }} />
                   {imgDesc && (
-                    <div style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#64748b', marginTop: '6px' }}>
+                    <div className="exam-paper-diagram-caption">
                       {imgDesc}
                     </div>
                   )}
                 </div>
               ) : imgUrl ? (
-                <div 
-                  style={{ margin: '8px auto', textAlign: 'center', padding: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', maxWidth: '380px' }}
-                >
+                <div className="exam-paper-diagram-box">
                   <img 
                     src={imgUrl} 
                     alt="Stimulus Diagram" 
-                    style={{ maxHeight: '220px', maxWidth: '100%', objectFit: 'contain', borderRadius: '2px', display: 'inline-block' }} 
+                    className="exam-paper-diagram-img" 
                   />
                   {imgDesc && (
-                    <div style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#64748b', marginTop: '6px' }}>
+                    <div className="exam-paper-diagram-caption">
                       {imgDesc}
                     </div>
                   )}
                 </div>
               ) : null}
 
-              <div style={{ fontWeight: 600, fontSize: '0.84rem', color: '#0f172a', marginBottom: '8px' }}>
+              <div className="exam-paper-stem">
                 {q.question_stem || q.stem || ''}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div className="exam-paper-options-list">
                 {(q.options || []).map(opt => (
-                  <div key={opt.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.8rem', color: '#1e293b', lineHeight: 1.45 }}>
-                    <span style={{ color: '#94a3b8', fontFamily: 'monospace', fontWeight: 700, flexShrink: 0, lineHeight: 1.45, userSelect: 'none' }}>[ &nbsp; ]</span>
-                    <strong style={{ minWidth: '18px', flexShrink: 0, lineHeight: 1.45, color: '#0f172a' }}>{opt.id}.</strong>
-                    <span style={{ flex: 1, lineHeight: 1.45 }}>{opt.text}</span>
+                  <div key={opt.id} className="exam-paper-option-row">
+                    <span className="exam-paper-option-bubble">[ &nbsp; ]</span>
+                    <strong className="exam-paper-option-letter">{opt.id}.</strong>
+                    <span className="exam-paper-option-text">{opt.text}</span>
                   </div>
                 ))}
               </div>
@@ -126,23 +111,23 @@ export default function ExportPaperPreview({
         })}
 
         {paperMode === 'studypack' && (
-          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '2px solid #0f172a' }}>
-            <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+          <div className="exam-paper-answer-key">
+            <h4 className="exam-paper-key-title">
               Answer Key &amp; Diagnostic Rationales
             </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="exam-paper-key-list">
               {exportQuestions.map((q, idx) => (
-                <div key={q.id || idx} style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.78rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <strong style={{ color: '#0f172a' }}>Q{idx + 1}:</strong>
-                    <span style={{ background: '#10b981', color: '#ffffff', fontWeight: 700, padding: '1px 6px', borderRadius: '3px', fontSize: '0.7rem' }}>
+                <div key={q.id || idx} className="exam-paper-key-card">
+                  <div className="exam-paper-key-meta">
+                    <strong className="exam-paper-score-val">Q{idx + 1}:</strong>
+                    <span className="exam-paper-key-badge">
                       Correct: {Array.isArray(q.correct_answer_ids) && q.correct_answer_ids.length > 0 ? q.correct_answer_ids.join(', ') : (q.correct_answer_id || 'A')}
                     </span>
                     {q.primary_trap && (
-                      <span style={{ color: '#64748b', fontSize: '0.7rem' }}>Trap: {q.primary_trap}</span>
+                      <span className="exam-paper-key-trap">Trap: {q.primary_trap}</span>
                     )}
                   </div>
-                  <div style={{ color: '#334155', lineHeight: 1.4 }}>{q.explanation}</div>
+                  <div className="exam-paper-key-explanation">{q.explanation}</div>
                 </div>
               ))}
             </div>

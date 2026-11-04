@@ -38,7 +38,8 @@ export default function CustomSelect({
   size = 'md',
   style = EMPTY_OBJECT,
   menuStyle = EMPTY_OBJECT,
-  align = 'left'
+  align = 'left',
+  className = ''
 }) {
   const generatedId = useId();
   const selectId = id || generatedId;
@@ -187,13 +188,8 @@ export default function CustomSelect({
   return (
     <div
       ref={containerRef}
-      className="custom-select-container"
-      style={{
-        position: 'relative',
-        display: 'inline-block',
-        width: '100%',
-        ...style
-      }}
+      className={`custom-select-container ${className}`.trim()}
+      style={style}
       onKeyDown={handleKeyDown}
     >
       {/* Trigger Button */}
@@ -217,54 +213,21 @@ export default function CustomSelect({
             }
           }
         }}
-        className={`custom-select-trigger ${isOpen ? 'active' : ''}`}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '8px',
-          padding: isSmall ? '5px 10px' : '8px 12px',
-          background: 'var(--bg-surface-elevated)',
-          border: `1px solid ${isOpen ? 'var(--brand-primary)' : 'var(--border-medium)'}`,
-          borderRadius: 'var(--radius-sm)',
-          color: selectedOption ? 'var(--text-primary)' : 'var(--text-muted)',
-          fontSize: isSmall ? '0.75rem' : '0.825rem',
-          fontWeight: 500,
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          opacity: disabled ? 0.6 : 1,
-          transition: 'all var(--transition-fast)',
-          boxShadow: isOpen ? '0 0 0 2px var(--brand-glow)' : 'var(--shadow-xs)',
-          textAlign: 'left'
-        }}
+        className={`custom-select-trigger ${isOpen ? 'active' : ''} ${isSmall ? 'size-sm' : 'size-md'} ${!selectedOption ? 'placeholder' : ''}`}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+        <div className="custom-select-trigger-content">
           {(icon || selectedOption?.icon) && (
-            <span style={{ display: 'flex', color: 'var(--brand-primary)', flexShrink: 0 }}>
+            <span className="custom-select-trigger-icon">
               {selectedOption?.icon || icon}
             </span>
           )}
 
-          <span
-            style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              flex: 1
-            }}
-          >
+          <span className="custom-select-trigger-label">
             {selectedOption ? selectedOption.label : placeholder}
           </span>
 
           {(badge || selectedOption?.badge) && (
-            <span
-              className="badge-minimal"
-              style={{
-                fontSize: '0.625rem',
-                padding: '1px 6px',
-                flexShrink: 0
-              }}
-            >
+            <span className="badge-minimal custom-select-trigger-badge">
               {selectedOption?.badge || badge}
             </span>
           )}
@@ -272,12 +235,7 @@ export default function CustomSelect({
 
         <ChevronDown
           size={isSmall ? 13 : 15}
-          style={{
-            flexShrink: 0,
-            color: 'var(--text-muted)',
-            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform var(--transition-fast)'
-          }}
+          className={`custom-select-chevron ${isOpen ? 'open' : ''}`}
         />
       </button>
 
@@ -288,40 +246,12 @@ export default function CustomSelect({
           ref={listboxRef}
           role="listbox"
           tabIndex={-1}
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            [align === 'right' ? 'right' : 'left']: 0,
-            width: '100%',
-            minWidth: isSmall ? '180px' : '220px',
-            maxWidth: '420px',
-            maxHeight: '320px',
-            background: 'var(--bg-surface-elevated)',
-            border: '1px solid var(--border-medium)',
-            borderRadius: 'var(--radius-sm)',
-            boxShadow: 'var(--shadow-lg)',
-            zIndex: 100,
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            animation: 'fadeIn 0.15s ease-out',
-            ...menuStyle
-          }}
+          className={`custom-select-popover ${isSmall ? 'size-sm' : 'size-md'} ${align === 'right' ? 'align-right' : 'align-left'}`}
+          style={menuStyle}
         >
           {/* Optional Search Filter Header */}
           {isSearchable && (
-            <div
-              style={{
-                padding: '8px',
-                borderBottom: '1px solid var(--border-light)',
-                background: 'var(--bg-surface-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
+            <div className="custom-select-search-box">
               <Search size={13} color="var(--text-muted)" />
               <input
                 ref={searchInputRef}
@@ -332,41 +262,26 @@ export default function CustomSelect({
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-primary)',
-                  outline: 'none'
-                }}
+                className="custom-select-search-input"
               />
             </div>
           )}
 
           {/* Options Scroll Container */}
-          <div
-            style={{
-              overflowY: 'auto',
-              maxHeight: '260px',
-              padding: '4px'
-            }}
-          >
+          <div className="custom-select-options-list">
             {filteredOptions.length === 0 ? (
-              <div
-                style={{
-                  padding: '12px 14px',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-muted)',
-                  textAlign: 'center'
-                }}
-              >
+              <div className="custom-select-empty">
                 No matching options
               </div>
             ) : (
               filteredOptions.map((opt, idx) => {
                 const isSelected = String(opt.value) === String(value);
                 const isHighlighted = idx === activeIndex;
+
+                let optClass = `custom-select-option ${isSmall ? 'size-sm' : 'size-md'}`;
+                if (isSelected) optClass += ' selected';
+                else if (isHighlighted) optClass += ' highlighted';
+                if (opt.disabled) optClass += ' disabled';
 
                 return (
                   <div
@@ -382,70 +297,29 @@ export default function CustomSelect({
                       }
                     }}
                     onMouseEnter={() => setHighlightedIndex(idx)}
-                    style={{
-                      padding: isSmall ? '6px 10px' : '8px 12px',
-                      borderRadius: 'var(--radius-xs)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                      cursor: opt.disabled ? 'not-allowed' : 'pointer',
-                      opacity: opt.disabled ? 0.5 : 1,
-                      background: isSelected
-                        ? 'var(--brand-light)'
-                        : isHighlighted
-                        ? 'var(--bg-surface-hover)'
-                        : 'transparent',
-                      color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)',
-                      transition: 'background var(--transition-fast)'
-                    }}
+                    className={optClass}
                   >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', minWidth: 0, flex: 1 }}>
+                    <div className="custom-select-option-content">
                       {opt.icon && (
-                        <span
-                          style={{
-                            display: 'flex',
-                            color: isSelected ? 'var(--brand-primary)' : 'var(--text-muted)',
-                            marginTop: opt.description ? '2px' : 0,
-                            flexShrink: 0
-                          }}
-                        >
+                        <span className="custom-select-option-icon">
                           {opt.icon}
                         </span>
                       )}
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span
-                            style={{
-                              fontSize: isSmall ? '0.75rem' : '0.8rem',
-                              fontWeight: isSelected ? 600 : 500,
-                              lineHeight: '1.3'
-                            }}
-                          >
+                      <div className="custom-select-option-text">
+                        <div className="custom-select-option-header">
+                          <span className="custom-select-option-label">
                             {opt.label}
                           </span>
                           {opt.badge && (
-                            <span
-                              className="badge-minimal"
-                              style={{
-                                fontSize: '0.625rem',
-                                padding: '0 5px'
-                              }}
-                            >
+                            <span className="badge-minimal custom-select-option-badge">
                               {opt.badge}
                             </span>
                           )}
                         </div>
 
                         {opt.description && (
-                          <span
-                            style={{
-                              fontSize: '0.675rem',
-                              color: 'var(--text-muted)',
-                              lineHeight: '1.3'
-                            }}
-                          >
+                          <span className="custom-select-option-desc">
                             {opt.description}
                           </span>
                         )}
@@ -457,7 +331,7 @@ export default function CustomSelect({
                         size={14}
                         color="var(--brand-primary)"
                         strokeWidth={2.5}
-                        style={{ flexShrink: 0 }}
+                        className="custom-select-option-check"
                       />
                     )}
                   </div>

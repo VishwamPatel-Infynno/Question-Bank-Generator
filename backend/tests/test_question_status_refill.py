@@ -3,6 +3,7 @@ from app.schemas import (
     QuestionStatus,
     SingleStatusUpdateRequest,
     StatusUpdateRequest,
+    determine_question_status,
     is_question_active,
 )
 from pydantic import ValidationError
@@ -83,3 +84,27 @@ def test_batch_refill_deficit_calculation_with_discarded_questions():
     deficit = max(0, target_count - active_count)
     assert active_count == 46
     assert deficit == 4  # Correct: refills the 4 discarded slots!
+
+
+def test_determine_question_status():
+    """
+    Validates determine_question_status across boundary conditions:
+    - Standalone runs: > 90 -> 'ai_validated', 86-90 -> 'batch_only', <= 85 -> 'below_threshold'
+    - In-progress batches: > 85 -> 'batch_only' (withheld), <= 85 -> 'below_threshold'
+    """
+    # Standalone / completed runs (is_in_progress_batch=False)
+    assert determine_question_status(95) == "ai_validated"
+    assert determine_question_status(91) == "ai_validated"
+    assert determine_question_status(90) == "batch_only"
+    assert determine_question_status(88) == "batch_only"
+    assert determine_question_status(85) == "below_threshold"
+    assert determine_question_status(70) == "below_threshold"
+    assert determine_question_status(None) == "below_threshold"
+
+    # In-progress batch runs (is_in_progress_batch=True)
+    assert determine_question_status(95, is_in_progress_batch=True) == "batch_only"
+    assert determine_question_status(90, is_in_progress_batch=True) == "batch_only"
+    assert determine_question_status(86, is_in_progress_batch=True) == "batch_only"
+    assert determine_question_status(85, is_in_progress_batch=True) == "below_threshold"
+    assert determine_question_status(50, is_in_progress_batch=True) == "below_threshold"
+    assert determine_question_status(None, is_in_progress_batch=True) == "below_threshold"

@@ -17,14 +17,8 @@ export default function InfynnoLogo({
 
   return (
     <div
-      className={className}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '8px',
-        lineHeight: 1,
-        ...style
-      }}
+      className={`infynno-logo-root ${className}`.trim()}
+      style={style}
       title="Infynno Solutions LLP - Infinite Innovations"
     >
       <svg
@@ -34,7 +28,7 @@ export default function InfynnoLogo({
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         preserveAspectRatio="xMidYMid meet"
-        style={{ flexShrink: 0, display: 'block' }}
+        className="infynno-logo-svg"
         aria-label="Infynno Solutions Logo"
       >
         <defs>
@@ -51,12 +45,8 @@ export default function InfynnoLogo({
       </svg>
       {showText && (
         <span
-          style={{
-            fontWeight: 800,
-            fontSize: '0.85rem',
-            letterSpacing: '0.04em',
-            color: textColor
-          }}
+          className="infynno-logo-text"
+          style={{ color: textColor }}
         >
           INFYNNO
         </span>

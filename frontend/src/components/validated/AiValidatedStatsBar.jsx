@@ -10,48 +10,25 @@ export default function AiValidatedStatsBar({
   onNavigateToBank
 }) {
   return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-sm)',
-        padding: '14px 18px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px'
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+    <div className="validated-stats-banner">
+      <div className="validated-stats-top-row">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div
-              style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: 'var(--radius-xs)',
-                background: 'var(--status-success-bg)',
-                border: '1px solid var(--status-success-border)',
-                color: 'var(--status-success)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
+          <div className="validated-stats-title-group">
+            <div className="validated-stats-icon-box">
               <ShieldCheck size={15} />
             </div>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
+            <h2 className="validated-stats-title">
               Review Queue
             </h2>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="validated-stats-actions">
           <button
             type="button"
             onClick={onRefresh}
             disabled={refreshing}
-            className="btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.76rem' }}
+            className="btn-secondary validated-stats-btn-primary"
             title="Refresh questions list"
           >
             <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
@@ -61,8 +38,7 @@ export default function AiValidatedStatsBar({
             <button
               type="button"
               onClick={onNavigateToBank}
-              className="btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.76rem' }}
+              className="btn-secondary validated-stats-btn-primary"
             >
               <Database size={12} />
               <span>Question Bank</span>
@@ -72,34 +48,24 @@ export default function AiValidatedStatsBar({
       </div>
 
       {/* Quick Metrics Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          flexWrap: 'wrap',
-          paddingTop: '10px',
-          borderTop: '1px solid var(--border-light)',
-          fontSize: '0.75rem'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Ready for Review:</span>
-          <strong style={{ fontWeight: 700, color: 'var(--status-success)' }}>
+      <div className="validated-stats-strip">
+        <div className="validated-stats-pill">
+          <span className="text-muted">Ready for Review:</span>
+          <strong className="text-success font-bold">
             {counts.ai_validated || questionsCount}
           </strong>
         </div>
-        <span style={{ color: 'var(--border-light)' }}>•</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: 'var(--text-muted)' }}>In Question Bank:</span>
-          <strong style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>
+        <span className="validated-stats-divider">•</span>
+        <div className="validated-stats-pill">
+          <span className="text-muted">In Question Bank:</span>
+          <strong className="text-brand font-bold">
             {counts.in_bank || 0}
           </strong>
         </div>
-        <span style={{ color: 'var(--border-light)' }}>•</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Good Quality:</span>
-          <strong style={{ fontWeight: 700, color: 'var(--brand-indigo, #6366f1)' }}>
+        <span className="validated-stats-divider">•</span>
+        <div className="validated-stats-pill">
+          <span className="text-muted">Good Quality:</span>
+          <strong className="text-indigo font-bold">
             {counts.batch_only || 0}
           </strong>
         </div>

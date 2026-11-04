@@ -115,16 +115,7 @@ function QuestionCard({
     : (question.correct_answer_id || '').split(',').map(k => k.trim().toUpperCase()).filter(Boolean);
 
   return (
-    <div
-      className="glass-panel"
-      style={{
-        padding: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '18px',
-        position: 'relative'
-      }}
-    >
+    <div className="glass-panel qcard-container">
       {/* Top Header Metadata Strip */}
       <QuestionCardHeader
         question={question}
@@ -160,7 +151,7 @@ function QuestionCard({
 
       {/* --- TAB 1: CANDIDATE PREVIEW --- */}
       {activeTab === 'preview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="qcard-preview-flow">
           {/* Edit Mode Alert */}
           {isEditing && (
             <QuestionInlineEditor
@@ -171,21 +162,12 @@ function QuestionCard({
 
           {/* Reading Passage (Stimulus) */}
           {((question.stimulus_text && question.stimulus_text.trim()) || (isEditing && (showStimulusField || (editedStimulus && editedStimulus.trim())))) ? (
-            <div
-              className="passage-editorial vignette-editorial"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                border: '1px solid var(--border-light)',
-                borderLeft: '3px solid var(--brand-primary)'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontFamily: 'var(--font-sans)' }}>
+            <div className="passage-editorial vignette-editorial qcard-passage-box">
+              <div className="qcard-passage-header">
+                <span className="qcard-passage-title">
                   Reading Passage
                 </span>
-                <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>
+                <span className="qcard-passage-words">
                   ~{isEditing ? (editedStimulus ? editedStimulus.split(/\s+/).filter(Boolean).length : 0) : (question.stimulus_text ? question.stimulus_text.split(/\s+/).filter(Boolean).length : 0)} words
                 </span>
               </div>
@@ -196,24 +178,16 @@ function QuestionCard({
                   onChange={(e) => setEditedStimulus(e.target.value)}
                   rows={6}
                   placeholder="Enter optional reading passage or context..."
-                  style={{ width: '100%', fontSize: '0.95rem', fontFamily: 'var(--font-serif)', lineHeight: 1.65 }}
+                  className="qcard-passage-textarea"
                 />
               ) : (
-                <div
-                  style={{
-                    fontFamily: 'var(--font-serif)',
-                    fontSize: '0.975rem',
-                    lineHeight: '1.72',
-                    color: 'var(--text-primary)',
-                    whiteSpace: 'pre-line'
-                  }}
-                >
+                <div className="qcard-passage-body">
                   {question.stimulus_text}
                 </div>
               )}
 
               {hasImage && (
-                <div style={{ marginTop: '10px', borderTop: '1px solid var(--border-light)', paddingTop: '10px' }}>
+                <div className="qcard-passage-diagram-wrap">
                   <VisualStimulusViewer
                     question={question}
                     isEditing={isEditing}
@@ -224,12 +198,11 @@ function QuestionCard({
               )}
             </div>
           ) : isEditing ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="qcard-add-passage-wrap">
               <button
                 type="button"
                 onClick={() => setShowStimulusField(true)}
-                className="btn-secondary"
-                style={{ fontSize: '0.75rem', padding: '4px 10px', color: 'var(--text-secondary)' }}
+                className="btn-secondary qcard-add-passage-btn"
               >
                 + Add Reading Passage
               </button>
@@ -247,23 +220,16 @@ function QuestionCard({
           )}
 
           {/* Question Stem */}
-          <div style={{ padding: '2px 4px' }}>
+          <div className="qcard-stem-wrap">
             {isEditing ? (
               <textarea
                 value={editedStem}
                 onChange={(e) => setEditedStem(e.target.value)}
                 rows={2}
-                style={{ width: '100%', fontSize: '1rem', fontWeight: 600 }}
+                className="qcard-stem-textarea"
               />
             ) : (
-              <h3
-                style={{
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  lineHeight: '1.5',
-                  color: 'var(--text-primary)'
-                }}
-              >
+              <h3 className="qcard-stem-title">
                 {question.question_stem}
               </h3>
             )}
@@ -280,38 +246,27 @@ function QuestionCard({
           />
 
           {/* Explanation Accordion Toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px' }}>
+          <div className="qcard-explanation-bar">
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-secondary qcard-explanation-toggle-btn"
               onClick={() => setShowExplanation(!showExplanation)}
-              style={{ gap: '6px', fontSize: '0.775rem' }}
             >
               {showExplanation ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               <span>{showExplanation ? 'Hide Explanations' : 'View Explanations'}</span>
             </button>
 
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Correct Answer: <strong style={{ color: 'var(--status-success)' }}>Option {question.correct_answer_id}</strong>
+            <span className="qcard-explanation-key-text">
+              Correct Answer: <strong className="qcard-explanation-key-val">Option {question.correct_answer_id}</strong>
             </span>
           </div>
 
           {/* Explanation Box */}
           {showExplanation && (
-            <div
-              style={{
-                background: 'var(--bg-surface-elevated)',
-                borderRadius: 'var(--radius-md)',
-                padding: '16px',
-                border: '1px solid var(--border-light)',
-                fontSize: '0.85rem',
-                lineHeight: '1.65',
-                color: 'var(--text-secondary)'
-              }}
-            >
+            <div className="qcard-explanation-wrap">
               {isEditing ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                  <div className="qcard-explanation-edit-header">
                     <HelpCircle size={15} />
                     <span>Explanations</span>
                   </div>
@@ -319,7 +274,7 @@ function QuestionCard({
                     value={editedExplanation}
                     onChange={(e) => setEditedExplanation(e.target.value)}
                     rows={4}
-                    style={{ width: '100%', fontSize: '0.85rem', lineHeight: '1.6' }}
+                    className="qcard-explanation-textarea"
                   />
                 </>
               ) : (

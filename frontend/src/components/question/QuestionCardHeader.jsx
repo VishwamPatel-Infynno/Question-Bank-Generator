@@ -22,58 +22,39 @@ export default function QuestionCardHeader({
   const diffLabel = formatDifficulty(question.difficulty);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px',
-        paddingBottom: '14px',
-        borderBottom: '1px solid var(--border-light)'
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+    <div className="qcard-header">
+      <div className="qcard-header-meta">
         {isSaved ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.725rem', fontWeight: 600, color: 'var(--status-success)' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--status-success)' }} />
+          <span className="qcard-header-status-saved">
+            <span className="qcard-header-dot saved" />
             Saved
           </span>
         ) : (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.725rem', fontWeight: 600, color: 'var(--status-warning)' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--status-warning)' }} />
+          <span className="qcard-header-status-ready">
+            <span className="qcard-header-dot ready" />
             Ready
           </span>
         )}
 
-        <span style={{ color: 'var(--border-medium)' }}>|</span>
+        <span className="qcard-header-divider">|</span>
 
-        <span className={`badge ${getSectionBadgeClass(question.section)}`} style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+        <span className={`badge ${getSectionBadgeClass(question.section)} qcard-header-section-badge`}>
           {question.section_label || question.section}
         </span>
 
-        <span className={`badge ${diffBadgeClass}`} style={{ fontSize: '0.65rem', textTransform: 'capitalize' }}>
+        <span className={`badge ${diffBadgeClass} qcard-header-diff-badge`}>
           {diffLabel}
         </span>
 
         {hasImage && (
-          <span className="badge badge-purple" style={{ fontSize: '0.675rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <span className="badge badge-purple qcard-header-badge-diagram">
             <ImageIcon size={11} /> Diagram
           </span>
         )}
 
         {effectiveTrapInfo?.label && (
           <span
-            className="badge badge-purple"
-            style={{
-              fontSize: '0.675rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'var(--status-purple-bg)',
-              border: '1px solid var(--status-purple-border)',
-              color: 'var(--status-purple)'
-            }}
+            className="badge badge-purple qcard-header-trap-chip"
             title={`Trap: ${effectiveTrapInfo.label}`}
           >
             <Tag size={11} /> {effectiveTrapInfo.label}
@@ -82,42 +63,31 @@ export default function QuestionCardHeader({
 
         {question.aamc_skill && (
           <span
-            className="badge badge-cyan"
-            style={{ fontSize: '0.65rem', padding: '1px 6px' }}
+            className="badge badge-cyan qcard-header-skill-chip"
             title={`AAMC Reasoning Skill: ${question.aamc_skill}`}
           >
             {question.aamc_skill}
           </span>
         )}
 
-        <span className="badge badge-emerald" style={{ fontSize: '0.675rem', fontWeight: 600 }}>
+        <span className="badge badge-emerald qcard-header-score-badge">
           <Award size={11} /> {question.final_score}/100
         </span>
 
         {question.mcat_scaled_score && (
-          <span
-            className="badge"
-            style={{
-              fontSize: '0.675rem',
-              fontWeight: 700,
-              background: 'var(--brand-light)',
-              color: 'var(--brand-primary)',
-              border: '1px solid var(--border-brand)'
-            }}
-          >
+          <span className="badge qcard-header-scaled-badge">
             MCAT {question.mcat_scaled_score}
           </span>
         )}
       </div>
 
       {/* Top Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div className="qcard-header-actions">
         {onOpenAudit && (
           <button
             type="button"
             onClick={() => onOpenAudit(question)}
-            className="btn-secondary"
-            style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+            className="btn-secondary qcard-header-btn"
             title="Open quality breakdown modal"
           >
             <ShieldCheck size={12} color="var(--brand-primary)" />
@@ -129,13 +99,12 @@ export default function QuestionCardHeader({
           <button
             type="button"
             onClick={onToggleEditing}
-            className="btn-secondary"
-            style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+            className="btn-secondary qcard-header-btn"
             title="Edit question text (Press E)"
           >
             <Edit3 size={12} />
             <span>{isEditing ? 'Cancel' : 'Edit'}</span>
-            <span className="kbd-hint" style={{ fontSize: '0.6rem' }}>E</span>
+            <span className="kbd-hint">E</span>
           </button>
         )}
       </div>

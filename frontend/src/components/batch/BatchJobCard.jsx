@@ -40,22 +40,7 @@ export default function BatchJobCard({
   const visibleQuestions = jobQuestions.filter((q) => q.status !== 'discarded');
 
   return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: isJobRunning
-          ? '1px solid rgba(51, 90, 207, 0.4)'
-          : isJobDone
-            ? '1px solid var(--border-light)'
-            : '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-sm)',
-        padding: '12px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        transition: 'border-color var(--transition-fast)'
-      }}
-    >
+    <div className={`batch-job-card ${isJobRunning ? 'running' : ''}`}>
       {/* Job Card Header */}
       <BatchJobHeader
         job={job}
@@ -91,17 +76,7 @@ export default function BatchJobCard({
           <button
             type="button"
             onClick={() => onToggleExpand && onToggleExpand(job.id)}
-            className="btn-secondary"
-            style={{
-              width: '100%',
-              padding: '5px 8px',
-              fontSize: '0.725rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              marginTop: '4px'
-            }}
+            className="btn-secondary batch-job-toggle-btn"
           >
             <FileText size={12} />
             <span>
@@ -116,16 +91,7 @@ export default function BatchJobCard({
 
       {/* Expanded Questions inside Job */}
       {isExpanded && sortedQuestions.length > 0 && (
-        <div
-          style={{
-            marginTop: '8px',
-            paddingTop: '8px',
-            borderTop: '1px solid var(--border-light)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px'
-          }}
-        >
+        <div className="batch-job-expanded-list">
           {sortedQuestions.map((q, qIdx) => (
             <BatchQuestionItem
               key={q.id || qIdx}

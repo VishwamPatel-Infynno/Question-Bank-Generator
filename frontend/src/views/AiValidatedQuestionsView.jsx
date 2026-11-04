@@ -111,37 +111,26 @@ export default function AiValidatedQuestionsView({
           <span className="view-loading-text">Loading validated questions...</span>
         </div>
       ) : filteredQuestions.length === 0 ? (
-        <div className="empty-state-card" style={{ padding: '60px 20px', textAlign: 'center' }}>
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              background: 'rgba(16, 185, 129, 0.08)',
-              color: 'var(--status-success)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px'
-            }}
-          >
+        <div className="view-empty-state">
+          <div className="view-empty-icon-box success">
             <CheckCircle2 size={28} />
           </div>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
-            No Questions Awaiting Review
-          </h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: '460px', margin: '0 auto 24px', lineHeight: 1.5 }}>
-            {debouncedSearch || sectionFilter
-              ? 'No questions matched your current search filters.'
-              : 'All generated questions have been reviewed and moved to the Question Bank. Start a new generation run to create more.'}
-          </p>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+          <div>
+            <h3 className="view-empty-title">
+              No Questions Awaiting Review
+            </h3>
+            <p className="view-empty-desc">
+              {debouncedSearch || sectionFilter
+                ? 'No questions matched your current search filters.'
+                : 'All generated questions have been reviewed and moved to the Question Bank. Start a new generation run to create more.'}
+            </p>
+          </div>
+          <div className="view-empty-actions">
             {onNavigateToBatches && (
               <button
                 type="button"
                 onClick={onNavigateToBatches}
                 className="btn-secondary"
-                style={{ padding: '8px 18px' }}
               >
                 View Batch Activity
               </button>
@@ -151,7 +140,6 @@ export default function AiValidatedQuestionsView({
                 type="button"
                 onClick={() => onNavigateToWizard(1)}
                 className="btn-primary"
-                style={{ padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
                 <span>Generate Questions</span>
                 <ArrowRight size={15} />
@@ -161,7 +149,7 @@ export default function AiValidatedQuestionsView({
         </div>
       ) : (
         <>
-          <div className="ai-validated-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="ai-validated-list ai-validated-list-container">
             {paginatedQuestions.map((question) => (
               <AiValidatedQuestionCard
                 key={question.id}

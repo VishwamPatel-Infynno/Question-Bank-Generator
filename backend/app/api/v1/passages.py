@@ -5,13 +5,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.repositories.passage_repository import (
+from app.repositories import (
     delete_passage,
     get_passage_by_id,
     get_passages,
+    get_questions,
+    restore_passage,
     save_passage,
 )
-from app.repositories.question_repository import get_questions
 from app.schemas import Passage
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ async def create_or_update_passage(passage: Passage):
 
 @router.delete("/passages/{passage_id}")
 async def remove_passage(passage_id: str):
-    """Admin endpoint to delete a passage record and permanently remove all associated questions."""
+    """Admin endpoint to soft-delete a passage record and its associated questions (preserving batch progress)."""
     success, deleted_q_count = await delete_passage(passage_id)
     if not success:
         raise HTTPException(status_code=404, detail="Passage not found")
@@ -62,3 +63,12 @@ async def remove_passage(passage_id: str):
         "deleted_id": passage_id,
         "deleted_questions_count": deleted_q_count,
     }
+
+
+@router.post("/passages/{passage_id}/restore")
+async def restore_single_passage(passage_id: str):
+    """Admin endpoint to restore a soft-deleted passage record."""
+    success = await restore_passage(passage_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Passage not found")
+    return {"success": True, "restored_id": passage_id}

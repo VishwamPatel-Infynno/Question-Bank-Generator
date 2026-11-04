@@ -95,11 +95,6 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     setDiffFilter('');
   };
 
-  const handleSearchChange = (val) => setSearchQuery(val);
-  const handleSectionChange = (val) => setSectionFilter(val);
-  const handleDiffChange = (val) => setDiffFilter(val);
-  const handleSortChange = (val) => setSortBy(val);
-
   // Focus search on '/'
   useKeyboardShortcuts({
     onFocusSearch: () => searchInputRef.current?.focus()
@@ -204,11 +199,11 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
 
         <div className="view-header-actions">
           <div className="view-header-badge">
-            <span><strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{questions.length}</strong> {questions.length === 1 ? 'question' : 'questions'}</span>
+            <span><strong className="qbank-header-stat-num">{questions.length}</strong> {questions.length === 1 ? 'question' : 'questions'}</span>
             <span className="view-header-divider">•</span>
             <span>
-              <strong style={{ color: 'var(--status-success)', fontWeight: 600 }}>{avgScore}</strong>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>/100 avg</span>
+              <strong className="qbank-header-avg-num">{avgScore}</strong>
+              <span className="qbank-header-avg-unit">/100 avg</span>
             </span>
           </div>
 
@@ -216,14 +211,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
             type="button"
             id="btn-open-export-studio"
             onClick={() => setShowExportModal(true)}
-            className="btn-secondary"
-            style={{
-              padding: '6px 12px',
-              fontSize: '0.78rem',
-              gap: '6px',
-              opacity: questions.length === 0 ? 0.5 : 1,
-              cursor: questions.length === 0 ? 'not-allowed' : 'pointer'
-            }}
+            className="btn-secondary qbank-export-trigger-btn"
             disabled={questions.length === 0}
             title={questions.length > 0 ? 'Export & Print' : 'No questions to export'}
           >
@@ -235,14 +223,14 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       {/* ── Filters / Search / Bulk Bar ──────────────────────────────────── */}
       <QuestionBankFilters
         searchQuery={searchQuery}
-        setSearchQuery={handleSearchChange}
+        setSearchQuery={setSearchQuery}
         searchInputRef={searchInputRef}
         sectionFilter={sectionFilter}
-        setSectionFilter={handleSectionChange}
+        setSectionFilter={setSectionFilter}
         diffFilter={diffFilter}
-        setDiffFilter={handleDiffChange}
+        setDiffFilter={setDiffFilter}
         sortBy={sortBy}
-        setSortBy={handleSortChange}
+        setSortBy={setSortBy}
         questions={questions}
         selectedIds={selectedIds}
         isDeletingBulk={isDeletingBulk}

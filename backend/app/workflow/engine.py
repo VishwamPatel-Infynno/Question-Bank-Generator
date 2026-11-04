@@ -19,12 +19,12 @@ from typing import Any
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
 from app.core.config import config
-from app.repositories.batch_repository import (
+from app.repositories import (
     get_batch_by_id,
+    get_subtopic_reference_questions,
     save_batch,
+    save_job,
 )
-from app.repositories.job_repository import save_job
-from app.repositories.question_repository import get_subtopic_reference_questions
 from app.schemas import (
     ALT_TRAP_ROTATION,
     GenerationBatch,

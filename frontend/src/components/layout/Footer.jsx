@@ -26,7 +26,6 @@ export default function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             className="infynno-pill-link"
-            style={{ padding: '3px 8px', fontSize: '0.7rem' }}
           >
             <span>infynno.com</span>
             <ExternalLink size={10} />

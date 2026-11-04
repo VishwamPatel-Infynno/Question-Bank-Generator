@@ -28,27 +28,11 @@ export default function BatchJobTelemetryBadges({
   return (
     <>
       {/* Job Details / Telemetry */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '0.7rem',
-          color: 'var(--text-muted)'
-        }}
-      >
+      <div className="batch-job-telemetry-row">
         <span>Tokens: {formatTokenCount(job.total_tokens)}</span>
         <span>{formatCostUsd(job.cost_usd)}</span>
         {isJobRunning ? (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              color: 'var(--brand-primary)',
-              fontWeight: 600
-            }}
-          >
+          <span className="batch-job-elapsed-time">
             <LiveStopwatch isRunning={true} /> elapsed
           </span>
         ) : job.completed_at ? (
@@ -63,139 +47,50 @@ export default function BatchJobTelemetryBadges({
       </div>
 
       {job.error_message && (
-        <div
-          style={{
-            fontSize: '0.72rem',
-            color: 'var(--status-danger)',
-            background: 'rgba(244, 63, 94, 0.08)',
-            padding: '6px 8px',
-            borderRadius: 'var(--radius-xs)'
-          }}
-        >
+        <div className="batch-job-error-callout">
           Error: {job.error_message}
         </div>
       )}
 
       {totalQuestionsCount > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', fontSize: '0.675rem' }}>
+        <div className="batch-job-badge-list">
           {validatedCount > 0 && (
-            <span
-              style={{
-                background: 'rgba(79, 48, 185, 0.1)',
-                color: 'var(--brand-primary)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700
-              }}
-            >
+            <span className="batch-job-tag validated">
               {validatedCount} Ready for Review
             </span>
           )}
           {batchOnlyCount > 0 && (
-            <span
-              style={{
-                background: 'rgba(51, 90, 207, 0.12)',
-                color: 'var(--brand-primary)',
-                border: '1px solid rgba(51, 90, 207, 0.25)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
+            <span className="batch-job-tag batch-only">
               <Layers size={10} /> {batchOnlyCount} Good Quality
             </span>
           )}
           {inBankCount > 0 && (
-            <span
-              style={{
-                background: 'rgba(16, 185, 129, 0.1)',
-                color: 'var(--status-success)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700
-              }}
-            >
+            <span className="batch-job-tag in-bank">
               {inBankCount} in Question Bank
             </span>
           )}
           {discardedCount > 0 && (
-            <span
-              style={{
-                background: 'rgba(244, 63, 94, 0.1)',
-                color: 'var(--status-danger)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700
-              }}
-            >
+            <span className="batch-job-tag discarded">
               {discardedCount} Discarded
             </span>
           )}
           {belowCount > 0 && (
-            <span
-              style={{
-                background: 'var(--status-warning-bg, rgba(245, 158, 11, 0.1))',
-                color: 'var(--status-warning, #d97706)',
-                border: '1px solid var(--status-warning-border, rgba(245, 158, 11, 0.25))',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700
-              }}
-            >
+            <span className="batch-job-tag below">
               {belowCount} Needs Polish (&le;85)
             </span>
           )}
           {deletedCount > 0 && (
-            <span
-              style={{
-                background: 'var(--status-danger-bg)',
-                color: 'var(--status-danger)',
-                border: '1px solid var(--status-danger-border)',
-                padding: '2px 7px',
-                borderRadius: 'var(--radius-xs)',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
+            <span className="batch-job-tag deleted">
               <Trash2 size={10} /> {deletedCount} Deleted from Bank
             </span>
           )}
           {hasPassage && (
-            <span
-              style={{
-                background: 'rgba(51, 90, 207, 0.08)',
-                color: 'var(--brand-primary)',
-                border: '1px solid rgba(51, 90, 207, 0.2)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
+            <span className="batch-job-feature-tag">
               <BookOpen size={10} /> Reading Passage
             </span>
           )}
           {hasDiagram && (
-            <span
-              style={{
-                background: 'rgba(79, 48, 185, 0.08)',
-                color: 'var(--brand-primary)',
-                border: '1px solid rgba(79, 48, 185, 0.2)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
+            <span className="batch-job-feature-tag">
               <ImageIcon size={10} /> Figure / Diagram
             </span>
           )}

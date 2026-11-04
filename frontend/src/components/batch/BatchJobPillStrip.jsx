@@ -44,15 +44,7 @@ export default function BatchJobPillStrip({
               className="job-q-pill active"
               title={`Question ${qNum}: Currently generating passage, stem & distractors`}
             >
-              <span
-                style={{
-                  width: '4px',
-                  height: '4px',
-                  borderRadius: '50%',
-                  background: 'var(--brand-primary)',
-                  animation: 'pulse 1.2s infinite'
-                }}
-              />
+              <span className="job-q-pill-dot" />
               <span>Q{qNum} drafting</span>
             </span>
           );

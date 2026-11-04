@@ -109,36 +109,14 @@ export default function StageJsonInspector({ question }) {
   };
 
   return (
-    <div
-      className="glass-panel audit-trail-container"
-      style={{
-        marginTop: '8px',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-md)',
-        background: 'var(--bg-surface)',
-        overflow: 'hidden'
-      }}
-    >
+    <div className="glass-panel audit-trail-container stage-inspector-wrapper">
       {/* Header Accordion Toggle */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 18px',
-          background: 'var(--bg-surface-elevated)',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: '0.825rem',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          transition: 'background var(--transition-fast)'
-        }}
+        className="stage-inspector-header-btn"
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span className="stage-inspector-header-left">
           <Code2 size={16} color="var(--brand-primary)" />
           <span>Generation Details</span>
         </span>
@@ -148,20 +126,10 @@ export default function StageJsonInspector({ question }) {
 
       {/* Expanded Content */}
       {isOpen && (
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--border-light)' }}>
+        <div className="stage-inspector-content">
           {/* Stage Tabs */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '8px',
-              borderBottom: '1px solid var(--border-light)',
-              paddingBottom: '10px'
-            }}
-          >
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div className="stage-inspector-nav-strip">
+            <div className="stage-inspector-tabs">
               {stages.map((stage) => {
                 const Icon = stage.icon;
                 const isSelected = activeStage === stage.id;
@@ -170,20 +138,7 @@ export default function StageJsonInspector({ question }) {
                     key={stage.id}
                     type="button"
                     onClick={() => setActiveStage(stage.id)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.775rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      background: isSelected ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
-                      color: isSelected ? 'var(--text-on-brand, #ffffff)' : 'var(--text-secondary)',
-                      border: isSelected ? '1px solid var(--border-brand)' : '1px solid var(--border-light)',
-                      transition: 'all var(--transition-fast)'
-                    }}
+                    className={`stage-inspector-tab-btn ${isSelected ? 'is-active' : ''}`}
                   >
                     <Icon size={14} />
                     <span>{stage.label}</span>
@@ -197,8 +152,7 @@ export default function StageJsonInspector({ question }) {
               <button
                 type="button"
                 onClick={handleCopy}
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.75rem', gap: '4px' }}
+                className="btn-secondary stage-inspector-copy-btn"
                 title="Copy current stage JSON to clipboard"
               >
                 {copied ? <Check size={13} color="var(--status-success)" /> : <Copy size={13} />}
@@ -208,18 +162,10 @@ export default function StageJsonInspector({ question }) {
           </div>
 
           {/* Current Stage Metadata Banner */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: '0.75rem',
-              color: 'var(--text-secondary)'
-            }}
-          >
+          <div className="stage-inspector-meta-banner">
             <span>Editorial Step: <strong>{currentStageObj.label}</strong></span>
             {question.combination_id && (
-              <span className="badge badge-indigo" style={{ fontSize: '0.65rem' }}>
+              <span className="badge badge-indigo stage-inspector-badge">
                 Combination: {question.combination_id}
               </span>
             )}
@@ -227,35 +173,13 @@ export default function StageJsonInspector({ question }) {
 
           {/* Code Viewer or Bypassed Notice */}
           {jsonString ? (
-            <div
-              style={{
-                background: 'var(--bg-canvas)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '14px',
-                maxHeight: '280px',
-                overflowY: 'auto',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.775rem',
-                lineHeight: 1.5,
-                border: '1px solid var(--border-subtle)'
-              }}
-            >
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--brand-primary)' }}>
+            <div className="stage-inspector-code-box">
+              <pre className="stage-inspector-pre">
                 {jsonString}
               </pre>
             </div>
           ) : (
-            <div
-              style={{
-                padding: '24px',
-                textAlign: 'center',
-                background: 'var(--bg-canvas)',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px dashed var(--border-medium)',
-                color: 'var(--text-muted)',
-                fontSize: '0.8rem'
-              }}
-            >
+            <div className="stage-inspector-empty">
               {currentStageObj.bypassedNote || 'No payload recorded for this stage.'}
             </div>
           )}

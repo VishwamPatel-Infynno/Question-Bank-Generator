@@ -28,19 +28,7 @@ function renderFormattedText(text, { highlightTraps = false } = {}) {
       return (
         <span
           key={itemKey}
-          style={{
-            background: 'rgba(245, 158, 11, 0.16)',
-            color: 'var(--status-warning)',
-            border: '1px solid var(--status-warning-border, rgba(245, 158, 11, 0.3))',
-            borderRadius: '3px',
-            padding: '1px 6px',
-            fontWeight: 700,
-            fontSize: '0.74rem',
-            margin: '0 2px',
-            display: 'inline-block',
-            lineHeight: 1.35,
-            verticalAlign: 'baseline'
-          }}
+          className="formatted-trap-highlight"
         >
           {part}
         </span>
@@ -49,7 +37,7 @@ function renderFormattedText(text, { highlightTraps = false } = {}) {
 
     if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
       return (
-        <strong key={itemKey} style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
+        <strong key={itemKey} className="formatted-strong">
           {part.slice(2, -2)}
         </strong>
       );

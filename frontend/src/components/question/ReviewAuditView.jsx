@@ -68,20 +68,7 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
   ];
 
   const iconElement = (
-    <div
-      style={{
-        width: '38px',
-        height: '38px',
-        borderRadius: 'var(--radius-sm)',
-        background: 'var(--brand-light)',
-        border: '1px solid var(--border-brand)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--brand-primary)',
-        flexShrink: 0
-      }}
-    >
+    <div className="audit-header-icon">
       <ShieldCheck size={20} />
     </div>
   );
@@ -102,100 +89,77 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
       footer={footer}
       ariaLabelledBy="audit-modal-title"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="audit-modal-body">
         {/* Overall Score Banner */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '16px 20px',
-            background: 'var(--brand-light)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border-brand)'
-          }}
-        >
+        <div className="audit-score-banner">
           <div>
-            <div style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--brand-primary)' }}>Score</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--brand-primary)', lineHeight: 1.1 }}>
-              {question.final_score} <span style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ 100</span>
+            <div className="audit-score-label">Score</div>
+            <div className="audit-score-value">
+              {question.final_score} <span className="audit-score-max">/ 100</span>
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div className="audit-score-right">
             <span
-              className={`badge ${question.final_score > 90 ? 'badge-emerald' : 'badge-amber'}`}
-              style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+              className={`badge ${question.final_score > 90 ? 'badge-emerald' : 'badge-amber'} audit-score-badge`}
             >
               {question.final_score > 90 ? 'Passed' : 'Needs Polish'}
             </span>
-            <div style={{ fontSize: '0.725rem', fontWeight: 500, color: 'var(--text-muted)', marginTop: '4px' }}>
+            <div className="audit-rounds-label">
               Rounds: {question.iteration_count || 1} of 3
             </div>
           </div>
         </div>
 
         {/* Usage & Cost Details Section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h4 style={{ fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div className="audit-section-block">
+          <div className="audit-section-header">
+            <h4 className="audit-section-title">
               Usage Details
             </h4>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            <span className="audit-section-subtitle">
               Quality Review Summary
             </span>
           </div>
 
           {/* Metric Cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-            <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>INPUT TOKENS</div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>{formatTokenCount(question.prompt_tokens)}</div>
+          <div className="audit-metrics-grid">
+            <div className="audit-metric-card">
+              <div className="audit-metric-label">INPUT TOKENS</div>
+              <div className="audit-metric-value brand">{formatTokenCount(question.prompt_tokens)}</div>
             </div>
-            <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>OUTPUT TOKENS</div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-indigo)' }}>{formatTokenCount(question.completion_tokens)}</div>
+            <div className="audit-metric-card">
+              <div className="audit-metric-label">OUTPUT TOKENS</div>
+              <div className="audit-metric-value indigo">{formatTokenCount(question.completion_tokens)}</div>
             </div>
-            <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL TOKENS</div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{formatTokenCount(question.total_tokens)}</div>
+            <div className="audit-metric-card">
+              <div className="audit-metric-label">TOTAL TOKENS</div>
+              <div className="audit-metric-value primary">{formatTokenCount(question.total_tokens)}</div>
             </div>
-            <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>GENERATION COST</div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--status-success)' }}>{formatCostUsd(totalCost)}</div>
+            <div className="audit-metric-card">
+              <div className="audit-metric-label">GENERATION COST</div>
+              <div className="audit-metric-value success">{formatCostUsd(totalCost)}</div>
             </div>
-            <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>QUALITY STATUS</div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--status-success)' }}>High Quality</div>
+            <div className="audit-metric-card">
+              <div className="audit-metric-label">QUALITY STATUS</div>
+              <div className="audit-metric-value success">High Quality</div>
             </div>
           </div>
 
           {totalCost > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                background: 'var(--bg-canvas)',
-                borderRadius: 'var(--radius-xs)',
-                border: '1px solid var(--border-light)',
-                fontSize: '0.72rem',
-                color: 'var(--text-muted)'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div className="audit-cost-breakdown">
+              <div className="audit-cost-breakdown-details">
                 <span>
-                  <strong style={{ color: 'var(--text-primary)' }}>Cognitive Engine:</strong>{' '}
+                  <strong className="audit-engine-title">Cognitive Engine:</strong>{' '}
                   {formatCostUsd(cognitiveCost)} ({formatTokenCount(question.total_tokens)} tokens)
                 </span>
                 {hasVisual && (
                   <span>
-                    <strong style={{ color: 'var(--text-primary)' }}>Visual Engine:</strong>{' '}
+                    <strong className="audit-engine-title">Visual Engine:</strong>{' '}
                     {formatCostUsd(visualCost)} (High-Precision Figure)
                   </span>
                 )}
               </div>
-              <span style={{ fontWeight: 600, color: 'var(--status-success)' }}>
+              <span className="audit-invoice-match">
                 Exact Invoice Match
               </span>
             </div>
@@ -203,32 +167,23 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
         </div>
 
         {/* 4 Pillars Breakdown */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <h4 style={{ fontSize: '0.825rem', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div className="audit-section-block gap-12">
+          <h4 className="audit-section-title">
             Quality Pillars (100 Points Total)
           </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="audit-pillars-grid">
             {pillars.map((p) => (
-              <div
-                key={p.label}
-                style={{
-                  background: 'var(--bg-canvas)',
-                  padding: '14px 18px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-light)'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem', marginBottom: '8px' }}>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{p.label}</span>
-                  <span style={{ color: p.color, fontWeight: 800 }}>{p.score} / {p.max}</span>
+              <div key={p.label} className="audit-pillar-card">
+                <div className="audit-pillar-header">
+                  <span className="audit-pillar-label">{p.label}</span>
+                  <span className="audit-pillar-score" style={{ color: p.color }}>{p.score} / {p.max}</span>
                 </div>
-                <div style={{ width: '100%', height: '6px', background: 'var(--border-medium)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div className="audit-progress-track">
                   <div
+                    className="audit-progress-bar"
                     style={{
                       width: `${(p.score / p.max) * 100}%`,
-                      height: '100%',
-                      background: p.color,
-                      borderRadius: '3px'
+                      background: p.color
                     }}
                   />
                 </div>
@@ -238,71 +193,51 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
         </div>
 
         {/* Cognitive & Pedagogical Calibration */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h4 style={{ fontSize: '0.825rem', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
+        <div className="audit-section-block gap-12">
+          <div className="audit-section-header">
+            <h4 className="audit-section-title">
               Exam Accuracy &amp; Question Design
             </h4>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            <span className="audit-section-subtitle">
               Question Trap Analysis &amp; Student Misconceptions
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="audit-calibration-grid">
             {/* Primary Trap */}
-            <div
-              style={{
-                background: 'var(--bg-canvas)',
-                padding: '14px 16px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-light)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Zap size={13} style={{ color: 'var(--status-purple, #8b5cf6)' }} />
+            <div className="audit-calibration-card">
+              <div className="audit-card-top">
+                <span className="audit-card-category-label">
+                  <Zap size={13} className="audit-trap-icon" />
                   Common Trap Tested
                 </span>
-                <span className="badge badge-purple" style={{ fontSize: '0.68rem', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span className="badge badge-purple audit-tag-badge">
                   <Sparkles size={11} /> Trap Breakdown
                 </span>
               </div>
-              <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div className="audit-card-title">
                 {trapInfo?.label || 'Direct Conceptual Application'}
               </div>
-              <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
+              <p className="audit-card-desc">
                 {trapInfo?.advice || 'Evaluates direct conceptual understanding without deceptive distractor skew.'}
               </p>
             </div>
 
             {/* Target Misconception */}
-            <div
-              style={{
-                background: 'var(--bg-canvas)',
-                padding: '14px 16px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-light)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Target size={13} style={{ color: 'var(--brand-primary, #38bdf8)' }} />
+            <div className="audit-calibration-card">
+              <div className="audit-card-top">
+                <span className="audit-card-category-label">
+                  <Target size={13} className="audit-mistake-icon" />
                   Common Student Mistake
                 </span>
-                <span className="badge badge-cyan" style={{ fontSize: '0.68rem', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span className="badge badge-cyan audit-tag-badge">
                   <Sparkles size={11} /> Common Mistake
                 </span>
               </div>
-              <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div className="audit-card-title">
                 {mistakePattern ? mistakePattern.replace(/_/g, ' ') : 'None Diagnosed (Clean Distractor)'}
               </div>
-              <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
+              <p className="audit-card-desc">
                 {mistakePattern
                   ? 'Incorrect choices were specifically crafted to highlight this common conceptual mistake.'
                   : 'Incorrect choices test fundamental science concepts without relying on a specific trick.'}
@@ -311,47 +246,23 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
           </div>
 
           {/* Visual Stimulus Evaluation */}
-          <div
-            style={{
-              background: 'var(--bg-canvas)',
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-light)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: 'var(--radius-xs)',
-                  background: hasVisual ? 'var(--brand-light)' : 'var(--bg-surface-elevated)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: hasVisual ? 'var(--brand-primary)' : 'var(--text-muted)',
-                  border: '1px solid var(--border-light)',
-                  flexShrink: 0
-                }}
-              >
+          <div className="audit-figure-card">
+            <div className="audit-figure-left">
+              <div className={`audit-figure-icon ${hasVisual ? 'has-visual' : 'no-visual'}`}>
                 <ImageIcon size={16} />
               </div>
               <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                <div className="audit-figure-title">
                   Figure Review: {hasVisual ? 'Diagram Generated & Attached' : 'Text-Only Question (No Diagram Needed)'}
                 </div>
-                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                <div className="audit-figure-subtitle">
                   {hasVisual
                     ? (question.image_description || 'Custom biomedical or physical sciences diagram rendered to accompany item stem.')
                     : 'The question stem and passage provide all necessary context without needing a diagram.'}
                 </div>
               </div>
             </div>
-            <span className={`badge ${hasVisual ? 'badge-blue' : 'badge-slate'}`} style={{ fontSize: '0.7rem', padding: '3px 8px', flexShrink: 0 }}>
+            <span className={`badge ${hasVisual ? 'badge-blue' : 'badge-slate'} audit-figure-badge`}>
               {hasVisual ? 'Diagram Attached' : 'Text Only'}
             </span>
           </div>
@@ -359,20 +270,13 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
 
         {/* Strengths & Deficiencies */}
         {review && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div className="audit-feedback-grid">
             {/* Strengths */}
-            <div
-              style={{
-                background: 'var(--status-success-bg)',
-                border: '1px solid var(--status-success-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '16px 18px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-success)', fontWeight: 800, fontSize: '0.85rem', marginBottom: '8px' }}>
+            <div className="audit-strengths-card">
+              <div className="audit-feedback-header-success">
                 <CheckCircle size={16} /> Question Strengths
               </div>
-              <ul style={{ paddingLeft: '18px', fontSize: '0.825rem', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <ul className="audit-feedback-list">
                 {review.strengths?.length > 0 ? (
                   review.strengths.map((s) => <li key={s}>{s}</li>)
                 ) : (
@@ -382,18 +286,11 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
             </div>
 
             {/* Recommendations / Remediation */}
-            <div
-              style={{
-                background: 'var(--status-warning-bg)',
-                border: '1px solid var(--status-warning-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '16px 18px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-warning)', fontWeight: 800, fontSize: '0.85rem', marginBottom: '8px' }}>
+            <div className="audit-suggestions-card">
+              <div className="audit-feedback-header-warning">
                 <AlertTriangle size={16} /> Suggestions for Polish
               </div>
-              <ul style={{ paddingLeft: '18px', fontSize: '0.825rem', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <ul className="audit-feedback-list">
                 {review.recommendations?.length > 0 ? (
                   review.recommendations.map((r) => <li key={r}>{r}</li>)
                 ) : (
@@ -406,31 +303,20 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
 
         {/* Iterations Evolution Timeline */}
         {history.length > 1 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <h4 style={{ fontSize: '0.825rem', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <div className="audit-section-block">
+            <h4 className="audit-section-title">
               Refinement History
             </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="audit-history-timeline">
               {history.map((h, idx) => (
-                <div
-                  key={h.iteration || `history-${idx}`}
-                  style={{
-                    padding: '12px 16px',
-                    background: 'var(--bg-canvas)',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-light)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div key={h.iteration || `history-${idx}`} className="audit-history-item">
+                  <div className="audit-history-row">
                     <span className="badge badge-cyan">Round {h.iteration}</span>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                    <span className="audit-history-score">
                       Score: {h.review?.total_score || 'N/A'}/100
                     </span>
                   </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  <span className="audit-history-status">
                     {h.review?.passed ? '✓ Met High Quality' : 'Polished in Refinement Round'}
                   </span>
                 </div>

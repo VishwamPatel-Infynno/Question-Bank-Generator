@@ -67,78 +67,31 @@ export default function SharedPassageCard({
 
   return (
     <div
-      className="glass-panel shared-passage-card"
-      style={{
-        padding: '16px 20px',
-        borderLeft: '4px solid var(--brand-primary)',
-        borderRadius: 'var(--radius-md)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        background: 'var(--bg-surface)',
-        boxShadow: 'var(--shadow-sm)',
-        ...(isSplitPane
-          ? {
-              maxHeight: 'calc(100vh - 120px)',
-              overflowY: 'auto',
-              position: 'sticky',
-              top: '88px'
-            }
-          : {}),
-        ...style
-      }}
+      className={`glass-panel shared-passage-card ${isSplitPane ? 'is-split-pane' : ''}`}
+      style={style}
     >
       {/* Header Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              borderRadius: 'var(--radius-xs)',
-              background: 'var(--brand-light)',
-              color: 'var(--brand-primary)',
-              flexShrink: 0
-            }}
-          >
+      <div className="shared-passage-header">
+        <div className="shared-passage-title-group">
+          <div className="shared-passage-icon-box">
             <BookOpen size={18} />
           </div>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h3 style={{ fontSize: '0.925rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            <div className="shared-passage-meta-wrap">
+              <h3 className="shared-passage-title">
                 {title || defaultTitle}
               </h3>
-              <span className="badge badge-cyan" style={{ fontSize: '0.675rem', fontWeight: 600 }}>
+              <span className="badge badge-cyan shared-passage-badge">
                 {wordCount} Words
               </span>
               {questionCount > 1 && (
-                <span className="badge badge-indigo" style={{ fontSize: '0.675rem', fontWeight: 600 }}>
+                <span className="badge badge-indigo shared-passage-badge">
                   {questionCount} Linked Questions
                 </span>
               )}
               {hasDiagram && (
-                <span
-                  className="badge badge-purple"
-                  style={{
-                    fontSize: '0.675rem',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px'
-                  }}
-                >
+                <span className="badge badge-purple shared-passage-figure-tag">
                   <ImageIcon size={10} /> Diagram
                 </span>
               )}
@@ -146,55 +99,29 @@ export default function SharedPassageCard({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="shared-passage-controls">
           {/* Font Size Scaling Controls */}
           <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              background: 'var(--bg-surface-subtle)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-xs)',
-              padding: '2px 4px',
-              gap: '2px'
-            }}
+            className="shared-passage-font-controls"
             title={`Passage text scale: ${fontLabels[fontSizeLevel]}`}
           >
             <button
               type="button"
               onClick={handleDecreaseFont}
               disabled={fontSizeLevel === 0}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: fontSizeLevel === 0 ? 'var(--text-dim)' : 'var(--text-secondary)',
-                cursor: fontSizeLevel === 0 ? 'default' : 'pointer',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                padding: '2px 6px',
-                borderRadius: 'var(--radius-xs)'
-              }}
+              className="shared-passage-font-btn"
               title="Decrease passage font size"
             >
               A-
             </button>
-            <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', minWidth: '32px', textAlign: 'center' }}>
+            <span className="shared-passage-font-indicator">
               {fontSizeLevel === 0 ? '85%' : fontSizeLevel === 1 ? '100%' : '115%'}
             </span>
             <button
               type="button"
               onClick={handleIncreaseFont}
               disabled={fontSizeLevel === fontSizes.length - 1}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: fontSizeLevel === fontSizes.length - 1 ? 'var(--text-dim)' : 'var(--text-secondary)',
-                cursor: fontSizeLevel === fontSizes.length - 1 ? 'default' : 'pointer',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                padding: '2px 6px',
-                borderRadius: 'var(--radius-xs)'
-              }}
+              className="shared-passage-font-btn"
               title="Increase passage font size"
             >
               A+
@@ -205,8 +132,7 @@ export default function SharedPassageCard({
             <button
               type="button"
               onClick={() => setIsCollapsed(prev => !prev)}
-              className="btn-secondary"
-              style={{ padding: '5px 12px', fontSize: '0.725rem', gap: '6px' }}
+              className="btn-secondary shared-passage-toggle-btn"
               title={isCollapsed ? 'Expand Passage' : 'Collapse Passage'}
             >
               {isCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
@@ -218,34 +144,17 @@ export default function SharedPassageCard({
 
       {/* Collapsible Body */}
       {(!collapsible || !isCollapsed) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="shared-passage-content-wrap">
           <div
-            style={{
-              padding: '14px 18px',
-              background: 'var(--bg-surface-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-light)',
-              maxHeight: isSplitPane ? 'none' : '300px',
-              overflowY: isSplitPane ? 'visible' : 'auto',
-              fontFamily: 'var(--font-serif)',
-              fontSize: fontSizes[fontSizeLevel],
-              lineHeight: '1.7',
-              color: 'var(--text-primary)',
-              whiteSpace: 'pre-line'
-            }}
+            className={`shared-passage-body ${isSplitPane ? 'split-pane' : ''}`}
+            style={{ fontSize: fontSizes[fontSizeLevel] }}
           >
             {passageText}
           </div>
 
           {/* Embedded Visual Stimulus Diagram */}
           {hasDiagram && (
-            <div
-              style={{
-                borderRadius: 'var(--radius-sm)',
-                overflow: 'hidden',
-                border: '1px solid var(--border-light)'
-              }}
-            >
+            <div className="shared-passage-diagram-wrap">
               <VisualStimulusViewer
                 question={diagramQuestion}
                 compact={false}

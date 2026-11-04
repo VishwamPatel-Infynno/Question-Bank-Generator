@@ -16,7 +16,7 @@ from app.agents.option_balancer import (
 from app.agents.regenerator import regenerate_question
 from app.agents.reviewer import review_question
 from app.core.config import config
-from app.repositories.question_repository import save_question
+from app.repositories import save_question
 from app.schemas import (
     MCAT_SECTION_LABELS,
     GenerationRequest,

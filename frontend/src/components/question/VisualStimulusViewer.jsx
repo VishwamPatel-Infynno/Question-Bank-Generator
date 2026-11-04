@@ -68,41 +68,26 @@ export default function VisualStimulusViewer({
   // Compact Thumbnail View for list cards
   if (compact) {
     return (
-      <div
-        style={{
-          background: '#ffffff',
-          border: '1px solid var(--border-medium)',
-          borderRadius: 'var(--radius-sm)',
-          overflow: 'hidden',
-          padding: '6px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '4px',
-          maxHeight: '120px'
-        }}
-      >
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.625rem', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase' }}>
+      <div className="stimulus-compact-box">
+        <div className="stimulus-compact-header">
+          <span className="stimulus-compact-title">
             Figure / Diagram
           </span>
-          <span className="badge badge-purple" style={{ fontSize: '0.575rem', padding: '1px 5px' }}>
+          <span className="badge badge-purple stimulus-compact-badge">
             {isSvg ? 'SVG' : 'Diagram'}
           </span>
         </div>
-        <div
-          style={{ width: '100%', maxHeight: '85px', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}
-        >
+        <div className="stimulus-compact-preview">
           {isSvg ? (
             <div
-              style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}
+              className="stimulus-svg-wrap"
               dangerouslySetInnerHTML={{ __html: svgContent }}
             />
           ) : (
             <img
               src={imageUrl}
               alt={rawDescription || 'Figure diagram'}
-              style={{ maxHeight: '85px', maxWidth: '100%', objectFit: 'contain' }}
+              className="stimulus-compact-img"
             />
           )}
         </div>
@@ -113,61 +98,27 @@ export default function VisualStimulusViewer({
   // Full Interactive Inline Viewer
   return (
     <>
-      <div
-        className="visual-stimulus-card"
-        style={{
-          background: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-light)',
-          borderRadius: 'var(--radius-md)',
-          padding: '14px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px'
-        }}
-      >
+      <div className="stimulus-card">
         {/* Stimulus Header Bar */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '8px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
-              style={{
-                fontSize: '0.725rem',
-                fontWeight: 700,
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
+        <div className="stimulus-header">
+          <div className="stimulus-title-wrap">
+            <span className="stimulus-title-label">
               <ImageIcon size={13} color="var(--brand-primary)" />
               {headerTitle || 'Figure / Diagram'}
             </span>
             {badgeExtra}
-            <span
-              className="badge badge-purple"
-              style={{ fontSize: '0.625rem', padding: '2px 6px', fontWeight: 600 }}
-            >
+            <span className="badge badge-purple stimulus-type-badge">
               {visualType}
             </span>
           </div>
 
           {/* Action Toolbar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="stimulus-toolbar">
             {isSvg && (
               <button
                 type="button"
                 onClick={handleCopySvg}
-                className="btn-secondary"
-                style={{ padding: '3px 8px', fontSize: '0.675rem', gap: '4px' }}
+                className="btn-secondary stimulus-tool-btn"
                 title="Copy raw SVG vector markup to clipboard"
               >
                 {copiedSvg ? <Check size={11} color="var(--status-success)" /> : <Copy size={11} />}
@@ -178,8 +129,7 @@ export default function VisualStimulusViewer({
             <button
               type="button"
               onClick={() => setIsLightboxOpen(true)}
-              className="btn-secondary"
-              style={{ padding: '3px 8px', fontSize: '0.675rem', gap: '4px' }}
+              className="btn-secondary stimulus-tool-btn"
               title="Expand diagram to fullscreen inspect mode"
             >
               <Maximize2 size={11} />
@@ -193,43 +143,19 @@ export default function VisualStimulusViewer({
         {/* Visual Render Container (Always Light-Themed for Standard Psychometric Contrast) */}
         <div
           onClick={() => setIsLightboxOpen(true)}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: 'var(--radius-sm)',
-            padding: '12px',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '220px',
-            maxHeight: '380px',
-            overflow: 'hidden',
-            cursor: 'zoom-in',
-            position: 'relative'
-          }}
+          className="stimulus-stage-light"
           title="Click to expand full resolution diagram"
         >
           {isSvg ? (
             <div
-              style={{
-                width: '100%',
-                maxHeight: '350px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
+              className="stimulus-svg-wrap"
               dangerouslySetInnerHTML={{ __html: svgContent }}
             />
           ) : (
             <img
               src={imageUrl}
               alt={rawDescription || 'AAMC MCAT Stimulus Diagram'}
-              style={{
-                maxWidth: '100%',
-                maxHeight: '350px',
-                objectFit: 'contain',
-                borderRadius: '4px'
-              }}
+              className="stimulus-img"
             />
           )}
         </div>
@@ -238,15 +164,7 @@ export default function VisualStimulusViewer({
         <div>
           {isEditing ? (
             <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  color: 'var(--text-muted)',
-                  marginBottom: '2px'
-                }}
-              >
+              <label className="stimulus-caption-label">
                 Diagram Description / Clinical Caption:
               </label>
               <input
@@ -254,20 +172,12 @@ export default function VisualStimulusViewer({
                 value={editedDescription}
                 onChange={(e) => onDescriptionChange && onDescriptionChange(e.target.value)}
                 placeholder="e.g. Set A vs Set B geometric pattern rules..."
-                style={{ width: '100%', fontSize: '0.8rem', padding: '4px 8px' }}
+                className="stimulus-caption-input"
               />
             </div>
           ) : (
             rawDescription && (
-              <div
-                style={{
-                  fontSize: '0.725rem',
-                  fontStyle: 'italic',
-                  color: 'var(--text-muted)',
-                  textAlign: 'center',
-                  paddingTop: '2px'
-                }}
-              >
+              <div className="stimulus-caption-text">
                 Fig 1: {rawDescription}
               </div>
             )

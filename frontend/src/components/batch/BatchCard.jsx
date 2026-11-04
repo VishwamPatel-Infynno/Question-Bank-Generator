@@ -43,30 +43,11 @@ function BatchCard({
   const stageInfo = getBatchStageInfo(batch, detail);
 
   return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: isExpanded
-          ? '1px solid var(--border-brand)'
-          : '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-md)',
-        boxShadow: isExpanded ? 'var(--infynno-glow)' : 'var(--shadow-sm)',
-        overflow: 'hidden',
-        transition: 'all var(--transition-normal)'
-      }}
-    >
+    <div className={`batch-card-wrapper ${isExpanded ? 'expanded' : ''}`}>
       {/* Batch Summary & Status Area (clickable to expand/collapse) */}
       <div
         onClick={() => onToggleExpand(batch.id)}
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '14px',
-          cursor: 'pointer',
-          background: isExpanded ? 'var(--bg-surface-elevated)' : 'transparent',
-          borderBottom: isExpanded ? '1px solid var(--border-light)' : 'none'
-        }}
+        className={`batch-card-clickable ${isExpanded ? 'expanded' : ''}`}
       >
         <BatchCardSummary
           batch={batch}

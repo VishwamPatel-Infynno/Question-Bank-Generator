@@ -395,14 +395,23 @@ class DuplicateCheckRequest(BaseModel):
     options: list[OptionChoice] | list[dict[str, Any]] = Field(default_factory=list)
 
 
-def determine_question_status(score: float | int | None) -> str:
+def determine_question_status(
+    score: float | int | None,
+    is_in_progress_batch: bool = False,
+) -> str:
     """
     Determines question lifecycle status based on psychometric score thresholds.
-    Scores > PASSING_SCORE_THRESHOLD (90) become 'ai_validated'.
-    Scores > BATCH_PASSING_SCORE_THRESHOLD (85) become 'batch_only'.
-    Otherwise 'below_threshold'.
+
+    If is_in_progress_batch is True, active questions are withheld in 'batch_only'
+    (if score > BATCH_PASSING_SCORE_THRESHOLD) or 'below_threshold' until batch completion.
+    If is_in_progress_batch is False, scores > PASSING_SCORE_THRESHOLD become 'ai_validated'.
     """
     s = score or 0
+    if is_in_progress_batch:
+        if s > config.BATCH_PASSING_SCORE_THRESHOLD:
+            return "batch_only"
+        return "below_threshold"
+
     if s > config.PASSING_SCORE_THRESHOLD:
         return "ai_validated"
     if s > config.BATCH_PASSING_SCORE_THRESHOLD:

@@ -1,6 +1,5 @@
 /** Formatters & metric calculation utilities */
 export {
-  PACING_SECONDS,
   formatExamTime,
   formatCostUsd,
   formatTokenCount,

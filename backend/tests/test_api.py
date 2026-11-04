@@ -1049,3 +1049,55 @@ async def test_questions_pagination_and_slim_projection(client):
     first_q = data_slim["questions"][0]
     assert first_q["stage_outcomes"] == {}
     assert first_q["iterations_history"] == []
+
+
+@pytest.mark.asyncio
+async def test_passage_lifecycle_and_restore_api(client):
+    """Verify passage creation, retrieval, soft-deletion, and restoration via REST API endpoints."""
+    from app.repositories.passage_repository import get_passage_by_id
+
+    pid = f"pas-{uuid.uuid4().hex[:8]}"
+    payload = {
+        "id": pid,
+        "title": "Passage Restoration Test",
+        "text": "This is a detailed passage text for evaluating the restore API endpoint.",
+        "section": "cars",
+        "subtopic": "Philosophy",
+    }
+
+    # 1. Create passage
+    create_res = await client.post("/api/passages", json=payload)
+    assert create_res.status_code == 200
+    assert create_res.json()["success"] is True
+
+    # 2. Get single passage
+    get_res = await client.get(f"/api/passages/{pid}")
+    assert get_res.status_code == 200
+    assert get_res.json()["passage"]["id"] == pid
+
+    # 3. Soft-delete passage
+    del_res = await client.delete(f"/api/passages/{pid}")
+    assert del_res.status_code == 200
+    assert del_res.json()["success"] is True
+
+    # 4. Confirm deleted passage is hidden from standard lookup
+    p_deleted = await get_passage_by_id(pid, include_deleted=False)
+    assert p_deleted is None
+    p_with_deleted = await get_passage_by_id(pid, include_deleted=True)
+    assert p_with_deleted is not None
+    assert p_with_deleted.is_deleted is True
+
+    # 5. Restore passage via new restore endpoint
+    restore_res = await client.post(f"/api/passages/{pid}/restore")
+    assert restore_res.status_code == 200
+    assert restore_res.json()["success"] is True
+    assert restore_res.json()["restored_id"] == pid
+
+    # 6. Confirm passage is active again
+    p_restored = await get_passage_by_id(pid, include_deleted=False)
+    assert p_restored is not None
+    assert p_restored.is_deleted is False
+
+    # 7. Non-existent passage restore returns 404
+    non_existent = await client.post(f"/api/passages/non-existent-{uuid.uuid4().hex[:6]}/restore")
+    assert non_existent.status_code == 404

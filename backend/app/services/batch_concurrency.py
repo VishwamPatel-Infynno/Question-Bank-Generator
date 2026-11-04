@@ -14,13 +14,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.config import config
-from app.repositories.batch_repository import (
+from app.repositories import (
     get_batch_by_id,
+    get_jobs_by_batch_id,
     refresh_batch_aggregates,
     save_batch,
-)
-from app.repositories.job_repository import (
-    get_jobs_by_batch_id,
     update_job_progress,
 )
 from app.schemas import GenerationRequest

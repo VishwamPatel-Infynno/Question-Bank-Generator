@@ -2,7 +2,7 @@
  * Formatting and calculation utilities for MCAT Question Studio.
  */
 
-export const PACING_SECONDS = {
+const PACING_SECONDS = {
   chem_phys: 96,
   cars: 101,
   bio_biochem: 96,

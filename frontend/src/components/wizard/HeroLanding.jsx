@@ -76,13 +76,13 @@ export default function HeroLanding({
     <div className="hero-wrapper" id="hero-landing-view">
       <div className="hero-content">
         {/* Infynno Logo Anchor */}
-        <div style={{ marginBottom: '14px' }}>
+        <div className="hero-landing-badge-wrap">
           <a
             href="https://infynno.com/"
             target="_blank"
             rel="noopener noreferrer"
             title="Infynno Solutions"
-            style={{ display: 'inline-block' }}
+            className="hero-landing-badge-inline"
           >
             <InfynnoLogo width={44} height={28} />
           </a>
@@ -135,9 +135,9 @@ export default function HeroLanding({
                   onClick={() => onApplyPreset(preset.config)}
                   title={`Start with ${preset.label} (${preset.tag})`}
                 >
-                  <Icon size={13} style={{ color: 'var(--brand-primary)' }} />
+                  <Icon size={13} className="hero-landing-preset-icon" />
                   <span>{preset.label}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{preset.tag}</span>
+                  <span className="hero-landing-preset-tag">{preset.tag}</span>
                 </button>
               );
             })}

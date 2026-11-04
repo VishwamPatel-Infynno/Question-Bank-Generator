@@ -6,30 +6,28 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
-from app.repositories.batch_repository import (
+from app.repositories import (
+    batch_update_question_status,
     delete_batch,
     get_batch_by_id,
     get_batches,
+    get_jobs_by_batch_id,
+    get_questions,
+    hard_delete_questions_batch,
     refresh_batch_aggregates,
     save_batch,
 )
-from app.repositories.job_repository import get_jobs_by_batch_id
-from app.repositories.question_repository import (
-    batch_update_question_status,
-    get_questions,
-    hard_delete_questions_batch,
-)
 from app.schemas import GenerationBatch, GenerationRequest, is_question_active
-from app.services.batch_runner import (
+from app.services import (
     cancel_all_background_batches,
     cancel_background_batch,
+    cluster_questions,
     get_active_batch_metrics,
     launch_background_batch,
     refill_batch_deficit,
     retry_incomplete_jobs_for_batch,
     stop_background_batch,
 )
-from app.services.deduplication import cluster_questions
 
 logger = logging.getLogger(__name__)
 

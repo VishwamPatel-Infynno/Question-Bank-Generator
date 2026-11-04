@@ -32,7 +32,7 @@ export default function WizardStep2LevelFormat({
   const isPassage = isCars || passageMode === 'single_passage' || questionType === 'PASSAGE_BASED_MCQ';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="wizard-step-column">
       <div className="wizard-heading-group">
         <h2 className="wizard-step-title">Difficulty &amp; Format</h2>
       </div>
@@ -43,7 +43,7 @@ export default function WizardStep2LevelFormat({
           <span className="wizard-decision-title">Difficulty Level</span>
         </div>
 
-        <div className="wizard-difficulty-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+        <div className="wizard-difficulty-grid">
           {DIFFICULTY_TIERS.map((tier) => {
             const diffNormalized = (difficulty || '').toLowerCase();
             const tierId = tier.id.toLowerCase();
@@ -65,24 +65,14 @@ export default function WizardStep2LevelFormat({
                 role="button"
                 tabIndex={0}
                 aria-pressed={isSelected}
-                style={{ padding: '12px 14px' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div className="wizard-tier-title" style={{ fontSize: '0.88rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span
-                      style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: tier.color || 'var(--brand-primary)',
-                        display: 'inline-block',
-                        flexShrink: 0
-                      }}
-                    />
+                <div className="wizard-tier-card-content">
+                  <div className="wizard-tier-title-row">
+                    <span className={`wizard-tier-dot tier-${tier.id.toLowerCase()}`} />
                     {tier.title}
                   </div>
                   {isSelected && (
-                    <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
+                    <CheckCircle2 size={14} color="var(--brand-primary)" />
                   )}
                 </div>
               </div>
@@ -99,22 +89,11 @@ export default function WizardStep2LevelFormat({
 
         {isCars ? (
           /* CARS Mode: Strictly 100% Passage-Based */
-          <div
-            style={{
-              padding: '12px 14px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--bg-surface-subtle)',
-              border: '1px solid var(--border-light)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={16} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
+          <div className="wizard-cars-banner">
+            <div className="wizard-tier-card-title-group">
+              <FileText size={16} color="var(--brand-primary)" />
               <div>
-                <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span className="wizard-tier-card-title">
                   Passage-Based (CARS)
                 </span>
               </div>
@@ -122,7 +101,7 @@ export default function WizardStep2LevelFormat({
           </div>
         ) : (
           /* Sciences Mode: Binary choice between Passage-Based MCQ OR Independent MCQ */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+          <div className="wizard-card-grid">
             {/* Mode A: Reading Passage + Questions */}
             <div
               className={`wizard-tier-card ${isPassage ? 'selected' : ''}`}
@@ -136,19 +115,18 @@ export default function WizardStep2LevelFormat({
               role="button"
               tabIndex={0}
               id="btn-question-type-passage"
-              style={{ padding: '12px 14px' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FileText size={15} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
+              <div className="wizard-tier-card-content">
+                <div className="wizard-tier-card-title-group">
+                  <FileText size={15} color="var(--brand-primary)" />
                   <div>
-                    <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span className="wizard-tier-card-title">
                       Passage-Based
                     </span>
                   </div>
                 </div>
                 {isPassage && (
-                  <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
+                  <CheckCircle2 size={14} color="var(--brand-primary)" />
                 )}
               </div>
             </div>
@@ -166,19 +144,18 @@ export default function WizardStep2LevelFormat({
               role="button"
               tabIndex={0}
               id="btn-question-type-independent"
-              style={{ padding: '12px 14px' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Layers size={15} style={{ color: 'var(--status-purple)', flexShrink: 0 }} />
+              <div className="wizard-tier-card-content">
+                <div className="wizard-tier-card-title-group">
+                  <Layers size={15} color="var(--status-purple)" />
                   <div>
-                    <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span className="wizard-tier-card-title">
                       Standalone
                     </span>
                   </div>
                 </div>
                 {!isPassage && (
-                  <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
+                  <CheckCircle2 size={14} color="var(--brand-primary)" />
                 )}
               </div>
             </div>
@@ -192,13 +169,13 @@ export default function WizardStep2LevelFormat({
           <span className="wizard-decision-title">Question Count</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+        <div className="wizard-count-grid">
           {COUNT_OPTIONS.map((opt) => {
             const isSelected = totalQuestions === opt.count;
             return (
               <div
                 key={opt.count}
-                className={`wizard-tier-card ${isSelected ? 'selected' : ''}`}
+                className={`wizard-tier-card wizard-count-card ${isSelected ? 'selected' : ''}`}
                 onClick={() => setTotalQuestions?.(opt.count)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -209,21 +186,14 @@ export default function WizardStep2LevelFormat({
                 role="button"
                 tabIndex={0}
                 aria-pressed={isSelected}
-                style={{
-                  padding: '14px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer'
-                }}
               >
                 <div>
-                  <div style={{ fontSize: '0.96rem', fontWeight: 700, color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
+                  <div className={`wizard-count-label ${isSelected ? 'selected' : ''}`}>
                     {opt.label}
                   </div>
                 </div>
                 {isSelected && (
-                  <CheckCircle2 size={16} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
+                  <CheckCircle2 size={16} color="var(--brand-primary)" />
                 )}
               </div>
             );

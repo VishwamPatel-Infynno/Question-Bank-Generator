@@ -61,7 +61,7 @@ export default function PaginationBar({
             }}
             options={pageSizeOptions}
             searchable={false}
-            style={{ width: '75px' }}
+            className="pagination-size-select"
           />
           <span>per page</span>
         </div>

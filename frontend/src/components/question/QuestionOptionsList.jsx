@@ -19,16 +19,15 @@ export default function QuestionOptionsList({
   const currentOptionsList = options || [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div className="choice-options-wrap">
       {/* Options Header & Anti-Guessability Symmetry Badge */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
-        <span style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <div className="choice-options-header">
+        <span className="choice-options-label">
           Choices
         </span>
         {optionSymmetry && (
           <span
-            className={`badge ${optionSymmetry.is_balanced ? 'badge-emerald' : 'badge-amber'}`}
-            style={{ fontSize: '0.675rem', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 8px' }}
+            className={`badge ${optionSymmetry.is_balanced ? 'badge-emerald' : 'badge-amber'} choice-options-symmetry-badge`}
             title="Choice length balance"
           >
             <Scale size={11} />
@@ -40,7 +39,7 @@ export default function QuestionOptionsList({
       </div>
 
       {/* Options List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div className="choice-options-list">
         {currentOptionsList.map((opt, idx) => {
           const optId = (opt.id || '').trim().toUpperCase();
           const isCorrectKey = correctKeysList.includes(optId);
@@ -60,7 +59,7 @@ export default function QuestionOptionsList({
               </div>
 
               {/* Option Text */}
-              <div style={{ flex: 1, paddingTop: '2px' }}>
+              <div className="choice-option-content">
                 {isEditing ? (
                   <input
                     type="text"
@@ -71,17 +70,10 @@ export default function QuestionOptionsList({
                       updated[idx] = { ...updated[idx], text: e.target.value };
                       onEditedOptionsChange(updated);
                     }}
-                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    className="choice-option-input"
                   />
                 ) : (
-                  <div
-                    style={{
-                      fontSize: '0.875rem',
-                      fontWeight: isCorrectKey ? 600 : 400,
-                      color: isCorrectKey ? 'var(--status-success)' : 'var(--text-primary)',
-                      lineHeight: 1.5
-                    }}
-                  >
+                  <div className="choice-option-stem">
                     {opt.text}
                   </div>
                 )}
@@ -89,15 +81,7 @@ export default function QuestionOptionsList({
 
               {/* Option Word Count Indicator */}
               <span
-                style={{
-                  fontSize: '0.675rem',
-                  color: 'var(--text-muted)',
-                  fontFamily: 'var(--font-mono)',
-                  background: 'var(--bg-surface-subtle)',
-                  padding: '2px 6px',
-                  borderRadius: 'var(--radius-xs)',
-                  flexShrink: 0
-                }}
+                className="choice-option-words-tag"
                 title={`Word count for Option ${opt.id}: ${optWordCount} words`}
               >
                 {optWordCount}w
@@ -105,10 +89,7 @@ export default function QuestionOptionsList({
 
               {/* Answer Key Badge */}
               {isCorrectKey && (
-                <span
-                  className="badge badge-emerald"
-                  style={{ fontSize: '0.675rem', padding: '2px 8px', flexShrink: 0 }}
-                >
+                <span className="badge badge-emerald choice-option-key-badge">
                   <CheckCircle size={11} /> Correct Answer
                 </span>
               )}

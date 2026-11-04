@@ -44,80 +44,49 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
   onSelectQuestion,
 }) {
   return (
-    <div
-      style={{
-        padding: '16px 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        background: isSelected ? 'var(--bg-surface-elevated)' : 'var(--bg-surface)',
-        border: isSelected ? '1px solid var(--border-brand)' : '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-md)',
-        transition: 'background var(--transition-fast), border-color var(--transition-fast)'
-      }}
-    >
+    <div className={`qbank-card-row ${isSelected ? 'selected' : ''}`}>
       {/* Main Row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+      <div className="qbank-card-main">
         {/* Checkbox & Details */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1 }}>
+        <div className="qbank-table-row-top">
           <button
             type="button"
             onClick={(e) => onToggleSelect(q.id, e)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '2px',
-              color: isSelected ? 'var(--brand-primary)' : 'var(--text-muted)',
-              marginTop: '2px'
-            }}
+            className={`qbank-card-select-btn ${isSelected ? 'selected' : ''}`}
             title="Select question"
             aria-label="Select question"
           >
             {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
           </button>
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="qbank-card-details">
             {/* Metadata Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.725rem' }}>
-              <span className={`badge ${getSectionBadgeClass(q.section)}`} style={{ fontSize: '0.66rem', fontWeight: 700 }}>
+            <div className="qbank-badges-strip">
+              <span className={`badge ${getSectionBadgeClass(q.section)} qbank-table-badge-sec`}>
                 {SECTION_SHORT_LABEL[q.section] || q.section_label || q.section}
               </span>
 
               {q.subtopic && (
-                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{q.subtopic}</span>
+                <span className="qbank-table-subtopic-tag">{q.subtopic}</span>
               )}
 
-              <span
-                className={`badge ${getDifficultyBadgeClass(q.difficulty)}`}
-                style={{ textTransform: 'capitalize', fontSize: '0.65rem' }}
-              >
+              <span className={`badge ${getDifficultyBadgeClass(q.difficulty)} qbank-table-diff-badge`}>
                 {formatDifficulty(q.difficulty)}
               </span>
 
-              <span className="badge badge-emerald" style={{ fontSize: '0.65rem', fontWeight: 600 }}>
+              <span className="badge badge-emerald qbank-table-score-badge">
                 <Award size={10} /> {q.final_score || 95}/100
               </span>
 
               {q.mcat_scaled_score && (
-                <span
-                  className="badge"
-                  style={{
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                    background: 'var(--brand-light)',
-                    color: 'var(--brand-primary)',
-                    border: '1px solid var(--border-brand)'
-                  }}
-                >
+                <span className="badge qbank-mcat-badge">
                   MCAT {q.mcat_scaled_score}
                 </span>
               )}
 
               {q.aamc_skill && (
                 <span
-                  className="badge badge-cyan"
-                  style={{ fontSize: '0.625rem', padding: '1px 6px' }}
+                  className="badge badge-cyan qbank-table-type-badge"
                   title={`AAMC Reasoning Skill: ${q.aamc_skill}`}
                 >
                   {q.aamc_skill}
@@ -125,17 +94,17 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
               )}
 
               {q.passage_id ? (
-                <span className="badge badge-cyan" style={{ fontSize: '0.625rem', padding: '1px 6px' }}>
+                <span className="badge badge-cyan qbank-table-type-badge">
                   Passage Set
                 </span>
               ) : (q.passage_required === 'Yes' || (q.stimulus_text && q.stimulus_text.split(/\s+/).length >= 180)) ? (
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Passage</span>
+                <span className="qbank-table-mode-label">Passage</span>
               ) : (
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Standalone</span>
+                <span className="qbank-table-mode-label">Standalone</span>
               )}
 
               {(q.image_svg || q.image_url || q.stage_outcomes?.visual_stimulus?.image_svg || q.stage_outcomes?.visual_stimulus?.image_url || q.stage_outcomes?.passage_visual_stimulus?.image_svg) && (
-                <span className="badge badge-purple" style={{ fontSize: '0.65rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span className="badge badge-purple qbank-table-fig-pill">
                   <ImageIcon size={10} /> Diagram
                 </span>
               )}
@@ -145,17 +114,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
                 if (!trapInfo?.label) return null;
                 return (
                   <span
-                    className="badge badge-purple"
-                    style={{
-                      fontSize: '0.62rem',
-                      padding: '1px 6px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      background: 'var(--status-purple-bg)',
-                      border: '1px solid var(--status-purple-border)',
-                      color: 'var(--status-purple)'
-                    }}
+                    className="badge badge-purple qbank-table-trap-pill"
                     title={`Common Test Trap: ${trapInfo.label}`}
                   >
                     <Tag size={9} /> {trapInfo.label}
@@ -165,17 +124,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
 
               {q.likely_mistake_pattern && (
                 <span
-                  className="badge"
-                  style={{
-                    fontSize: '0.62rem',
-                    padding: '1px 6px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    background: 'var(--status-warning-bg)',
-                    color: 'var(--status-warning)',
-                    border: '1px solid var(--status-warning-border)'
-                  }}
+                  className="badge qbank-table-mistake-pill"
                   title={`Targeted Student Misconception: ${q.likely_mistake_pattern}`}
                 >
                   <Target size={9} /> {q.likely_mistake_pattern}
@@ -184,13 +133,13 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
             </div>
 
             {/* Question Stem */}
-            <div style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+            <div className="qbank-stem">
               {q.question_stem}
             </div>
 
             {/* Stimulus Snippet */}
             {q.stimulus_text && q.stimulus_text.trim() && (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '780px' }}>
+              <div className="qbank-snippet">
                 {q.stimulus_text}
               </div>
             )}
@@ -198,12 +147,11 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="qbank-actions">
           <button
             type="button"
             onClick={() => onSelectQuestion(q)}
-            className="btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '0.78rem', whiteSpace: 'nowrap', gap: '6px' }}
+            className="btn-secondary qbank-table-action-btn"
             title="Open question in editorial desk inspector"
           >
             <Eye size={13} /> Open
@@ -212,8 +160,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
           <button
             type="button"
             onClick={() => onToggleExpand(isExpanded ? null : q.id)}
-            className="btn-secondary"
-            style={{ padding: '6px' }}
+            className="btn-secondary qbank-table-action-icon"
             title={isExpanded ? 'Collapse preview' : 'Expand preview inline'}
           >
             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -222,18 +169,16 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
           <button
             type="button"
             onClick={(e) => onCopy(q, e)}
-            className="btn-secondary"
-            style={{ padding: '6px' }}
+            className="btn-secondary qbank-table-action-icon"
             title="Copy formatted question text"
           >
-            {isCopied ? <Check size={14} color="var(--status-success-text)" /> : <Copy size={14} />}
+            {isCopied ? <Check size={14} color="var(--status-success)" /> : <Copy size={14} />}
           </button>
 
           <button
             type="button"
             onClick={(e) => onDelete(q.id, e)}
-            className="btn-danger"
-            style={{ padding: '6px' }}
+            className="btn-danger qbank-table-action-icon"
             title="Delete question"
           >
             <Trash2 size={14} />
@@ -243,30 +188,23 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
 
       {/* Inline Expansion Drawer */}
       {isExpanded && (
-        <div
-          style={{
-            paddingTop: '14px',
-            borderTop: '1px solid var(--border-subtle)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}
-        >
+        <div className="qbank-drawer">
           {q.stimulus_text && (
-            <SharedPassageCard
-              title={q.passage_id ? 'Shared Reading Passage' : 'Reading Passage'}
-              passageText={q.stimulus_text}
-              questionCount={1}
-              diagramQuestion={q}
-              collapsible={false}
-              style={{ padding: '14px 18px', borderLeft: '3px solid var(--brand-primary)' }}
-            />
+            <div className="qbank-table-rationale-box">
+              <SharedPassageCard
+                title={q.passage_id ? 'Shared Reading Passage' : 'Reading Passage'}
+                passageText={q.stimulus_text}
+                questionCount={1}
+                diagramQuestion={q}
+                collapsible={false}
+              />
+            </div>
           )}
 
           {!q.stimulus_text && <VisualStimulusViewer question={q} />}
 
           {/* Options Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div className="qbank-options-grid">
             {(() => {
               const correctList = Array.isArray(q.correct_answer_ids) && q.correct_answer_ids.length > 0
                 ? q.correct_answer_ids.map(k => String(k).trim().toUpperCase())
@@ -277,25 +215,16 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
                 return (
                   <div
                     key={opt.id}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: isCorrect ? 'var(--status-success-bg)' : 'var(--bg-surface-elevated)',
-                      border: isCorrect ? '1px solid var(--status-success-border)' : '1px solid var(--border-subtle)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '0.8rem'
-                    }}
+                    className={`qbank-option-cell ${isCorrect ? 'correct' : ''}`}
                   >
-                    <span style={{ fontWeight: 700, color: isCorrect ? 'var(--status-success-text)' : 'var(--text-muted)' }}>
+                    <span className={`qbank-option-cell-letter ${isCorrect ? 'correct' : ''}`}>
                       {opt.id}:
                     </span>
-                    <span style={{ color: isCorrect ? 'var(--status-success-text)' : 'var(--text-primary)', fontWeight: isCorrect ? 600 : 400 }}>
+                    <span className={`qbank-option-cell-text ${isCorrect ? 'correct' : ''}`}>
                       {opt.text}
                     </span>
                     {isCorrect && (
-                      <span className="badge badge-emerald" style={{ marginLeft: 'auto', fontSize: '0.62rem' }}>
+                      <span className="badge badge-emerald qbank-table-rationale-tag">
                         Key
                       </span>
                     )}
@@ -307,14 +236,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
 
           {/* Explanation */}
           {q.explanation && (
-            <div
-              style={{
-                padding: '14px 16px',
-                background: 'var(--bg-surface-elevated)',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
+            <div className="qbank-explanation-box">
               <MentorExplanationView
                 explanation={q.explanation}
                 isCompact={true}
@@ -354,7 +276,7 @@ export default function QuestionBankTable({
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div className="qbank-table-list-wrap">
       {paginatedQuestions.map((q) => (
         <QuestionBankCardRow
           key={q.id}

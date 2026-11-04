@@ -56,7 +56,7 @@ export default function Navbar({
       </div>
 
       {/* Center Nav Tabs (Quiet Minimalist Pill Track) */}
-      <nav className="pill-track" style={{ justifySelf: 'center' }}>
+      <nav className="pill-track navbar-pill-track">
         <button
           id="nav-tab-generator"
           type="button"
@@ -78,8 +78,7 @@ export default function Navbar({
           id="nav-tab-batches"
           type="button"
           onClick={() => setActiveTab('batches')}
-          className={`pill-track-btn ${activeTab === 'batches' ? 'active' : ''}`}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          className={`pill-track-btn navbar-pill-btn ${activeTab === 'batches' ? 'active' : ''}`}
           title="Batch Progress"
         >
           <Layers size={12} color={activeTab === 'batches' ? 'var(--brand-primary)' : 'currentColor'} />
@@ -95,8 +94,7 @@ export default function Navbar({
           id="nav-tab-validated"
           type="button"
           onClick={() => setActiveTab('validated')}
-          className={`pill-track-btn ${activeTab === 'validated' ? 'active' : ''}`}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          className={`pill-track-btn navbar-pill-btn ${activeTab === 'validated' ? 'active' : ''}`}
           title="Review Queue"
         >
           <CheckCircle2 size={12} color={activeTab === 'validated' ? 'var(--brand-primary)' : 'currentColor'} />
@@ -153,12 +151,11 @@ export default function Navbar({
         <button
           id="btn-toggle-theme"
           onClick={onToggleTheme}
-          className="btn-secondary"
-          style={{ padding: '5px 8px', fontSize: '0.75rem', borderRadius: 'var(--radius-xs)' }}
+          className="btn-secondary navbar-theme-btn"
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode (Press T)`}
         >
           {theme === 'dark' ? <Sun size={13} color="var(--status-warning)" /> : <Moon size={13} color="var(--infynno-blue)" />}
-          <span className="kbd-hint" style={{ fontSize: '0.575rem', padding: '1px 3px', marginLeft: '3px' }}>T</span>
+          <span className="kbd-hint navbar-theme-kbd">T</span>
         </button>
       </div>
     </header>

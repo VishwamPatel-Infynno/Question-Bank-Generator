@@ -22,7 +22,7 @@ function BatchOutcomeCard({
     return (
       <div className="batch-outcome-card completed" onClick={(e) => e.stopPropagation()}>
         <div className="batch-outcome-left">
-          <div style={{ color: 'var(--status-success)' }}>
+          <div className="batch-outcome-icon success">
             <CheckCircle2 size={22} />
           </div>
           <div>
@@ -39,14 +39,7 @@ function BatchOutcomeCard({
             <button
               type="button"
               onClick={() => onNavigateToValidated()}
-              className="btn-primary"
-              style={{
-                padding: '6px 14px',
-                fontSize: '0.78rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
+              className="btn-primary batch-outcome-btn-primary"
             >
               <Sparkles size={13} />
               <span>Open Review Queue ({actualTotal})</span>
@@ -57,8 +50,7 @@ function BatchOutcomeCard({
             <button
               type="button"
               onClick={() => onNavigateToBank()}
-              className="btn-secondary"
-              style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+              className="btn-secondary batch-outcome-btn-secondary"
             >
               View Question Bank
             </button>
@@ -72,7 +64,7 @@ function BatchOutcomeCard({
     return (
       <div className="batch-outcome-card warning" onClick={(e) => e.stopPropagation()}>
         <div className="batch-outcome-left">
-          <div style={{ color: 'var(--status-warning)' }}>
+          <div className="batch-outcome-icon warning">
             <AlertCircle size={22} />
           </div>
           <div>
@@ -89,14 +81,7 @@ function BatchOutcomeCard({
             <button
               type="button"
               onClick={() => onNavigateToValidated()}
-              className="btn-primary"
-              style={{
-                padding: '6px 14px',
-                fontSize: '0.78rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
+              className="btn-primary batch-outcome-btn-primary"
             >
               <span>Review Valid Questions ({actualTotal})</span>
               <ArrowRight size={13} />
@@ -106,8 +91,7 @@ function BatchOutcomeCard({
             <button
               type="button"
               onClick={() => onNavigateToBank()}
-              className="btn-secondary"
-              style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+              className="btn-secondary batch-outcome-btn-secondary"
             >
               View Question Bank
             </button>
@@ -121,7 +105,7 @@ function BatchOutcomeCard({
     return (
       <div className="batch-outcome-card stopped" onClick={(e) => e.stopPropagation()}>
         <div className="batch-outcome-left">
-          <div style={{ color: 'var(--text-secondary)' }}>
+          <div className="batch-outcome-icon stopped">
             <Square size={20} />
           </div>
           <div>
@@ -139,14 +123,7 @@ function BatchOutcomeCard({
               type="button"
               onClick={() => onRetryBatch(batch.id)}
               disabled={isRetrying}
-              className="btn-secondary"
-              style={{
-                padding: '6px 12px',
-                fontSize: '0.78rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
+              className="btn-secondary batch-outcome-btn-secondary"
             >
               <RotateCcw size={12} />
               <span>{isRetrying ? 'Resuming...' : 'Resume Incomplete Sets'}</span>
@@ -156,8 +133,7 @@ function BatchOutcomeCard({
             <button
               type="button"
               onClick={() => onNavigateToValidated()}
-              className="btn-primary"
-              style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+              className="btn-primary batch-outcome-btn-secondary"
             >
               Review Generated ({actualTotal})
             </button>
@@ -171,4 +147,3 @@ function BatchOutcomeCard({
 }
 
 export default memo(BatchOutcomeCard);
-

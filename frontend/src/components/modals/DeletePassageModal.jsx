@@ -40,18 +40,7 @@ export default function DeletePassageModal({
   };
 
   const iconElement = (
-    <div
-      style={{
-        width: '34px',
-        height: '34px',
-        borderRadius: 'var(--radius-sm, 8px)',
-        backgroundColor: 'rgba(244, 63, 94, 0.18)',
-        color: 'var(--status-danger, #f43f5e)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}
-    >
+    <div className="delete-passage-icon-wrap">
       <AlertTriangle size={18} />
     </div>
   );
@@ -62,12 +51,7 @@ export default function DeletePassageModal({
         type="button"
         onClick={onClose}
         disabled={isDeleting}
-        className="btn-secondary"
-        style={{
-          padding: '7px 14px',
-          fontSize: '0.82rem',
-          cursor: isDeleting ? 'not-allowed' : 'pointer'
-        }}
+        className="btn-secondary delete-passage-cancel-btn"
       >
         Cancel
       </button>
@@ -77,27 +61,11 @@ export default function DeletePassageModal({
         id="btn-confirm-delete-passage"
         onClick={handleConfirm}
         disabled={isDeleting}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '7px 16px',
-          fontSize: '0.82rem',
-          fontWeight: 600,
-          color: '#ffffff',
-          backgroundColor: isDeleting ? 'rgba(244, 63, 94, 0.6)' : 'var(--status-danger, #f43f5e)',
-          border: 'none',
-          borderRadius: 'var(--radius-sm, 8px)',
-          cursor: isDeleting ? 'not-allowed' : 'pointer',
-          transition: 'background-color 0.15s ease'
-        }}
+        className={`delete-passage-confirm-btn ${isDeleting ? 'deleting' : ''}`}
       >
         {isDeleting ? (
           <>
-            <div
-              className="lazy-spinner-ring"
-              style={{ width: '13px', height: '13px', borderWidth: '2px', marginRight: '4px' }}
-            />
+            <div className="lazy-spinner-ring delete-passage-spinner" />
             <span>Deleting...</span>
           </>
         ) : (
@@ -126,59 +94,24 @@ export default function DeletePassageModal({
       footer={footer}
       ariaLabelledBy="delete-passage-title"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="delete-passage-stack">
         {/* Passage Overview Card */}
-        <div
-          style={{
-            padding: '12px 14px',
-            borderRadius: 'var(--radius-md, 12px)',
-            backgroundColor: 'var(--bg-surface-subtle)',
-            border: '1px solid var(--border-light)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <BookOpen size={14} style={{ color: 'var(--brand-primary)' }} />
-              <strong
-                style={{
-                  fontSize: '0.9rem',
-                  color: 'var(--text-primary)',
-                  wordBreak: 'break-word'
-                }}
-              >
+        <div className="delete-passage-card">
+          <div className="delete-passage-card-header">
+            <div className="delete-passage-title-row">
+              <BookOpen size={14} color="var(--brand-primary)" />
+              <strong className="delete-passage-title-text">
                 {titleOrId}
               </strong>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="delete-passage-badges-row">
               {passage.section && (
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    padding: '2px 6px',
-                    borderRadius: 'var(--radius-xs, 4px)',
-                    backgroundColor: 'var(--brand-light)',
-                    color: 'var(--brand-primary)'
-                  }}
-                >
+                <span className="delete-passage-section-chip">
                   {passage.section}
                 </span>
               )}
               {typeof passage.word_count === 'number' && passage.word_count > 0 && (
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    color: 'var(--text-muted)',
-                    padding: '2px 6px',
-                    borderRadius: 'var(--radius-xs, 4px)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-light)'
-                  }}
-                >
+                <span className="delete-passage-words-chip">
                   {passage.word_count} words
                 </span>
               )}
@@ -186,25 +119,12 @@ export default function DeletePassageModal({
           </div>
 
           {passage.text && (
-            <p
-              style={{
-                margin: 0,
-                fontSize: '0.78rem',
-                fontFamily: 'var(--font-serif, serif)',
-                fontStyle: 'italic',
-                color: 'var(--text-secondary)',
-                lineHeight: 1.45,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
-              }}
-            >
+            <p className="delete-passage-excerpt">
               "{passage.text.slice(0, 160).trim()}..."
             </p>
           )}
 
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+          <div className="delete-passage-id-tag">
             ID: {passage.id}
           </div>
         </div>
@@ -212,68 +132,39 @@ export default function DeletePassageModal({
         {/* Cascade Warning Callout */}
         <div
           id="delete-passage-desc"
-          style={{
-            padding: '12px 14px',
-            borderRadius: 'var(--radius-md, 12px)',
-            backgroundColor: 'var(--status-danger-bg, rgba(244, 63, 94, 0.08))',
-            border: '1px solid var(--status-danger-border, rgba(244, 63, 94, 0.22))',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px'
-          }}
+          className="delete-passage-warning-box"
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-danger, #f43f5e)' }}>
-            <Layers size={16} />
-            <strong style={{ fontSize: '0.85rem' }}>
-              {questionCount > 0
-                ? `Linked Questions Will Be Deleted (${questionCount} Question${questionCount === 1 ? '' : 's'})`
-                : 'Delete Confirmation'}
-            </strong>
+          <div className="delete-passage-warning-content">
+            <div className="delete-passage-warning-title-row">
+              <Layers size={16} />
+              <strong className="delete-passage-warning-heading">
+                {questionCount > 0
+                  ? `Linked Questions Will Be Deleted (${questionCount} Question${questionCount === 1 ? '' : 's'})`
+                  : 'Delete Confirmation'}
+              </strong>
+            </div>
+
+            <p className="delete-passage-warning-p">
+              {questionCount > 0 ? (
+                <>
+                  Deleting this passage will <strong>remove it from the Passage Bank and remove its {questionCount} associated question{questionCount === 1 ? '' : 's'}</strong> from your Question Bank and Review queue. Don't worry — your questions and generation records will <strong>remain safely preserved in your Batch Progress</strong> history.
+                </>
+              ) : (
+                <>
+                  Deleting this passage will remove it from the Passage Bank. It will remain preserved in your Batch Progress history.
+                </>
+              )}
+            </p>
+
+            <span className="delete-passage-warning-note">
+              You can view and restore deleted questions anytime from the Batch Progress tab.
+            </span>
           </div>
-
-          <p
-            style={{
-              margin: 0,
-              fontSize: '0.8rem',
-              lineHeight: 1.5,
-              color: 'var(--text-secondary)'
-            }}
-          >
-            {questionCount > 0 ? (
-              <>
-                Deleting this passage will <strong>remove it from the Passage Bank and remove its {questionCount} associated question{questionCount === 1 ? '' : 's'}</strong> from your Question Bank and Review queue. Don't worry — your questions and generation records will <strong>remain safely preserved in your Batch Progress</strong> history.
-              </>
-            ) : (
-              <>
-                Deleting this passage will remove it from the Passage Bank. It will remain preserved in your Batch Progress history.
-              </>
-            )}
-          </p>
-
-          <span
-            style={{
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              color: 'var(--text-muted)',
-              marginTop: '2px'
-            }}
-          >
-            You can view and restore deleted questions anytime from the Batch Progress tab.
-          </span>
         </div>
 
         {/* Error Message if deletion failed */}
         {errorMessage && (
-          <div
-            style={{
-              padding: '10px 12px',
-              borderRadius: 'var(--radius-sm, 8px)',
-              backgroundColor: 'var(--status-danger-bg, rgba(244, 63, 94, 0.15))',
-              border: '1px solid var(--status-danger-border, #f43f5e)',
-              color: 'var(--status-danger, #f43f5e)',
-              fontSize: '0.8rem'
-            }}
-          >
+          <div className="delete-passage-error-box">
             {errorMessage}
           </div>
         )}

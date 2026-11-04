@@ -19,12 +19,12 @@ from typing import Any
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
 from app.core.config import config
-from app.repositories.batch_repository import (
+from app.repositories import (
     promote_completed_batch_questions,
     refresh_batch_aggregates,
+    save_question,
+    update_job_progress,
 )
-from app.repositories.job_repository import update_job_progress
-from app.repositories.question_repository import save_question
 from app.schemas import (
     ALT_TRAP_ROTATION,
     KNOWN_VISUAL_TYPES,
@@ -33,6 +33,7 @@ from app.schemas import (
     Question,
     QuestionDraft,
     WorkflowEvent,
+    determine_question_status,
 )
 from app.services.deduplication import evaluate_duplicate
 from app.workflow._section_utils import is_cars_section
@@ -586,10 +587,7 @@ async def _persist_live_question(
         # While live generation is streaming, keep active questions in 'batch_only'
         # until the workflow successfully completes all questions.
         score = q_obj.final_score or 0
-        if score > config.BATCH_PASSING_SCORE_THRESHOLD:
-            q_obj.status = "batch_only"
-        else:
-            q_obj.status = "below_threshold"
+        q_obj.status = determine_question_status(score, is_in_progress_batch=True)
         await save_question(q_obj)
         await update_job_progress(job_id, actual_count=completed_so_far)
     except Exception as q_save_err:

@@ -14,52 +14,24 @@ export default function BatchFiltersBar({
   onAutoRefreshChange
 }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-sm)',
-        padding: '10px 14px'
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flex: 1 }}>
+    <div className="batch-filters-bar">
+      <div className="batch-filters-left">
         {/* Search */}
-        <div style={{ position: 'relative', minWidth: '180px', flex: 1, maxWidth: '280px' }}>
-          <Search
-            size={14}
-            style={{
-              position: 'absolute',
-              left: '10px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-muted)'
-            }}
-          />
+        <div className="batch-search-box">
+          <Search size={14} className="batch-search-icon" />
           <input
             ref={searchInputRef}
             type="text"
             placeholder="Search batches (Press /)..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="input-field"
-            style={{
-              width: '100%',
-              paddingLeft: '32px',
-              paddingRight: '30px',
-              fontSize: '0.78rem',
-              height: '32px'
-            }}
+            className="input-field batch-search-input"
           />
-          <span className="kbd-hint" style={{ fontSize: '0.6rem', position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)' }}>/</span>
+          <span className="kbd-hint batch-search-kbd">/</span>
         </div>
 
         {/* Scope Tabs */}
-        <div className="pill-track" style={{ padding: '2px' }}>
+        <div className="pill-track batch-filter-pill-track">
           {[
             { id: 'all', label: 'All Practice Sets' },
             { id: 'mini', label: 'Quick Sets (5 Questions)' },
@@ -69,8 +41,7 @@ export default function BatchFiltersBar({
               key={scope.id}
               type="button"
               onClick={() => onScopeFilterChange?.(scope.id)}
-              className={`pill-track-btn ${scopeFilter === scope.id ? 'active' : ''}`}
-              style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+              className={`pill-track-btn batch-filter-pill-btn ${scopeFilter === scope.id ? 'active' : ''}`}
             >
               {scope.label}
             </button>
@@ -81,11 +52,7 @@ export default function BatchFiltersBar({
         <select
           value={sectionFilter}
           onChange={(e) => onSectionFilterChange(e.target.value)}
-          className="input-field"
-          style={{
-            fontSize: '0.78rem',
-            height: '32px'
-          }}
+          className="input-field batch-filter-select"
         >
           <option value="all">All Sections</option>
           <option value="CP">Chemical & Physical (CP)</option>
@@ -95,39 +62,30 @@ export default function BatchFiltersBar({
         </select>
 
         {/* Status Tabs */}
-        <div className="pill-track" style={{ padding: '2px' }}>
+        <div className="pill-track batch-filter-pill-track">
           {['all', 'in_progress', 'completed', 'failed'].map((st) => (
             <button
               key={st}
               type="button"
               onClick={() => onStatusFilterChange(st)}
-              className={`pill-track-btn ${statusFilter === st ? 'active' : ''}`}
-              style={{ padding: '4px 10px', fontSize: '0.75rem', textTransform: 'capitalize' }}
+              className={`pill-track-btn batch-filter-pill-btn ${statusFilter === st ? 'active' : ''}`}
             >
-              {st === 'in_progress' ? 'Running' : st}
+              {st === 'in_progress' ? 'Running' : st.replace('_', ' ')}
             </button>
           ))}
         </div>
       </div>
 
       {/* Live Polling Toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <label
-          style={{
-            fontSize: '0.75rem',
-            color: 'var(--text-secondary)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer'
-          }}
-        >
+      <div className="batch-autorefresh-toggle">
+        <label className="batch-autorefresh-toggle">
           <input
             type="checkbox"
             checked={autoRefresh}
             onChange={(e) => onAutoRefreshChange(e.target.checked)}
-            style={{ accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+            className="form-checkbox"
           />
+          {autoRefresh && <span className="batch-autorefresh-dot" />}
           <span>Live Auto-Sync</span>
         </label>
       </div>

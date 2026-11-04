@@ -48,6 +48,13 @@ export default function Modal({
     }
   };
 
+  const sizeClass = maxWidth === '420px' ? 'modal-sm'
+    : maxWidth === '520px' || maxWidth === '560px' ? 'modal-md'
+    : maxWidth === '720px' ? 'modal-lg'
+    : maxWidth === '900px' ? 'modal-xl'
+    : '';
+  const customMaxWidthStyle = sizeClass ? {} : (maxWidth ? { maxWidth } : {});
+
   return (
     <div
       className="modal-backdrop-theme"
@@ -58,78 +65,33 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`modal-card-theme ${className}`.trim()}
+        className={`modal-card-theme modal-card-base ${sizeClass || 'modal-md'} ${className}`.trim()}
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '100%',
-          maxWidth,
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.35)',
+          ...customMaxWidthStyle,
           ...cardStyle
         }}
       >
         {/* Modal Header */}
         {(title || onClose) && (
-          <div
-            className="modal-header"
-            style={{
-              padding: '18px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid var(--border-light, rgba(255, 255, 255, 0.08))',
-              gap: '12px'
-            }}
-          >
-            <div
-              className="modal-title-group"
-              style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}
-            >
+          <div className="modal-header modal-header-wrap">
+            <div className="modal-title-group">
               {icon && (
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: 'var(--radius-sm, 6px)',
-                    background: 'var(--brand-light, rgba(51, 90, 207, 0.1))',
-                    border: '1px solid var(--border-brand, rgba(51, 90, 207, 0.25))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--brand-primary, #335ACF)',
-                    flexShrink: 0
-                  }}
-                >
+                <div className="modal-header-icon-wrap">
                   {icon}
                 </div>
               )}
-              <div style={{ minWidth: 0 }}>
+              <div className="modal-title-text-box">
                 {title && (
                   <h2
                     id={ariaLabelledBy}
-                    className="modal-title"
-                    style={{
-                      fontSize: '1.05rem',
-                      fontWeight: 700,
-                      margin: 0,
-                      color: 'var(--text-primary)',
-                      lineHeight: 1.3
-                    }}
+                    className="modal-title modal-title-text"
                   >
                     {title}
                   </h2>
                 )}
                 {subtitle && (
-                  <p
-                    style={{
-                      fontSize: '0.78rem',
-                      color: 'var(--text-muted)',
-                      margin: '2px 0 0 0',
-                      lineHeight: 1.4
-                    }}
-                  >
+                  <p className="modal-subtitle-text">
                     {subtitle}
                   </p>
                 )}
@@ -141,14 +103,7 @@ export default function Modal({
                 type="button"
                 onClick={onClose}
                 disabled={isProcessing}
-                className="btn-ghost"
-                style={{
-                  padding: '6px',
-                  borderRadius: 'var(--radius-sm, 6px)',
-                  color: 'var(--text-muted)',
-                  cursor: isProcessing ? 'not-allowed' : 'pointer',
-                  opacity: isProcessing ? 0.5 : 1
-                }}
+                className="btn-ghost modal-close-btn"
                 title="Close modal (Escape)"
                 aria-label="Close modal"
               >
@@ -159,30 +114,13 @@ export default function Modal({
         )}
 
         {/* Modal Body */}
-        <div
-          className="modal-body"
-          style={{
-            padding: '24px',
-            overflowY: 'auto',
-            flex: 1
-          }}
-        >
+        <div className="modal-body modal-body-wrap">
           {children}
         </div>
 
         {/* Modal Footer */}
         {footer && (
-          <div
-            className="modal-footer"
-            style={{
-              padding: '16px 24px',
-              borderTop: '1px solid var(--border-light, rgba(255, 255, 255, 0.08))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: '10px'
-            }}
-          >
+          <div className="modal-footer modal-footer-wrap">
             {footer}
           </div>
         )}

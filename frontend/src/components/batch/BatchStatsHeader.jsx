@@ -6,120 +6,44 @@ export default function BatchStatsHeader({ batches = EMPTY_BATCHES, activeCount 
   const totalQuestionsAuthored = batches.reduce((acc, b) => acc + (b.actual_count || 0), 0);
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '12px'
-      }}
-    >
-      <div
-        style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-light)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}
-      >
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: 'var(--radius-xs)',
-            background: 'rgba(79, 48, 185, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--brand-primary)'
-          }}
-        >
+    <div className="batch-stats-grid">
+      <div className="batch-stat-card">
+        <div className="batch-stat-icon-box brand">
           <Layers size={16} />
         </div>
         <div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+          <div className="batch-stat-value">
             {batches.length}
           </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+          <div className="batch-stat-label">
             Total Practice Batches
           </div>
         </div>
       </div>
 
-      <div
-        style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-light)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}
-      >
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: 'var(--radius-xs)',
-            background: 'rgba(51, 90, 207, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--infynno-blue)'
-          }}
-        >
+      <div className="batch-stat-card">
+        <div className="batch-stat-icon-box blue">
           <Zap size={16} />
         </div>
         <div>
-          <div
-            style={{
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              color: activeCount > 0 ? 'var(--infynno-cyan)' : 'var(--text-primary)',
-              lineHeight: 1.1
-            }}
-          >
+          <div className={`batch-stat-value ${activeCount > 0 ? 'active' : ''}`}>
             {activeCount}
           </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+          <div className="batch-stat-label">
             Currently Generating
           </div>
         </div>
       </div>
 
-      <div
-        style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-light)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}
-      >
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: 'var(--radius-xs)',
-            background: 'rgba(16, 185, 129, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--status-success)'
-          }}
-        >
+      <div className="batch-stat-card">
+        <div className="batch-stat-icon-box success">
           <ShieldCheck size={16} />
         </div>
         <div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+          <div className="batch-stat-value">
             {totalQuestionsAuthored}
           </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+          <div className="batch-stat-label">
             Total Questions Created
           </div>
         </div>

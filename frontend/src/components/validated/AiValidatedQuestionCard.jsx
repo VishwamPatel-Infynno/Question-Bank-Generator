@@ -39,71 +39,28 @@ function AiValidatedQuestionCard({
   const trapInfo = getEffectiveTrapInfo(q);
 
   return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-sm)',
-        padding: '16px 18px',
-        boxShadow: isSelected ? '0 0 0 1px var(--brand-primary)' : 'var(--shadow-xs)',
-        transition: 'all var(--transition-fast)'
-      }}
-    >
+    <div className={`validated-card ${isSelected ? 'selected' : ''}`}>
       {/* Card Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '10px',
-          marginBottom: '10px',
-          flexWrap: 'wrap'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+      <div className="validated-card-header">
+        <div className="validated-card-header-left">
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggleSelect?.(q.id)}
-            style={{ accentColor: 'var(--brand-primary)', cursor: 'pointer', width: '16px', height: '16px' }}
+            className="validated-card-checkbox"
           />
-          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--brand-primary)' }}>
+          <span className="validated-index">
             #{index + 1}
           </span>
-          <span
-            className={`badge ${getSectionBadgeClass(q.section)}`}
-            style={{
-              fontSize: '0.68rem',
-              fontWeight: 700
-            }}
-          >
+          <span className={`badge ${getSectionBadgeClass(q.section)} validated-card-badge-sm`}>
             {q.section_label || MCAT_SECTION_LABELS[q.section] || q.section}
           </span>
-          <span
-            style={{
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              padding: '2px 8px',
-              borderRadius: 'var(--radius-xs)',
-              background: 'var(--bg-surface-subtle)',
-              color: 'var(--text-muted)'
-            }}
-          >
+          <span className="validated-card-diff">
             {formatDifficulty(q.difficulty)}
           </span>
           {trapInfo?.label && (
             <span
-              className="badge badge-purple"
-              style={{
-                fontSize: '0.675rem',
-                padding: '1px 6px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'var(--status-purple-bg)',
-                border: '1px solid var(--status-purple-border)',
-                color: 'var(--status-purple)'
-              }}
+              className="badge badge-purple validated-card-trap-tag"
               title={`Trap: ${trapInfo.label}`}
             >
               <Tag size={10} /> {trapInfo.label}
@@ -111,8 +68,7 @@ function AiValidatedQuestionCard({
           )}
           {q.aamc_skill && (
             <span
-              className="badge badge-cyan"
-              style={{ fontSize: '0.65rem', padding: '1px 6px' }}
+              className="badge badge-cyan validated-card-skill-tag"
               title={`AAMC Reasoning Skill: ${q.aamc_skill}`}
             >
               {q.aamc_skill}
@@ -120,17 +76,7 @@ function AiValidatedQuestionCard({
           )}
           {q.likely_mistake_pattern && (
             <span
-              className="badge"
-              style={{
-                fontSize: '0.675rem',
-                padding: '1px 6px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'var(--status-warning-bg)',
-                color: 'var(--status-warning)',
-                border: '1px solid var(--status-warning-border)'
-              }}
+              className="badge validated-card-mistake-tag"
               title={`Mistake: ${q.likely_mistake_pattern}`}
             >
               <Target size={10} /> {q.likely_mistake_pattern}
@@ -138,8 +84,7 @@ function AiValidatedQuestionCard({
           )}
           {hasDiagram && (
             <span
-              className="badge badge-purple"
-              style={{ fontSize: '0.675rem', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              className="badge badge-purple validated-card-figure-tag"
               title="Contains Diagram"
             >
               <ImageIcon size={10} /> Diagram
@@ -147,37 +92,13 @@ function AiValidatedQuestionCard({
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="validated-card-header-right">
           {q.mcat_scaled_score && (
-            <span
-              className="badge"
-              style={{
-                background: 'var(--brand-light)',
-                color: 'var(--brand-primary)',
-                border: '1px solid var(--border-brand)',
-                borderRadius: '12px',
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                padding: '2px 10px'
-              }}
-            >
+            <span className="badge qbank-mcat-badge validated-card-score-pill">
               MCAT {q.mcat_scaled_score}
             </span>
           )}
-          <span
-            style={{
-              background: 'var(--status-success-bg)',
-              color: 'var(--status-success)',
-              border: '1px solid var(--status-success-border)',
-              borderRadius: '12px',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              padding: '2px 10px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-          >
+          <span className="validated-score-pill">
             <Sparkles size={11} />
             Score {q.final_score}/100
           </span>
@@ -186,59 +107,33 @@ function AiValidatedQuestionCard({
 
       {/* Stimulus / Passage Snippet */}
       {hasPassage && (
-        <div
-          style={{
-            background: 'var(--bg-surface-subtle)',
-            border: '1px solid var(--border-light)',
-            borderRadius: 'var(--radius-xs)',
-            padding: '8px 12px',
-            marginBottom: '12px',
-            fontSize: '0.775rem'
-          }}
-        >
+        <div className="validated-passage-box">
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              userSelect: 'none'
-            }}
+            className="validated-passage-header"
             onClick={() => onTogglePassage?.(q.id)}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            <div className="validated-card-passage-header">
               <BookOpen size={12} />
               <span>Reading Passage ({q.stimulus_text.split(/\s+/).length} words)</span>
             </div>
             <button
               type="button"
-              className="btn-secondary"
-              style={{ padding: '2px 6px', fontSize: '0.675rem' }}
+              className="btn-secondary validated-card-passage-toggle-btn"
             >
               {isPassageExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-              <span style={{ marginLeft: '3px' }}>{isPassageExpanded ? 'Hide' : 'View'}</span>
+              <span>{isPassageExpanded ? 'Hide' : 'View'}</span>
             </button>
           </div>
 
           {isPassageExpanded && (
-            <div style={{ marginTop: '8px' }}>
-              <div
-                style={{
-                  color: 'var(--text-primary)',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '0.85rem',
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                  maxHeight: '260px',
-                  overflowY: 'auto'
-                }}
-              >
+            <div className="validated-card-passage-body">
+              <div className="validated-passage-text">
                 {q.stimulus_text}
               </div>
 
               {/* Embedded Visual Stimulus Diagram */}
               {hasDiagram && (
-                <div style={{ marginTop: '10px', borderTop: '1px solid var(--border-light)', paddingTop: '10px' }}>
+                <div className="validated-card-figure-box">
                   <VisualStimulusViewer question={q} compact={false} />
                 </div>
               )}
@@ -249,26 +144,18 @@ function AiValidatedQuestionCard({
 
       {/* Visual Stimulus Diagram / Image for standalone questions (without passage) */}
       {!hasPassage && hasDiagram && (
-        <div style={{ marginBottom: '12px' }}>
+        <div className="validated-card-stem-box">
           <VisualStimulusViewer question={q} compact={false} />
         </div>
       )}
 
       {/* Question Stem */}
-      <div
-        style={{
-          fontSize: '0.875rem',
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          lineHeight: 1.45,
-          marginBottom: '12px'
-        }}
-      >
+      <div className="validated-stem">
         {q.question_stem}
       </div>
 
-      {/* 4 Options Grid/List */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '6px', marginBottom: '14px' }}>
+      {/* 4 Options List */}
+      <div className="validated-options-list">
         {(q.options || []).map((opt) => {
           const isCorrect =
             (q.correct_answer_ids && q.correct_answer_ids.includes(opt.id)) ||
@@ -277,47 +164,16 @@ function AiValidatedQuestionCard({
           return (
             <div
               key={opt.id}
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                padding: '6px 10px',
-                borderRadius: 'var(--radius-xs)',
-                background: isCorrect ? 'var(--status-success-bg)' : 'var(--bg-surface-subtle)',
-                border: isCorrect ? '1px solid var(--status-success-border)' : '1px solid var(--border-light)',
-                fontSize: '0.78rem'
-              }}
+              className={`validated-option-row ${isCorrect ? 'correct' : ''}`}
             >
-              <span
-                style={{
-                  fontWeight: 800,
-                  color: isCorrect ? 'var(--status-success)' : 'var(--text-muted)',
-                  minWidth: '18px'
-                }}
-              >
+              <span className={`validated-card-option-letter ${isCorrect ? 'correct' : ''}`}>
                 {opt.id}.
               </span>
-              <span
-                style={{
-                  color: isCorrect ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontWeight: isCorrect ? 600 : 400,
-                  flex: 1
-                }}
-              >
+              <span className="validated-option-text">
                 {opt.text}
               </span>
               {isCorrect && (
-                <span
-                  style={{
-                    fontSize: '0.675rem',
-                    fontWeight: 700,
-                    color: 'var(--status-success)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    marginLeft: 'auto'
-                  }}
-                >
+                <span className="validated-option-correct-badge">
                   <CheckCircle2 size={12} /> Correct
                 </span>
               )}
@@ -327,43 +183,24 @@ function AiValidatedQuestionCard({
       </div>
 
       {/* Card Footer: Metadata Tags & Action Buttons */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          paddingTop: '10px',
-          borderTop: '1px solid var(--border-light)',
-          flexWrap: 'wrap'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+      <div className="validated-card-footer">
+        <div className="validated-card-footer-left">
+          <span className="validated-card-footer-meta">
             Subtopic: <strong>{q.subtopic || 'General'}</strong>
           </span>
           {q.primary_trap && (
-            <span
-              style={{
-                fontSize: '0.68rem',
-                padding: '1px 6px',
-                background: 'var(--bg-surface-subtle)',
-                borderRadius: '4px',
-                color: 'var(--text-secondary)'
-              }}
-            >
+            <span className="validated-card-trap-summary">
               Common Trap: {q.primary_trap}
             </span>
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="validated-actions">
           {onOpenAudit && (
             <button
               type="button"
               onClick={() => onOpenAudit(q)}
-              className="btn-secondary"
-              style={{ padding: '5px 10px', fontSize: '0.74rem' }}
+              className="btn-secondary validated-card-audit-btn"
             >
               Quality Review
             </button>
@@ -373,32 +210,18 @@ function AiValidatedQuestionCard({
             type="button"
             onClick={() => onDiscard?.(q)}
             disabled={actionInProgress}
-            className="btn-secondary"
-            style={{
-              padding: '5px 10px',
-              fontSize: '0.74rem',
-              color: 'var(--status-danger)'
-            }}
+            className="btn-secondary validated-card-discard-btn"
             title="Discard question"
           >
             <Trash2 size={12} />
-            <span style={{ marginLeft: '4px' }}>Discard</span>
+            <span>Discard</span>
           </button>
 
           <button
             type="button"
             onClick={() => onMoveToBank?.(q)}
             disabled={actionInProgress}
-            className="btn-primary"
-            style={{
-              padding: '5px 14px',
-              fontSize: '0.74rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              background: 'var(--status-success)',
-              borderColor: 'var(--status-success)'
-            }}
+            className="btn-primary validated-save-btn validated-card-bank-btn"
           >
             <Database size={12} />
             <span>Save to Question Bank</span>

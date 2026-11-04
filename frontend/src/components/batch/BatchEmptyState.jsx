@@ -32,15 +32,8 @@ export default function BatchEmptyState({
         {onNavigateToWizard && (
           <button
             type="button"
-            className="btn-primary"
+            className="btn-primary batch-empty-btn"
             onClick={onNavigateToWizard}
-            style={{
-              padding: '8px 20px',
-              fontSize: '0.85rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
           >
             <Sparkles size={14} />
             <span>Start Question Batch</span>
@@ -50,4 +43,3 @@ export default function BatchEmptyState({
     </div>
   );
 }
-

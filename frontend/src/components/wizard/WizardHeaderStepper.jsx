@@ -1,4 +1,3 @@
-import React from 'react';
 import { Check } from 'lucide-react';
 import { STEP_CONFIG as DEFAULT_STEP_CONFIG } from './wizardConstants';
 
@@ -17,19 +16,19 @@ export default function WizardHeaderStepper({
 
   return (
     <div className="wizard-topbar">
-      <div className="wizard-topbar-header" style={{ marginBottom: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '8px' }}>
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+      <div className="wizard-topbar-header">
+        <div className="wizard-stepper-meta">
+          <span className="wizard-stepper-step-label">
             Step {step}: {activeConfig?.label}
           </span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <span className="wizard-stepper-count-label">
             {totalQuestions} Questions
           </span>
         </div>
       </div>
 
       {/* Interactive Step Pills Tracker (3 Steps) */}
-      <div className="wizard-stepper-3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', overflowX: 'auto', paddingBottom: '2px' }}>
+      <div className="wizard-stepper-3 wizard-stepper-track">
         {stepConfig.map((cfg) => {
           const isCurrent = step === cfg.num;
           const isCompleted = step > cfg.num;
@@ -40,47 +39,9 @@ export default function WizardHeaderStepper({
               type="button"
               onClick={() => onStepClick?.(cfg.num)}
               title={`Jump to Step ${cfg.num}: ${cfg.label}`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '7px',
-                padding: '5px 14px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.78rem',
-                fontWeight: isCurrent ? 600 : 500,
-                cursor: 'pointer',
-                background: isCurrent
-                  ? 'var(--brand-primary)'
-                  : isCompleted
-                  ? 'var(--bg-surface-subtle)'
-                  : 'var(--bg-surface)',
-                border: isCurrent
-                  ? '1px solid var(--brand-primary)'
-                  : isCompleted
-                  ? '1px solid var(--border-medium)'
-                  : '1px solid var(--border-light)',
-                color: isCurrent
-                  ? 'var(--text-on-brand)'
-                  : isCompleted
-                  ? 'var(--text-primary)'
-                  : 'var(--text-muted)',
-                transition: 'all 0.15s ease',
-                flexShrink: 0
-              }}
+              className={`wizard-stepper-pill ${isCurrent ? 'current' : isCompleted ? 'completed' : ''}`}
             >
-              <span
-                style={{
-                  width: '18px',
-                  height: '18px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.68rem',
-                  background: isCurrent ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
-                  fontWeight: 600
-                }}
-              >
+              <span className={`wizard-stepper-circle ${isCurrent ? 'current' : isCompleted ? 'completed' : ''}`}>
                 {isCompleted ? <Check size={11} /> : cfg.num}
               </span>
               <span>{cfg.label}</span>
@@ -99,4 +60,3 @@ export default function WizardHeaderStepper({
     </div>
   );
 }
-

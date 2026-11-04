@@ -15,22 +15,19 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.config import config
-from app.repositories.batch_repository import (
+from app.repositories import (
     get_batch_by_id,
-    refresh_batch_aggregates,
-)
-from app.repositories.job_repository import (
     get_jobs_by_batch_id,
-    update_job_progress,
-)
-from app.repositories.question_repository import (
     get_questions,
+    refresh_batch_aggregates,
     save_question,
+    update_job_progress,
 )
 from app.schemas import (
     GenerationJob,
     GenerationRequest,
     Question,
+    determine_question_status,
     is_question_active,
 )
 from app.workflow._section_utils import is_cars_section as _is_cars_section
@@ -73,10 +70,7 @@ async def _persist_job_question(
         # While a batch is actively generating, keep active questions in 'batch_only'
         # so they do NOT leak into Ready for Review until the batch successfully finishes.
         score = q_obj.final_score or 0
-        if score > config.BATCH_PASSING_SCORE_THRESHOLD:
-            q_obj.status = "batch_only"
-        else:
-            q_obj.status = "below_threshold"
+        q_obj.status = determine_question_status(score, is_in_progress_batch=True)
 
         curr_b = await get_batch_by_id(batch_id)
         if not curr_b:

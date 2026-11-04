@@ -12,7 +12,7 @@ from app.api.router import api_router
 from app.core.config import config
 from app.core.logging import configure_logging
 from app.db.session import init_db
-from app.repositories.batch_repository import reconcile_interrupted_batches
+from app.repositories import reconcile_interrupted_batches
 
 logger = logging.getLogger(__name__)
 

@@ -25,15 +25,7 @@ export default function PassageVisualStimulusEditor({
     <button
       type="button"
       onClick={onDiscardImage}
-      className="btn-ghost"
-      style={{
-        padding: '3px 8px',
-        fontSize: '0.675rem',
-        color: 'var(--status-danger)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px'
-      }}
+      className="btn-ghost passage-stimulus-discard-btn"
       title="Remove this image from the passage"
     >
       <Trash2 size={11} />
@@ -48,10 +40,7 @@ export default function PassageVisualStimulusEditor({
       imageDescription={imageDescription}
       headerTitle="Passage Figure / Diagram"
       badgeExtra={
-        <span
-          className="badge badge-emerald"
-          style={{ fontSize: '0.625rem', padding: '2px 6px', fontWeight: 600 }}
-        >
+        <span className="badge badge-emerald passage-stimulus-editor-badge">
           Attached
         </span>
       }

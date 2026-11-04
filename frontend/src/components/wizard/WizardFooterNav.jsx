@@ -23,16 +23,9 @@ export default function WizardFooterNav({
     <div className="wizard-footer">
       <button
         type="button"
-        className="btn-secondary"
+        className="btn-secondary wizard-footer-back-btn"
         onClick={onBack}
         disabled={step === 1}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          opacity: step === 1 ? 0.5 : 1,
-          cursor: step === 1 ? 'not-allowed' : 'pointer'
-        }}
       >
         <ArrowLeft size={16} />
         <span>Back</span>
@@ -48,8 +41,7 @@ export default function WizardFooterNav({
               key={cfg.num}
               onClick={() => isClickable && onStepClick?.(cfg.num)}
               disabled={!isClickable}
-              style={{ cursor: isClickable ? 'pointer' : 'default', padding: 0, border: 'none', background: 'none' }}
-              className={`wizard-dot ${step === cfg.num ? 'active' : isClickable ? 'completed' : ''}`}
+              className={`wizard-dot wizard-footer-stepper-btn ${step === cfg.num ? 'active' : isClickable ? 'completed' : ''} ${!isClickable ? 'disabled' : ''}`}
               title={`Step ${cfg.num}: ${cfg.label}`}
               aria-label={`Go to Step ${cfg.num}: ${cfg.label}`}
             />
@@ -58,25 +50,15 @@ export default function WizardFooterNav({
       </div>
 
       {/* Action Buttons */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="wizard-footer-actions">
         {/* Step 2 Instant Launch Shortcut */}
         {step === 2 && (
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary wizard-footer-quick-btn"
             onClick={onInstantLaunch}
             disabled={isLaunchingBatch}
             title="Start generating immediately"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              color: 'var(--brand-primary)',
-              borderColor: 'var(--border-brand)'
-            }}
           >
             <Zap size={14} />
             <span>Quick Start</span>
@@ -85,16 +67,10 @@ export default function WizardFooterNav({
 
         <button
           type="button"
-          className="workspace-action-btn-primary"
+          className="workspace-action-btn-primary wizard-footer-next-btn"
           id={step === totalSteps ? 'btn-wizard-generate-questions' : 'btn-wizard-next-step'}
           onClick={onNext}
           disabled={step === totalSteps && isLaunchingBatch}
-          style={{
-            padding: '10px 22px',
-            fontSize: '0.92rem',
-            opacity: step === totalSteps && isLaunchingBatch ? 0.6 : 1,
-            cursor: step === totalSteps && isLaunchingBatch ? 'not-allowed' : 'pointer'
-          }}
         >
           {step === totalSteps ? (
             <>

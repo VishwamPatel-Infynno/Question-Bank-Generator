@@ -748,6 +748,7 @@ async def override_question_duplicate(question_id: str) -> Question | None:
 
 __all__ = [
     "batch_update_question_status",
+    "count_questions",
     "delete_question",
     "delete_questions_batch",
     "get_question_by_id",

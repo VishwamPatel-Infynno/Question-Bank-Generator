@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-export const DEFAULT_GENERATOR_FORM = {
+const DEFAULT_GENERATOR_FORM = {
   selectedSection: 'chem_phys',
   selectedSubject: '',
   selectedUnit: '',

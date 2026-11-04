@@ -45,7 +45,7 @@ export default function PassageBankTable({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div className="passage-bank-list-wrap">
       {passages.map((passage) => {
         const wordCount = passage.word_count || (passage.text ? passage.text.split(/\s+/).filter(Boolean).length : 0);
         const linkedCount = questionCounts[passage.id] ?? (passage.questions ? passage.questions.length : 0);
@@ -64,91 +64,35 @@ export default function PassageBankTable({
                 onSelectPassage(passage);
               }
             }}
-            style={{
-              padding: '16px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              transition: 'all var(--transition-fast)'
-            }}
             className="passage-card-row"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-medium)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-subtle)';
-              e.currentTarget.style.transform = 'none';
-            }}
           >
             {/* Top Row: Badges, Title, Actions */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
+            <div className="passage-card-header">
+              <div className="passage-card-meta">
                 {/* Badges strip */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.725rem' }}>
-                  <span className={`badge ${getSectionBadgeClass(passage.section)}`} style={{ fontSize: '0.66rem', fontWeight: 700 }}>
+                <div className="passage-card-badges">
+                  <span className={`badge ${getSectionBadgeClass(passage.section)}`}>
                     {SECTION_SHORT_LABEL[passage.section] || passage.section || 'General'}
                   </span>
 
                   {passage.subtopic && (
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.72rem' }}>
+                    <span className="passage-card-subtopic">
                       {passage.subtopic}
                     </span>
                   )}
 
-                  <span
-                    style={{
-                      background: 'var(--bg-surface-subtle)',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: 'var(--radius-full)',
-                      padding: '1px 7px',
-                      fontSize: '0.68rem',
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
+                  <span className="passage-desk-pill-words">
                     <span>{wordCount} words</span>
                   </span>
 
-                  <span
-                    style={{
-                      background: linkedCount > 0 ? 'rgba(51, 90, 207, 0.08)' : 'var(--bg-surface-subtle)',
-                      border: linkedCount > 0 ? '1px solid rgba(51, 90, 207, 0.25)' : '1px solid var(--border-light)',
-                      borderRadius: 'var(--radius-full)',
-                      padding: '1px 7px',
-                      fontSize: '0.68rem',
-                      fontWeight: 600,
-                      color: linkedCount > 0 ? 'var(--brand-primary)' : 'var(--text-muted)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
+                  <span className={linkedCount > 0 ? 'passage-desk-pill-linked' : 'passage-desk-pill-words'}>
                     <Layers size={11} />
                     <span>{linkedCount} {linkedCount === 1 ? 'question' : 'questions'}</span>
                   </span>
 
                   {hasVisual && (
                     <span
-                      style={{
-                        background: 'rgba(16, 185, 129, 0.08)',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                        borderRadius: 'var(--radius-full)',
-                        padding: '1px 7px',
-                        fontSize: '0.68rem',
-                        fontWeight: 600,
-                        color: 'var(--status-success)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
+                      className="passage-card-figure-pill"
                       title="Passage contains scientific figure or vector diagram"
                     >
                       <ImageIcon size={11} />
@@ -158,36 +102,20 @@ export default function PassageBankTable({
                 </div>
 
                 {/* Title */}
-                <h3
-                  style={{
-                    fontSize: '0.98rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    margin: 0,
-                    letterSpacing: '-0.01em',
-                    lineHeight: 1.3
-                  }}
-                >
+                <h3 className="passage-card-title">
                   {displayTitle}
                 </h3>
               </div>
 
               {/* Action Buttons */}
               <div
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}
+                className="passage-card-actions"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
                   type="button"
                   onClick={() => onSelectPassage(passage)}
-                  className="btn-secondary"
-                  style={{
-                    padding: '5px 10px',
-                    fontSize: '0.74rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}
+                  className="btn-secondary passage-card-edit-btn"
                   title="Open dedicated passage editorial desk & linked questions"
                 >
                   <Edit3 size={13} color="var(--brand-primary)" />
@@ -197,74 +125,43 @@ export default function PassageBankTable({
                 <button
                   type="button"
                   onClick={(e) => handleCopy(passage.id, e)}
-                  className="btn-ghost"
-                  style={{
-                    padding: '5px 8px',
-                    fontSize: '0.72rem',
-                    color: copiedId === passage.id ? 'var(--status-success)' : 'var(--text-muted)'
-                  }}
+                  className={`btn-ghost passage-card-icon-btn ${copiedId === passage.id ? 'copied' : ''}`}
                   title="Copy Passage ID"
                   aria-label="Copy Passage ID"
                 >
                   {copiedId === passage.id ? <Check size={13} /> : <Copy size={13} />}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onDeletePassage) onDeletePassage(passage);
-                  }}
-                  className="btn-ghost"
-                  style={{
-                    padding: '5px 8px',
-                    fontSize: '0.72rem',
-                    color: 'var(--status-danger)'
-                  }}
-                  title="Delete passage and linked questions"
-                  aria-label="Delete passage"
-                >
-                  <Trash2 size={13} />
-                </button>
+                {onDeletePassage && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeletePassage(passage);
+                    }}
+                    className="btn-ghost passage-card-icon-btn danger"
+                    title="Delete passage and linked questions"
+                    aria-label="Delete passage"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Passage Text Preview Excerpt */}
-            <p
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: '0.88rem',
-                lineHeight: 1.55,
-                color: 'var(--text-secondary)',
-                margin: 0,
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}
-            >
-              {passage.text || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No passage text provided.</span>}
+            <p className="passage-card-excerpt">
+              {passage.text || <span className="passage-card-empty-text">No passage text provided.</span>}
             </p>
 
             {/* Bottom Meta Footer */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '6px',
-                borderTop: '1px solid var(--border-light)',
-                fontSize: '0.68rem',
-                color: 'var(--text-muted)'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>ID: {passage.id}</span>
+            <div className="passage-card-footer">
+              <div className="passage-card-footer-left">
+                <span className="passage-card-footer-id">ID: {passage.id}</span>
                 {passage.created_at && (
                   <>
                     <span>•</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="passage-card-footer-date">
                       <Calendar size={11} />
                       {formatDate(passage.created_at)}
                     </span>
@@ -272,8 +169,8 @@ export default function PassageBankTable({
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>
+              <div className="passage-card-footer-right">
+                <span className="passage-card-footer-cta">
                   Click to inspect &amp; edit →
                 </span>
               </div>

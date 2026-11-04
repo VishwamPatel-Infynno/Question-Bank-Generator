@@ -14,21 +14,17 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from app.repositories.batch_repository import (
+from app.repositories import (
+    batch_update_question_status,
     get_batch_by_id,
+    get_jobs_by_batch_id,
+    get_questions,
+    hard_delete_questions_batch,
     promote_completed_batch_questions,
     refresh_batch_aggregates,
     save_batch,
-)
-from app.repositories.job_repository import (
-    get_jobs_by_batch_id,
     save_jobs_bulk,
     update_job_progress,
-)
-from app.repositories.question_repository import (
-    batch_update_question_status,
-    get_questions,
-    hard_delete_questions_batch,
 )
 from app.schemas import (
     GenerationBatch,

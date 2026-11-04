@@ -14,35 +14,33 @@ export default function QuestionScorecardTab({ question, pillars = EMPTY_PILLARS
   if (!question) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="scorecard-tab">
+      <div className="scorecard-header">
         <div>
-          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <h4 className="scorecard-title">
             Quality Scorecard
           </h4>
         </div>
-        <span className="badge badge-emerald" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>
+        <span className="badge badge-emerald scorecard-total-badge">
           Score: {question.final_score}/100
         </span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+      <div className="scorecard-grid">
         {pillars.map(p => (
           <div
             key={p.label}
-            style={{
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '12px 14px'
-            }}
+            className="scorecard-pillar-card"
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.775rem' }}>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.label}</span>
-              <span style={{ fontWeight: 700, color: p.color }}>{p.score}/{p.max}</span>
+            <div className="scorecard-pillar-row">
+              <span className="scorecard-pillar-label">{p.label}</span>
+              <span className="scorecard-pillar-score" style={{ color: p.color }}>{p.score}/{p.max}</span>
             </div>
-            <div style={{ width: '100%', height: '4px', background: 'var(--bg-app)', borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{ width: `${(p.score / p.max) * 100}%`, height: '100%', background: p.color, borderRadius: '2px' }} />
+            <div className="scorecard-progress-track">
+              <div
+                className="scorecard-progress-fill"
+                style={{ width: `${(p.score / p.max) * 100}%`, background: p.color }}
+              />
             </div>
           </div>
         ))}

@@ -124,99 +124,52 @@ export default function PassageEditorialDesk({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="passage-desk-container">
       {/* ── Top Bar: Navigation & Action Controls ──────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-light)',
-          borderRadius: 'var(--radius-md)',
-          padding: '12px 18px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+      <div className="passage-desk-topbar">
+        <div className="passage-desk-topbar-meta">
           <button
             type="button"
             onClick={onBack}
             className="btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
             title="Return to Passages table"
           >
             <ArrowLeft size={14} />
             <span>Back to Passages</span>
           </button>
 
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-light)' }} />
+          <div className="passage-desk-divider" />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span className={`badge ${getSectionBadgeClass(section)}`} style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+          <div className="passage-desk-title-group">
+            <span className={`badge ${getSectionBadgeClass(section)}`}>
               {section.toUpperCase()}
             </span>
             {subtopic && (
-              <span
-                style={{
-                  background: 'var(--bg-surface-subtle)',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: 'var(--radius-full)',
-                  padding: '2px 8px',
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: 'var(--text-secondary)'
-                }}
-              >
+              <span className="passage-desk-pill-subtopic">
                 {subtopic}
               </span>
             )}
-            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <span className="passage-desk-title">
               {title || `${subtopic || 'MCAT'} Passage`}
             </span>
           </div>
 
-          <span
-            style={{
-              background: 'var(--bg-surface-subtle)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-full)',
-              padding: '2px 8px',
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              color: 'var(--text-secondary)'
-            }}
-          >
+          <span className="passage-desk-pill-words">
             {liveWordCount} words
           </span>
 
-          <span
-            style={{
-              background: 'rgba(51, 90, 207, 0.08)',
-              border: '1px solid rgba(51, 90, 207, 0.25)',
-              borderRadius: 'var(--radius-full)',
-              padding: '2px 8px',
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              color: 'var(--brand-primary)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}
-          >
+          <span className="passage-desk-pill-linked">
             <Layers size={11} />
             <span>{totalQuestions} {totalQuestions === 1 ? 'question' : 'questions'} linked</span>
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="passage-desk-topbar-actions">
           {onDeletePassage && (
             <button
               type="button"
               onClick={() => onDeletePassage(passage)}
-              className="btn-ghost"
-              style={{ padding: '6px 10px', fontSize: '0.78rem', color: 'var(--status-danger)', gap: '5px' }}
+              className="btn-ghost passage-desk-delete-btn"
               title="Delete this passage and all linked questions"
             >
               <Trash2 size={13} />
@@ -230,12 +183,6 @@ export default function PassageEditorialDesk({
             onClick={handleSave}
             disabled={isSaving || !text.trim()}
             className="btn-primary"
-            style={{
-              padding: '7px 16px',
-              fontSize: '0.78rem',
-              gap: '6px',
-              opacity: isSaving || !text.trim() ? 0.6 : 1
-            }}
           >
             <Save size={13} />
             <span>{isSaving ? 'Saving Changes...' : 'Save Passage Changes'}</span>
@@ -244,47 +191,29 @@ export default function PassageEditorialDesk({
       </div>
 
       {/* ── Side-By-Side Editorial Desk Grid ─────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(420px, 1.15fr) minmax(380px, 0.85fr)',
-          gap: '18px',
-          alignItems: 'start'
-        }}
-        className="passage-editorial-grid"
-      >
+      <div className="passage-editorial-grid">
         {/* ── LEFT COLUMN: Passage Editor ───────────────────────────────── */}
-        <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-light)',
-            borderRadius: 'var(--radius-md)',
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="passage-desk-left-col">
+          <div className="passage-desk-header">
+            <div className="passage-desk-header-title">
               <BookOpen size={16} color="var(--brand-primary)" />
-              <h3 style={{ fontSize: '0.94rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+              <h3>
                 Passage Content &amp; Reading Text
               </h3>
             </div>
 
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Live Word Count: <strong style={{ color: 'var(--text-primary)' }}>{liveWordCount}</strong>
+            <div className="passage-desk-word-count">
+              Live Word Count: <strong>{liveWordCount}</strong>
             </div>
           </div>
 
           {/* Passage Textarea */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            <div className="passage-desk-label-row">
+              <label className="passage-desk-label">
                 Passage Content (Rendered in MCAT Newsreader Serif)
               </label>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+              <span className="passage-desk-subhint">
                 Supports standard academic paragraphs
               </span>
             </div>
@@ -295,20 +224,7 @@ export default function PassageEditorialDesk({
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Paste or write the MCAT reading passage text here..."
-              style={{
-                width: '100%',
-                padding: '14px 16px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-serif)',
-                fontSize: '0.98rem',
-                lineHeight: 1.7,
-                resize: 'vertical',
-                outline: 'none',
-                minHeight: '380px'
-              }}
+              className="passage-desk-textarea"
             />
           </div>
 
@@ -323,69 +239,30 @@ export default function PassageEditorialDesk({
         </div>
 
         {/* ── RIGHT COLUMN: Linked Questions Carousel ───────────────────── */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '14px',
-            position: 'sticky',
-            top: '80px'
-          }}
-        >
+        <div className="passage-desk-right-col">
           {/* Header with Stepper Carousel */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-md)',
-              padding: '12px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '8px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="passage-desk-carousel-header">
+            <div className="passage-desk-header-title">
               <Layers size={16} color="var(--brand-primary)" />
-              <h3 style={{ fontSize: '0.94rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+              <h3>
                 Linked Questions ({totalQuestions})
               </h3>
             </div>
 
             {totalQuestions > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div className="passage-desk-stepper">
                 <button
                   type="button"
                   onClick={goToPrev}
                   disabled={totalQuestions <= 1}
-                  className="btn-secondary"
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: '0.75rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    opacity: totalQuestions <= 1 ? 0.5 : 1
-                  }}
+                  className="btn-secondary passage-desk-stepper-btn"
                   title="Previous Question (Left Arrow ←)"
                 >
                   <ChevronLeft size={14} />
                   <span>Prev</span>
                 </button>
 
-                <span
-                  style={{
-                    background: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-light)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '4px 10px',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    userSelect: 'none'
-                  }}
-                >
+                <span className="passage-desk-stepper-badge">
                   Question {safeIndex + 1} of {totalQuestions}
                 </span>
 
@@ -393,15 +270,7 @@ export default function PassageEditorialDesk({
                   type="button"
                   onClick={goToNext}
                   disabled={totalQuestions <= 1}
-                  className="btn-secondary"
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: '0.75rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    opacity: totalQuestions <= 1 ? 0.5 : 1
-                  }}
+                  className="btn-secondary passage-desk-stepper-btn"
                   title="Next Question (Right Arrow →)"
                 >
                   <span>Next</span>
@@ -413,21 +282,12 @@ export default function PassageEditorialDesk({
 
           {/* Active Question Card / Empty State */}
           {totalQuestions === 0 ? (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '40px 20px',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--text-secondary)'
-              }}
-            >
-              <Layers size={32} color="var(--text-muted)" style={{ marginBottom: '8px' }} />
-              <h4 style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+            <div className="passage-desk-empty-state">
+              <Layers size={32} className="passage-desk-empty-icon" />
+              <h4 className="passage-desk-empty-title">
                 No Questions Linked Yet
               </h4>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '6px 0 0', maxWidth: '320px', marginLeft: 'auto', marginRight: 'auto' }}>
+              <p className="passage-desk-empty-desc">
                 This reading passage currently has no questions linked to it in the Question Bank. You can generate passage-based questions in the Generator Studio.
               </p>
             </div>

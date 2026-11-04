@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.repositories.question_repository import (
+from app.repositories import (
     batch_update_question_status,
     count_questions,
     delete_question,
@@ -34,7 +34,7 @@ from app.schemas import (
     SingleStatusUpdateRequest,
     StatusUpdateRequest,
 )
-from app.services.deduplication import evaluate_duplicate
+from app.services import evaluate_duplicate
 
 logger = logging.getLogger(__name__)
 

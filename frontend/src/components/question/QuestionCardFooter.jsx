@@ -15,50 +15,38 @@ export default function QuestionCardFooter({
   onNextQuestion = null
 }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '10px',
-        paddingTop: '14px',
-        borderTop: '1px solid var(--border-light)'
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <div className="qcard-footer">
+      <div className="qcard-footer-actions">
         {!isSaved && onApprove ? (
           <>
             <button
               type="button"
               id="btn-admin-approve-bottom"
-              className="btn-success"
+              className="btn-success qcard-footer-save-btn"
               onClick={onApprove}
               disabled={isApproving}
-              style={{ padding: '8px 18px', fontSize: '0.825rem' }}
               title="Save question to Question Bank (Press A)"
             >
               <CheckCircle size={15} />
               <span>{isApproving ? 'Saving...' : 'Save to Question Bank'}</span>
-              <span className="kbd-hint" style={{ fontSize: '0.6rem', color: 'var(--text-on-brand, #ffffff)', borderColor: 'rgba(255,255,255,0.3)' }}>A</span>
+              <span className="kbd-hint qcard-footer-kbd-save">A</span>
             </button>
 
             {onDiscard && (
               <button
                 type="button"
-                className="btn-danger"
+                className="btn-danger qcard-footer-discard-btn"
                 onClick={() => onDiscard(question)}
-                style={{ padding: '8px 14px', fontSize: '0.825rem' }}
                 title="Discard question (Press D)"
               >
                 <Trash2 size={13} />
                 <span>Discard Question</span>
-                <span className="kbd-hint" style={{ fontSize: '0.6rem' }}>D</span>
+                <span className="kbd-hint qcard-footer-kbd-save">D</span>
               </button>
             )}
           </>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--status-success)', fontWeight: 600, fontSize: '0.825rem' }}>
+          <div className="qcard-footer-saved-label">
             <CheckCircle size={16} /> Saved in Question Bank
           </div>
         )}
@@ -68,14 +56,13 @@ export default function QuestionCardFooter({
         <button
           type="button"
           id="btn-generate-another"
-          className="btn-primary-luminous"
+          className="btn-primary-luminous qcard-footer-next-btn"
           onClick={onNextQuestion}
-          style={{ padding: '8px 16px', fontSize: '0.825rem' }}
           title="Generate Next Question (Press ⌘↵)"
         >
           <Sparkles size={14} />
           <span>Create Next Question</span>
-          <span className="kbd-hint" style={{ fontSize: '0.6rem', color: 'var(--text-on-brand, #ffffff)', border: 'none', background: 'rgba(255,255,255,0.2)' }}>⌘↵</span>
+          <span className="kbd-hint qcard-footer-kbd-next">⌘↵</span>
         </button>
       )}
     </div>

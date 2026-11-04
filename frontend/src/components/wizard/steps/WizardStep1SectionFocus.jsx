@@ -127,7 +127,7 @@ export default function WizardStep1SectionFocus({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="wizard-step-column">
       {/* Step Header */}
       <div className="wizard-heading-group">
         <h2 className="wizard-step-title">Exam Section &amp; Topic</h2>
@@ -135,24 +135,12 @@ export default function WizardStep1SectionFocus({
 
       {/* Quick Presets Row */}
       {presets && presets.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            flexWrap: 'wrap',
-            padding: '8px 12px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--bg-surface-subtle)',
-            border: '1px solid var(--border-light)',
-            fontSize: '0.75rem'
-          }}
-        >
-          <span style={{ fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div className="wizard-presets-strip">
+          <span className="wizard-presets-label">
             <Sparkles size={12} color="var(--brand-primary)" />
             <span>Presets:</span>
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
+          <div className="wizard-presets-list">
             {presets.map((preset) => {
               const isMatch = selectedSection === preset.section && totalQuestions === preset.total;
               return (
@@ -160,24 +148,11 @@ export default function WizardStep1SectionFocus({
                   key={preset.id}
                   type="button"
                   onClick={() => onApplyPreset?.(preset)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '3px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    background: isMatch ? 'var(--brand-light)' : 'var(--bg-surface)',
-                    border: isMatch ? '1px solid var(--border-brand)' : '1px solid var(--border-light)',
-                    color: isMatch ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                    fontWeight: isMatch ? 600 : 500,
-                    fontSize: '0.72rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
+                  className={`wizard-preset-pill ${isMatch ? 'active' : ''}`}
                   title={preset.desc}
                 >
                   <span>{preset.label}</span>
-                  <span style={{ fontSize: '0.65rem', opacity: 0.75 }}>({preset.tag})</span>
+                  <span className="wizard-preset-tag">({preset.tag})</span>
                 </button>
               );
             })}
@@ -211,20 +186,14 @@ export default function WizardStep1SectionFocus({
                 aria-pressed={isSelected}
               >
                 <div className="wizard-section-top">
-                  <div
-                    className="wizard-section-icon-badge"
-                    style={{
-                      background: isSelected ? 'var(--brand-primary)' : 'var(--bg-surface-hover)',
-                      color: isSelected ? 'var(--text-on-brand)' : 'var(--text-secondary)'
-                    }}
-                  >
+                  <div className="wizard-section-icon-badge">
                     <Icon size={16} />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className="wizard-chip-meta">
                     {isSelected && (
-                      <CheckCircle2 size={15} style={{ color: 'var(--brand-primary)' }} />
+                      <CheckCircle2 size={15} color="var(--brand-primary)" />
                     )}
-                    <span className="badge-minimal" style={{ fontSize: '0.68rem' }}>{sec.tag}</span>
+                    <span className="badge-minimal">{sec.tag}</span>
                   </div>
                 </div>
 
@@ -241,7 +210,7 @@ export default function WizardStep1SectionFocus({
           <span className="wizard-decision-title">Subject</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
+        <div className="wizard-card-grid">
           {/* Card 1: All Subjects */}
           <div
             className={`wizard-tier-card ${isAllDisciplines ? 'selected' : ''}`}
@@ -254,17 +223,16 @@ export default function WizardStep1SectionFocus({
             }}
             role="button"
             tabIndex={0}
-            style={{ padding: '12px 14px' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Compass size={15} style={{ color: 'var(--brand-primary)' }} />
-                <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <div className="wizard-tier-card-content">
+              <div className="wizard-tier-card-title-group">
+                <Compass size={15} color="var(--brand-primary)" />
+                <span className="wizard-tier-card-title">
                   All Subjects
                 </span>
               </div>
               {isAllDisciplines && (
-                <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)' }} />
+                <CheckCircle2 size={14} color="var(--brand-primary)" />
               )}
             </div>
           </div>
@@ -285,17 +253,16 @@ export default function WizardStep1SectionFocus({
                 }}
                 role="button"
                 tabIndex={0}
-                style={{ padding: '12px 14px' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Atom size={15} style={{ color: 'var(--brand-primary)' }} />
-                    <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div className="wizard-tier-card-content">
+                  <div className="wizard-tier-card-title-group">
+                    <Atom size={15} color="var(--brand-primary)" />
+                    <span className="wizard-tier-card-title">
                       {subj.name}
                     </span>
                   </div>
                   {isSelected && (
-                    <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)' }} />
+                    <CheckCircle2 size={14} color="var(--brand-primary)" />
                   )}
                 </div>
               </div>
@@ -310,7 +277,7 @@ export default function WizardStep1SectionFocus({
           <span className="wizard-decision-title">Topic Focus</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
+        <div className="wizard-card-grid">
           {/* Card 1: All Topics */}
           <div
             className={`wizard-tier-card ${isAllTopics ? 'selected' : ''}`}
@@ -323,17 +290,16 @@ export default function WizardStep1SectionFocus({
             }}
             role="button"
             tabIndex={0}
-            style={{ padding: '12px 14px' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Layers size={15} style={{ color: 'var(--brand-primary)' }} />
-                <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <div className="wizard-tier-card-content">
+              <div className="wizard-tier-card-title-group">
+                <Layers size={15} color="var(--brand-primary)" />
+                <span className="wizard-tier-card-title">
                   All Topics
                 </span>
               </div>
               {isAllTopics && (
-                <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)' }} />
+                <CheckCircle2 size={14} color="var(--brand-primary)" />
               )}
             </div>
           </div>
@@ -354,17 +320,16 @@ export default function WizardStep1SectionFocus({
                 }}
                 role="button"
                 tabIndex={0}
-                style={{ padding: '12px 14px' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <BookOpen size={14} style={{ color: 'var(--brand-primary)' }} />
-                    <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div className="wizard-tier-card-content">
+                  <div className="wizard-tier-card-title-group">
+                    <BookOpen size={14} color="var(--brand-primary)" />
+                    <span className="wizard-tier-card-title">
                       {top.name}
                     </span>
                   </div>
                   {isSelected && (
-                    <CheckCircle2 size={14} style={{ color: 'var(--brand-primary)' }} />
+                    <CheckCircle2 size={14} color="var(--brand-primary)" />
                   )}
                 </div>
               </div>
@@ -374,25 +339,16 @@ export default function WizardStep1SectionFocus({
 
         {/* Optional Subtopic Concept Chips if a specific topic is selected */}
         {!isAllTopics && activeTopic && activeTopic.subtopics && activeTopic.subtopics.length > 0 && (
-          <div
-            className="wizard-step-fade-enter"
-            style={{
-              marginTop: '12px',
-              padding: '12px 14px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--bg-surface-subtle)',
-              border: '1px solid var(--border-light)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+          <div className="wizard-step-fade-enter wizard-subtopics-box">
+            <div className="wizard-subtopics-header">
+              <span className="wizard-subtopics-label">
                 Subtopics:
               </span>
-              <span className="badge-minimal" style={{ fontSize: '0.68rem' }}>
+              <span className="badge-minimal">
                 {selectedSubtopics.length > 0 ? `${selectedSubtopics.length} Selected` : 'All Concepts'}
               </span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div className="wizard-chips-list">
               {/* Chip 0: All Concepts (Default) */}
               <button
                 type="button"
@@ -402,20 +358,7 @@ export default function WizardStep1SectionFocus({
                     onToggleSubtopic('All Core Topics (Balanced Mix)');
                   }
                 }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '4px 10px',
-                  borderRadius: 'var(--radius-full)',
-                  background: (!selectedSubtopics || selectedSubtopics.length === 0) ? 'var(--brand-primary)' : 'var(--bg-surface)',
-                  border: (!selectedSubtopics || selectedSubtopics.length === 0) ? '1px solid var(--brand-primary)' : '1px solid var(--border-light)',
-                  color: (!selectedSubtopics || selectedSubtopics.length === 0) ? 'var(--text-on-brand)' : 'var(--text-secondary)',
-                  fontSize: '0.72rem',
-                  fontWeight: (!selectedSubtopics || selectedSubtopics.length === 0) ? 600 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.12s ease'
-                }}
+                className={`wizard-filter-chip ${(!selectedSubtopics || selectedSubtopics.length === 0) ? 'active' : ''}`}
               >
                 {(!selectedSubtopics || selectedSubtopics.length === 0) && <Check size={11} />}
                 <span>All Concepts</span>
@@ -435,20 +378,7 @@ export default function WizardStep1SectionFocus({
                         onSelectSubtopic?.(st);
                       }
                     }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '4px 10px',
-                      borderRadius: 'var(--radius-full)',
-                      background: isSelected ? 'var(--brand-primary)' : 'var(--bg-surface)',
-                      border: isSelected ? '1px solid var(--brand-primary)' : '1px solid var(--border-light)',
-                      color: isSelected ? 'var(--text-on-brand)' : 'var(--text-secondary)',
-                      fontSize: '0.72rem',
-                      fontWeight: isSelected ? 600 : 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.12s ease'
-                    }}
+                    className={`wizard-filter-chip ${isSelected ? 'active' : ''}`}
                   >
                     {isSelected && <Check size={11} />}
                     <span>{st}</span>

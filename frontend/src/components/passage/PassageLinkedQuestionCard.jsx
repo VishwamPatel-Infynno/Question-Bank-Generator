@@ -29,64 +29,29 @@ function PassageInlineQuestionEditor({ question, onSave, onCancel }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '6px' }}>
-      <div>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '0.7rem',
-            color: 'var(--text-secondary)',
-            marginBottom: '3px',
-            fontWeight: 600
-          }}
-        >
+    <div className="passage-editor-form">
+      <div className="passage-editor-field">
+        <label className="passage-editor-label">
           Question Text
         </label>
         <textarea
           rows={3}
           value={stem}
           onChange={(e) => setStem(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '6px 8px',
-            fontSize: '0.8rem',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-light)',
-            background: 'var(--bg-surface-elevated)',
-            color: 'var(--text-primary)'
-          }}
+          className="passage-editor-input"
         />
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+      <div className="passage-editor-options-list">
+        <label className="passage-editor-label">
           Options
         </label>
         {options.map((opt, idx) => (
-          <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div key={opt.id} className="passage-editor-option-row">
             <button
               type="button"
               onClick={() => setCorrectId(opt.id)}
-              style={{
-                width: '26px',
-                height: '26px',
-                borderRadius: 'var(--radius-sm)',
-                border:
-                  correctId === opt.id
-                    ? '2px solid var(--status-success)'
-                    : '1px solid var(--border-light)',
-                background:
-                  correctId === opt.id
-                    ? 'rgba(16, 185, 129, 0.15)'
-                    : 'var(--bg-surface-elevated)',
-                color:
-                  correctId === opt.id
-                    ? 'var(--status-success)'
-                    : 'var(--text-secondary)',
-                fontWeight: 700,
-                fontSize: '0.75rem',
-                cursor: 'pointer'
-              }}
+              className={`passage-editor-option-btn ${correctId === opt.id ? 'correct' : ''}`}
               title={`Mark Option ${opt.id} as Correct Answer`}
             >
               {opt.id}
@@ -95,70 +60,36 @@ function PassageInlineQuestionEditor({ question, onSave, onCancel }) {
               type="text"
               value={opt.text}
               onChange={(e) => handleOptionChange(idx, e.target.value)}
-              style={{
-                flex: 1,
-                padding: '5px 8px',
-                fontSize: '0.78rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)'
-              }}
+              className="passage-editor-input"
             />
           </div>
         ))}
       </div>
 
-      <div>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '0.7rem',
-            color: 'var(--text-secondary)',
-            marginBottom: '3px',
-            fontWeight: 600
-          }}
-        >
+      <div className="passage-editor-field">
+        <label className="passage-editor-label">
           Explanation
         </label>
         <textarea
           rows={3}
           value={explanation}
           onChange={(e) => setExplanation(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '6px 8px',
-            fontSize: '0.78rem',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-light)',
-            background: 'var(--bg-surface-elevated)',
-            color: 'var(--text-primary)'
-          }}
+          className="passage-editor-input"
         />
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: '6px',
-          marginTop: '4px'
-        }}
-      >
+      <div className="passage-editor-actions">
         <button
           type="button"
           onClick={onCancel}
-          className="btn-ghost"
-          style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+          className="btn-ghost passage-editor-cancel-btn"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={handleSaveClick}
-          className="btn-primary"
-          style={{ padding: '4px 10px', fontSize: '0.72rem' }}
+          className="btn-primary passage-editor-save-btn"
         >
           Save
         </button>
@@ -184,43 +115,20 @@ export default function PassageLinkedQuestionCard({
   const trapInfo = getEffectiveTrapInfo(question);
 
   return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-md)',
-        padding: '16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px'
-      }}
-    >
+    <div className="passage-linked-card">
       {/* Header Strip */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span
-            style={{
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '2px 8px',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)'
-            }}
-          >
+      <div className="passage-linked-header">
+        <div className="passage-linked-meta">
+          <span className="passage-linked-num-badge">
             Q{index + 1} of {totalQuestions}
           </span>
 
-          <span
-            className={`badge ${getDifficultyBadgeClass(question.difficulty)}`}
-            style={{ fontSize: '0.64rem' }}
-          >
+          <span className={`badge ${getDifficultyBadgeClass(question.difficulty)}`}>
             {formatDifficulty(question.difficulty)}
           </span>
 
           {question.final_score && (
-            <span className="badge badge-emerald" style={{ fontSize: '0.64rem' }}>
+            <span className="badge badge-emerald">
               Score: {question.final_score}/100
             </span>
           )}
@@ -228,7 +136,6 @@ export default function PassageLinkedQuestionCard({
           {trapInfo?.label && (
             <span
               className="badge badge-purple"
-              style={{ fontSize: '0.64rem' }}
               title={`Common Test Trap: ${trapInfo.label}`}
             >
               {trapInfo.label}
@@ -239,14 +146,7 @@ export default function PassageLinkedQuestionCard({
         <button
           type="button"
           onClick={onToggleEdit}
-          className="btn-secondary"
-          style={{
-            padding: '4px 8px',
-            fontSize: '0.72rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}
+          className="btn-secondary passage-linked-edit-btn"
           title={isEditing ? 'Close editor' : 'Edit question text, choices, or explanation'}
         >
           {isEditing ? <X size={12} /> : <Edit3 size={12} color="var(--brand-primary)" />}
@@ -263,19 +163,12 @@ export default function PassageLinkedQuestionCard({
       ) : (
         <>
           {/* Question Stem */}
-          <div
-            style={{
-              fontSize: '0.86rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              lineHeight: 1.45
-            }}
-          >
+          <div className="passage-linked-stem">
             {question.question_stem}
           </div>
 
           {/* Options A-D */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="passage-linked-options">
             {question.options?.map((opt) => {
               const isCorrect =
                 String(opt.id).toUpperCase() === String(question.correct_answer_id).toUpperCase() ||
@@ -284,43 +177,19 @@ export default function PassageLinkedQuestionCard({
               return (
                 <div
                   key={opt.id}
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: isCorrect
-                      ? '1px solid var(--status-success)'
-                      : '1px solid var(--border-light)',
-                    background: isCorrect
-                      ? 'rgba(16, 185, 129, 0.05)'
-                      : 'var(--bg-surface-elevated)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '8px',
-                    fontSize: '0.78rem'
-                  }}
+                  className={`passage-linked-option-row ${isCorrect ? 'correct' : ''}`}
                 >
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      color: isCorrect ? 'var(--status-success)' : 'var(--text-secondary)',
-                      minWidth: '18px'
-                    }}
-                  >
+                  <span className={`passage-linked-option-letter ${isCorrect ? 'correct' : ''}`}>
                     {opt.id}.
                   </span>
-                  <span
-                    style={{
-                      flex: 1,
-                      color: isCorrect ? 'var(--text-primary)' : 'var(--text-secondary)'
-                    }}
-                  >
+                  <span className={`passage-linked-option-text ${isCorrect ? 'correct' : ''}`}>
                     {opt.text}
                   </span>
                   {isCorrect && (
                     <CheckCircle2
                       size={13}
                       color="var(--status-success)"
-                      style={{ marginTop: '2px' }}
+                      className="passage-linked-check-icon"
                     />
                   )}
                 </div>
@@ -330,27 +199,11 @@ export default function PassageLinkedQuestionCard({
 
           {/* Pedagogical Explanation Preview */}
           {question.explanation && (
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-surface-subtle)',
-                border: '1px solid var(--border-light)',
-                fontSize: '0.75rem',
-                color: 'var(--text-secondary)',
-                lineHeight: 1.45
-              }}
-            >
-              <strong
-                style={{
-                  color: 'var(--text-primary)',
-                  display: 'block',
-                  marginBottom: '3px'
-                }}
-              >
+            <div className="passage-linked-explanation">
+              <strong>
                 Rationale &amp; Explanation:
               </strong>
-              <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{question.explanation}</p>
+              <p>{question.explanation}</p>
             </div>
           )}
         </>
@@ -358,4 +211,3 @@ export default function PassageLinkedQuestionCard({
     </div>
   );
 }
-

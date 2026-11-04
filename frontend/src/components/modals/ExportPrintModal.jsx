@@ -187,14 +187,13 @@ export default function ExportPrintModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-modal-title"
-        className="modal-card modal-card-theme" 
+        className="modal-card modal-card-theme exam-export-modal" 
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '960px', width: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
       >
         {/* Modal Header */}
         <div className="modal-header">
           <div className="modal-title-group">
-            <div className="modal-icon-badge" style={{ color: 'var(--brand-primary)', background: 'var(--brand-light)' }}>
+            <div className="modal-icon-badge exam-export-icon-badge">
               <FileDown size={18} />
             </div>
             <div>
@@ -212,16 +211,16 @@ export default function ExportPrintModal({
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+        <div className="modal-body exam-export-body">
           
           {/* Top Scope & Format Bar */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface-elevated)', padding: '12px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+          <div className="exam-export-topbar">
             {/* Scope Selection */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            <div className="exam-export-group">
+              <span className="exam-export-group-label">
                 Questions ({exportQuestions.length})
               </span>
-              <div className="pill-track" style={{ background: 'var(--bg-surface)' }}>
+              <div className="pill-track">
                 {selectedIds.length > 0 && (
                   <button
                     type="button"
@@ -251,16 +250,15 @@ export default function ExportPrintModal({
             </div>
 
             {/* Format Selection */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            <div className="exam-export-group">
+              <span className="exam-export-group-label">
                 Format
               </span>
-              <div className="pill-track" style={{ background: 'var(--bg-surface)' }}>
+              <div className="pill-track">
                 <button
                   type="button"
                   className={`pill-track-btn ${format === 'paper' ? 'active' : ''}`}
                   onClick={() => setFormat('paper')}
-                  style={{ gap: '6px' }}
                 >
                   <FileText size={13} />
                   <span>Printable Exam</span>
@@ -269,7 +267,6 @@ export default function ExportPrintModal({
                   type="button"
                   className={`pill-track-btn ${format === 'csv' ? 'active' : ''}`}
                   onClick={() => setFormat('csv')}
-                  style={{ gap: '6px' }}
                 >
                   <Table size={13} />
                   <span>CSV</span>
@@ -278,7 +275,6 @@ export default function ExportPrintModal({
                   type="button"
                   className={`pill-track-btn ${format === 'json' ? 'active' : ''}`}
                   onClick={() => setFormat('json')}
-                  style={{ gap: '6px' }}
                 >
                   <Code size={13} />
                   <span>JSON</span>
@@ -289,17 +285,16 @@ export default function ExportPrintModal({
 
           {/* TAB 1: PRINTABLE EXAM PAPER */}
           {format === 'paper' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="exam-export-tab-pane">
               {/* Paper Controls Strip */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', padding: '10px 14px', background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>Paper Type:</span>
+              <div className="exam-export-paper-controls">
+                <div className="exam-export-paper-mode-group">
+                  <span className="exam-export-paper-mode-label">Paper Type:</span>
                   <div className="pill-track">
                     <button
                       type="button"
                       className={`pill-track-btn ${paperMode === 'student' ? 'active' : ''}`}
                       onClick={() => setPaperMode('student')}
-                      style={{ gap: '6px', fontSize: '0.78rem' }}
                     >
                       <GraduationCap size={13} />
                       <span>Student Test</span>
@@ -308,7 +303,6 @@ export default function ExportPrintModal({
                       type="button"
                       className={`pill-track-btn ${paperMode === 'studypack' ? 'active' : ''}`}
                       onClick={() => setPaperMode('studypack')}
-                      style={{ gap: '6px', fontSize: '0.78rem' }}
                     >
                       <BookOpen size={13} />
                       <span>Full Study Pack</span>
@@ -316,8 +310,8 @@ export default function ExportPrintModal({
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div className="exam-export-paper-meta">
+                  <span className="exam-export-paper-meta-badge">
                     <Clock size={13} color="var(--brand-primary)" /> Estimated Time: <strong>{timeAllowed}</strong>
                   </span>
                   <span>&bull;</span>
@@ -337,26 +331,12 @@ export default function ExportPrintModal({
 
           {/* TAB 2: CSV SPREADSHEET */}
           {format === 'csv' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ padding: '10px 14px', background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <div className="exam-export-tab-pane">
+              <div className="exam-export-callout">
                 Exports a clean spreadsheet containing question stems, passages, choices A-D, correct answers, explanations, and quality scores for Excel or Google Sheets.
               </div>
 
-              <div 
-                style={{
-                  background: 'var(--bg-app)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '12px 14px',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.72rem',
-                  color: 'var(--text-secondary)',
-                  maxHeight: '340px',
-                  overflowY: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: 1.5
-                }}
-              >
+              <div className="exam-export-code-preview">
                 {csvContent}
               </div>
             </div>
@@ -364,26 +344,12 @@ export default function ExportPrintModal({
 
           {/* TAB 3: JSON DATASET */}
           {format === 'json' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ padding: '10px 14px', background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <div className="exam-export-tab-pane">
+              <div className="exam-export-callout">
                 Exports full structured question data including passages, choices, explanations, and quality evaluation in JSON format.
               </div>
 
-              <div 
-                style={{
-                  background: 'var(--bg-app)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '12px 14px',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.72rem',
-                  color: 'var(--text-secondary)',
-                  maxHeight: '340px',
-                  overflowY: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: 1.5
-                }}
-              >
+              <div className="exam-export-code-preview">
                 {jsonContent}
               </div>
             </div>
@@ -392,17 +358,16 @@ export default function ExportPrintModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+        <div className="modal-footer exam-export-footer">
+          <div className="exam-export-footer-info">
             Ready to export <strong>{exportQuestions.length}</strong> question{exportQuestions.length === 1 ? '' : 's'}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="exam-export-actions">
             <button
               type="button"
               className="btn-ghost"
               onClick={onClose}
-              style={{ padding: '7px 14px', fontSize: '0.8rem' }}
             >
               Cancel
             </button>
@@ -414,7 +379,6 @@ export default function ExportPrintModal({
                 id="btn-trigger-print-paper"
                 onClick={handleNativePrint}
                 disabled={exportQuestions.length === 0}
-                style={{ padding: '7px 16px', fontSize: '0.8rem', gap: '6px' }}
               >
                 <Printer size={14} />
                 <span>Print / Save as PDF</span>
@@ -427,7 +391,6 @@ export default function ExportPrintModal({
                   type="button"
                   className="btn-secondary"
                   onClick={handleCopyCsv}
-                  style={{ padding: '7px 14px', fontSize: '0.8rem', gap: '6px' }}
                 >
                   {copiedCsv ? <Check size={14} color="var(--status-success)" /> : <Copy size={14} />}
                   <span>{copiedCsv ? 'Copied' : 'Copy CSV'}</span>
@@ -438,7 +401,6 @@ export default function ExportPrintModal({
                   id="btn-download-csv"
                   onClick={handleDownloadCsv}
                   disabled={exportQuestions.length === 0}
-                  style={{ padding: '7px 16px', fontSize: '0.8rem', gap: '6px' }}
                 >
                   <FileDown size={14} />
                   <span>Download CSV Table</span>
@@ -452,7 +414,6 @@ export default function ExportPrintModal({
                   type="button"
                   className="btn-secondary"
                   onClick={handleCopyJson}
-                  style={{ padding: '7px 14px', fontSize: '0.8rem', gap: '6px' }}
                 >
                   {copiedJson ? <Check size={14} color="var(--status-success)" /> : <Copy size={14} />}
                   <span>{copiedJson ? 'Copied' : 'Copy JSON'}</span>
@@ -463,7 +424,6 @@ export default function ExportPrintModal({
                   id="btn-download-json"
                   onClick={handleDownloadJson}
                   disabled={exportQuestions.length === 0}
-                  style={{ padding: '7px 16px', fontSize: '0.8rem', gap: '6px' }}
                 >
                   <FileDown size={14} />
                   <span>Download JSON File</span>

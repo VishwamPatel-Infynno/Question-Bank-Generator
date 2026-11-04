@@ -28,46 +28,17 @@ export default function WizardAdvancedSettings({
   setAdditionalInstructions
 }) {
   return (
-    <div
-      style={{
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-sm)',
-        background: 'var(--bg-surface)',
-        overflow: 'hidden'
-      }}
-    >
+    <div className="wizard-advanced-card">
       <button
         type="button"
         onClick={() => setShowAdvanced?.((prev) => !prev)}
-        style={{
-          width: '100%',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'var(--bg-surface-subtle)',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: '0.82rem',
-          fontWeight: 600,
-          color: 'var(--text-primary)'
-        }}
+        className="wizard-advanced-toggle"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <Sliders size={14} style={{ color: 'var(--brand-primary)' }} />
+        <div className="wizard-advanced-toggle-content">
+          <Sliders size={14} color="var(--brand-primary)" />
           <span>Advanced Settings</span>
           {hasInstructions && (
-            <span
-              className="badge-minimal"
-              style={{
-                fontSize: '0.68rem',
-                color: 'var(--brand-primary)',
-                border: '1px solid var(--border-brand)',
-                background: 'var(--brand-light)',
-                padding: '1px 7px',
-                fontWeight: 600
-              }}
-            >
+            <span className="badge-minimal">
               Custom Instructions Active
             </span>
           )}
@@ -76,32 +47,20 @@ export default function WizardAdvancedSettings({
       </button>
 
       {showAdvanced && (
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="wizard-advanced-panel">
           {/* Cognitive Traps */}
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+            <div className="wizard-advanced-section-title">
               Test Traps
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div className="wizard-chips-list">
               <button
                 type="button"
                 onClick={() => {
                   if (onTogglePrimaryTrap) onTogglePrimaryTrap('Automatic');
                   else setPrimaryTrap?.('Automatic');
                 }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '4px 10px',
-                  borderRadius: 'var(--radius-full)',
-                  background: effectiveTraps.length === 0 ? 'var(--status-purple)' : 'var(--bg-surface-subtle)',
-                  border: effectiveTraps.length === 0 ? '1px solid var(--status-purple)' : '1px solid var(--border-light)',
-                  color: effectiveTraps.length === 0 ? 'var(--text-on-brand)' : 'var(--text-secondary)',
-                  fontSize: '0.72rem',
-                  fontWeight: effectiveTraps.length === 0 ? 600 : 500,
-                  cursor: 'pointer'
-                }}
+                className={`wizard-purple-chip ${effectiveTraps.length === 0 ? 'active' : ''}`}
               >
                 {effectiveTraps.length === 0 && <CheckCircle2 size={11} />}
                 <span>Automatic (Balanced Mix)</span>
@@ -117,19 +76,7 @@ export default function WizardAdvancedSettings({
                       if (onTogglePrimaryTrap) onTogglePrimaryTrap(trap.id);
                       else setPrimaryTrap?.(trap.id);
                     }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '4px 10px',
-                      borderRadius: 'var(--radius-full)',
-                      background: isSelected ? 'var(--status-purple)' : 'var(--bg-surface-subtle)',
-                      border: isSelected ? '1px solid var(--status-purple)' : '1px solid var(--border-light)',
-                      color: isSelected ? 'var(--text-on-brand)' : 'var(--text-secondary)',
-                      fontSize: '0.72rem',
-                      fontWeight: isSelected ? 600 : 500,
-                      cursor: 'pointer'
-                    }}
+                    className={`wizard-purple-chip ${isSelected ? 'active' : ''}`}
                   >
                     {isSelected && <CheckCircle2 size={11} />}
                     <span>{trap.label}</span>
@@ -142,29 +89,17 @@ export default function WizardAdvancedSettings({
           {/* Subskills Selection */}
           {availableSubskills.length > 0 && (
             <div>
-              <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+              <div className="wizard-advanced-section-title">
                 Reasoning Skills
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <div className="wizard-chips-list">
                 <button
                   type="button"
                   onClick={() => {
                     if (onToggleSubskill) onToggleSubskill('All');
                     else setSelectedSubskill?.('');
                   }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    background: effectiveSubskills.length === 0 ? 'var(--brand-primary)' : 'var(--bg-surface-subtle)',
-                    border: effectiveSubskills.length === 0 ? '1px solid var(--brand-primary)' : '1px solid var(--border-light)',
-                    color: effectiveSubskills.length === 0 ? 'var(--text-on-brand)' : 'var(--text-secondary)',
-                    fontSize: '0.72rem',
-                    fontWeight: effectiveSubskills.length === 0 ? 600 : 500,
-                    cursor: 'pointer'
-                  }}
+                  className={`wizard-filter-chip ${effectiveSubskills.length === 0 ? 'active' : ''}`}
                 >
                   {effectiveSubskills.length === 0 && <CheckCircle2 size={11} />}
                   <span>All Skills</span>
@@ -180,19 +115,7 @@ export default function WizardAdvancedSettings({
                         if (onToggleSubskill) onToggleSubskill(subsk);
                         else setSelectedSubskill?.(subsk);
                       }}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        padding: '4px 10px',
-                        borderRadius: 'var(--radius-full)',
-                        background: isSubSelected ? 'var(--brand-primary)' : 'var(--bg-surface-subtle)',
-                        border: isSubSelected ? '1px solid var(--brand-primary)' : '1px solid var(--border-light)',
-                        color: isSubSelected ? 'var(--text-on-brand)' : 'var(--text-secondary)',
-                        fontSize: '0.72rem',
-                        fontWeight: isSubSelected ? 600 : 500,
-                        cursor: 'pointer'
-                      }}
+                      className={`wizard-filter-chip ${isSubSelected ? 'active' : ''}`}
                     >
                       {isSubSelected && <CheckCircle2 size={11} />}
                       <span>{subsk}</span>
@@ -205,29 +128,17 @@ export default function WizardAdvancedSettings({
 
           {/* Misconception Patterns */}
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+            <div className="wizard-advanced-section-title">
               Student Mistakes
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div className="wizard-chips-list">
               <button
                 type="button"
                 onClick={() => {
                   if (onToggleMistakePattern) onToggleMistakePattern('Automatic');
                   else setLikelyMistakePattern?.('Automatic');
                 }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '4px 10px',
-                  borderRadius: 'var(--radius-full)',
-                  background: effectiveMistakes.length === 0 ? 'var(--brand-primary)' : 'var(--bg-surface-subtle)',
-                  border: effectiveMistakes.length === 0 ? '1px solid var(--brand-primary)' : '1px solid var(--border-light)',
-                  color: effectiveMistakes.length === 0 ? 'var(--text-on-brand)' : 'var(--text-secondary)',
-                  fontSize: '0.72rem',
-                  fontWeight: effectiveMistakes.length === 0 ? 600 : 500,
-                  cursor: 'pointer'
-                }}
+                className={`wizard-filter-chip ${effectiveMistakes.length === 0 ? 'active' : ''}`}
               >
                 {effectiveMistakes.length === 0 && <CheckCircle2 size={11} />}
                 <span>Automatic (Recommended)</span>
@@ -243,19 +154,7 @@ export default function WizardAdvancedSettings({
                       if (onToggleMistakePattern) onToggleMistakePattern(mp.label);
                       else setLikelyMistakePattern?.(mp.label);
                     }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '4px 10px',
-                      borderRadius: 'var(--radius-full)',
-                      background: isSelected ? 'var(--brand-primary)' : 'var(--bg-surface-subtle)',
-                      border: isSelected ? '1px solid var(--brand-primary)' : '1px solid var(--border-light)',
-                      color: isSelected ? 'var(--text-on-brand)' : 'var(--text-secondary)',
-                      fontSize: '0.72rem',
-                      fontWeight: isSelected ? 600 : 500,
-                      cursor: 'pointer'
-                    }}
+                    className={`wizard-filter-chip ${isSelected ? 'active' : ''}`}
                   >
                     {isSelected && <CheckCircle2 size={11} />}
                     <span>{mp.label}</span>
@@ -267,15 +166,15 @@ export default function WizardAdvancedSettings({
 
           {/* Additional Authoring Instructions */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div className="wizard-advanced-header-row">
               <label
                 htmlFor="wizard-additional-instructions"
-                style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}
+                className="wizard-advanced-section-title no-margin"
               >
                 Additional Instructions
               </label>
               {hasInstructions && (
-                <span className="badge-minimal" style={{ fontSize: '0.68rem', color: 'var(--brand-primary)' }}>
+                <span className="badge-minimal">
                   Active
                 </span>
               )}
@@ -286,20 +185,7 @@ export default function WizardAdvancedSettings({
               value={additionalInstructions}
               onChange={(e) => setAdditionalInstructions?.(e.target.value)}
               placeholder="e.g. Focus on enzyme pathways; keep math calculations simple; include a clinical scenario..."
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                fontSize: '0.82rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-surface-subtle)',
-                color: 'var(--text-primary)',
-                resize: 'vertical',
-                fontFamily: 'inherit',
-                lineHeight: 1.5,
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
+              className="wizard-instructions-textarea"
             />
           </div>
         </div>
@@ -307,4 +193,3 @@ export default function WizardAdvancedSettings({
     </div>
   );
 }
-

@@ -125,27 +125,15 @@ export default function MentorExplanationView({
   const keyLabel = correctAnswerId ? `Option ${correctAnswerId}` : 'Correct Key';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: isCompact ? '12px' : '16px' }}>
+    <div className={`mentor-view-wrap ${isCompact ? 'compact' : ''}`}>
       {/* Mentor Header Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
-            style={{
-              width: isCompact ? '22px' : '26px',
-              height: isCompact ? '22px' : '26px',
-              borderRadius: 'var(--radius-xs)',
-              background: 'var(--brand-light)',
-              color: 'var(--brand-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}
-          >
+      <div className="mentor-header-bar">
+        <div className="mentor-header-left">
+          <div className="mentor-header-icon">
             <GraduationCap size={isCompact ? 13 : 15} />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: isCompact ? '0.825rem' : '0.875rem', color: 'var(--text-primary)' }}>
+            <div className="mentor-header-title">
               Explanations
             </div>
           </div>
@@ -153,8 +141,7 @@ export default function MentorExplanationView({
 
         {parsed.resolvedTrap && (
           <span
-            className="badge badge-neutral"
-            style={{ fontSize: '0.675rem', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 500 }}
+            className="badge badge-neutral mentor-header-trap-chip"
             title={parsed.resolvedTrap.advice}
           >
             <AlertTriangle size={11} color="var(--status-warning)" />
@@ -164,24 +151,14 @@ export default function MentorExplanationView({
       </div>
 
       {/* SECTION 1: Why Option [Key] is Correct */}
-      <div
-        style={{
-          background: 'var(--status-success-bg)',
-          border: '1px solid var(--status-success-border)',
-          borderRadius: 'var(--radius-sm)',
-          padding: isCompact ? '10px 12px' : '12px 14px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-success)' }}>
+      <div className="mentor-correct-box">
+        <div className="mentor-correct-header">
           <CheckCircle2 size={13} />
           <span>Correct Answer ({keyLabel})</span>
         </div>
 
         {parsed.steps && parsed.steps.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="mentor-step-list">
             {parsed.steps.map((st, idx) => {
               const stepMatch = st.match(/^(?:\*\*)?(Step\s+\d+|[1-9]\d*\.)(?::|\s*-)?(?:\*\*)?\s*(.*)/is);
               const stepKey = `step-${idx}-${st.slice(0, 10)}`;
@@ -189,44 +166,25 @@ export default function MentorExplanationView({
                 const label = stepMatch[1].replace(/:$/, '').trim();
                 const stepBody = stepMatch[2].trim();
                 return (
-                  <div key={stepKey} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: isCompact ? '0.8rem' : '0.84rem' }}>
-                    <span
-                      style={{
-                        background: 'var(--bg-surface)',
-                        border: '1px solid var(--status-success-border)',
-                        color: 'var(--status-success)',
-                        padding: '1px 5px',
-                        borderRadius: 'var(--radius-xs)',
-                        fontWeight: 600,
-                        fontSize: '0.7rem',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0
-                      }}
-                    >
+                  <div key={stepKey} className="mentor-step-row">
+                    <span className="mentor-step-badge">
                       {label}
                     </span>
-                    <span style={{ color: 'var(--text-primary)', flex: 1, lineHeight: 1.55 }}>
+                    <span className="mentor-step-body">
                       <FormattedText text={stepBody} />
                     </span>
                   </div>
                 );
               }
               return (
-                <div key={stepKey} style={{ color: 'var(--text-primary)', lineHeight: 1.55, fontSize: isCompact ? '0.8rem' : '0.84rem' }}>
+                <div key={stepKey} className="mentor-step-body">
                   <FormattedText text={st} />
                 </div>
               );
             })}
           </div>
         ) : (
-          <div
-            style={{
-              fontSize: isCompact ? '0.8rem' : '0.84rem',
-              lineHeight: 1.6,
-              color: 'var(--text-primary)',
-              whiteSpace: 'pre-line'
-            }}
-          >
+          <div className="mentor-correct-prose">
             <FormattedText text={parsed.correctExplanation} />
           </div>
         )}
@@ -234,79 +192,36 @@ export default function MentorExplanationView({
 
       {/* SECTION 2: Why Other Options are Incorrect (Distractors) */}
       {parsed.distractors && parsed.distractors.length > 0 && (
-        <div
-          style={{
-            background: 'var(--status-warning-bg)',
-            border: '1px solid var(--status-warning-border)',
-            borderRadius: 'var(--radius-sm)',
-            padding: isCompact ? '10px 12px' : '12px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-warning)' }}>
+        <div className="mentor-distractor-box">
+          <div className="mentor-distractor-header">
+            <div className="mentor-distractor-title">
               <AlertTriangle size={13} color="var(--status-warning)" />
               <span>Incorrect Choices</span>
             </div>
-            <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>
+            <span className="mentor-distractor-count">
               {parsed.distractors.length} choices
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: isCompact ? '0.78rem' : '0.825rem' }}>
+          <div className="mentor-distractor-list">
             {parsed.distractors.map((item, idx) => (
               <div
                 key={item.label ? `dist-${item.label}` : `dist-${idx}-${item.text?.slice(0, 10)}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px',
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: 'var(--radius-xs)',
-                  padding: '6px 8px',
-                  lineHeight: 1.5
-                }}
+                className="mentor-distractor-item"
               >
                 {item.label && (
-                  <span
-                    style={{
-                      background: 'var(--status-danger-bg)',
-                      border: '1px solid var(--status-danger-border)',
-                      color: 'var(--status-danger)',
-                      padding: '1px 5px',
-                      borderRadius: 'var(--radius-xs)',
-                      fontWeight: 600,
-                      fontSize: '0.7rem',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0
-                    }}
-                  >
+                  <span className="mentor-distractor-key">
                     {item.label}
                   </span>
                 )}
 
                 {item.trap && (
-                  <span
-                    style={{
-                      background: 'var(--status-purple-bg)',
-                      border: '1px solid var(--status-purple-border)',
-                      color: 'var(--status-purple)',
-                      padding: '1px 5px',
-                      borderRadius: 'var(--radius-xs)',
-                      fontWeight: 500,
-                      fontSize: '0.675rem',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0
-                    }}
-                  >
+                  <span className="mentor-distractor-trap">
                     {item.trap}
                   </span>
                 )}
 
-                <FormattedText text={item.body} highlightTraps style={{ color: 'var(--text-secondary)', flex: 1 }} />
+                <FormattedText text={item.body} highlightTraps className="mentor-distractor-body" />
               </div>
             ))}
           </div>
@@ -315,26 +230,16 @@ export default function MentorExplanationView({
 
       {/* SECTION 3: Primary Cognitive Trap Defense */}
       {parsed.resolvedTrap && (
-        <div
-          style={{
-            background: 'var(--status-purple-bg)',
-            border: '1px solid var(--status-purple-border)',
-            borderRadius: 'var(--radius-sm)',
-            padding: isCompact ? '10px 12px' : '12px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '5px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-purple)' }}>
+        <div className="mentor-trap-box">
+          <div className="mentor-header-bar">
+            <div className="mentor-trap-header">
               <Target size={13} />
               <span>Exam Trap &bull; {parsed.resolvedTrap.label}</span>
             </div>
           </div>
 
-          <div style={{ fontSize: isCompact ? '0.76rem' : '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            <strong style={{ color: 'var(--text-primary)' }}>Avoidance: </strong>
+          <div className="mentor-trap-body">
+            <strong>Avoidance: </strong>
             {parsed.resolvedTrap.advice}
           </div>
         </div>
@@ -342,24 +247,14 @@ export default function MentorExplanationView({
 
       {/* SECTION 4: Student Misconception if present */}
       {likelyMistakePattern && (
-        <div
-          style={{
-            background: 'var(--status-warning-bg)',
-            border: '1px solid var(--status-warning-border)',
-            borderRadius: 'var(--radius-sm)',
-            padding: isCompact ? '10px 12px' : '12px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '5px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--status-warning)' }}>
+        <div className="mentor-mistake-box">
+          <div className="mentor-mistake-header">
             <AlertTriangle size={13} />
             <span>Target Mistake &bull; {likelyMistakePattern}</span>
           </div>
 
-          <div style={{ fontSize: isCompact ? '0.76rem' : '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            <strong style={{ color: 'var(--text-primary)' }}>Exam Tip: </strong>
+          <div className="mentor-mistake-body">
+            <strong>Exam Tip: </strong>
             Double-check foundational assumptions, formula boundary conditions, and sign/unit conventions before finalizing your choice.
           </div>
         </div>
