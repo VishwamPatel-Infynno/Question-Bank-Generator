@@ -301,7 +301,8 @@ Question Bank Generator/
     └── src/
         ├── App.jsx              # Main application shell & router
         ├── main.jsx             # React 19 application entry point
-        ├── index.css            # Modern Enterprise Minimalist design system (Dual Theme)
+        ├── index.css            # Precision Design System aggregator hub (imports styles/*)
+        ├── styles/              # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print)
         ├── views/               # Top-level screen views (Code-split with React.lazy)
         │   ├── index.js         # Centralized views index
         │   ├── AiValidatedQuestionsView.jsx # Dedicated AI Validated (>90) quality bank

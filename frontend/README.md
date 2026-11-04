@@ -129,7 +129,18 @@ frontend/src/
 │   ├── formatters.js             # Currency, pacing, and token formatting
 │   ├── optionHelpers.js          # Option length parity & calculateOptionSymmetry engine
 │   └── trapHelpers.js            # Cognitive trap detection & resolution
-├── index.css                     # Design tokens, electric conduit animations, and typography
+├── styles/
+│   ├── tokens.css                # Authoritative design tokens (Light/Dark obsidian themes)
+│   ├── base.css                  # Global reset, scrollbars, buttons, primitives
+│   ├── layout.css                # App shell, Navbar, Footer, Toast, Pagination
+│   ├── wizard.css                # Hero landing & 3-step authoring wizard
+│   ├── question.css              # Master Question Card, Mentor explanation, Stimulus, Scorecard
+│   ├── batch.css                 # Batch Activity Monitor, concurrency gauge, progress pills
+│   ├── bank.css                  # Canonical Question Bank & AI-Validated Review Queue
+│   ├── passage.css               # Passage Bank & Editorial Desk workspace
+│   ├── modals.css                # Standardized modal dialogs, Confirmation, Audit modal
+│   └── print.css                 # Exam Paper print preview & @media print styles
+├── index.css                     # Aggregator hub importing all domain stylesheets
 └── main.jsx                      # Application entry point
 ```
 

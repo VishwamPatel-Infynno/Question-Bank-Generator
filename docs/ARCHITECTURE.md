@@ -755,7 +755,8 @@ frontend/src/
 │   ├── index.js                  # Utilities barrel export
 │   ├── optionHelpers.js          # Option length parity & calculateOptionSymmetry engine
 │   └── trapHelpers.js            # Cognitive trap resolution & text detectors
-├── index.css                     # Enterprise CSS design tokens, conduit animations, dual-theme styling
+├── styles/                       # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print)
+├── index.css                     # Aggregator hub importing all domain stylesheets
 └── main.jsx                      # React 19 application root
 ```
 

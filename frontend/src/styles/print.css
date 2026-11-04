@@ -1,0 +1,432 @@
+/* Infynno MCAT Question Bank Generator - Export & Paper Print Preview | Infynno Solutions LLP */
+
+/* ==========================================================================
+   Print & PDF Export Utility Styles
+   ========================================================================== */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .navbar,
+  .footer,
+  .toast-container,
+  .modal-backdrop,
+  .modal-backdrop-theme {
+    display: none !important;
+  }
+
+  .page-break {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+}
+
+
+/* ==========================================================================
+   Exam Export & Paper Print Preview Component Classes
+   ========================================================================== */
+.exam-export-modal {
+  max-width: 960px;
+  width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.exam-export-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.exam-export-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-surface-elevated);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.exam-export-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exam-export-group-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.exam-export-tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.exam-export-paper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.exam-export-paper-mode-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.exam-export-paper-mode-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.exam-export-paper-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.exam-export-paper-meta-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.exam-export-callout {
+  padding: 10px 14px;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.exam-export-code-preview {
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  max-height: 340px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.exam-export-footer {
+  justify-content: space-between;
+}
+
+.exam-export-footer-info {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.exam-export-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Authentic Paper Print Preview Sheet */
+.exam-paper-sheet {
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 24px 28px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  max-height: 440px;
+  overflow-y: auto;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+}
+
+[data-theme="dark"] .exam-paper-sheet {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.exam-paper-header {
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+
+.exam-paper-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.exam-paper-title {
+  margin: 0 0 2px 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.exam-paper-subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.exam-paper-score-box {
+  border: 1.5px solid #0f172a;
+  border-radius: 4px;
+  padding: 4px 10px;
+  text-align: center;
+  min-width: 74px;
+}
+
+.exam-paper-score-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.exam-paper-score-val {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.exam-paper-meta-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .exam-paper-meta-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.exam-paper-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.exam-paper-meta-label {
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.exam-paper-meta-line {
+  flex: 1;
+  border-bottom: 1px dotted #94a3b8;
+  height: 12px;
+}
+
+.exam-paper-meta-val {
+  color: #475569;
+  font-weight: 600;
+}
+
+.exam-paper-meta-val-highlight {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.exam-paper-questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.exam-paper-question-block {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 16px;
+}
+
+.exam-paper-question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.exam-paper-question-num {
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: #0f172a;
+}
+
+.exam-paper-question-tag {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.exam-paper-stimulus {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+  line-height: 1.5;
+  color: #1e293b;
+}
+
+.exam-paper-diagram-box {
+  margin: 8px auto;
+  text-align: center;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  max-width: 380px;
+}
+
+.exam-paper-diagram-img {
+  max-height: 220px;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.exam-paper-diagram-caption {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: #64748b;
+  margin-top: 6px;
+}
+
+.exam-paper-stem {
+  font-weight: 600;
+  font-size: 0.84rem;
+  color: #0f172a;
+  margin-bottom: 8px;
+  line-height: 1.45;
+}
+
+.exam-paper-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exam-paper-option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #1e293b;
+  line-height: 1.45;
+}
+
+.exam-paper-option-bubble {
+  color: #94a3b8;
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  flex-shrink: 0;
+  line-height: 1.45;
+  user-select: none;
+}
+
+.exam-paper-option-letter {
+  min-width: 18px;
+  flex-shrink: 0;
+  line-height: 1.45;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.exam-paper-option-text {
+  flex: 1;
+  line-height: 1.45;
+}
+
+.exam-paper-answer-key {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #0f172a;
+}
+
+.exam-paper-key-title {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.exam-paper-key-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exam-paper-key-card {
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+
+.exam-paper-key-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.exam-paper-key-badge {
+  background: var(--status-success, #10b981);
+  color: #ffffff;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.exam-paper-key-trap {
+  color: #64748b;
+  font-size: 0.7rem;
+}
+
+.exam-paper-key-explanation {
+  color: #334155;
+  line-height: 1.4;
+}
+
+

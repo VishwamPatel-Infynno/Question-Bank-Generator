@@ -20,7 +20,7 @@ The Infynno MCAT Question Studio is built for pre-med educators, test-prep autho
 
 ## 2. Color System & Design Tokens
 
-Design tokens are defined as CSS custom properties in [`frontend/src/index.css`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/index.css) and automatically respond to the `[data-theme="dark"]` and `[data-theme="light"]` attributes on the root `<html>` element.
+Design tokens are defined as CSS custom properties in [`frontend/src/styles/tokens.css`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/styles/tokens.css) (aggregated via [`frontend/src/index.css`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/index.css)) and automatically respond to the `[data-theme="dark"]` and `[data-theme="light"]` attributes on the root `<html>` element.
 
 ### 2.1 Infynno Corporate Brand Palette
 These core gradient tokens anchor the brand identity across buttons, active tab indicators, and progress tracks:
@@ -226,7 +226,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - Configurable page size selector (`10`, `25`, `50`, `100` items/page).
   - Previous (`ChevronLeft`) and Next (`ChevronRight`) navigation buttons with disabled boundary states.
   - Page number buttons with dynamic window truncation (ellipsis for $> 5$ pages) and active gradient pill indicators.
-- **Semantic CSS System Classes** defined in [`frontend/src/index.css`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/index.css):
+- **Semantic CSS System Classes** defined across [`frontend/src/styles/`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/styles/) (aggregated in [`frontend/src/index.css`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/index.css)):
   - `.pagination-bar`: Flexbox footer container with surface background and hairline top border.
   - `.view-loading-box`: Centered layout loading indicator container with pulse animation.
   - `.view-empty-state`: Clean empty state box with icon badge and descriptive guidance.

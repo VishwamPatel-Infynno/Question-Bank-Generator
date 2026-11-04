@@ -1,0 +1,148 @@
+/* Infynno MCAT Question Bank Generator - Design Tokens | Infynno Solutions LLP */
+/* Authoritative design tokens conforming to DESIGN.md */
+
+/* Infynno MCAT Question Bank Generator - Precision Design System | Infynno Solutions LLP */
+
+/* --- UNIVERSAL TOKENS --- */
+:root {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: 'Newsreader', Georgia, serif;
+
+  /* Official AAMC MCAT Section Signature Accents */
+  --mcat-chem-phys: #0284c7;
+  --mcat-cars: #e11d48;
+  --mcat-bio-biochem: #059669;
+  --mcat-psych-soc: #7c3aed;
+
+  /* Infynno Solutions LLP Brand Identity */
+  --infynno-violet: #4F30B9;
+  --infynno-blue: #335ACF;
+  --infynno-cyan: #1E7ADF;
+  --infynno-gradient: linear-gradient(135deg, #4F30B9 0%, #335ACF 50%, #1E7ADF 100%);
+  --infynno-glow: 0 0 20px rgba(51, 90, 207, 0.25);
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --transition-fast: 0.12s ease-out;
+  --transition-normal: 0.18s ease-out;
+}
+
+/* --- LIGHT THEME (DEFAULT) --- */
+:root, [data-theme="light"] {
+  --text-on-brand: #ffffff;
+  --bg-app: #f8fafc;
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-surface-subtle: #f8fafc;
+  --bg-surface-hover: #f1f5f9;
+  --bg-card: #ffffff;
+
+  --border-light: #e8ecf2;
+  --border-medium: #cbd5e1;
+  --border-subtle: #f1f5f9;
+  --border-hairline: #f1f4f9;
+  --border-brand: #93c5fd;
+  --border-strong: #94a3b8;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+  --text-disabled: #94a3b8;
+
+  --brand-primary: #0284c7;
+  --brand-hover: #0369a1;
+  --brand-light: #f0f9ff;
+  --brand-glow: 0 0 0 2px rgba(2, 132, 199, 0.25);
+  --brand-indigo: #4f46e5;
+
+  --status-success: #059669;
+  --status-success-text: #059669;
+  --success: #059669;
+  --status-success-bg: #ecfdf5;
+  --status-success-border: #a7f3d0;
+
+  --status-warning: #d97706;
+  --status-warning-bg: #fffbeb;
+  --status-warning-border: #fde68a;
+
+  --status-danger: #e11d48;
+  --status-danger-bg: #fff1f2;
+  --status-danger-border: #fecdd3;
+
+  --status-purple: #7c3aed;
+  --status-purple-bg: #f5f3ff;
+  --status-purple-border: #ddd6fe;
+
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px 0 rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 24px -2px rgba(0, 0, 0, 0.07);
+}
+
+/* --- DARK THEME --- */
+[data-theme="dark"] {
+  --text-on-brand: #080c14;
+  /* Precision Monochrome Surfaces */
+  --bg-app: #080c14;
+  --bg-canvas: #080c14;
+  --bg-surface: #0d121d;
+  --bg-surface-elevated: #121826;
+  --bg-surface-subtle: #0a0e18;
+  --bg-surface-hover: #151c2c;
+  --bg-card: #0d121d;
+
+  /* Hairline Crisp Dividers & Borders */
+  --border-light: rgba(255, 255, 255, 0.06);
+  --border-medium: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-hairline: rgba(255, 255, 255, 0.04);
+  --border-brand: rgba(56, 189, 248, 0.25);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* High-Legibility Typography */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-dim: #475569;
+  --text-disabled: #475569;
+
+  /* Restrained Accents */
+  --brand-primary: #38bdf8;
+  --brand-hover: #7dd3fc;
+  --brand-light: rgba(56, 189, 248, 0.08);
+  --brand-glow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+  --brand-indigo: #818cf8;
+
+  /* Status Colors */
+  --status-success: #10b981;
+  --status-success-text: #10b981;
+  --success: #10b981;
+  --status-success-bg: rgba(16, 185, 129, 0.06);
+  --status-success-border: rgba(16, 185, 129, 0.22);
+
+  --status-warning: #f59e0b;
+  --status-warning-bg: rgba(245, 158, 11, 0.06);
+  --status-warning-border: rgba(245, 158, 11, 0.22);
+
+  --status-danger: #f43f5e;
+  --status-danger-bg: rgba(244, 63, 94, 0.06);
+  --status-danger-border: rgba(244, 63, 94, 0.22);
+
+  --status-purple: #8b5cf6;
+  --status-purple-bg: rgba(139, 92, 246, 0.06);
+  --status-purple-border: rgba(139, 92, 246, 0.22);
+
+  /* Restrained Elevation */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 12px 0 rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 24px -2px rgba(0, 0, 0, 0.35);
+}
+
