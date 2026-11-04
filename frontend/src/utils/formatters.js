@@ -39,15 +39,17 @@ export function countWords(text) {
 }
 
 /**
- * Formats a numeric USD cost to a fixed fractional display string.
+ * Formats a numeric USD cost to a fixed fractional display string with micro-dollar accuracy.
  * @param {number} cost - Cost in USD
- * @returns {string} e.g. "$0.0014" or "$0.00"
+ * @param {number} [decimals=5] - Number of decimal places
+ * @returns {string} e.g. "$0.00241" or "$0.00"
  */
-export function formatCostUsd(cost) {
+export function formatCostUsd(cost, decimals = 5) {
   if (cost === undefined || cost === null || isNaN(cost)) return '$0.00';
-  if (cost === 0) return '$0.00';
-  if (cost < 0.0001) return '< $0.0001';
-  return `$${cost.toFixed(4)}`;
+  const num = Number(cost);
+  if (num === 0) return '$0.00';
+  if (num < 0.00001) return '< $0.00001';
+  return `$${num.toFixed(decimals)}`;
 }
 
 /**

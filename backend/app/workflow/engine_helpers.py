@@ -25,6 +25,7 @@ from app.repositories.job_repository import update_job_progress
 from app.repositories.question_repository import save_question
 from app.schemas import (
     ALT_TRAP_ROTATION,
+    KNOWN_VISUAL_TYPES,
     GenerationRequest,
     OptionChoice,
     Question,
@@ -109,9 +110,7 @@ def _build_batch_worker_request(
     # calibrate authentic AAMC frequency (~40%: items 0 and 2 in every 5 questions, or single question)
     sec_is_cars = is_cars_section(req.section)
     has_diagrams_enabled = (
-        req.allow_ai_images
-        or req.require_image
-        or req.visual_type in ("SVG_Diagram", "AI_FLUX_Image")
+        req.allow_ai_images or req.require_image or req.visual_type in KNOWN_VISUAL_TYPES
     )
     should_require_item_image = bool(
         not sec_is_cars
@@ -176,9 +175,7 @@ def _determine_item_diagram_requirement(
         return False
 
     # Check if visual generation is permitted at all
-    visuals_permitted = (
-        allow_ai_images or explicit_image or visual_type in ("SVG_Diagram", "AI_FLUX_Image")
-    )
+    visuals_permitted = allow_ai_images or explicit_image or visual_type in KNOWN_VISUAL_TYPES
     if not visuals_permitted:
         return False
 
@@ -500,7 +497,7 @@ async def _prepare_shared_passage_and_visual(
             or passage_image_needed
             or req.require_passage_image
             or req.require_image
-            or req.visual_type in ("SVG_Diagram", "AI_FLUX_Image")
+            or req.visual_type in KNOWN_VISUAL_TYPES
         )
     )
 

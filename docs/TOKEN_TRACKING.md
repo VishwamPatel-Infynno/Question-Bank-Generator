@@ -8,15 +8,25 @@ This document details the token accounting engine, high-throughput pricing rate 
 
 ## 1. Inference Engines & Pricing Rate Cards
 
-The system features multi-provider inference support, seamlessly switchable via `ACTIVE_LLM_PROVIDER=anthropic` or `ACTIVE_LLM_PROVIDER=deepinfra` in `.env`:
+The system features multi-provider inference support, seamlessly switchable via `ACTIVE_LLM_PROVIDER=anthropic`, `ACTIVE_LLM_PROVIDER=openai`, or `ACTIVE_LLM_PROVIDER=deepinfra` in `.env`:
 
-### DeepInfra Engine: DeepSeek-V4.1-Flash-1017
+### OpenAI Engine: GPT-4o-mini & GPT-4o Family
+- **Model Identifiers**: `gpt-4o-mini` (default), `gpt-4o`, `o3-mini`, `o1`
+- **Context Window**: 128,000 tokens (up to 200,000 for o1)
+- **Official OpenAI Rates**:
+  - `gpt-4o-mini`: $0.150 / 1M in ($0.075 / 1M cached prompt), $0.600 / 1M out
+  - `gpt-4o`: $2.500 / 1M in ($1.250 / 1M cached prompt), $10.000 / 1M out
+  - `o3-mini`: $1.100 / 1M in ($0.550 / 1M cached prompt), $4.400 / 1M out
+  - `o1`: $15.000 / 1M in ($7.500 / 1M cached prompt), $60.000 / 1M out
+- **Prompt Caching Discount**: Universal 50% discount on cached input tokens (`prompt_tokens_details.cached_tokens`).
+
+### DeepInfra Engine: DeepSeek-V4.1-Flash-1017 & DeepSeek-R1
 - **Model Identifier**: `deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017`
 - **Context Window**: 1,024,000 tokens (1M)
 - **Inference Speed**: ~110-140 tokens/second
 - **Official Rates**:
-  - Input: $0.098 USD per 1,000,000 tokens
-  - Output: $0.294 USD per 1,000,000 tokens
+  - DeepSeek-V3 / Flash: Input: $0.098 USD per 1,000,000 tokens, Output: $0.294 USD per 1,000,000 tokens
+  - DeepSeek-R1: Input: $0.550 USD per 1,000,000 tokens, Output: $2.190 USD per 1,000,000 tokens
 
 ### Anthropic Engine: Claude Haiku 5.5
 - **Model Identifier**: `claude-haiku-5-5` (or aliases `anthropic/claude-haiku-5-5`, `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`)
@@ -88,32 +98,43 @@ def calculate_token_cost(
 
 ---
 
-## 3. FLUX-2-klein-4b Image Generation Pricing
+## 3. Dedicated AI Image Generation Pricing
 
-For visual question stimuli, the system integrates **`black-forest-labs/FLUX-2-klein-4b`** hosted on **DeepInfra**:
+The system supports dedicated AI image generation via **OpenAI** (`ACTIVE_IMAGE_PROVIDER=openai`) and **DeepInfra** (`ACTIVE_IMAGE_PROVIDER=deepinfra`).
 
-- **Model Identifier**: `black-forest-labs/FLUX-2-klein-4b`
-- **Architecture**: Compact rectified-flow transformer delivering prompt adherence, clean white-background test illustrations, and sub-2.0s generation times.
+### 3.1 OpenAI Image Generation Models
+The engine automatically routes to official OpenAI Image endpoints with token-metered extraction and rate-card fallbacks:
 
-### Official DeepInfra Image Pricing Formula
+- **`gpt-image-2.5-flare` (Default)**:
+  - **Token-Metered Telemetry**: Calculated from API `usage` if reported ($5.00 / 1M prompt tokens, $30.00 / 1M image output tokens).
+  - **Rate Card Fallback**: $0.020 per 1024x1024 base unit, scaled by $(\text{width} / 1024) \times (\text{height} / 1024)$.
+- **`gpt-image-2.5-sunburst` (High-Precision Tier)**:
+  - **Rate Card**: $0.060 per 1024x1024 base unit, scaled by $(\text{width} / 1024) \times (\text{height} / 1024)$.
+- **`dall-e-3`**:
+  - **1024x1024**: Standard = $0.040 | HD = $0.080
+  - **1024x1792 / 1792x1024**: Standard = $0.080 | HD = $0.120
+- **`dall-e-2`**:
+  - **1024x1024**: $0.020 | **512x512**: $0.018 | **256x256**: $0.016
 
-FLUX-2-klein-4b is billed at a flat rate per image on DeepInfra:
+### 3.2 DeepInfra FLUX Models
+- **`black-forest-labs/FLUX-2-klein-4b`**:
+  - Flat base rate of $0.014 per 1024x1024 image, scaled by $(\text{width}/1024) \times (\text{height}/1024)$.
+  - Automatically extracts exact provider-reported cost from `inference_status.cost` when present.
+- **`black-forest-labs/FLUX-1-schnell`**:
+  - $0.0005 per step at 1024x1024 base unit (e.g. 4 steps = $0.002).
 
-$$\text{Price (USD)} = 0.014 \times \left(\frac{\text{width}}{1024}\right) \times \left(\frac{\text{height}}{1024}\right)$$
+### Resolution Variation Cost Matrix
 
-Where:
-* **$\text{width}$**: Pixel width of the generated image (normalized against a $1024$ baseline).
-* **$\text{height}$**: Pixel height of the generated image (normalized against a $1024$ baseline).
-* **Dynamic API Telemetry**: The engine automatically extracts and records the exact provider-reported cost from DeepInfra's `inference_status.cost` payload when available.
-
-### Resolution Variation Cost Table
-
-| Resolution (W × H) | Inference Mode | Scaling Factor | Unit Calculation | Cost per Image (USD) |
-| :--- | :---: | :---: | :--- | :---: |
-| **1024 × 1024 (Standard Quality)** | **Single pass** | $1.0 \times 1.0$ | Flat unit rate | **$0.014000** |
-| **768 × 768 (Medium Balanced)** | **Single pass** | $0.75 \times 0.75$ | $0.014 \times 0.5625$ | **$0.007875** |
-| **512 × 512 (Fast Lightweight)** | **Single pass** | $0.5 \times 0.5$ | $0.014 \times 0.25$ | **$0.003500** |
-| **Programmatic SVG Fallback** | - | - | Offline vector diagram | **$0.000000** |
+| Model | Resolution | Mode / Quality | Scaling Factor | Cost per Image (USD) |
+| :--- | :--- | :---: | :---: | :---: |
+| **`gpt-image-2.5-flare`** | 1024 × 1024 | Standard | 1.0x | **$0.020000** |
+| **`gpt-image-2.5-flare`** | 512 × 512 | Fast | 0.25x | **$0.005000** |
+| **`gpt-image-2.5-sunburst`** | 1024 × 1024 | High-Precision | 1.0x | **$0.060000** |
+| **`dall-e-3`** | 1024 × 1024 | Standard | Flat | **$0.040000** |
+| **`dall-e-3`** | 1024 × 1024 | HD Quality | Flat | **$0.080000** |
+| **`dall-e-3`** | 1024 × 1792 | HD Quality | Flat | **$0.120000** |
+| **`FLUX-2-klein-4b`** | 1024 × 1024 | Single pass | 1.0x | **$0.014000** |
+| **`FLUX-1-schnell`** | 1024 × 1024 | 4 steps | 4 × $0.0005 | **$0.002000** |
 
 ---
 

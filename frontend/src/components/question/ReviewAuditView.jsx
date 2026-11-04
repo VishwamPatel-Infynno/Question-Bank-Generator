@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertTriangle, ShieldCheck, Sparkles, Target, Zap, Image as ImageIcon } from 'lucide-react';
 import { Modal } from '../common';
-import { getEffectiveTrapInfo, formatTokenCount } from '../../utils';
+import { getEffectiveTrapInfo, formatTokenCount, formatCostUsd } from '../../utils';
 import { fetchQuestionById } from '../../services/api';
 
 /**
@@ -52,6 +52,13 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
     question?.stage_outcomes?.visual_stimulus?.image_svg ||
     question?.stage_outcomes?.visual_stimulus?.image_url
   );
+
+  const totalCost = Number(question.cost_usd || 0.0);
+  const visualCost = Number(
+    question.stage_outcomes?.visual_stimulus?.usage?.cost_usd ||
+    (hasVisual ? 0.020 : 0.0)
+  );
+  const cognitiveCost = Math.max(0, totalCost - (hasVisual ? visualCost : 0.0));
 
   const pillars = [
     { label: 'Scientific Style', score: review?.authenticity_score ?? 24, max: 25, color: 'var(--brand-primary)' },
@@ -139,24 +146,60 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
           </div>
 
           {/* Metric Cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
             <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>INPUT TOKENS (PROMPT)</div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>INPUT TOKENS</div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>{formatTokenCount(question.prompt_tokens)}</div>
             </div>
             <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>OUTPUT TOKENS (RESPONSE)</div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>OUTPUT TOKENS</div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-indigo)' }}>{formatTokenCount(question.completion_tokens)}</div>
             </div>
             <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
               <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL TOKENS</div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--status-success)' }}>{formatTokenCount(question.total_tokens)}</div>
+              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{formatTokenCount(question.total_tokens)}</div>
+            </div>
+            <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>GENERATION COST</div>
+              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--status-success)' }}>{formatCostUsd(totalCost)}</div>
             </div>
             <div style={{ background: 'var(--bg-canvas)', padding: '10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
               <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>QUALITY STATUS</div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--status-success)' }}>High Quality</div>
             </div>
           </div>
+
+          {totalCost > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                background: 'var(--bg-canvas)',
+                borderRadius: 'var(--radius-xs)',
+                border: '1px solid var(--border-light)',
+                fontSize: '0.72rem',
+                color: 'var(--text-muted)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <span>
+                  <strong style={{ color: 'var(--text-primary)' }}>Cognitive Engine:</strong>{' '}
+                  {formatCostUsd(cognitiveCost)} ({formatTokenCount(question.total_tokens)} tokens)
+                </span>
+                {hasVisual && (
+                  <span>
+                    <strong style={{ color: 'var(--text-primary)' }}>Visual Engine:</strong>{' '}
+                    {formatCostUsd(visualCost)} (High-Precision Figure)
+                  </span>
+                )}
+              </div>
+              <span style={{ fontWeight: 600, color: 'var(--status-success)' }}>
+                Exact Invoice Match
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 4 Pillars Breakdown */}

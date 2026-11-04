@@ -6,6 +6,13 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.mcat import Difficulty, MCATSection, normalize_section
 
+KNOWN_VISUAL_TYPES: tuple[str, ...] = (
+    "SVG_Diagram",
+    "AI_FLUX_Image",
+    "AI_Image",
+    "AI_OpenAI_Image",
+)
+
 
 class GenerationRequest(BaseModel):
     section: MCATSection
@@ -123,7 +130,7 @@ class GenerationRequest(BaseModel):
         """Determines whether visual image/diagram stimulus generation is explicitly required."""
         if self.section in (MCATSection.CARS, "CARS", "cars"):
             return False
-        if self.visual_type in ("SVG_Diagram", "AI_FLUX_Image") and not self.allow_ai_images:
+        if self.visual_type in KNOWN_VISUAL_TYPES:
             return True
         return bool(self.require_image or self.require_passage_image)
 

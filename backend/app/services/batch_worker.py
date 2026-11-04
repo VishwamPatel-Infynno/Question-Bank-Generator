@@ -431,4 +431,3 @@ async def _run_single_job_refill(
                 exc_info=True,
             )
             await update_job_progress(job.id, status="failed", error_message=str(exc))
-

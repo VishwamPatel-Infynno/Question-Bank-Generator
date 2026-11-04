@@ -131,6 +131,14 @@ def normalize_model_for_litellm(model: str) -> str:
             return m
         except Exception:
             return f"anthropic/{m}"
+    if config.is_openai_model(m):
+        if m.startswith(("openai/", "openai.")):
+            return m
+        try:
+            litellm.get_llm_provider(m)
+            return m
+        except Exception:
+            return f"openai/{m}"
     return m
 
 
@@ -151,17 +159,21 @@ def calculate_token_cost(
         - Universal Anthropic prompt caching:
             - Cache Read: 10% of base in_rate
             - Cache Write: 125% of base in_rate
+    - OpenAI Models (gpt-4o-mini, gpt-4o, o3-mini, o1):
+        - Rates from config.get_default_pricing_rates(target_model)
+        - Universal OpenAI prompt caching: 50% discount on cached prompt tokens
     - DeepInfra / Custom Rates:
-        - Input: config.COST_PER_MILLION_INPUT_TOKENS ($0.098 / 1M tokens)
-        - Output: config.COST_PER_MILLION_OUTPUT_TOKENS ($0.294 / 1M tokens)
+        - Rates from config.get_default_pricing_rates(target_model)
+        - Default: config.COST_PER_MILLION_INPUT_TOKENS ($0.098 / 1M tokens)
+        - Default: config.COST_PER_MILLION_OUTPUT_TOKENS ($0.294 / 1M tokens)
     """
     target_model = model or config.DEFAULT_TEXT_MODEL
-    if config.is_anthropic_model(target_model):
-        has_rate_override = (
-            getattr(config, "_override_cost_input", None) is not None
-            or getattr(config, "_override_cost_output", None) is not None
-        )
+    has_rate_override = (
+        getattr(config, "_override_cost_input", None) is not None
+        or getattr(config, "_override_cost_output", None) is not None
+    )
 
+    if config.is_anthropic_model(target_model):
         if (
             "haiku-5-5" in target_model.lower() or target_model == "claude-haiku-5-5"
         ) and not has_rate_override:
@@ -187,9 +199,21 @@ def calculate_token_cost(
         cache_creation_cost = (cache_creation_tokens / 1_000_000.0) * cache_creation_rate
         return round(in_cost + out_cost + cache_read_cost + cache_creation_cost, 7)
 
-    in_rate = config.COST_PER_MILLION_INPUT_TOKENS
-    out_rate = config.COST_PER_MILLION_OUTPUT_TOKENS
+    if config.is_openai_model(target_model):
+        if has_rate_override:
+            in_rate = config.COST_PER_MILLION_INPUT_TOKENS
+            out_rate = config.COST_PER_MILLION_OUTPUT_TOKENS
+        else:
+            in_rate, out_rate = config.get_default_pricing_rates(target_model)
 
+        cached_rate = in_rate * 0.50
+        base_prompt_tokens = max(0, prompt_tokens - cache_read_tokens)
+        in_cost = (base_prompt_tokens / 1_000_000.0) * in_rate
+        cached_cost = (cache_read_tokens / 1_000_000.0) * cached_rate
+        out_cost = (completion_tokens / 1_000_000.0) * out_rate
+        return round(in_cost + cached_cost + out_cost, 7)
+
+    in_rate, out_rate = config.get_default_pricing_rates(target_model)
     in_cost = (prompt_tokens / 1_000_000.0) * in_rate
     out_cost = (completion_tokens / 1_000_000.0) * out_rate
     return round(in_cost + out_cost, 7)
@@ -213,6 +237,14 @@ def _resolve_api_key(model: str, explicit_key: str | None) -> str:
         if not key:
             raise ValueError(
                 "Anthropic API Key is required. Please set ANTHROPIC_API_KEY in your .env file."
+            )
+        return key
+
+    if config.is_openai_model(model):
+        key = config.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
+        if not key:
+            raise ValueError(
+                "OpenAI API Key is required. Please set OPENAI_API_KEY in your .env file."
             )
         return key
 

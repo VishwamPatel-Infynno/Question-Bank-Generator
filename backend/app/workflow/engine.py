@@ -193,7 +193,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         if is_single_passage_set:
             start_msg = f"Starting AAMC MCAT Passage Set ({total_qty} questions) on shared reading passage..."
         elif total_qty == 1:
-            start_msg = f"Starting AAMC MCAT Generation Workflow for {req.section.value} ({req.difficulty.value}) using {req.model_name or config.DEFAULT_TEXT_MODEL}..."
+            start_msg = f"Starting AAMC MCAT Generation Workflow for {req.section.value} ({req.difficulty.value}) using Infynno Cognitive Architecture..."
         else:
             start_msg = f"Starting AAMC MCAT Independent Discretes Batch ({total_qty} standalone questions) in parallel..."
 

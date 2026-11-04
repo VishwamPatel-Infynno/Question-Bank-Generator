@@ -40,7 +40,7 @@ from app.schemas.question import (
     is_question_active,
 )
 from app.schemas.token import TokenUsage
-from app.schemas.workflow import GenerationRequest, WorkflowEvent
+from app.schemas.workflow import KNOWN_VISUAL_TYPES, GenerationRequest, WorkflowEvent
 
 __all__ = [
     "AAMC_REASONING_SKILLS",
@@ -49,6 +49,7 @@ __all__ = [
     "ALT_TRAP_ROTATION",
     "CONTENT_DOMAINS",
     "INACTIVE_QUESTION_STATUSES",
+    "KNOWN_VISUAL_TYPES",
     "MCAT_PACING",
     "MCAT_SECTION_CODES",
     "MCAT_SECTION_LABELS",

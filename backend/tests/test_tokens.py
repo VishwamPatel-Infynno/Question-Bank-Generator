@@ -167,3 +167,75 @@ async def test_call_llm_effective_max_tokens_and_temperature(monkeypatch):
     assert len(captured_kwargs) == 2
     assert captured_kwargs[1]["max_tokens"] == 1800
     assert captured_kwargs[1]["temperature"] == 0.1
+
+
+def test_openai_text_model_exact_platform_costing():
+    """Verifies that OpenAI text models calculate costs matching official OpenAI billing down to 7 decimal places."""
+    from app.agents.base import calculate_token_cost
+
+    # 1. gpt-4o-mini standard: $0.15/1M in, $0.60/1M out
+    # 10,000 in ($0.00150) + 10,000 out ($0.00600) = $0.00750
+    cost_mini = calculate_token_cost(
+        prompt_tokens=10_000,
+        completion_tokens=10_000,
+        model="gpt-4o-mini",
+    )
+    assert cost_mini == 0.0075
+
+    # 2. gpt-4o-mini with 50% cached prompt discount:
+    # 5,000 uncached in @ $0.15/1M ($0.00075) + 5,000 cached in @ $0.075/1M ($0.000375) + 10,000 out @ $0.60/1M ($0.00600) = $0.007125
+    cost_mini_cached = calculate_token_cost(
+        prompt_tokens=10_000,
+        completion_tokens=10_000,
+        model="gpt-4o-mini",
+        cache_read_tokens=5_000,
+    )
+    assert cost_mini_cached == 0.007125
+
+    # 3. gpt-4o: $2.50/1M in, $10.00/1M out
+    # 1,000 in ($0.00250) + 1,000 out ($0.01000) = $0.01250
+    cost_4o = calculate_token_cost(
+        prompt_tokens=1000,
+        completion_tokens=1000,
+        model="gpt-4o",
+    )
+    assert cost_4o == 0.0125
+
+    # 4. gpt-4o with cached prompt tokens (50% discount: $1.25/1M):
+    # 500 uncached ($0.00125) + 500 cached ($0.000625) + 1000 out ($0.01000) = $0.011875
+    cost_4o_cached = calculate_token_cost(
+        prompt_tokens=1000,
+        completion_tokens=1000,
+        model="gpt-4o",
+        cache_read_tokens=500,
+    )
+    assert cost_4o_cached == 0.011875
+
+    # 5. o3-mini: $1.10/1M in, $4.40/1M out
+    cost_o3 = calculate_token_cost(
+        prompt_tokens=1000,
+        completion_tokens=1000,
+        model="o3-mini",
+    )
+    assert cost_o3 == 0.0055
+
+    # 6. o1: $15.00/1M in, $60.00/1M out
+    cost_o1 = calculate_token_cost(
+        prompt_tokens=1000,
+        completion_tokens=1000,
+        model="o1",
+    )
+    assert cost_o1 == 0.075
+
+
+def test_deepinfra_deepseek_r1_costing():
+    """Verifies that DeepSeek-R1 rates ($0.55 in / $2.19 out) match official DeepInfra pricing."""
+    from app.agents.base import calculate_token_cost
+
+    cost_r1 = calculate_token_cost(
+        prompt_tokens=1000,
+        completion_tokens=1000,
+        model="deepinfra/deepseek-ai/DeepSeek-R1",
+    )
+    # 1,000 * 0.55/1e6 = 0.00055; 1,000 * 2.19/1e6 = 0.00219; total = 0.00274
+    assert cost_r1 == 0.00274

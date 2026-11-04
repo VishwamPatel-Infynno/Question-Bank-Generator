@@ -78,8 +78,10 @@ def neutralize_llm_credentials(request, monkeypatch):
 
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
+    monkeypatch.setattr(config, "OPENAI_API_KEY", "")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
 @pytest.fixture(autouse=True, scope="session")

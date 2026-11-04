@@ -348,7 +348,7 @@ async def image_node(state: AgentWorkflowState) -> dict[str, Any]:
     # Accumulate image generation cost and itemized breakdown
     current_cost = state.get("total_cost_usd", 0.0)
     image_cost = usage.get("cost_usd", 0.0) if usage else 0.0
-    new_total_cost = round(current_cost + image_cost, 6)
+    new_total_cost = round(current_cost + image_cost, 7)
 
     usage_list = list(state.get("agent_usage_breakdown", []))
     if usage:

@@ -12,7 +12,6 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from app.core.config import config
 from app.repositories.batch_repository import (
     get_batch_by_id,
     promote_completed_batch_questions,
@@ -28,13 +27,11 @@ from app.repositories.question_repository import (
     batch_update_question_status,
     get_questions,
     hard_delete_questions_batch,
-    save_question,
 )
 from app.schemas import (
     GenerationBatch,
     GenerationJob,
     GenerationRequest,
-    Question,
     is_question_active,
 )
 from app.services.batch_concurrency import (

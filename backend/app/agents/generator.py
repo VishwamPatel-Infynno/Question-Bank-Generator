@@ -35,7 +35,7 @@ from app.schemas.mcat import (
 )
 from app.schemas.question import OptionChoice, QuestionDraft, ReviewScore
 from app.schemas.token import TokenUsage
-from app.schemas.workflow import GenerationRequest
+from app.schemas.workflow import KNOWN_VISUAL_TYPES, GenerationRequest
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +242,7 @@ async def generate_passage_stimulus(
         req.allow_ai_images
         or req.require_image
         or req.require_passage_image
-        or req.visual_type in ("SVG_Diagram", "AI_FLUX_Image")
+        or req.visual_type in KNOWN_VISUAL_TYPES
     ) and not is_cars
 
     angle_instruction = (

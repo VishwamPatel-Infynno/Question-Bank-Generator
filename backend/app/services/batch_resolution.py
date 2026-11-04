@@ -115,4 +115,3 @@ def compute_jobs_with_deficits(
                 break
 
     return jobs_to_refill
-

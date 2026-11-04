@@ -1,6 +1,12 @@
 from app.agents.base import calculate_token_cost, call_llm, clean_json_text, safe_json_loads
 from app.agents.generator import generate_question
-from app.agents.image_generator import calculate_flux_image_cost, generate_image_stimulus
+from app.agents.image_generator import (
+    calculate_flux_image_cost,
+    calculate_image_cost,
+    call_deepinfra_flux,
+    call_openai_image_api,
+    generate_image_stimulus,
+)
 from app.agents.mock_fixtures import (
     evaluate_heuristically,
     get_mock_draft,
@@ -16,9 +22,12 @@ from app.agents.reviewer import review_question
 __all__ = [
     "balance_and_shuffle_options",
     "calculate_flux_image_cost",
+    "calculate_image_cost",
     "calculate_option_symmetry",
     "calculate_token_cost",
+    "call_deepinfra_flux",
     "call_llm",
+    "call_openai_image_api",
     "clean_json_text",
     "evaluate_heuristically",
     "generate_image_stimulus",

@@ -9,7 +9,7 @@ import VisualStimulusLightboxModal from './VisualStimulusLightboxModal';
 
 /**
  * VisualStimulusViewer:
- * Publication-grade renderer for AAMC MCAT visual stimulus diagrams (Vector SVG & AI FLUX Images).
+ * Publication-grade renderer for AAMC MCAT visual stimulus diagrams (Vector SVG & Dedicated AI Illustrations).
  * Supports inline display, compact list thumbnail mode, click-to-zoom lightbox modal,
  * and inline description editing in Quick Edit mode.
  */

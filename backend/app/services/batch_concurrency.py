@@ -110,4 +110,3 @@ async def cancel_all_background_batches() -> int:
         if stopped:
             count += 1
     return count
-

@@ -1,8 +1,8 @@
 """
 image_generator.py - Visual Stimulus & Diagram Generation Agent.
 
-Generates AI medical/scientific illustrations (via FLUX on DeepInfra) or vector SVG charts
-for MCAT passage stimuli and independent questions, including cost estimation and heuristic fallbacks.
+Generates AI medical/scientific illustrations (via OpenAI GPT Image 2.5 or FLUX on DeepInfra)
+for MCAT passage stimuli and independent questions, including cost estimation and strict error handling.
 """
 
 import asyncio
@@ -23,24 +23,129 @@ def calculate_flux_image_cost(
     iters: int | None = None,
     base_rate: float | None = None,
     model: str | None = None,
+    quality: str = "standard",
 ) -> float:
-    """
-    Calculates DeepInfra image generation cost.
-    For FLUX-2-klein-4b: Flat $0.0140 per image (scaled by resolution).
-    For iters > 0 / step-based: $0.0005 * (width / 1024) * (height / 1024) * iters.
-    """
-    _ = model  # Reserved for future per-model rate overrides
+    """Calculates image generation cost, delegating to central config calculator with optional base_rate override."""
     w = width if width is not None else config.IMAGE_WIDTH
     h = height if height is not None else config.IMAGE_HEIGHT
 
-    # If iters is explicitly passed (>0), compute per-step rate (FLUX-1-schnell standard)
-    if iters is not None and iters > 0:
-        rate = base_rate if base_rate is not None else 0.0005
-        return round(rate * (w / 1024.0) * (h / 1024.0) * iters, 6)
+    if base_rate is not None:
+        multiplier = iters if (iters is not None and iters > 0) else 1.0
+        return round(base_rate * (w / 1024.0) * (h / 1024.0) * multiplier, 7)
 
-    # Flat-rate pricing (FLUX-2-klein-4b)
-    rate = base_rate if base_rate is not None else 0.014
-    return round(rate * (w / 1024.0) * (h / 1024.0), 6)
+    return config.calculate_flux_image_cost(
+        width=w, height=h, iters=iters, model=model, quality=quality
+    )
+
+
+def calculate_image_cost(
+    width: int | None = None,
+    height: int | None = None,
+    iters: int | None = None,
+    base_rate: float | None = None,
+    model: str | None = None,
+    quality: str = "standard",
+) -> float:
+    """Universal image generation cost calculator across all supported providers."""
+    if base_rate is not None:
+        return calculate_flux_image_cost(
+            width=width,
+            height=height,
+            iters=iters,
+            base_rate=base_rate,
+            model=model,
+            quality=quality,
+        )
+    return config.calculate_image_cost(
+        width=width, height=height, iters=iters, model=model, quality=quality
+    )
+
+
+async def call_openai_image_api(
+    prompt: str,
+    width: int,
+    height: int,
+    api_key: str,
+    model: str | None = None,
+    quality: str = "standard",
+) -> tuple[str | None, float | None]:
+    """
+    Calls official OpenAI Image Generation endpoint (v1/images/generations).
+    Targets modern GPT Image 2.5 models (default: gpt-image-2.5-flare) and DALL-E 3.
+    Requests base64 binary payload (b64_json) for permanent zero-expiration PostgreSQL persistence.
+    Returns: (image_data_uri, cost_usd_if_reported_or_calculated)
+    """
+    model_id = (model or config.OPENAI_IMAGE_MODEL).replace("openai/", "").strip()
+    if not model_id:
+        model_id = "gpt-image-2.5-flare"
+
+    url = "https://api.openai.com/v1/images/generations"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload: dict[str, Any] = {
+        "model": model_id,
+        "prompt": prompt,
+        "n": 1,
+        "size": f"{width}x{height}",
+        "response_format": "b64_json",
+    }
+    if "dall-e-3" in model_id:
+        payload["quality"] = quality
+
+    max_retries = 2
+    for attempt in range(max_retries + 1):
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    data = res.json()
+                    calculated_cost = None
+                    usage = data.get("usage")
+                    if usage and isinstance(usage, dict):
+                        in_tok = usage.get("prompt_tokens") or usage.get("input_tokens") or 0
+                        out_tok = usage.get("completion_tokens") or usage.get("output_tokens") or 0
+                        if in_tok or out_tok:
+                            calculated_cost = round(
+                                (in_tok / 1_000_000.0) * 5.00 + (out_tok / 1_000_000.0) * 30.00, 7
+                            )
+
+                    if calculated_cost is None:
+                        calculated_cost = config.calculate_image_cost(
+                            width=width, height=height, model=model_id, quality=quality
+                        )
+
+                    if "data" in data and len(data["data"]) > 0:
+                        item = data["data"][0]
+                        b64 = item.get("b64_json")
+                        if b64:
+                            img_data = (
+                                f"data:image/png;base64,{b64}"
+                                if not b64.startswith("data:")
+                                else b64
+                            )
+                            return (img_data, calculated_cost)
+                        if item.get("url"):
+                            return (item.get("url"), calculated_cost)
+                else:
+                    logger.warning(
+                        f"OpenAI image generation error (status {res.status_code}): {res.text[:200]}"
+                    )
+        except Exception as e:
+            logger.warning(
+                f"HTTP client error in OpenAI image call (attempt {attempt + 1}/{max_retries + 1}): {e}"
+            )
+
+        if attempt < max_retries:
+            backoff_secs = 1.0 * (attempt + 1)
+            logger.info(f"Retrying OpenAI image generation in {backoff_secs}s...")
+            await asyncio.sleep(backoff_secs)
+
+    logger.error(
+        f"OpenAI image model ({model_id}) generation failed after {max_retries + 1} attempts."
+    )
+    return (None, None)
 
 
 async def _call_native_flux_endpoint(
@@ -175,12 +280,104 @@ async def generate_image_stimulus(
     draft: QuestionDraft, req: GenerationRequest
 ) -> tuple[str | None, str | None, str | None, dict[str, Any]]:
     """
-    Invokes the Image Generator Agent strictly using the AI Image Model (FLUX-2-klein-4b via DeepInfra).
+    Invokes the Image Generator Agent dynamically routing to the active engine
+    (OpenAI GPT Image 2.5 or DeepInfra FLUX).
     Strict policy: Never uses SVG mock fallbacks. Returns: (image_url, None, image_description, usage_dict).
     """
     width = config.IMAGE_WIDTH
     height = config.IMAGE_HEIGHT
     iters = config.IMAGE_ITERS
+    active_provider = config.get_active_image_provider()
+
+    if active_provider == "openai":
+        model_id = config.OPENAI_IMAGE_MODEL.replace("openai/", "").strip() or "gpt-image-2.5-flare"
+        api_key = config.OPENAI_API_KEY
+        if not api_key:
+            logger.error(
+                "OpenAI API Key is not configured. Strict image generation policy prohibits SVG mock fallbacks."
+            )
+            error_usage = {
+                "agent_name": "Image Generator",
+                "model": "Infynno Visual Studio v2",
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_usd": 0.0,
+                "details": {
+                    "provider": "infynno",
+                    "error": "AI Visual Studio Key is not configured. Visual stimuli strictly require an active AI image engine.",
+                    "type": "error",
+                },
+            }
+            return (None, None, None, error_usage)
+
+        prompt_for_image = (
+            draft.image_prompt_or_type
+            or f"AAMC MCAT educational exam visual stimulus for {req.section.value}: {draft.question_stem}"
+        )
+        openai_prompt = (
+            f"High-quality educational test figure, scientific illustration, or medical diagram on clean white background, high contrast, "
+            f"clear professional labeling for AAMC MCAT exam: {prompt_for_image}"
+        )
+        logger.info(f"Generating OpenAI image with {model_id} ({width}x{height})...")
+
+        res = await call_openai_image_api(
+            prompt=openai_prompt,
+            width=width,
+            height=height,
+            api_key=api_key,
+            model=model_id,
+        )
+        img_data, reported_cost = res if isinstance(res, tuple) else (res, None)
+
+        if img_data:
+            cost = (
+                reported_cost
+                if (
+                    reported_cost is not None
+                    and isinstance(reported_cost, (int, float))
+                    and reported_cost > 0
+                )
+                else calculate_image_cost(width=width, height=height, model=model_id)
+            )
+            cost = round(cost, 7)
+            cost_formula = f"Standard Visual Stimulus Rate (${cost:.5f}/unit)"
+            usage_dict = {
+                "agent_name": "Image Generator",
+                "model": "Infynno Visual Studio v2",
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_usd": cost,
+                "details": {
+                    "provider": "infynno",
+                    "width": width,
+                    "height": height,
+                    "cost_formula": cost_formula,
+                    "type": "ai_generated_image",
+                },
+            }
+            return (img_data, None, prompt_for_image, usage_dict)
+
+        logger.error(
+            f"OpenAI Image Model ({model_id}) failed to generate an image. Strictly returning failure without SVG mock fallback."
+        )
+        failure_usage = {
+            "agent_name": "Image Generator",
+            "model": "Infynno Visual Studio v2",
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "cost_usd": 0.0,
+            "details": {
+                "provider": "infynno",
+                "error": "Failed to generate visual stimulus after retries.",
+                "type": "error",
+            },
+        }
+        return (None, None, prompt_for_image, failure_usage)
+
+    # Fallback to DeepInfra FLUX provider
     model_id = (
         config.DEFAULT_IMAGE_MODEL.replace("deepinfra/", "").strip()
         or "black-forest-labs/FLUX-2-klein-4b"
@@ -192,13 +389,14 @@ async def generate_image_stimulus(
         )
         error_usage = {
             "agent_name": "Image Generator",
-            "model": model_id,
+            "model": "Infynno Visual Studio v2",
             "prompt_tokens": 0,
             "completion_tokens": 0,
             "total_tokens": 0,
             "cost_usd": 0.0,
             "details": {
-                "error": "AI Gateway Key is not configured. Visual stimuli strictly require an active AI image engine.",
+                "provider": "infynno",
+                "error": "AI Visual Studio Key is not configured. Visual stimuli strictly require an active AI image engine.",
                 "type": "error",
             },
         }
@@ -212,7 +410,9 @@ async def generate_image_stimulus(
         f"High-quality educational test figure, scientific illustration, or medical diagram on clean white background, high contrast, "
         f"clear professional labeling for AAMC MCAT exam: {prompt_for_image}"
     )
-    logger.info(f"Generating AI image with {model_id} ({width}x{height}, {iters} iters)...")
+    logger.info(
+        f"Generating DeepInfra AI image with {model_id} ({width}x{height}, {iters} iters)..."
+    )
 
     res = await call_deepinfra_flux(
         prompt=flux_prompt,
@@ -222,10 +422,7 @@ async def generate_image_stimulus(
         api_key=config.DEEPINFRA_API_KEY,
         model=model_id,
     )
-    if isinstance(res, tuple):
-        img_data, reported_cost = res
-    else:
-        img_data, reported_cost = res, None
+    img_data, reported_cost = res if isinstance(res, tuple) else (res, None)
 
     if img_data:
         cost = (
@@ -237,28 +434,21 @@ async def generate_image_stimulus(
             )
             else calculate_flux_image_cost(width, height, iters, model=model_id)
         )
+        cost = round(cost, 7)
         cost_formula = (
-            "DeepInfra API reported inference cost"
-            if (
-                reported_cost is not None
-                and isinstance(reported_cost, (int, float))
-                and reported_cost > 0
-            )
-            else (
-                f"Flat $0.0140 * ({width}/1024) * ({height}/1024)"
-                if "klein" in model_id.lower()
-                else f"$0.0005 * ({width}/1024) * ({height}/1024) * {iters}"
-            )
+            f"High-Precision Telemetry Rate (${cost:.6f}/unit)"
+            if reported_cost is not None and reported_cost > 0
+            else f"Standard Visual Stimulus Rate (${cost:.5f}/unit)"
         )
         usage_dict = {
             "agent_name": "Image Generator",
-            "model": model_id,
+            "model": "Infynno Visual Studio v2",
             "prompt_tokens": 0,
             "completion_tokens": 0,
             "total_tokens": 0,
             "cost_usd": cost,
             "details": {
-                "provider": "deepinfra",
+                "provider": "infynno",
                 "width": width,
                 "height": height,
                 "iters": iters,
@@ -274,13 +464,14 @@ async def generate_image_stimulus(
     )
     failure_usage = {
         "agent_name": "Image Generator",
-        "model": model_id,
+        "model": "Infynno Visual Studio v2",
         "prompt_tokens": 0,
         "completion_tokens": 0,
         "total_tokens": 0,
         "cost_usd": 0.0,
         "details": {
-            "error": f"Failed to generate image via {model_id} after retries.",
+            "provider": "infynno",
+            "error": "Failed to generate visual stimulus after retries.",
             "type": "error",
         },
     }
