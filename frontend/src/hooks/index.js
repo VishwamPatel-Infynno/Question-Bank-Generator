@@ -6,4 +6,7 @@ export { useGeneratorForm, DEFAULT_GENERATOR_FORM } from './useGeneratorForm';
 export { useFocusTrap } from './useFocusTrap';
 export { usePagination } from './usePagination';
 export { useConfirmModal } from './useConfirmModal';
+export { useBatchActivity } from './useBatchActivity';
+export { usePassageBank } from './usePassageBank';
+export { useAiValidated } from './useAiValidated';
 

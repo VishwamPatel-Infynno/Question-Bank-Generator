@@ -1,25 +1,29 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  CheckCircle2,
-  ArrowRight
-} from 'lucide-react';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
 import { PaginationBar } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
-import { usePagination, useConfirmModal, useKeyboardShortcuts } from '../hooks';
-import {
-  fetchQuestions,
-  fetchQuestionCounts,
-  updateQuestionStatus,
-  batchUpdateQuestionStatus,
-  purgeQuestion,
-  purgeQuestionsBatch
-} from '../services/api';
+import { usePagination, useAiValidated } from '../hooks';
 import {
   AiValidatedStatsBar,
   AiValidatedFiltersBar,
   AiValidatedQuestionCard
 } from '../components/validated';
 
+/**
+ * AiValidatedQuestionsView
+ *
+ * Dedicated view for inspecting questions that met or exceeded the 90/100
+ * quality benchmark, allowing pre-med authors to audit psychometric rationale,
+ * edit inline, and approve questions into the permanent Question Bank.
+ *
+ * @param {Object} props
+ * @param {(question: Object) => void} props.onOpenAudit - Callback to open psychometric audit modal.
+ * @param {() => void} props.onNavigateToBank - Callback to navigate to Question Bank view.
+ * @param {() => void} props.onNavigateToBatches - Callback to navigate to Batch Activity view.
+ * @param {(step?: number) => void} props.onNavigateToWizard - Callback to navigate to generation wizard.
+ * @param {(toast: Object) => void} props.onShowToast - Callback to trigger toast notifications.
+ * @param {() => void} props.onRefreshCounts - Global counts refresh callback.
+ * @returns {JSX.Element}
+ */
 export default function AiValidatedQuestionsView({
   onOpenAudit,
   onNavigateToBank,
@@ -28,95 +32,34 @@ export default function AiValidatedQuestionsView({
   onShowToast,
   onRefreshCounts
 }) {
-  const [questions, setQuestions] = useState([]);
-  const [counts, setCounts] = useState({ ai_validated: 0, in_bank: 0, discarded: 0, below_threshold: 0 });
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [actionInProgress, setActionInProgress] = useState(false);
-
-  // Standardized accessible confirmation modal state hook
-  const { confirmModal, openConfirmModal, closeConfirmModal } = useConfirmModal('question');
-
-  // Filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('');
-  const [expandedPassageIds, setExpandedPassageIds] = useState({});
-  const searchInputRef = useRef(null);
-
-  // Debounce search query by 250ms to ensure responsive filtering
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 250);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
-
-  // Focus search on '/'
-  useKeyboardShortcuts({
-    onFocusSearch: () => searchInputRef.current?.focus()
-  });
-
-  // Multi-selection state
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  // Load questions and counts asynchronously without synchronous pre-render state mutations
-  const performFetchValidated = useCallback(async (isSilent = false) => {
-    try {
-      const [qsRes, countsRes] = await Promise.all([
-        fetchQuestions({ status: 'ai_validated', section: sectionFilter || undefined, slim: true }),
-        fetchQuestionCounts()
-      ]);
-      const loadedQs = qsRes.questions || [];
-      setQuestions(loadedQs);
-      setCounts(countsRes || {});
-      if (onRefreshCounts) onRefreshCounts();
-    } catch (err) {
-      console.error('Failed to load AI validated questions:', err);
-      if (!isSilent && onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Load Failed',
-          message: 'Could not fetch validated questions from database.'
-        });
-      }
-    } finally {
-      setLoading(false);
-      if (!isSilent) setRefreshing(false);
-    }
-  }, [sectionFilter, onRefreshCounts, onShowToast]);
-
-  const loadData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setRefreshing(true);
-    return performFetchValidated(isSilent);
-  }, [performFetchValidated]);
-
-  // Initial load on mount and when filter changes
-  useEffect(() => {
-    let ignore = false;
-    async function init() {
-      if (!ignore) {
-        await performFetchValidated(true);
-      }
-    }
-    init();
-    return () => {
-      ignore = true;
-    };
-  }, [performFetchValidated]);
-
-  // Filtered in-memory questions by search query (strictly preserving score > 90 benchmark)
-  const filteredQuestions = useMemo(() => {
-    const validQuestions = questions.filter(item => (item.final_score || 0) > 90);
-    if (!debouncedSearch.trim()) return validQuestions;
-    const q = debouncedSearch.toLowerCase().trim();
-    return validQuestions.filter(item =>
-      (item.question_stem && item.question_stem.toLowerCase().includes(q)) ||
-      (item.subtopic && item.subtopic.toLowerCase().includes(q)) ||
-      (item.explanation && item.explanation.toLowerCase().includes(q)) ||
-      (item.stimulus_text && item.stimulus_text.toLowerCase().includes(q))
-    );
-  }, [questions, debouncedSearch]);
+  const {
+    questions,
+    filteredQuestions,
+    counts,
+    loading,
+    refreshing,
+    actionInProgress,
+    loadData,
+    searchQuery,
+    setSearchQuery,
+    debouncedSearch,
+    sectionFilter,
+    setSectionFilter,
+    searchInputRef,
+    selectedIds,
+    allFilteredSelected,
+    handleToggleSelect,
+    handleSelectAll,
+    expandedPassageIds,
+    togglePassage,
+    handleMoveToBankSingle,
+    handleDiscardSingle,
+    handleBulkMoveToBank,
+    handleBulkDiscard,
+    handleApproveAllValidated,
+    confirmModal,
+    closeConfirmModal
+  } = useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts });
 
   // ─── Pagination ────────────────────────────────────────────────────────────
   const {
@@ -132,179 +75,6 @@ export default function AiValidatedQuestionsView({
     initialPageSize: 15,
     resetDeps: [debouncedSearch, sectionFilter]
   });
-
-  // Toggle single selection
-  const handleToggleSelect = (id) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
-  // Toggle select all
-  const handleSelectAll = () => {
-    const currentIds = filteredQuestions.map(q => q.id);
-    const allSelected = currentIds.length > 0 && currentIds.every(id => selectedIds.includes(id));
-    if (allSelected) {
-      setSelectedIds(prev => prev.filter(id => !currentIds.includes(id)));
-    } else {
-      setSelectedIds(prev => Array.from(new Set([...prev, ...currentIds])));
-    }
-  };
-
-  // Single question actions
-  const handleMoveToBankSingle = async (q) => {
-    setActionInProgress(true);
-    try {
-      await updateQuestionStatus(q.id, 'in_bank');
-      setQuestions(prev => prev.filter(item => item.id !== q.id));
-      setSelectedIds(prev => prev.filter(id => id !== q.id));
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Success - Question Saved to Bank',
-          message: 'Question is now available in your Question Bank.',
-          action: onNavigateToBank ? { label: 'View in Bank', onClick: onNavigateToBank } : undefined
-        });
-      }
-      if (onRefreshCounts) onRefreshCounts();
-      loadData(true);
-    } catch (err) {
-      console.error('Error promoting question:', err);
-      if (onShowToast) {
-        onShowToast({ type: 'error', title: 'Action Failed', message: err.message || 'Could not move question.' });
-      }
-    } finally {
-      setActionInProgress(false);
-    }
-  };
-
-  const handleDiscardSingle = async (q) => {
-    setActionInProgress(true);
-    try {
-      await purgeQuestion(q.id);
-      setQuestions(prev => prev.filter(item => item.id !== q.id));
-      setSelectedIds(prev => prev.filter(id => id !== q.id));
-      if (onShowToast) {
-        onShowToast({
-          type: 'info',
-          title: 'Question Discarded',
-          message: 'Question has been permanently removed.'
-        });
-      }
-      if (onRefreshCounts) onRefreshCounts();
-      loadData(true);
-    } catch (err) {
-      console.error('Error discarding question:', err);
-      if (onShowToast) {
-        onShowToast({ type: 'error', title: 'Action Failed', message: err.message || 'Could not discard question.' });
-      }
-    } finally {
-      setActionInProgress(false);
-    }
-  };
-
-  // Bulk actions
-  const handleBulkMoveToBank = async () => {
-    if (selectedIds.length === 0) return;
-    const count = selectedIds.length;
-    setActionInProgress(true);
-    try {
-      await batchUpdateQuestionStatus(selectedIds, 'in_bank');
-      setQuestions(prev => prev.filter(item => !selectedIds.includes(item.id)));
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Success - Saved to Bank',
-          message: `Successfully placed ${count} question(s) into Question Bank.`,
-          action: onNavigateToBank ? { label: 'View in Bank', onClick: onNavigateToBank } : undefined
-        });
-      }
-      setSelectedIds([]);
-      if (onRefreshCounts) onRefreshCounts();
-      loadData(true);
-    } catch (err) {
-      console.error('Bulk move failed:', err);
-      if (onShowToast) {
-        onShowToast({ type: 'error', title: 'Bulk Move Failed', message: err.message || 'Error updating questions.' });
-      }
-    } finally {
-      setActionInProgress(false);
-    }
-  };
-
-  const handleBulkDiscard = () => {
-    if (selectedIds.length === 0) return;
-    const count = selectedIds.length;
-    openConfirmModal({
-      title: 'Discard Selected Questions',
-      description: `Are you sure you want to discard ${count} selected question${count !== 1 ? 's' : ''}? They will be permanently removed from the system.`,
-      confirmLabel: `Discard ${count} Question${count !== 1 ? 's' : ''}`,
-      variant: 'danger',
-      itemCount: count,
-      itemLabel: 'question',
-      onConfirm: async () => {
-        setActionInProgress(true);
-        try {
-          await purgeQuestionsBatch(selectedIds);
-          setQuestions(prev => prev.filter(item => !selectedIds.includes(item.id)));
-          if (onShowToast) {
-            onShowToast({
-              type: 'info',
-              title: 'Questions Discarded',
-              message: `${count} question(s) permanently removed.`
-            });
-          }
-          setSelectedIds([]);
-          if (onRefreshCounts) onRefreshCounts();
-          loadData(true);
-          closeConfirmModal();
-        } catch (err) {
-          console.error('Bulk discard failed:', err);
-          if (onShowToast) {
-            onShowToast({ type: 'error', title: 'Bulk Discard Failed', message: err.message || 'Error deleting questions.' });
-          }
-        } finally {
-          setActionInProgress(false);
-        }
-      }
-    });
-  };
-
-  const handleApproveAllValidated = async () => {
-    const allIds = filteredQuestions.map(q => q.id);
-    if (allIds.length === 0) return;
-    const count = allIds.length;
-    setActionInProgress(true);
-    try {
-      await batchUpdateQuestionStatus(allIds, 'in_bank');
-      setQuestions(prev => prev.filter(item => !allIds.includes(item.id)));
-      setSelectedIds([]);
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'All Questions Saved to Bank',
-          message: `${count} question(s) saved to Question Bank.`,
-          action: onNavigateToBank ? { label: 'View in Bank', onClick: onNavigateToBank } : undefined
-        });
-      }
-      if (onRefreshCounts) onRefreshCounts();
-      loadData(true);
-    } catch (err) {
-      console.error('Save all questions failed:', err);
-      if (onShowToast) {
-        onShowToast({ type: 'error', title: 'Action Failed', message: err.message || 'Error updating questions.' });
-      }
-    } finally {
-      setActionInProgress(false);
-    }
-  };
-
-  const togglePassage = (id) => {
-    setExpandedPassageIds(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const allFilteredSelected =
-    filteredQuestions.length > 0 && filteredQuestions.every(q => selectedIds.includes(q.id));
 
   return (
     <div className="validated-questions-stack">
@@ -338,86 +108,89 @@ export default function AiValidatedQuestionsView({
       {loading ? (
         <div className="view-loading-box">
           <div className="view-loading-spinner" />
-          <span className="view-loading-text">Loading Questions Ready for Review...</span>
+          <span className="view-loading-text">Loading validated questions...</span>
         </div>
       ) : filteredQuestions.length === 0 ? (
-        /* Empty State */
-        <div className="view-empty-state">
-          <div className="view-empty-icon-box">
+        <div className="empty-state-card" style={{ padding: '60px 20px', textAlign: 'center' }}>
+          <div
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(16, 185, 129, 0.08)',
+              color: 'var(--status-success)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}
+          >
             <CheckCircle2 size={28} />
           </div>
-          <div>
-            <h3 className="view-empty-title">
-              No Pending Questions to Review
-            </h3>
-            <p className="view-empty-desc">
-              {searchQuery || sectionFilter
-                ? 'No questions matched your current filter criteria. Try clearing filters.'
-                : 'All high-quality questions have been saved to your Question Bank or reviewed. Generate a new practice set to create more questions.'}
-            </p>
-          </div>
-          <div className="view-empty-actions">
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
+            No Questions Awaiting Review
+          </h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: '460px', margin: '0 auto 24px', lineHeight: 1.5 }}>
+            {debouncedSearch || sectionFilter
+              ? 'No questions matched your current search filters.'
+              : 'All generated questions have been reviewed and moved to the Question Bank. Start a new generation run to create more.'}
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
             {onNavigateToBatches && (
               <button
                 type="button"
-                className="btn-primary"
                 onClick={onNavigateToBatches}
+                className="btn-secondary"
+                style={{ padding: '8px 18px' }}
               >
-                <span>View Progress & History</span>
-                <ArrowRight size={14} />
+                View Batch Activity
               </button>
             )}
             {onNavigateToWizard && (
               <button
                 type="button"
-                className="btn-secondary"
-                onClick={onNavigateToWizard}
+                onClick={() => onNavigateToWizard(1)}
+                className="btn-primary"
+                style={{ padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
-                Create Questions
+                <span>Generate Questions</span>
+                <ArrowRight size={15} />
               </button>
             )}
           </div>
         </div>
       ) : (
-        /* Questions List */
         <>
-          <div className="validated-questions-list">
-            {paginatedQuestions.map((q, idx) => (
+          <div className="ai-validated-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {paginatedQuestions.map((question) => (
               <AiValidatedQuestionCard
-                key={q.id}
-                question={q}
-                index={(safeCurrentPage - 1) * pageSize + idx}
-                isSelected={selectedIds.includes(q.id)}
+                key={question.id}
+                question={question}
+                isSelected={selectedIds.includes(question.id)}
+                isPassageExpanded={Boolean(expandedPassageIds[question.passage_id])}
+                actionInProgress={actionInProgress}
                 onToggleSelect={handleToggleSelect}
-                isPassageExpanded={Boolean(expandedPassageIds[q.id])}
                 onTogglePassage={togglePassage}
-                onOpenAudit={onOpenAudit}
                 onMoveToBank={handleMoveToBankSingle}
                 onDiscard={handleDiscardSingle}
-                actionInProgress={actionInProgress}
+                onOpenAudit={onOpenAudit}
               />
             ))}
           </div>
 
-          {/* Pagination Bar */}
-          {filteredQuestions.length > 0 && (
-            <PaginationBar
-              currentPage={currentPage}
-              totalPages={totalPages}
-              pageSize={pageSize}
-              totalItems={filteredQuestions.length}
-              itemLabel="validated questions"
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-              pageSizeOptions={[
-                { value: 10, label: '10' },
-                { value: 15, label: '15' },
-                { value: 25, label: '25' },
-                { value: 50, label: '50' },
-                { value: -1, label: 'All' }
-              ]}
-            />
-          )}
+          <PaginationBar
+            currentPage={safeCurrentPage || currentPage}
+            totalPages={totalPages}
+            totalItems={filteredQuestions.length}
+            pageSize={pageSize}
+            itemLabel="questions"
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            pageSizeOptions={[15, 30, 50]}
+          />
         </>
       )}
 

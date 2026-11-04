@@ -5,16 +5,18 @@ import {
   Sparkles,
   XCircle,
   AlertCircle,
-  Database,
   Layers,
-  BookOpen,
-  ChevronDown,
-  ChevronUp,
-  Trash2,
-  RotateCcw
+  Trash2
 } from 'lucide-react';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
+import BatchQuestionPassageDrawer from './BatchQuestionPassageDrawer';
+import BatchQuestionOptionsList from './BatchQuestionOptionsList';
+import BatchQuestionActions from './BatchQuestionActions';
+import { resolveQuestionStatus } from '../../utils';
 
+/**
+ * BatchQuestionItem - Renders an individual question item accordion within a batch set drawer.
+ */
 export default function BatchQuestionItem({
   question,
   index = 0,
@@ -38,15 +40,8 @@ export default function BatchQuestionItem({
       question.stage_outcomes?.passage_visual_stimulus?.image_svg
   );
 
-  // Determine lifecycle status
-  let status = question.status;
+  const status = resolveQuestionStatus(question);
   const finalScore = question.final_score ?? 95;
-  if (!status) {
-    if (finalScore > 90) status = 'ai_validated';
-    else if (finalScore > 85) status = 'batch_only';
-    else status = 'below_threshold';
-  }
-
   const isBelowThreshold = status === 'below_threshold' || finalScore <= 85;
 
   return (
@@ -63,6 +58,7 @@ export default function BatchQuestionItem({
         transition: 'all var(--transition-fast)'
       }}
     >
+      {/* Question Header: Number, Status badge, Score, Diagram pill */}
       <div
         style={{
           display: 'flex',
@@ -249,82 +245,12 @@ export default function BatchQuestionItem({
 
       {/* Passage Display Drawer */}
       {hasPassage && (
-        <div
-          style={{
-            marginBottom: '8px',
-            borderRadius: 'var(--radius-xs)',
-            border: '1px solid var(--border-light)',
-            overflow: 'hidden',
-            background: 'var(--bg-surface)'
-          }}
-        >
-          <div
-            style={{
-              padding: '6px 10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: 'var(--bg-surface-subtle)',
-              borderBottom: isPassageExpanded ? '1px solid var(--border-light)' : 'none'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <BookOpen size={13} style={{ color: 'var(--brand-primary)' }} />
-              <span style={{ fontWeight: 600, fontSize: '0.75rem', color: 'var(--text-primary)' }}>
-                Reading Passage
-              </span>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                ({question.stimulus_text.trim().split(/\s+/).length} words)
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsPassageExpanded((prev) => !prev)}
-              className="btn-secondary"
-              style={{
-                padding: '2px 7px',
-                fontSize: '0.7rem',
-                gap: '4px',
-                display: 'inline-flex',
-                alignItems: 'center'
-              }}
-            >
-              {isPassageExpanded ? (
-                <>
-                  <ChevronUp size={12} />
-                  <span>Hide Passage</span>
-                </>
-              ) : (
-                <>
-                  <ChevronDown size={12} />
-                  <span>View Passage</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {isPassageExpanded && (
-            <div
-              style={{
-                padding: '10px 12px',
-                fontSize: '0.78rem',
-                lineHeight: 1.6,
-                color: 'var(--text-secondary)',
-                maxHeight: '320px',
-                overflowY: 'auto',
-                whiteSpace: 'pre-wrap',
-                background: 'var(--bg-canvas)'
-              }}
-            >
-              {hasDiagram && (
-                <div style={{ marginBottom: '10px' }}>
-                  <VisualStimulusViewer question={question} />
-                </div>
-              )}
-              {question.stimulus_text}
-            </div>
-          )}
-        </div>
+        <BatchQuestionPassageDrawer
+          question={question}
+          hasDiagram={hasDiagram}
+          isExpanded={isPassageExpanded}
+          onToggle={() => setIsPassageExpanded((prev) => !prev)}
+        />
       )}
 
       {/* Standalone question visual stimulus (when not embedded in a passage) */}
@@ -347,141 +273,22 @@ export default function BatchQuestionItem({
       </div>
 
       {/* Options List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
-        {(question.options || []).map((opt) => {
-          const isCorrect =
-            (question.correct_answer_ids && question.correct_answer_ids.includes(opt.id)) ||
-            question.correct_answer_id === opt.id;
-          return (
-            <div
-              key={opt.id}
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '6px',
-                padding: '4px 8px',
-                borderRadius: 'var(--radius-xs)',
-                background: isCorrect ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-surface-subtle)',
-                border: isCorrect ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
-                fontSize: '0.74rem'
-              }}
-            >
-              <span
-                style={{
-                  fontWeight: 700,
-                  color: isCorrect ? 'var(--status-success)' : 'var(--text-muted)',
-                  minWidth: '16px'
-                }}
-              >
-                {opt.id}.
-              </span>
-              <span style={{ color: isCorrect ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                {opt.text}
-              </span>
-              {isCorrect && (
-                <CheckCircle2
-                  size={12}
-                  style={{ color: 'var(--status-success)', marginLeft: 'auto', flexShrink: 0 }}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <BatchQuestionOptionsList
+        options={question.options || []}
+        correctAnswerId={question.correct_answer_id}
+        correctAnswerIds={question.correct_answer_ids}
+      />
 
-      {/* Question Tools */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingTop: '6px',
-          borderTop: '1px dashed var(--border-light)'
-        }}
-      >
-        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-          {question.aamc_skill || question.primary_trap || 'MCAT Standard'}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {question.is_deleted && question.status !== 'discarded' && onRestoreQuestion && (
-            <button
-              type="button"
-              onClick={() => onRestoreQuestion(question)}
-              className="btn-primary"
-              style={{
-                padding: '3px 9px',
-                fontSize: '0.7rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                color: 'var(--status-success, #10b981)',
-                border: '1px solid rgba(16, 185, 129, 0.3)'
-              }}
-              title="Restore this question back to Question Bank"
-            >
-              <RotateCcw size={10} />
-              <span>Restore to Bank</span>
-            </button>
-          )}
-
-          {!question.is_deleted && status === 'batch_only' && onSaveToBank && (
-            <button
-              type="button"
-              onClick={() => onSaveToBank(question)}
-              className="btn-primary"
-              style={{
-                padding: '3px 9px',
-                fontSize: '0.7rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-              title="Save question directly to Question Bank"
-            >
-              <Database size={10} />
-              <span>Save to Question Bank</span>
-            </button>
-          )}
-
-          {!question.is_deleted && status === 'ai_validated' && onNavigateToValidated && (
-            <button
-              type="button"
-              onClick={onNavigateToValidated}
-              className="btn-primary"
-              style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-              title="Review in Ready for Review screen"
-            >
-              <Sparkles size={10} />
-              <span>Review Question</span>
-            </button>
-          )}
-
-          {!question.is_deleted && status === 'in_bank' && onNavigateToBank && (
-            <button
-              type="button"
-              onClick={onNavigateToBank}
-              className="btn-secondary"
-              style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-              title="View in Question Bank"
-            >
-              <Database size={10} />
-              <span>In Question Bank</span>
-            </button>
-          )}
-
-          {onOpenAudit && (
-            <button
-              type="button"
-              onClick={() => onOpenAudit(question)}
-              className="btn-secondary"
-              style={{ padding: '2px 8px', fontSize: '0.7rem' }}
-            >
-              Quality Review
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Question Action Tools */}
+      <BatchQuestionActions
+        question={question}
+        status={status}
+        onNavigateToBank={onNavigateToBank}
+        onNavigateToValidated={onNavigateToValidated}
+        onOpenAudit={onOpenAudit}
+        onSaveToBank={onSaveToBank}
+        onRestoreQuestion={onRestoreQuestion}
+      />
     </div>
   );
 }

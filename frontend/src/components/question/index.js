@@ -8,5 +8,6 @@ export { default as QuestionScorecardTab } from './QuestionScorecardTab';
 export { default as QuestionInlineEditor } from './QuestionInlineEditor';
 export { default as SharedPassageCard } from './SharedPassageCard';
 export { default as VisualStimulusViewer } from './VisualStimulusViewer';
+export { default as VisualStimulusLightboxModal } from './VisualStimulusLightboxModal';
 export { default as MentorExplanationView } from './MentorExplanationView';
 // Note: ReviewAuditView is loaded dynamically via React.lazy in App.jsx to preserve bundle splitting

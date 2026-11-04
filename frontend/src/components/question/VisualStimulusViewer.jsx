@@ -1,20 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Maximize2, 
-  ZoomIn, 
-  ZoomOut, 
-  RotateCcw, 
-  Copy, 
-  Check, 
-  Image as ImageIcon, 
-  X,
-  FileCode
+import { useState } from 'react';
+import {
+  Maximize2,
+  Copy,
+  Check,
+  Image as ImageIcon
 } from 'lucide-react';
+import VisualStimulusLightboxModal from './VisualStimulusLightboxModal';
 
 /**
  * VisualStimulusViewer:
  * Publication-grade renderer for AAMC MCAT visual stimulus diagrams (Vector SVG & AI FLUX Images).
- * Supports inline display, click-to-zoom lightbox modal, pan/zoom controls, SVG source copying,
+ * Supports inline display, compact list thumbnail mode, click-to-zoom lightbox modal,
  * and inline description editing in Quick Edit mode.
  */
 export default function VisualStimulusViewer({
@@ -31,7 +27,6 @@ export default function VisualStimulusViewer({
   compact = false
 }) {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1.0);
   const [copiedSvg, setCopiedSvg] = useState(false);
 
   // Extract visual data from direct props or question or stage outcomes (supporting both discrete and passage stimuli)
@@ -47,28 +42,13 @@ export default function VisualStimulusViewer({
     question?.stage_outcomes?.visual_stimulus?.image_url ||
     question?.stage_outcomes?.passage_visual_stimulus?.image_url ||
     null;
-  const rawDescription = isEditing 
+  const rawDescription = isEditing
     ? (editedDescription ?? directImageDescription ?? question?.image_description ?? '')
     : (directImageDescription ||
        question?.image_description ||
        question?.stage_outcomes?.visual_stimulus?.image_description ||
        question?.stage_outcomes?.passage_visual_stimulus?.image_description ||
        '');
-
-  // Handle escape key to close lightbox
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape' && isLightboxOpen) {
-      setIsLightboxOpen(false);
-      setZoomLevel(1.0);
-    }
-  }, [isLightboxOpen]);
-
-  useEffect(() => {
-    if (isLightboxOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isLightboxOpen, handleKeyDown]);
 
   if (!svgContent && !imageUrl) {
     return null;
@@ -85,25 +65,10 @@ export default function VisualStimulusViewer({
     setTimeout(() => setCopiedSvg(false), 2000);
   };
 
-  const handleZoomIn = (e) => {
-    e?.stopPropagation();
-    setZoomLevel(prev => Math.min(2.5, Number((prev + 0.25).toFixed(2))));
-  };
-
-  const handleZoomOut = (e) => {
-    e?.stopPropagation();
-    setZoomLevel(prev => Math.max(0.5, Number((prev - 0.25).toFixed(2))));
-  };
-
-  const handleResetZoom = (e) => {
-    e?.stopPropagation();
-    setZoomLevel(1.0);
-  };
-
   // Compact Thumbnail View for list cards
   if (compact) {
     return (
-      <div 
+      <div
         style={{
           background: '#ffffff',
           border: '1px solid var(--border-medium)',
@@ -125,19 +90,19 @@ export default function VisualStimulusViewer({
             {isSvg ? 'SVG' : 'Diagram'}
           </span>
         </div>
-        <div 
+        <div
           style={{ width: '100%', maxHeight: '85px', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}
         >
           {isSvg ? (
-            <div 
+            <div
               style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}
-              dangerouslySetInnerHTML={{ __html: svgContent }} 
+              dangerouslySetInnerHTML={{ __html: svgContent }}
             />
           ) : (
-            <img 
-              src={imageUrl} 
-              alt={rawDescription || 'Figure diagram'} 
-              style={{ maxHeight: '85px', maxWidth: '100%', objectFit: 'contain' }} 
+            <img
+              src={imageUrl}
+              alt={rawDescription || 'Figure diagram'}
+              style={{ maxHeight: '85px', maxWidth: '100%', objectFit: 'contain' }}
             />
           )}
         </div>
@@ -171,12 +136,12 @@ export default function VisualStimulusViewer({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span 
-              style={{ 
-                fontSize: '0.725rem', 
-                fontWeight: 700, 
-                color: 'var(--text-muted)', 
-                textTransform: 'uppercase', 
+            <span
+              style={{
+                fontSize: '0.725rem',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 display: 'flex',
                 alignItems: 'center',
@@ -187,8 +152,8 @@ export default function VisualStimulusViewer({
               {headerTitle || 'Figure / Diagram'}
             </span>
             {badgeExtra}
-            <span 
-              className="badge badge-purple" 
+            <span
+              className="badge badge-purple"
               style={{ fontSize: '0.625rem', padding: '2px 6px', fontWeight: 600 }}
             >
               {visualType}
@@ -212,10 +177,7 @@ export default function VisualStimulusViewer({
 
             <button
               type="button"
-              onClick={() => {
-                setZoomLevel(1.0);
-                setIsLightboxOpen(true);
-              }}
+              onClick={() => setIsLightboxOpen(true)}
               className="btn-secondary"
               style={{ padding: '3px 8px', fontSize: '0.675rem', gap: '4px' }}
               title="Expand diagram to fullscreen inspect mode"
@@ -276,13 +238,13 @@ export default function VisualStimulusViewer({
         <div>
           {isEditing ? (
             <div>
-              <label 
-                style={{ 
-                  display: 'block', 
-                  fontSize: '0.65rem', 
-                  fontWeight: 600, 
-                  color: 'var(--text-muted)', 
-                  marginBottom: '2px' 
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.65rem',
+                  fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  marginBottom: '2px'
                 }}
               >
                 Diagram Description / Clinical Caption:
@@ -313,190 +275,17 @@ export default function VisualStimulusViewer({
         </div>
       </div>
 
-      {/* Lightbox Modal Overlay */}
-      {isLightboxOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(5, 8, 15, 0.88)',
-            backdropFilter: 'blur(6px)',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            padding: '24px',
-            animation: 'fadeIn 0.15s ease-out'
-          }}
-          onClick={() => {
-            setIsLightboxOpen(false);
-            setZoomLevel(1.0);
-          }}
-        >
-          {/* Modal Header Strip */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingBottom: '16px',
-              borderBottom: '1px solid var(--border-light)',
-              background: 'transparent'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Figure Inspector
-              </span>
-              <span className="badge badge-purple" style={{ fontSize: '0.675rem' }}>
-                {visualType}
-              </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Zoom: {Math.round(zoomLevel * 100)}%
-              </span>
-            </div>
-
-            {/* Modal Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={handleZoomIn}
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.75rem', gap: '4px' }}
-                title="Zoom in (+25%)"
-              >
-                <ZoomIn size={13} />
-                <span>Zoom In</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleZoomOut}
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.75rem', gap: '4px' }}
-                title="Zoom out (-25%)"
-              >
-                <ZoomOut size={13} />
-                <span>Zoom Out</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResetZoom}
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.75rem', gap: '4px' }}
-                title="Reset zoom to 100%"
-              >
-                <RotateCcw size={13} />
-                <span>Reset</span>
-              </button>
-
-              {isSvg && (
-                <button
-                  type="button"
-                  onClick={handleCopySvg}
-                  className="btn-secondary"
-                  style={{ padding: '6px 12px', fontSize: '0.75rem', gap: '4px' }}
-                  title="Copy SVG markup"
-                >
-                  {copiedSvg ? <Check size={13} color="var(--status-success)" /> : <FileCode size={13} />}
-                  <span>{copiedSvg ? 'Copied' : 'Copy SVG'}</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLightboxOpen(false);
-                  setZoomLevel(1.0);
-                }}
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.75rem', gap: '4px' }}
-                title="Close lightbox (Esc)"
-              >
-                <X size={14} />
-                <span>Close</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Modal Content Stage */}
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              overflow: 'auto',
-              padding: '20px'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                background: '#ffffff',
-                borderRadius: 'var(--radius-md)',
-                padding: '24px',
-                boxShadow: 'var(--shadow-lg)',
-                transform: `scale(${zoomLevel})`,
-                transformOrigin: 'center center',
-                transition: 'transform 0.15s ease-out',
-                maxWidth: '90vw',
-                maxHeight: '75vh',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                overflow: 'auto'
-              }}
-            >
-              {isSvg ? (
-                <div
-                  style={{
-                    width: '760px',
-                    maxWidth: '100%',
-                    display: 'flex',
-                    justifyContent: 'center'
-                  }}
-                  dangerouslySetInnerHTML={{ __html: svgContent }}
-                />
-              ) : (
-                <img
-                  src={imageUrl}
-                  alt={rawDescription || 'Visual Stimulus'}
-                  style={{
-                    maxWidth: '85vw',
-                    maxHeight: '70vh',
-                    objectFit: 'contain'
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Modal Caption */}
-            {rawDescription && (
-              <div
-                style={{
-                  marginTop: '16px',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.85rem',
-                  fontWeight: 500,
-                  textAlign: 'center',
-                  background: 'var(--bg-surface-elevated)',
-                  padding: '6px 16px',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1px solid var(--border-light)'
-                }}
-              >
-                Fig: {rawDescription}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Fullscreen Lightbox Modal */}
+      <VisualStimulusLightboxModal
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+        svgContent={svgContent}
+        imageUrl={imageUrl}
+        rawDescription={rawDescription}
+        visualType={visualType}
+        onCopySvg={handleCopySvg}
+        copiedSvg={copiedSvg}
+      />
     </>
   );
 }

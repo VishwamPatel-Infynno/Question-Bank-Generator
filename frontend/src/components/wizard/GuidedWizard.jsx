@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  ArrowLeft,
-  ArrowRight,
-  Sparkles,
-  Check,
-  Zap
-} from 'lucide-react';
-import {
   PACING_INFO,
   getSkillsForSection,
   SECTION_METADATA,
@@ -18,56 +11,13 @@ import {
   WizardStep2LevelFormat,
   WizardStep3ReviewAdvanced
 } from './steps';
+import { STEP_CONFIG, QUICK_PRESETS } from './wizardConstants';
+import WizardHeaderStepper from './WizardHeaderStepper';
+import WizardFooterNav from './WizardFooterNav';
 
-const STEP_CONFIG = [
-  { num: 1, label: 'Section & Topic', short: 'Section', subtitle: 'Choose Exam Section & Topic', nextLabel: 'Continue' },
-  { num: 2, label: 'Difficulty & Format', short: 'Format', subtitle: 'Choose Difficulty & Format', nextLabel: 'Review & Create' },
-  { num: 3, label: 'Review & Create', short: 'Review', subtitle: 'Review & Start Generation', nextLabel: 'Create Questions' }
-];
-
-const QUICK_PRESETS = [
-  {
-    id: 'bio_biochem_5',
-    label: 'Biochem Passage Set',
-    tag: '5 Qs',
-    section: 'bio_biochem',
-    total: 5,
-    passageRequired: 'Yes',
-    passageMode: 'single_passage',
-    desc: 'Enzyme kinetics & metabolic regulation passage'
-  },
-  {
-    id: 'cars_essay_5',
-    label: 'CARS Reasoning',
-    tag: '5 Qs',
-    section: 'cars',
-    total: 5,
-    passageRequired: 'Yes',
-    passageMode: 'single_passage',
-    desc: 'Humanities & social sciences reasoning passage'
-  },
-  {
-    id: 'chem_phys_5',
-    label: 'Physics Standalone',
-    tag: '5 Qs',
-    section: 'chem_phys',
-    total: 5,
-    passageRequired: 'No',
-    passageMode: 'independent',
-    desc: 'Discrete physics & chemistry questions'
-  },
-  {
-    id: 'psych_soc_5',
-    label: 'Psych / Sociology',
-    tag: '5 Qs',
-    section: 'psych_soc',
-    total: 5,
-    passageRequired: 'Yes',
-    passageMode: 'single_passage',
-    desc: 'Cognitive bias & behavioral health study'
-  }
-];
-
+/**
+ * GuidedWizard - Coordinates multi-step question generation configuration.
+ */
 export default function GuidedWizard({
   generatorForm,
   onGenerateQuestions,
@@ -234,87 +184,14 @@ export default function GuidedWizard({
   return (
     <div className="wizard-card" id="guided-wizard-container">
       {/* Top Navigation & Interactive Progress Tracker */}
-      <div className="wizard-topbar">
-        <div className="wizard-topbar-header" style={{ marginBottom: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '8px' }}>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-              Step {step}: {currentStepConfig.label}
-            </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              {totalQuestions} Questions
-            </span>
-          </div>
-        </div>
-
-        {/* Interactive Step Pills Tracker (3 Steps) */}
-        <div className="wizard-stepper-3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', overflowX: 'auto', paddingBottom: '2px' }}>
-          {STEP_CONFIG.map((cfg) => {
-            const isCurrent = step === cfg.num;
-            const isCompleted = step > cfg.num;
-
-            return (
-              <button
-                key={cfg.num}
-                type="button"
-                onClick={() => setStep(cfg.num)}
-                title={`Jump to Step ${cfg.num}: ${cfg.label}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '7px',
-                  padding: '5px 14px',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: '0.78rem',
-                  fontWeight: isCurrent ? 600 : 500,
-                  cursor: 'pointer',
-                  background: isCurrent
-                    ? 'var(--brand-primary)'
-                    : isCompleted
-                    ? 'var(--bg-surface-subtle)'
-                    : 'var(--bg-surface)',
-                  border: isCurrent
-                    ? '1px solid var(--brand-primary)'
-                    : isCompleted
-                    ? '1px solid var(--border-medium)'
-                    : '1px solid var(--border-light)',
-                  color: isCurrent
-                    ? 'var(--text-on-brand)'
-                    : isCompleted
-                    ? 'var(--text-primary)'
-                    : 'var(--text-muted)',
-                  transition: 'all 0.15s ease',
-                  flexShrink: 0
-                }}
-              >
-                <span
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.68rem',
-                    background: isCurrent ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
-                    fontWeight: 600
-                  }}
-                >
-                  {isCompleted ? <Check size={11} /> : cfg.num}
-                </span>
-                <span>{cfg.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Continuous Progress Track */}
-        <div className="wizard-progress-track">
-          <div
-            className="wizard-progress-fill"
-            style={{ width: `${(step / totalSteps) * 100}%` }}
-          />
-        </div>
-      </div>
+      <WizardHeaderStepper
+        step={step}
+        totalSteps={totalSteps}
+        currentStepConfig={currentStepConfig}
+        totalQuestions={totalQuestions}
+        onStepClick={setStep}
+        stepConfig={STEP_CONFIG}
+      />
 
       {/* Wizard Body: 3 Focused Progressive Steps */}
       <div className="wizard-body wizard-step-fade-enter" key={step}>
@@ -329,7 +206,7 @@ export default function GuidedWizard({
             onSelectUnit={(v) => update('selectedUnit', v)}
             selectedTopic={selectedTopic}
             onSelectTopic={(v) => update('selectedTopic', v)}
-            onSelectSubtopic={(v) => update('selectedSubtopic', v)}
+            selectedSubtopic={(v) => update('selectedSubtopic', v)}
             selectedSubtopics={selectedSubtopics}
             onToggleSubtopic={toggleSubtopic}
             presets={QUICK_PRESETS}
@@ -399,100 +276,18 @@ export default function GuidedWizard({
       </div>
 
       {/* Navigation Footer */}
-      <div className="wizard-footer">
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={handleBack}
-          disabled={step === 1}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            opacity: step === 1 ? 0.5 : 1,
-            cursor: step === 1 ? 'not-allowed' : 'pointer'
-          }}
-        >
-          <ArrowLeft size={16} />
-          <span>Back</span>
-        </button>
-
-        {/* Step dots for compact view */}
-        <div className="wizard-step-indicators">
-          {STEP_CONFIG.map((cfg) => {
-            const isClickable = step > cfg.num;
-            return (
-              <button
-                type="button"
-                key={cfg.num}
-                onClick={() => isClickable && setStep(cfg.num)}
-                disabled={!isClickable}
-                style={{ cursor: isClickable ? 'pointer' : 'default', padding: 0, border: 'none', background: 'none' }}
-                className={`wizard-dot ${step === cfg.num ? 'active' : isClickable ? 'completed' : ''}`}
-                title={`Step ${cfg.num}: ${cfg.label}`}
-                aria-label={`Go to Step ${cfg.num}: ${cfg.label}`}
-              />
-            );
-          })}
-        </div>
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Step 2 Instant Launch Shortcut */}
-          {step === 2 && (
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={handleInstantLaunch}
-              disabled={isLaunchingBatch}
-              title="Start generating immediately"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                color: 'var(--brand-primary)',
-                borderColor: 'var(--border-brand)'
-              }}
-            >
-              <Zap size={14} />
-              <span>Quick Start</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="workspace-action-btn-primary"
-            id={step === totalSteps ? 'btn-wizard-generate-questions' : 'btn-wizard-next-step'}
-            onClick={handleNext}
-            disabled={step === totalSteps && isLaunchingBatch}
-            style={{
-              padding: '10px 22px',
-              fontSize: '0.92rem',
-              opacity: step === totalSteps && isLaunchingBatch ? 0.6 : 1,
-              cursor: step === totalSteps && isLaunchingBatch ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {step === totalSteps ? (
-              <>
-                <Sparkles size={16} className={isLaunchingBatch ? 'spin-icon' : ''} />
-                <span>
-                  {isLaunchingBatch
-                    ? 'Starting...'
-                    : `Generate ${totalQuestions} Questions`}
-                </span>
-              </>
-            ) : (
-              <>
-                <span>{currentStepConfig.nextLabel}</span>
-                <ArrowRight size={16} />
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+      <WizardFooterNav
+        step={step}
+        totalSteps={totalSteps}
+        currentStepConfig={currentStepConfig}
+        totalQuestions={totalQuestions}
+        isLaunchingBatch={isLaunchingBatch}
+        onBack={handleBack}
+        onNext={handleNext}
+        onInstantLaunch={handleInstantLaunch}
+        onStepClick={setStep}
+        stepConfig={STEP_CONFIG}
+      />
     </div>
   );
 }

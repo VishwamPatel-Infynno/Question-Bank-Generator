@@ -1,21 +1,19 @@
+import React from 'react';
+import { FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import {
-  FileText,
-  ChevronDown,
-  ChevronRight,
-  Layers,
-  BookOpen,
-  Image as ImageIcon,
-  Trash2,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  RotateCcw,
-  Check
-} from 'lucide-react';
-import { formatCostUsd, formatTokenCount } from '../../utils';
-import { LiveStopwatch } from '../common';
+  computeJobQuestionCounts,
+  hasJobPassage,
+  hasJobDiagram,
+  sortJobQuestions
+} from '../../utils';
+import BatchJobHeader from './BatchJobHeader';
+import BatchJobPillStrip from './BatchJobPillStrip';
+import BatchJobTelemetryBadges from './BatchJobTelemetryBadges';
 import BatchQuestionItem from './BatchQuestionItem';
 
+/**
+ * BatchJobCard - Coordinates an individual question set (e.g. Set #1 of 10) in a batch card.
+ */
 export default function BatchJobCard({
   job,
   isExpanded = false,
@@ -35,51 +33,11 @@ export default function BatchJobCard({
   const isJobPending = job.status === 'pending';
   const targetCount = job.target_count || 5;
 
-  // Compute status counts for questions in this job
-  const resolveStatus = (q) => {
-    if (q.status === 'discarded') return 'discarded';
-    if (q.is_deleted) return 'deleted';
-    if (q.status) return q.status;
-    const score = q.final_score ?? 95;
-    if (score > 90) return 'ai_validated';
-    if (score > 85) return 'batch_only';
-    return 'below_threshold';
-  };
-
-  // Only genuine user deletions from the bank count as deleted; discarded duplicates never count as deleted
-  const deletedCount = jobQuestions.filter((q) => Boolean(q.is_deleted) && q.status !== 'discarded').length;
-  const validatedCount = jobQuestions.filter((q) => !q.is_deleted && resolveStatus(q) === 'ai_validated').length;
-  const batchOnlyCount = jobQuestions.filter((q) => !q.is_deleted && resolveStatus(q) === 'batch_only').length;
-  const inBankCount = jobQuestions.filter((q) => !q.is_deleted && resolveStatus(q) === 'in_bank').length;
-  const discardedCount = jobQuestions.filter((q) => !q.is_deleted && resolveStatus(q) === 'discarded').length;
-  const belowCount = jobQuestions.filter((q) => !q.is_deleted && resolveStatus(q) === 'below_threshold').length;
-
-  const hasPassageInJob = jobQuestions.some(
-    (q) => Boolean(q.stimulus_text && q.stimulus_text.trim().length > 0)
-  );
-  const hasDiagramInJob = jobQuestions.some(
-    (q) =>
-      Boolean(
-        q.image_url ||
-          q.image_svg ||
-          q.stage_outcomes?.visual_stimulus?.image_url ||
-          q.stage_outcomes?.visual_stimulus?.image_svg ||
-          q.stage_outcomes?.passage_visual_stimulus?.image_url ||
-          q.stage_outcomes?.passage_visual_stimulus?.image_svg
-      )
-  );
-
-  // Filter out any discarded duplicate questions so they never appear in the job questions list
+  const counts = computeJobQuestionCounts(jobQuestions);
+  const hasPassage = hasJobPassage(jobQuestions);
+  const hasDiagram = hasJobDiagram(jobQuestions);
+  const sortedQuestions = sortJobQuestions(jobQuestions);
   const visibleQuestions = jobQuestions.filter((q) => q.status !== 'discarded');
-
-  // Present kept questions (>85) first, then below threshold (<=85)
-  const sortedQuestions = [...visibleQuestions].sort((a, b) => {
-    const isKeptA = resolveStatus(a) !== 'below_threshold';
-    const isKeptB = resolveStatus(b) !== 'below_threshold';
-    if (isKeptA && !isKeptB) return -1;
-    if (!isKeptA && isKeptB) return 1;
-    return 0;
-  });
 
   return (
     <div
@@ -99,351 +57,33 @@ export default function BatchJobCard({
       }}
     >
       {/* Job Card Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span
-            style={{
-              fontWeight: 800,
-              fontSize: '0.8rem',
-              color: isJobRunning ? 'var(--brand-primary)' : 'var(--text-primary)'
-            }}
-          >
-            Set #{job.job_number}
-          </span>
-
-          {/* Worker Queue vs Active Slot vs Finished State */}
-          {isJobPending && (
-            <span
-              className="worker-queue-badge queued"
-              title="Job is queued waiting for an available concurrency slot from the global worker pool (max 4 concurrent jobs)"
-            >
-              <Clock size={11} />
-              <span>Queued in Worker Pool</span>
-            </span>
-          )}
-
-          {isJobRunning && (
-            job.trial_count > 1 ? (
-              <span
-                className="worker-queue-badge active-slot"
-                style={{
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  color: 'var(--status-warning)',
-                  borderColor: 'rgba(245, 158, 11, 0.3)'
-                }}
-                title={`Autonomous in-set replenishment trial ${job.trial_count} of 3`}
-              >
-                <RotateCcw size={11} />
-                <span>Replenishing Slot (Trial {job.trial_count}/3)</span>
-              </span>
-            ) : (
-              <span
-                className="worker-queue-badge active-slot"
-                title="Active worker slot executing LangGraph generation workflow"
-              >
-                <span
-                  style={{
-                    width: '5px',
-                    height: '5px',
-                    borderRadius: '50%',
-                    background: 'var(--brand-primary)',
-                    animation: 'pulse 1.5s infinite'
-                  }}
-                />
-                <span>Active Worker Slot</span>
-              </span>
-            )
-          )}
-
-          {isJobDone && (
-            <span
-              className="badge badge-success"
-              style={{
-                fontSize: '0.675rem',
-                padding: '1px 6px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <CheckCircle2 size={11} />
-              <span>Completed</span>
-            </span>
-          )}
-
-          {isJobFailed && (
-            <span
-              className="badge badge-danger"
-              style={{
-                fontSize: '0.675rem',
-                padding: '1px 6px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <AlertCircle size={11} />
-              <span>Failed</span>
-            </span>
-          )}
-
-          {((isJobFailed || (isJobDone && job.actual_count < targetCount)) && (job.trial_count >= 3)) && (
-            <span
-              className="badge"
-              style={{
-                fontSize: '0.65rem',
-                padding: '1px 6px',
-                background: 'rgba(245, 158, 11, 0.12)',
-                color: 'var(--status-warning)',
-                border: '1px solid rgba(245, 158, 11, 0.25)'
-              }}
-              title="All 3 autonomous replenishment trials completed"
-            >
-              3/3 TRIALS EXHAUSTED
-            </span>
-          )}
-        </div>
-
-        <span
-          style={{
-            fontSize: '0.725rem',
-            fontWeight: 600,
-            color: isJobDone ? 'var(--status-success)' : 'var(--text-muted)'
-          }}
-        >
-          {job.actual_count} / {targetCount} Qs
-        </span>
-      </div>
+      <BatchJobHeader
+        job={job}
+        targetCount={targetCount}
+        isJobRunning={isJobRunning}
+        isJobDone={isJobDone}
+        isJobFailed={isJobFailed}
+        isJobPending={isJobPending}
+      />
 
       {/* 5-Question Visual Progress Strip */}
-      <div className="job-q-pill-strip" role="group" aria-label={`Question progress for Set ${job.job_number}`}>
-        {Array.from({ length: targetCount }, (_, i) => ({
-          slotNum: i + 1,
-          slotKey: `${job.id || 'job'}-slot-${i + 1}`
-        })).map((slot) => {
-          const qNum = slot.slotNum;
-          const matchedQ = visibleQuestions[qNum - 1];
-          if (matchedQ) {
-            const st = resolveStatus(matchedQ);
-            const score = matchedQ.final_score ?? 95;
-            const isBank = st === 'in_bank';
-            return (
-              <span
-                key={matchedQ.id || slot.slotKey}
-                className={`job-q-pill ${isBank ? 'in-bank' : 'done'}`}
-                title={`Question ${qNum}: Score ${score}/100 • ${isBank ? 'In Question Bank' : 'Ready for Review'}`}
-              >
-                <Check size={10} />
-                <span>Q{qNum} ({score})</span>
-              </span>
-            );
-          }
-          if (isJobRunning && qNum - 1 === visibleQuestions.length) {
-            return (
-              <span
-                key={`active-${slot.slotKey}`}
-                className="job-q-pill active"
-                title={`Question ${qNum}: Currently generating passage, stem & distractors`}
-              >
-                <span
-                  style={{
-                    width: '4px',
-                    height: '4px',
-                    borderRadius: '50%',
-                    background: 'var(--brand-primary)',
-                    animation: 'pulse 1.2s infinite'
-                  }}
-                />
-                <span>Q{qNum} drafting</span>
-              </span>
-            );
-          }
-          return (
-            <span
-              key={`pending-${slot.slotKey}`}
-              className="job-q-pill pending"
-              title={`Question ${qNum}: Pending in set`}
-            >
-              <span>Q{qNum}</span>
-            </span>
-          );
-        })}
-      </div>
+      <BatchJobPillStrip
+        jobId={job.id}
+        jobNumber={job.job_number}
+        targetCount={targetCount}
+        visibleQuestions={visibleQuestions}
+        isJobRunning={isJobRunning}
+      />
 
-      {/* Job Details / Telemetry */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '0.7rem',
-          color: 'var(--text-muted)'
-        }}
-      >
-        <span>Tokens: {formatTokenCount(job.total_tokens)}</span>
-        <span>{formatCostUsd(job.cost_usd)}</span>
-        {isJobRunning ? (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              color: 'var(--brand-primary)',
-              fontWeight: 600
-            }}
-          >
-            <LiveStopwatch isRunning={true} /> elapsed
-          </span>
-        ) : job.completed_at ? (
-          <span>
-            Finished{' '}
-            {new Date(job.completed_at).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </span>
-        ) : null}
-      </div>
-
-      {job.error_message && (
-        <div
-          style={{
-            fontSize: '0.72rem',
-            color: 'var(--status-danger)',
-            background: 'rgba(244, 63, 94, 0.08)',
-            padding: '6px 8px',
-            borderRadius: 'var(--radius-xs)'
-          }}
-        >
-          Error: {job.error_message}
-        </div>
-      )}
-
-      {jobQuestions.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', fontSize: '0.675rem' }}>
-          {validatedCount > 0 && (
-            <span
-              style={{
-                background: 'rgba(79, 48, 185, 0.1)',
-                color: 'var(--brand-primary)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700
-              }}
-            >
-              {validatedCount} Ready for Review
-            </span>
-          )}
-          {batchOnlyCount > 0 && (
-            <span
-              style={{
-                background: 'rgba(51, 90, 207, 0.12)',
-                color: 'var(--brand-primary)',
-                border: '1px solid rgba(51, 90, 207, 0.25)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
-              <Layers size={10} /> {batchOnlyCount} Good Quality
-            </span>
-          )}
-          {inBankCount > 0 && (
-            <span
-              style={{
-                background: 'rgba(16, 185, 129, 0.1)',
-                color: 'var(--status-success)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700
-              }}
-            >
-              {inBankCount} in Question Bank
-            </span>
-          )}
-          {discardedCount > 0 && (
-            <span
-              style={{
-                background: 'rgba(244, 63, 94, 0.1)',
-                color: 'var(--status-danger)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700
-              }}
-            >
-              {discardedCount} Discarded
-            </span>
-          )}
-          {belowCount > 0 && (
-            <span
-              style={{
-                background: 'var(--status-warning-bg, rgba(245, 158, 11, 0.1))',
-                color: 'var(--status-warning, #d97706)',
-                border: '1px solid var(--status-warning-border, rgba(245, 158, 11, 0.25))',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700
-              }}
-            >
-              {belowCount} Needs Polish (&le;85)
-            </span>
-          )}
-          {deletedCount > 0 && (
-            <span
-              style={{
-                background: 'var(--status-danger-bg)',
-                color: 'var(--status-danger)',
-                border: '1px solid var(--status-danger-border)',
-                padding: '2px 7px',
-                borderRadius: 'var(--radius-xs)',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
-              <Trash2 size={10} /> {deletedCount} Deleted from Bank
-            </span>
-          )}
-          {hasPassageInJob && (
-            <span
-              style={{
-                background: 'rgba(51, 90, 207, 0.08)',
-                color: 'var(--brand-primary)',
-                border: '1px solid rgba(51, 90, 207, 0.2)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
-              <BookOpen size={10} /> Reading Passage
-            </span>
-          )}
-          {hasDiagramInJob && (
-            <span
-              style={{
-                background: 'rgba(79, 48, 185, 0.08)',
-                color: 'var(--brand-primary)',
-                border: '1px solid rgba(79, 48, 185, 0.2)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
-              <ImageIcon size={10} /> Figure / Diagram
-            </span>
-          )}
-        </div>
-      )}
+      {/* Telemetry and Feature Badges */}
+      <BatchJobTelemetryBadges
+        job={job}
+        isJobRunning={isJobRunning}
+        counts={counts}
+        hasPassage={hasPassage}
+        hasDiagram={hasDiagram}
+        totalQuestionsCount={jobQuestions.length}
+      />
 
       {/* Action button: Expand/Hide questions */}
       {jobQuestions.length > 0 && (
@@ -475,7 +115,7 @@ export default function BatchJobCard({
       )}
 
       {/* Expanded Questions inside Job */}
-      {isExpanded && visibleQuestions.length > 0 && (
+      {isExpanded && sortedQuestions.length > 0 && (
         <div
           style={{
             marginTop: '8px',

@@ -32,3 +32,17 @@ export {
   calculateOptionSymmetry
 } from './optionHelpers';
 
+/** Batch lifecycle stages and progress calculations */
+export {
+  BATCH_LIFECYCLE_STAGES,
+  getBatchStageInfo
+} from './batchHelpers';
+
+/** Question set job helpers and status resolution */
+export {
+  resolveQuestionStatus,
+  computeJobQuestionCounts,
+  hasJobPassage,
+  hasJobDiagram,
+  sortJobQuestions
+} from './batchJobHelpers';
