@@ -12,7 +12,7 @@ import {
   Target
 } from 'lucide-react';
 import { MCAT_SECTION_LABELS, formatDifficulty, getSectionBadgeClass } from '../../constants/mcat';
-import { getEffectiveTrapInfo } from '../../utils';
+import { countWords, getEffectiveTrapInfo } from '../../utils';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
 
 function AiValidatedQuestionCard({
@@ -114,7 +114,7 @@ function AiValidatedQuestionCard({
           >
             <div className="validated-card-passage-header">
               <BookOpen size={12} />
-              <span>Reading Passage ({q.stimulus_text.split(/\s+/).length} words)</span>
+              <span>Reading Passage ({countWords(q.stimulus_text)} words)</span>
             </div>
             <button
               type="button"

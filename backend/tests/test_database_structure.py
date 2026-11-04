@@ -314,14 +314,19 @@ async def test_model_to_schema_none_options_safety():
 @pytest.mark.asyncio
 async def test_cascade_passage_deletion_multi_status_and_metrics():
     """Verify that deleting a passage cascade-deletes all linked questions across all statuses and recalculates job/batch actual counts."""
-    from app.repositories.batch_repository import (
+    from app.repositories import (
+        delete_passage,
         get_batch_by_id,
+        get_job_by_id,
+        get_passage_by_id,
+        get_question_by_id,
         refresh_batch_aggregates,
         save_batch,
+        save_job,
+        save_passage,
+        save_question,
+        update_job_progress,
     )
-    from app.repositories.job_repository import get_job_by_id, save_job, update_job_progress
-    from app.repositories.passage_repository import delete_passage, get_passage_by_id, save_passage
-    from app.repositories.question_repository import get_question_by_id, save_question
     from app.schemas import GenerationBatch, GenerationJob, Passage
 
     passage_id = f"cascade-p-{uuid.uuid4()}"

@@ -110,8 +110,8 @@ export default function App() {
         )}
 
         {activeTab === 'batches' && (
-          <ErrorBoundary fallbackLabel="Progress & History">
-            <Suspense fallback={<LazyLoadingSpinner label="Loading Progress & History..." />}>
+          <ErrorBoundary fallbackLabel="Batch Progress">
+            <Suspense fallback={<LazyLoadingSpinner label="Loading Batch Progress..." />}>
               <BatchActivityView
                 onOpenAudit={(q) => setAuditQuestion(q)}
                 onNavigateToBank={() => setActiveTab('bank')}
@@ -124,8 +124,8 @@ export default function App() {
         )}
 
         {activeTab === 'validated' && (
-          <ErrorBoundary fallbackLabel="Questions Ready for Review">
-            <Suspense fallback={<LazyLoadingSpinner label="Loading Questions Ready for Review..." />}>
+          <ErrorBoundary fallbackLabel="Review Queue">
+            <Suspense fallback={<LazyLoadingSpinner label="Loading Review Queue..." />}>
               <AiValidatedQuestionsView
                 onOpenAudit={(q) => setAuditQuestion(q)}
                 onNavigateToBank={() => setActiveTab('bank')}
@@ -150,8 +150,8 @@ export default function App() {
         )}
 
         {activeTab === 'passages' && (
-          <ErrorBoundary fallbackLabel="Passages Bank">
-            <Suspense fallback={<LazyLoadingSpinner label="Loading Passages Bank..." />}>
+          <ErrorBoundary fallbackLabel="Passage Bank">
+            <Suspense fallback={<LazyLoadingSpinner label="Loading Passage Bank..." />}>
               <PassageBankView
                 resetSignal={passagesResetSignal}
                 onShowToast={showToast}

@@ -157,7 +157,7 @@ async def test_auto_resolve_batch_and_refill(monkeypatch):
     from unittest.mock import AsyncMock
 
     from app.schemas import GenerationBatch, Question
-    from app.services.batch_runner import auto_resolve_batch_and_refill
+    from app.services import auto_resolve_batch_and_refill
 
     batch_id = "test-batch-autoresolve"
     fake_batch = GenerationBatch(

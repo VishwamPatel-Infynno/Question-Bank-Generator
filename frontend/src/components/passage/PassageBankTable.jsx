@@ -8,7 +8,7 @@ import {
   Calendar,
   Layers
 } from 'lucide-react';
-import { formatDate } from '../../utils';
+import { countWords, formatDate } from '../../utils';
 import { getSectionBadgeClass } from '../../constants/mcat';
 
 const SECTION_SHORT_LABEL = {
@@ -47,7 +47,7 @@ export default function PassageBankTable({
   return (
     <div className="passage-bank-list-wrap">
       {passages.map((passage) => {
-        const wordCount = passage.word_count || (passage.text ? passage.text.split(/\s+/).filter(Boolean).length : 0);
+        const wordCount = passage.word_count || countWords(passage.text);
         const linkedCount = questionCounts[passage.id] ?? (passage.questions ? passage.questions.length : 0);
         const hasVisual = Boolean(passage.image_url || passage.image_svg);
         const displayTitle = passage.title || `${passage.subtopic || 'MCAT'} Passage`;

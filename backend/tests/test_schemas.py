@@ -43,7 +43,7 @@ async def test_schemas_validation():
         )
 
     # Test calculate_mcat_scaled_score parity between 'high' and legacy 'hard'
-    from app.schemas.mcat import calculate_mcat_scaled_score
+    from app.schemas import calculate_mcat_scaled_score
 
     score_high = calculate_mcat_scaled_score(audit_total=98, difficulty="high")
     score_hard = calculate_mcat_scaled_score(audit_total=98, difficulty="hard")

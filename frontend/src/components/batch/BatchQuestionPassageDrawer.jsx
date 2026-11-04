@@ -1,5 +1,6 @@
 import React from 'react';
 import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { countWords } from '../../utils';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
 
 /**
@@ -13,7 +14,7 @@ export default function BatchQuestionPassageDrawer({
 }) {
   if (!question?.stimulus_text) return null;
 
-  const wordCount = question.stimulus_text.trim().split(/\s+/).length;
+  const wordCount = countWords(question.stimulus_text);
 
   return (
     <div className="batch-qitem-drawer">

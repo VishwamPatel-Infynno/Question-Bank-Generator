@@ -16,7 +16,7 @@ export default function HeroLanding({
   const PRESETS = [
     {
       label: 'Chem / Phys',
-      tag: '50 Questions',
+      tag: '~96s / q',
       icon: FlaskConical,
       config: {
         section: 'chem_phys',
@@ -30,7 +30,7 @@ export default function HeroLanding({
     },
     {
       label: 'CARS',
-      tag: '50 Questions',
+      tag: '~101s / q',
       icon: BookOpen,
       config: {
         section: 'cars',
@@ -44,7 +44,7 @@ export default function HeroLanding({
     },
     {
       label: 'Bio / Biochem',
-      tag: '50 Questions',
+      tag: '~96s / q',
       icon: Dna,
       config: {
         section: 'bio_biochem',
@@ -58,7 +58,7 @@ export default function HeroLanding({
     },
     {
       label: 'Psych / Soc',
-      tag: '50 Questions',
+      tag: '~96s / q',
       icon: Brain,
       config: {
         section: 'psych_soc',

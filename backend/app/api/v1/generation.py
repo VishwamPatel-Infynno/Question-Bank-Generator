@@ -5,8 +5,8 @@ import logging
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from app.schemas.workflow import GenerationRequest
-from app.workflow.graph import run_workflow_stream
+from app.schemas import GenerationRequest
+from app.workflow import run_workflow_stream
 
 logger = logging.getLogger(__name__)
 

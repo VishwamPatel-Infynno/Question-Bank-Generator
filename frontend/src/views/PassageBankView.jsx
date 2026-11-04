@@ -81,7 +81,7 @@ export default function PassageBankView({
             <BookOpen size={20} />
           </div>
           <div>
-            <h1 className="passage-header-title">Passages Bank</h1>
+            <h1 className="passage-header-title">Passage Bank</h1>
             <p className="passage-header-subtitle">
               Manage clinical research passages, humanities essays, and their linked MCAT question sets.
             </p>

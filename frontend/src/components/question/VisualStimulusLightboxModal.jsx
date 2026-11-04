@@ -173,7 +173,7 @@ function VisualStimulusLightboxModal({
           ) : (
             <img
               src={imageUrl}
-              alt={rawDescription || 'Visual Stimulus'}
+              alt={rawDescription || 'Figure or diagram'}
               className="lightbox-img"
             />
           )}

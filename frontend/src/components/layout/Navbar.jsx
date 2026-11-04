@@ -71,7 +71,7 @@ export default function Navbar({
           title="Create Questions"
         >
           <Sparkles size={12} color={activeTab === 'generator' ? 'var(--brand-primary)' : 'currentColor'} />
-          <span>Create</span>
+          <span>Create Questions</span>
         </button>
 
         <button
@@ -82,7 +82,7 @@ export default function Navbar({
           title="Batch Progress"
         >
           <Layers size={12} color={activeTab === 'batches' ? 'var(--brand-primary)' : 'currentColor'} />
-          <span>Batches</span>
+          <span>Batch Progress</span>
           {activeBatchCount > 0 && (
             <span className="navbar-pill-count">
               {activeBatchCount}
@@ -98,7 +98,7 @@ export default function Navbar({
           title="Review Queue"
         >
           <CheckCircle2 size={12} color={activeTab === 'validated' ? 'var(--brand-primary)' : 'currentColor'} />
-          <span>Review</span>
+          <span>Review Queue</span>
           {validatedCount > 0 && (
             <span className="navbar-pill-count">
               {validatedCount}

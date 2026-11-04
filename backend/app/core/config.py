@@ -280,10 +280,7 @@ class Settings(BaseSettings):
         """Determines if the provided or default model is an OpenAI text model."""
         target = (model or self.DEFAULT_TEXT_MODEL).strip().lower()
         return (
-            target.startswith("gpt-")
-            or target.startswith("o1")
-            or target.startswith("o3")
-            or target.startswith("openai/")
+            target.startswith(("gpt-", "o1", "o3", "openai/"))
             or "gpt-4" in target
             or "gpt-3.5" in target
         )

@@ -2,9 +2,13 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from app.repositories.batch_repository import refresh_batch_aggregates, save_batch
-from app.repositories.job_repository import save_job
-from app.repositories.question_repository import get_questions, save_question
+from app.repositories import (
+    get_questions,
+    refresh_batch_aggregates,
+    save_batch,
+    save_job,
+    save_question,
+)
 from app.schemas import (
     Difficulty,
     GenerationBatch,
@@ -13,7 +17,7 @@ from app.schemas import (
     MCATSection,
     Question,
 )
-from app.services.batch_runner import (
+from app.services import (
     auto_resolve_batch_and_refill,
     launch_background_batch,
 )

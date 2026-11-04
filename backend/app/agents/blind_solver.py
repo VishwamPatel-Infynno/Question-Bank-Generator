@@ -14,9 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.agents.base import call_llm, safe_json_loads
 from app.core.config import config
-from app.schemas.question import QuestionDraft
-from app.schemas.token import TokenUsage
-from app.schemas.workflow import GenerationRequest
+from app.schemas import GenerationRequest, QuestionDraft, TokenUsage
 
 logger = logging.getLogger(__name__)
 

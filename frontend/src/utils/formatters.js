@@ -71,3 +71,14 @@ export function formatDate(iso) {
     return String(iso);
   }
 }
+
+/**
+ * Counts words in a string in a Unicode-safe manner, filtering out empty tokens.
+ * @param {string} text - Text to count
+ * @returns {number}
+ */
+export function countWords(text) {
+  if (!text || typeof text !== 'string') return 0;
+  return text.trim().split(/\s+/u).filter(Boolean).length;
+}
+

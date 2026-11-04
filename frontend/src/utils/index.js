@@ -1,5 +1,6 @@
 /** Formatters & metric calculation utilities */
 export {
+  countWords,
   formatExamTime,
   formatCostUsd,
   formatTokenCount,

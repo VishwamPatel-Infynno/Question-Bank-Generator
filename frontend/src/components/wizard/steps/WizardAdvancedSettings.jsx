@@ -39,7 +39,7 @@ export default function WizardAdvancedSettings({
           <span>Advanced Settings</span>
           {hasInstructions && (
             <span className="badge-minimal">
-              Custom Instructions Active
+              + Custom Prompt Active
             </span>
           )}
         </div>

@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import re
 
-from app.schemas.mcat import MCATSection, normalize_section
-from app.schemas.question import OptionChoice, QuestionDraft, ReviewScore
-from app.schemas.workflow import GenerationRequest
+from app.schemas import (
+    GenerationRequest,
+    MCATSection,
+    OptionChoice,
+    QuestionDraft,
+    ReviewScore,
+    normalize_section,
+)
 
 
 def _build_raw_mock_draft(req: GenerationRequest) -> QuestionDraft:

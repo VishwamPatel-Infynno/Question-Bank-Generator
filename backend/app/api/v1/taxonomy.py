@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter
 
-from app.schemas.mcat import (
+from app.schemas import (
     AAMC_REASONING_SKILLS,
     CONTENT_DOMAINS_DETAILED,
     DEPENDENT_TAXONOMY,

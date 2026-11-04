@@ -16,7 +16,7 @@ import {
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
 import SharedPassageCard from '../question/SharedPassageCard';
 import MentorExplanationView from '../question/MentorExplanationView';
-import { getEffectiveTrapInfo } from '../../utils';
+import { countWords, getEffectiveTrapInfo } from '../../utils';
 import { formatDifficulty, getDifficultyBadgeClass, getSectionBadgeClass } from '../../constants/mcat';
 
 const SECTION_SHORT_LABEL = {
@@ -97,7 +97,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
                 <span className="badge badge-cyan qbank-table-type-badge">
                   Passage Set
                 </span>
-              ) : (q.passage_required === 'Yes' || (q.stimulus_text && q.stimulus_text.split(/\s+/).length >= 180)) ? (
+              ) : (q.passage_required === 'Yes' || countWords(q.stimulus_text) >= 180) ? (
                 <span className="qbank-table-mode-label">Passage</span>
               ) : (
                 <span className="qbank-table-mode-label">Standalone</span>

@@ -5,16 +5,14 @@ from app.agents.base import call_llm, get_global_llm_semaphore
 from app.core.config import config
 from app.db.session import init_db
 from app.main import app
-from app.repositories.batch_repository import (
+from app.repositories import (
     refresh_batch_aggregates,
     save_batch,
+    save_jobs_bulk,
+    update_job_progress,
 )
-from app.repositories.job_repository import save_jobs_bulk, update_job_progress
 from app.schemas import GenerationBatch, GenerationJob
-from app.services.batch_runner import (
-    cancel_all_background_batches,
-    get_global_job_semaphore,
-)
+from app.services import cancel_all_background_batches, get_global_job_semaphore
 from httpx import ASGITransport, AsyncClient
 
 pytestmark = pytest.mark.requires_db

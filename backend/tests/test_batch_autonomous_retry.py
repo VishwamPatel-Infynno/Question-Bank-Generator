@@ -14,7 +14,8 @@ from app.repositories import (
     update_job_progress,
 )
 from app.schemas import GenerationBatch, GenerationJob, GenerationRequest, MCATSection
-from app.services.batch_runner import _run_single_job, retry_incomplete_jobs_for_batch
+from app.services import retry_incomplete_jobs_for_batch
+from app.services.batch_runner import _run_single_job
 from httpx import ASGITransport, AsyncClient
 
 pytestmark = pytest.mark.requires_db

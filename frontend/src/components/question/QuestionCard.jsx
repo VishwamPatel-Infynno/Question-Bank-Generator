@@ -15,7 +15,7 @@ import VisualStimulusViewer from './VisualStimulusViewer';
 import MentorExplanationView from './MentorExplanationView';
 import QuestionScorecardTab from './QuestionScorecardTab';
 import QuestionInlineEditor from './QuestionInlineEditor';
-import { getEffectiveTrapInfo, calculateOptionSymmetry } from '../../utils';
+import { getEffectiveTrapInfo, calculateOptionSymmetry, countWords } from '../../utils';
 
 function QuestionCard({ 
   question, 
@@ -168,7 +168,7 @@ function QuestionCard({
                   Reading Passage
                 </span>
                 <span className="qcard-passage-words">
-                  ~{isEditing ? (editedStimulus ? editedStimulus.split(/\s+/).filter(Boolean).length : 0) : (question.stimulus_text ? question.stimulus_text.split(/\s+/).filter(Boolean).length : 0)} words
+                  ~{countWords(isEditing ? editedStimulus : question.stimulus_text)} words
                 </span>
               </div>
 

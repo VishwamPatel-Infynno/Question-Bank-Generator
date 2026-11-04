@@ -6,8 +6,8 @@ import {
 
 const DEFAULT_DIFFICULTY_TIERS = [];
 const COUNT_OPTIONS = Object.freeze([
-  { count: 5, label: '5 Questions' },
-  { count: 50, label: '50 Questions' }
+  { count: 5, label: 'Practice Set (5 Qs)' },
+  { count: 50, label: 'Full Exam (50 Qs)' }
 ]);
 
 export default function WizardStep2LevelFormat({

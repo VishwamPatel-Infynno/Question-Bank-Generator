@@ -13,7 +13,7 @@ export function calculateOptionSymmetry(options) {
   if (!Array.isArray(options) || options.length === 0) return null;
 
   const counts = options.map((o) =>
-    (o?.text || '').trim().split(/\s+/).filter(Boolean).length
+    (o?.text || '').trim().split(/\s+/u).filter(Boolean).length
   );
   const minW = Math.min(...counts);
   const maxW = Math.max(...counts);

@@ -2,8 +2,8 @@ import asyncio
 import logging
 
 from app.db.session import init_db
-from app.repositories.question_repository import save_question
-from app.schemas.question import OptionChoice, Question
+from app.repositories import save_question
+from app.schemas import OptionChoice, Question
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)

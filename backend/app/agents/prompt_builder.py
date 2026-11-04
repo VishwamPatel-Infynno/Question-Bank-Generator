@@ -8,11 +8,11 @@ external services.
 
 from __future__ import annotations
 
-from app.schemas.mcat import (
+from app.schemas import (
     MCAT_SECTION_LABELS,
+    GenerationRequest,
     MCATSection,
 )
-from app.schemas.workflow import GenerationRequest
 
 
 def _build_generator_user_prompt(

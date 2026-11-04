@@ -1,16 +1,16 @@
 from pathlib import Path
 
 import pytest
-from app.schemas.mcat import (
+from app.schemas import (
     CONTENT_DOMAINS,
     PRIMARY_TRAPS,
     QUESTION_TYPES,
     Difficulty,
+    GenerationRequest,
     MCATSection,
     get_skills_for_section,
     get_taxonomy_data,
 )
-from app.schemas.workflow import GenerationRequest
 
 
 def test_option_symmetry_and_anti_guessability_engine():
@@ -20,7 +20,7 @@ def test_option_symmetry_and_anti_guessability_engine():
         calculate_option_symmetry,
         remap_explanation_keys,
     )
-    from app.schemas.question import OptionChoice, QuestionDraft
+    from app.schemas import OptionChoice, QuestionDraft
 
     # 1. Test balanced options (tight word counts)
     balanced_opts = [

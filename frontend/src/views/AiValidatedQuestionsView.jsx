@@ -132,7 +132,7 @@ export default function AiValidatedQuestionsView({
                 onClick={onNavigateToBatches}
                 className="btn-secondary"
               >
-                View Batch Activity
+                View Batch Progress
               </button>
             )}
             {onNavigateToWizard && (

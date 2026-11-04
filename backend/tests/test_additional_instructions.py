@@ -1,7 +1,6 @@
 import pytest
 from app.agents.prompt_builder import _build_generator_user_prompt
-from app.schemas.mcat import MCATSection
-from app.schemas.workflow import GenerationRequest
+from app.schemas import GenerationRequest, MCATSection
 
 
 @pytest.mark.asyncio

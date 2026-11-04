@@ -5,6 +5,7 @@ import {
   ChevronUp,
   Image as ImageIcon
 } from 'lucide-react';
+import { countWords } from '../../utils';
 import VisualStimulusViewer from './VisualStimulusViewer';
 
 /**
@@ -48,7 +49,7 @@ export default function SharedPassageCard({
     return null;
   }
 
-  const wordCount = passageText.trim().split(/\s+/).filter(Boolean).length;
+  const wordCount = countWords(passageText);
 
   // Determine if a diagram/image is present
   const hasDiagram = Boolean(

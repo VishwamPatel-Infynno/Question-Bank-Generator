@@ -107,9 +107,8 @@ async def test_fused_workflow_bypasses_reviewer_when_self_critique_passed(monkey
     """Verifies that if the fused generator self-scores > 90, the separate Reviewer agent node is bypassed."""
     import app.workflow.nodes as nodes_mod
     from app.core.config import config
-    from app.schemas.question import OptionChoice, QuestionDraft, ReviewScore
-    from app.schemas.token import TokenUsage
-    from app.workflow.graph import run_workflow_stream
+    from app.schemas import OptionChoice, QuestionDraft, ReviewScore, TokenUsage
+    from app.workflow import run_workflow_stream
 
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
     monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)

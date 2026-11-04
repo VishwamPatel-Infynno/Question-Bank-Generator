@@ -18,10 +18,13 @@ from app.agents.base import calculate_token_cost, call_llm, safe_json_loads
 from app.agents.mock_fixtures import evaluate_heuristically
 from app.agents.prompts import REVIEWER_SYSTEM_PROMPT
 from app.core.config import config
-from app.schemas.mcat import MCAT_SECTION_LABELS
-from app.schemas.question import QuestionDraft, ReviewScore
-from app.schemas.token import TokenUsage
-from app.schemas.workflow import GenerationRequest
+from app.schemas import (
+    MCAT_SECTION_LABELS,
+    GenerationRequest,
+    QuestionDraft,
+    ReviewScore,
+    TokenUsage,
+)
 
 logger = logging.getLogger(__name__)
 

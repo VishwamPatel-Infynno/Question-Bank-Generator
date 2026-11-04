@@ -1,4 +1,5 @@
 import { CheckCircle, Scale } from 'lucide-react';
+import { countWords } from '../../utils';
 
 const EMPTY_ARRAY = Object.freeze([]);
 
@@ -32,7 +33,7 @@ export default function QuestionOptionsList({
           >
             <Scale size={11} />
             <span>
-              {optionSymmetry.status} ({optionSymmetry.min_word_count}–{optionSymmetry.max_word_count}w)
+              {optionSymmetry.status} ({optionSymmetry.min_word_count}-{optionSymmetry.max_word_count}w)
             </span>
           </span>
         )}
@@ -44,7 +45,7 @@ export default function QuestionOptionsList({
           const optId = (opt.id || '').trim().toUpperCase();
           const isCorrectKey = correctKeysList.includes(optId);
           const currentText = isEditing ? (editedOptions[idx]?.text || '') : (opt.text || '');
-          const optWordCount = currentText.trim().split(/\s+/).filter(Boolean).length;
+          const optWordCount = countWords(currentText);
           let cardClass = 'choice-option-card';
           if (isCorrectKey) cardClass += ' is-correct';
 

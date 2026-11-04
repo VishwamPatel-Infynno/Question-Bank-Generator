@@ -29,15 +29,18 @@ from app.agents.option_balancer import balance_and_shuffle_options
 from app.agents.prompt_builder import _build_generator_user_prompt
 from app.agents.prompts import FUSED_GENERATOR_SYSTEM_PROMPT, GENERATOR_SYSTEM_PROMPT
 from app.core.config import config
-from app.schemas.mcat import (
+from app.schemas import (
+    KNOWN_VISUAL_TYPES,
     MCAT_SECTION_LABELS,
+    GenerationRequest,
     MCATSection,
+    OptionChoice,
+    QuestionDraft,
+    ReviewScore,
+    TokenUsage,
     normalize_mistake_pattern,
     normalize_primary_trap,
 )
-from app.schemas.question import OptionChoice, QuestionDraft, ReviewScore
-from app.schemas.token import TokenUsage
-from app.schemas.workflow import KNOWN_VISUAL_TYPES, GenerationRequest
 
 logger = logging.getLogger(__name__)
 

@@ -184,7 +184,7 @@ async def test_call_openai_image_api_network_mock(monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
 
-    img_data, cost = await call_openai_image_api(
+    img_data, _cost = await call_openai_image_api(
         prompt="Enzyme kinetics curve",
         width=1024,
         height=1024,

@@ -2,16 +2,14 @@ import uuid
 
 import pytest
 from app.db.session import init_db
-from app.repositories.batch_repository import (
+from app.repositories import (
     get_batch_by_id,
-    promote_completed_batch_questions,
-    save_batch,
-)
-from app.repositories.job_repository import save_job
-from app.repositories.question_repository import (
     get_question_by_id,
     get_question_status_counts,
     get_questions,
+    promote_completed_batch_questions,
+    save_batch,
+    save_job,
     save_question,
 )
 from app.schemas import GenerationBatch, GenerationJob, OptionChoice, Question

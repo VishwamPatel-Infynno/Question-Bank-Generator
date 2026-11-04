@@ -330,12 +330,12 @@ def _build_csv_row(q: Question) -> list[Any]:
 
 @router.get("/export")
 async def export_questions(
-    format: Annotated[str, Query(pattern="^(json|csv)$")] = "json",
+    export_format: Annotated[str, Query(alias="format", pattern="^(json|csv)$")] = "json",
 ):
     """Exports Question Bank in JSON or CSV format including manager matrix fields and UUIDs."""
     questions = await get_questions(status="in_bank")
 
-    if format == "json":
+    if export_format == "json":
         data = [q.model_dump() for q in questions]
         return JSONResponse(
             content=data,

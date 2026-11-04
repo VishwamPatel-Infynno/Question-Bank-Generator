@@ -9,6 +9,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { getSectionBadgeClass } from '../../constants/mcat';
+import { countWords } from '../../utils';
 import PassageVisualStimulusEditor from './PassageVisualStimulusEditor';
 import PassageLinkedQuestionCard from './PassageLinkedQuestionCard';
 
@@ -47,7 +48,7 @@ export default function PassageEditorialDesk({
 
   // Dynamic Word Count
   const liveWordCount = useMemo(() => {
-    return text.trim() ? text.trim().split(/\s+/).length : 0;
+    return countWords(text);
   }, [text]);
 
   // Safe question index calculation

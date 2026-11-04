@@ -165,8 +165,7 @@ async def test_generate_question_with_self_critique_structure(monkeypatch):
     import app.agents.generator as gen_mod
     from app.agents.generator import generate_question_with_self_critique
     from app.core.config import config
-    from app.schemas.question import QuestionDraft, ReviewScore
-    from app.schemas.token import TokenUsage
+    from app.schemas import QuestionDraft, ReviewScore, TokenUsage
 
     # 1. Fallback mode (no API key configured)
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")

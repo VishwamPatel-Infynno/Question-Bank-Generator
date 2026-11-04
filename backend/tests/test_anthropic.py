@@ -57,9 +57,8 @@ async def test_anthropic_strict_api_key_enforcement():
         if "ANTHROPIC_API_KEY" in os.environ:
             del os.environ["ANTHROPIC_API_KEY"]
 
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(ValueError, match="Anthropic API Key is required"):
             _resolve_api_key("claude-haiku-5-5", explicit_key=None)
-        assert "Anthropic API Key is required" in str(excinfo.value)
 
         # Explicit key overrides environment requirement
         resolved = _resolve_api_key("claude-haiku-5-5", explicit_key="sk-ant-explicit-test")
@@ -84,9 +83,8 @@ async def test_deepinfra_key_enforcement_preservation():
         if "DEEPINFRA_API_KEY" in os.environ:
             del os.environ["DEEPINFRA_API_KEY"]
 
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(ValueError, match="AI Gateway API Key is required"):
             _resolve_api_key("deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017", explicit_key=None)
-        assert "AI Gateway API Key is required" in str(excinfo.value)
     finally:
         config.DEEPINFRA_API_KEY = orig_di
         if orig_env:

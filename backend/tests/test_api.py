@@ -9,7 +9,7 @@ from app.api.v1.questions import (
 )
 from app.core.config import config
 from app.db.session import init_db
-from app.repositories.question_repository import (
+from app.repositories import (
     delete_question,
     get_questions,
     save_question,
@@ -70,7 +70,7 @@ async def test_admin_approval_and_persistence_endpoints():
         batch_approve_and_save_questions,
         remove_questions_batch,
     )
-    from app.repositories.question_repository import (
+    from app.repositories import (
         delete_questions_batch,
         get_question_by_id,
     )
@@ -233,7 +233,7 @@ async def test_admin_approval_and_persistence_endpoints():
 
 @pytest.mark.asyncio
 async def test_multichoice_and_passage_support():
-    from app.repositories.question_repository import get_question_by_id
+    from app.repositories import get_question_by_id
 
     # 1. Test multi-choice GenerationRequest with passage and trap
     req = GenerationRequest(
@@ -297,7 +297,7 @@ async def test_multichoice_and_passage_support():
 
 @pytest.mark.asyncio
 async def test_batch_generation_and_staging_flow(monkeypatch):
-    from app.repositories.question_repository import get_question_by_id
+    from app.repositories import get_question_by_id
 
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
     monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
@@ -341,7 +341,7 @@ async def test_batch_generation_and_staging_flow(monkeypatch):
         assert in_db.status in ("ai_validated", "batch_only")
 
     # Test approving selected questions into the Question Bank
-    from app.repositories.question_repository import batch_update_question_status
+    from app.repositories import batch_update_question_status
 
     approved_ids = [staged_qs[0]["id"], staged_qs[1]["id"]]
     await batch_update_question_status(approved_ids, "in_bank")
@@ -649,7 +649,7 @@ async def test_passage_set_with_passage_level_visual_stimulus(monkeypatch):
 @pytest.mark.asyncio
 async def test_question_status_lifecycle_and_counts():
     """Verifies question status filtering, counts aggregation, and status transitions."""
-    from app.repositories.question_repository import (
+    from app.repositories import (
         batch_update_question_status,
         get_question_status_counts,
         update_question_status,
@@ -912,7 +912,7 @@ async def test_batch_duplicate_clusters_and_resolve_endpoints():
         get_batch_duplicate_clusters,
         resolve_batch_duplicates,
     )
-    from app.repositories.batch_repository import delete_batch, save_batch
+    from app.repositories import delete_batch, save_batch
     from app.schemas import GenerationBatch
 
     b_id = f"test-b-{uuid.uuid4().hex[:8]}"
@@ -1054,7 +1054,7 @@ async def test_questions_pagination_and_slim_projection(client):
 @pytest.mark.asyncio
 async def test_passage_lifecycle_and_restore_api(client):
     """Verify passage creation, retrieval, soft-deletion, and restoration via REST API endpoints."""
-    from app.repositories.passage_repository import get_passage_by_id
+    from app.repositories import get_passage_by_id
 
     pid = f"pas-{uuid.uuid4().hex[:8]}"
     payload = {

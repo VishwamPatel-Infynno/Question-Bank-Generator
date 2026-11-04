@@ -1,7 +1,7 @@
 import pytest
 from app.db.session import init_db
 from app.main import app
-from app.services.batch_runner import cancel_all_background_batches
+from app.services import cancel_all_background_batches
 from httpx import ASGITransport, AsyncClient
 
 pytestmark = pytest.mark.requires_db
@@ -143,11 +143,9 @@ async def test_refill_preserves_job_count_without_adding_sets(monkeypatch):
     refill_batch_deficit replenishes the existing jobs in-place and NEVER creates
     new jobs (e.g. Set #11).
     """
-    from app.repositories.batch_repository import save_batch
-    from app.repositories.job_repository import get_jobs_by_batch_id, save_jobs_bulk
-    from app.repositories.question_repository import save_question
+    from app.repositories import get_jobs_by_batch_id, save_batch, save_jobs_bulk, save_question
     from app.schemas import GenerationBatch, GenerationJob, Question
-    from app.services.batch_runner import refill_batch_deficit
+    from app.services import refill_batch_deficit
 
     batch_id = "test-preserve-10-sets"
     now_iso = "2026-10-30T10:00:00Z"
@@ -231,7 +229,7 @@ async def test_refill_preserves_job_count_without_adding_sets(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_reconcile_interrupted_batches_on_startup():
-    from app.repositories.batch_repository import (
+    from app.repositories import (
         get_batch_by_id,
         reconcile_interrupted_batches,
         save_batch,

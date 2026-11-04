@@ -14,7 +14,7 @@ import random
 import re
 from typing import Any
 
-from app.schemas.question import OptionChoice, QuestionDraft
+from app.schemas import OptionChoice, QuestionDraft
 
 logger = logging.getLogger(__name__)
 
