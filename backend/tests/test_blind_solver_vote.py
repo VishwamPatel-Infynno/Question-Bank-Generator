@@ -3,14 +3,15 @@
 import pytest
 from app.agents import blind_solver as bs
 from app.core.config import config
-from app.schemas import GenerationRequest, OptionChoice, QuestionDraft, TokenUsage
+from app.schemas import GenerationRequest, TokenUsage
+from factories import make_draft
 
 
 def _draft(texts=None, key="A"):
     texts = texts or ["Alpha result", "Beta result", "Gamma result", "Delta result"]
-    return QuestionDraft(
+    return make_draft(
         question_stem="Which is correct?",
-        options=[OptionChoice(id=i, text=t) for i, t in zip("ABCD", texts, strict=True)],
+        options=texts,
         correct_answer_id=key,
         explanation="Because.",
     )

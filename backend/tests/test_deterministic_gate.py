@@ -4,27 +4,18 @@ import asyncio
 
 import pytest
 from app.core.config import config
-from app.schemas import GenerationRequest, OptionChoice, QuestionDraft, ReviewScore
+from app.schemas import GenerationRequest, QuestionDraft, ReviewScore
 from app.workflow import engine_helpers
 from app.workflow.engine_helpers import (
     _apply_deterministic_gate,
     _run_question_review_loop,
     _validator_review,
 )
+from factories import make_draft
 
 
 def _draft(key="A", stem="Which statement best explains the observed rate change?"):
-    return QuestionDraft(
-        question_stem=stem,
-        options=[
-            OptionChoice(id="A", text="The catalyst lowers activation energy"),
-            OptionChoice(id="B", text="The reaction becomes thermodynamically favored"),
-            OptionChoice(id="C", text="The equilibrium constant increases sharply"),
-            OptionChoice(id="D", text="The reactant concentration is held constant"),
-        ],
-        correct_answer_id=key,
-        explanation="Option A is right. Option B is wrong. Option C is wrong. Option D is wrong.",
-    )
+    return make_draft(correct_answer_id=key, question_stem=stem)
 
 
 def _state(draft: QuestionDraft) -> dict:

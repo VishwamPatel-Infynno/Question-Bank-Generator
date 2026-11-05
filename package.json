@@ -16,7 +16,8 @@
     "test:backend": "PYTHONPATH=backend pytest backend/tests",
     "db:clean-duplicates": "PYTHONPATH=backend ./.venv/bin/python scripts/clean_duplicate_artifacts.py",
     "preview": "pnpm --dir frontend run preview",
-    "test:frontend": "pnpm --dir frontend run test"
+    "test:frontend": "pnpm --dir frontend run test",
+    "sync:taxonomy": "cp backend/app/data/mcat_dependent_taxonomy.json frontend/src/constants/mcat_dependent_taxonomy.json"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"

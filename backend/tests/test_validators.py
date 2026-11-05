@@ -9,28 +9,18 @@ from app.agents.validators import (
     validate_question_draft,
 )
 from app.schemas import OptionChoice, QuestionDraft
+from factories import make_draft
+
+_EXPLANATION = (
+    "Option A is correct because catalysts lower activation energy. "
+    "Option B is wrong, thermodynamics is unchanged. "
+    "Option C is wrong, K is unchanged. "
+    "Option D is wrong, concentration does not explain a rate change."
+)
 
 
 def _draft(**overrides) -> QuestionDraft:
-    base = {
-        "stimulus_text": "",
-        "question_stem": "Which statement best explains the observed rate change?",
-        "options": [
-            OptionChoice(id="A", text="The catalyst lowers activation energy"),
-            OptionChoice(id="B", text="The reaction becomes thermodynamically favored"),
-            OptionChoice(id="C", text="The equilibrium constant increases sharply"),
-            OptionChoice(id="D", text="The reactant concentration is held constant"),
-        ],
-        "correct_answer_id": "A",
-        "explanation": (
-            "Option A is correct because catalysts lower activation energy. "
-            "Option B is wrong, thermodynamics is unchanged. "
-            "Option C is wrong, K is unchanged. "
-            "Option D is wrong, concentration does not explain a rate change."
-        ),
-    }
-    base.update(overrides)
-    return QuestionDraft(**base)
+    return make_draft(**{"stimulus_text": "", "explanation": _EXPLANATION, **overrides})
 
 
 def _codes(violations):

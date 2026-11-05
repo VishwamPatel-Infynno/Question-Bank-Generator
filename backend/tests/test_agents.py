@@ -179,7 +179,7 @@ async def test_generate_question_with_self_critique_structure(monkeypatch):
 
     assert isinstance(draft, QuestionDraft)
     assert len(draft.options) in (4, 5)
-    assert draft.correct_answer_id is not None
+    assert draft.correct_answer_id in {o.id for o in draft.options}
     assert isinstance(review, ReviewScore)
     assert usage.prompt_tokens > 0
     assert usage.completion_tokens > 0

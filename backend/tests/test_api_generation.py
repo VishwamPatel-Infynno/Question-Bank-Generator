@@ -40,7 +40,7 @@ async def test_multichoice_and_passage_support():
 
     assert len(draft.options) in (4, 5)
     assert len(draft.correct_answer_ids) >= 1
-    assert draft.correct_answer_id is not None
+    assert draft.correct_answer_id in {o.id for o in draft.options}
     assert len(draft.stimulus_text) > 100
 
     # 2. Test Question model creation with multiple keys
@@ -123,8 +123,8 @@ async def test_batch_generation_and_staging_flow(monkeypatch):
     # Verify candidates are tracked under the live batch and job in PostgreSQL
     live_batch_id = complete_evt["data"]["batch_id"]
     live_job_id = complete_evt["data"]["job_id"]
-    assert live_batch_id is not None
-    assert live_job_id is not None
+    assert isinstance(live_batch_id, str) and live_batch_id
+    assert isinstance(live_job_id, str) and live_job_id
 
     for q_data in staged_qs:
         in_db = await get_question_by_id(q_data["id"])
@@ -236,7 +236,7 @@ async def test_binary_passage_and_independent_batches(monkeypatch):
     qs_a = complete_a["data"]["questions"]
     assert len(qs_a) == 5
     shared_pid = complete_a["data"]["passage_id"]
-    assert shared_pid is not None
+    assert isinstance(shared_pid, str) and shared_pid
     for q in qs_a:
         assert q["passage_id"] == shared_pid
         assert q["passage_required"] == "Yes"

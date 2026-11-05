@@ -52,7 +52,6 @@ Executed against live PostgreSQL 16 Docker container: **97 Passed in 23.37s (100
 | `test_additional_instructions.py` | Custom Prompts | 3 | ✅ Passed | Custom instructions serialization, prompt builder injection, and fallback logic. |
 | `test_agents.py` | Multi-Agent Logic | 7 | ✅ Passed | Fused generator, reviewer heuristics, image guards, blind-solver agreement & discrepancy routing. |
 | `test_anthropic.py` | Multi-Provider LLM | 12 | ✅ Passed | Provider switching, API key enforcement, Claude Haiku/Sonnet/Opus pricing, and prompt cache math. |
-| `test_api.py` | FastAPI REST & CRUD | 13 | ✅ Passed | Database CRUD, admin approval, passage sets, independent questions, duplicate clusters, CORS, and slim pagination. |
 | `test_batch_autonomous_retry.py` | Resilient Batch Lifecycle | 4 | ✅ Passed | Job trial count persistence, resume stopped jobs under 3 trials, 3-trial exhaustion HTTP 400 rejection, and autonomous in-flight replenishment. |
 | `test_batch_dedup_hard_delete.py` | Duplicate Hard-Deletion | 2 | ✅ Passed | Hard delete purges duplicate questions from DB preventing ghost records, and completion status guards. |
 | `test_batch_jobs_flow.py` | Async Batch Processing | 3 | ✅ Passed | Full batch & jobs lifecycle, status transitions, mini-batch job management, and refill preservation. |
@@ -68,7 +67,7 @@ Executed against live PostgreSQL 16 Docker container: **97 Passed in 23.37s (100
 | `test_taxonomy_sync.py` | Taxonomy Parity | 1 | ✅ Passed | Guarantees byte-for-byte synchronization between backend and frontend AAMC taxonomy definitions. |
 | `test_tokens.py` | Telemetry & Costing | 6 | ✅ Passed | DeepInfra model configuration, fast cascade settings, token accumulation, and cost math. |
 | `test_visuals.py` | Diagram / Stimulus | 5 | ✅ Passed | AI image generator, FLUX cost formulas, and autonomous AI-determined image workflow. |
-| `test_workflow.py` | LangGraph State Graph | 4 | ✅ Passed | Event metadata, fused generator pass-through, reviewer bypass, and resilient JSON parsing. |
+| `test_workflow.py` | Workflow engine event stream | 4 | ✅ Passed | Event metadata, fused generator pass-through, reviewer bypass, and resilient JSON parsing. |
 | **Subtotal (Pytest Deterministic)**| | **97** | ✅ **97 Passed** | **0 Failed, 0 Skipped** |
 
 ### 3.2 Live E2E Integration Suite (`pytest backend/tests/test_e2e_live.py -m live_e2e`)

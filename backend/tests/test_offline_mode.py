@@ -6,8 +6,9 @@ import pytest
 from app.agents import blind_solver, generator, reviewer
 from app.agents.base import LLMNotConfiguredError
 from app.core.config import config
-from app.schemas import GenerationRequest, OptionChoice, QuestionDraft
+from app.schemas import GenerationRequest
 from app.workflow import run_workflow_stream
+from factories import make_draft
 
 
 def _req():
@@ -15,10 +16,9 @@ def _req():
 
 
 def _draft():
-    return QuestionDraft(
+    return make_draft(
         question_stem="Which is correct?",
-        options=[OptionChoice(id=i, text=f"Option {i} text") for i in "ABCD"],
-        correct_answer_id="A",
+        options=[f"Option {i} text" for i in "ABCD"],
         explanation="Option A is right. Option B no. Option C no. Option D no.",
     )
 

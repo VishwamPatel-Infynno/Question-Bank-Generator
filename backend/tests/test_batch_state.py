@@ -1,4 +1,4 @@
-"""Round 2 batch correctness: terminal resolution, stop/refill guards, cost accounting."""
+"""Batch correctness: terminal resolution, stop/refill guards, cost accounting."""
 
 import asyncio
 import uuid
@@ -16,6 +16,7 @@ from app.repositories import (
 from app.schemas import GenerationBatch, GenerationJob
 from app.services import batch_concurrency
 from app.services.batch_worker import _JobUsage
+from factories import make_question
 
 requires_db = pytest.mark.requires_db
 
@@ -173,22 +174,7 @@ async def test_db_init_retries_until_the_database_is_available(monkeypatch):
 
 
 def _passage_question(passage_id, status="in_bank"):
-    from app.schemas import Question
-
-    return Question(
-        id=str(uuid.uuid4()),
-        section="CPBS",
-        section_label="Chemical and Physical Foundations of Biological Systems",
-        subtopic="Kinetics",
-        difficulty="medium",
-        passage_id=passage_id,
-        question_stem=f"Stem {uuid.uuid4()}",
-        options=[{"id": "A", "text": "a"}, {"id": "B", "text": "b"}],
-        correct_answer_id="A",
-        explanation="Because.",
-        final_score=95,
-        status=status,
-    )
+    return make_question(passage_id=passage_id, status=status)
 
 
 @requires_db

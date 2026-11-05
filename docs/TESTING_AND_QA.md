@@ -19,7 +19,7 @@ graph TD
 
     subgraph "Tier 2: Backend Pytest Engine"
         UnitTests[97 Deterministic Unit & Integration Tests across 20 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests (269 Total Backend Tests)]
+        LiveE2E[10 Live LLM API E2E Integration Tests (283 Total Backend Tests)]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -41,9 +41,9 @@ graph TD
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (90 frontend files, 100% ruff compliance across backend) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **97 passing tests across 46 modules** (~23-28s) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (269 total backend tests across 49 modules) |
-| **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | **15/15 passed (100.0%)** |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **273 passing tests across 50 modules** (~23-28s) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (283 total backend tests across 51 modules) |
+| **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 90$ points |
 
 ---
@@ -103,17 +103,17 @@ backend/tests/
 ### 2.2 Test Suite Execution Commands & Execution Modes
 
 #### Execution Modes Breakdown
-- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 42 database-dependent tests, executing all 55 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`55 passed, 42 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 259 deterministic unit and integration tests execute across all 41 modules in ~23-28 seconds (10 live tests deselected).
+- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 76 database-dependent tests, executing all 197 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`197 passed, 76 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 273 deterministic unit and integration tests execute across all 50 modules in ~23-28 seconds (10 live tests deselected).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 269 backend tests across 49 test files.
+- **Total Suite**: 283 backend tests across 51 test files.
 
 ```bash
 # 1. Activate backend virtual environment
 source .venv/bin/activate
 
-# 2. Run all deterministic unit and integration tests across 48 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 187 pure unit tests pass and 72 DB tests cleanly skip
+# 2. Run all deterministic unit and integration tests across 50 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 197 pure unit tests pass and 76 DB tests cleanly skip
 # Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
@@ -140,7 +140,7 @@ PYTHONPATH=backend pytest backend/tests/test_api_questions.py -v
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
-### 2.3 Detailed Test Module Coverage (259 Deterministic Tests across 48 Modules / 269 Total Backend Tests)
+### 2.3 Detailed Test Module Coverage (273 Deterministic Tests across 50 Modules / 283 Total Backend Tests)
 
 1. **`test_additional_instructions.py` (3 tests)**:
    - `test_generation_request_additional_instructions`: Validates Pydantic serialization and round-trip payload persistence of educator instructions.
@@ -304,14 +304,14 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 ```
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
-- All **55 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **259 deterministic tests across 48 modules** execute and pass automatically in ~23-28 seconds.
+- All **197 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
+- Once PostgreSQL is started (`docker compose up -d`), all **273 deterministic tests across 50 modules** execute and pass automatically in ~23-28 seconds.
 
 ---
 
 ## 3. TestSprite AI Playwright E2E Suite (TC001–TC015)
 
-The application includes an automated End-to-End browser test suite executed with Playwright under the TestSprite AI testing harness, achieving a **100% pass rate (15/15 passed)**.
+The application includes an automated End-to-End browser test suite executed with Playwright under the TestSprite AI testing harness, with 15 generated scripts in `e2e/` (`TC001`-`TC015`). They target `http://localhost:5173/` with the backend running, are run by hand, and are not part of the CI pipeline; the last recorded manual run passed 15/15.
 
 ### 3.1 Test Case Matrix
 
@@ -377,6 +377,20 @@ pnpm lint
 ```
 
 ---
+
+### 2.4 Newer Test Modules
+- `test_llm_budget.py`: hard per-slot LLM call budget, free duplicate-rewrite loop, sequential review/solve default.
+- `test_projected_reads.py`, `test_index_migration.py`: column-projected worker reads, constant-query batch saves, redundant-index migration (idempotent).
+- `test_cpu_async_hygiene.py`: dedup pruning equivalence, thread offload, in-flight cleanup, lazy `litellm`.
+- `test_batch_state.py`: terminal status resolution, stop/refill guards, cost accounting, DB init retry.
+- `test_api_hardening.py`: admin gate, image safety, safe defaults, write validation, rate limit and batch cap.
+- `test_ops_and_resolution.py`: request ids, body limits, error sanitising, liveness, batch-resolution helpers.
+- `test_job_stream_consumer.py`: the shared workflow-stream reader and request builder used by job runs and refills.
+- `test_backend_polish.py`: difficulty alias filtering/sorting, OpenAPI build, parse failures.
+- Shared builders live in `backend/tests/factories.py` (`make_draft`, `make_question`).
+
+### 2.5 Frontend Unit Tests
+`pnpm --dir frontend run test` (Vitest + jsdom) covers the pure helpers: batch stage/structural-sharing/cache-patch helpers, question-status helpers, formatters, and the export escaping, CSV and print-HTML builders. `pnpm --dir frontend run check:css` fails when a CSS class is no longer used anywhere in `src`.
 
 ## 5. Continuous Integration (CI) Pipeline
 

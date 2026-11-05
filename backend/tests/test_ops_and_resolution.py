@@ -5,27 +5,18 @@ import uuid
 import pytest
 from app.core.config import config
 from app.core.errors import sanitize_error_text
-from app.schemas import GenerationJob, Question
+from app.schemas import GenerationJob
 from app.services.batch_resolution import (
     compute_jobs_with_deficits,
     identify_batch_buffer_excess,
     partition_questions_by_job,
 )
+from factories import make_question
 
 
 def _q(job_id, score, qid=None):
-    return Question(
-        id=qid or str(uuid.uuid4()),
-        job_id=job_id,
-        section="CPBS",
-        section_label="Chemical and Physical Foundations of Biological Systems",
-        subtopic="K",
-        difficulty="medium",
-        question_stem=f"Stem {uuid.uuid4()}",
-        options=[{"id": "A", "text": "a"}, {"id": "B", "text": "b"}],
-        correct_answer_id="A",
-        explanation="e",
-        final_score=score,
+    return make_question(
+        id=qid or str(uuid.uuid4()), job_id=job_id, final_score=score, subtopic="K"
     )
 
 

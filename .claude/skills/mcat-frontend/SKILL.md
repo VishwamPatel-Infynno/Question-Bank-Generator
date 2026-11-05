@@ -12,7 +12,7 @@ Stack: React 19 (JSX, no TypeScript), Vite 8, oxlint, lucide-react icons, plain 
 - `components/<feature>/` (wizard, question, passage, bank, batch, validated, modals, layout, common). Each folder has an `index.js` barrel; export new components there and import from the barrel.
 - `hooks/` stateful logic (`useQuestionBank`, `usePassageBank`, `useBatchActivity`, `useGeneratorForm`, `useTheme`, ...). Components stay presentational; fetching and state go in hooks.
 - `services/api.js` is the only place that calls `fetch` (base `/api`). Add one function per endpoint, build queries with `buildQuery`, and surface errors through `assertOk`. Keep JSDoc on exports.
-- `utils/` pure helpers; `constants/` shared constants, including a copy of the MCAT taxonomy JSON (it must stay in sync with `backend/app/data/mcat_dependent_taxonomy.json`; `tests/test_taxonomy_sync.py` checks this).
+- `utils/` pure helpers; `constants/` shared constants, including a copy of the MCAT taxonomy JSON (it must stay in sync with `backend/app/data/mcat_dependent_taxonomy.json`; `tests/test_taxonomy_sync.py` checks this; edit the backend copy and run `pnpm run sync:taxonomy`).
 
 ## Sections and layers
 - Section labels, codes, badge classes, colors and pacing come from the single `SECTIONS` table in `constants/mcat.js` (use `normalizeSectionId`, `getSectionColor`, `getSectionBadgeClass`, `getSectionPacingSeconds`); never add another per-section map.
@@ -38,3 +38,4 @@ Stack: React 19 (JSX, no TypeScript), Vite 8, oxlint, lucide-react icons, plain 
 2. `pnpm lint` (oxlint, zero warnings policy) and `pnpm build`.
 3. Look at it in the running app (see mcat-dev-env) in both themes; screenshot if verifying visually.
 4. If a prop contract, component, or token changed, update `frontend/README.md` or `DESIGN.md` (see mcat-docs-sync).
+- Pure helpers are unit-tested with Vitest (`pnpm --dir frontend run test`, files in `utils/__tests__/`); add a test when you change one. `pnpm --dir frontend run check:css` fails on CSS classes nothing references, so delete styles together with the markup that used them. Status strings come from `BATCH_STATUS`/`JOB_STATUS`/`QUESTION_STATUS` in `constants/mcat.js`, and clipboard/download code from `useCopyToClipboard` and `downloadTextFile`.

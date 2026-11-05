@@ -1,4 +1,4 @@
-"""Round 2 hardening: admin gate, image safety, safe defaults, write validation."""
+"""API hardening: admin gate, image safety, safe defaults, write validation."""
 
 import uuid
 from types import SimpleNamespace

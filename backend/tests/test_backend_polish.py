@@ -5,23 +5,11 @@ import uuid
 import pytest
 from app.agents.base import safe_json_loads
 from app.repositories import get_questions, save_question
-from app.schemas import Question
+from factories import make_question
 
 
 def _q(difficulty, marker):
-    return Question(
-        id=str(uuid.uuid4()),
-        section="CPBS",
-        section_label="Chemical and Physical Foundations of Biological Systems",
-        subtopic=marker,
-        difficulty=difficulty,
-        question_stem=f"Stem {uuid.uuid4()}",
-        options=[{"id": "A", "text": "a"}, {"id": "B", "text": "b"}],
-        correct_answer_id="A",
-        explanation="e",
-        final_score=95,
-        status="in_bank",
-    )
+    return make_question(difficulty=difficulty, subtopic=marker)
 
 
 @pytest.mark.requires_db

@@ -17,4 +17,4 @@ def test_taxonomy_files_are_synchronized():
     with open(frontend_path, encoding="utf-8") as f:
         frontend_data = json.load(f)
 
-    assert backend_data == frontend_data, "Backend and frontend taxonomy JSON files have drifted!"
+    assert backend_data == frontend_data, "Backend and frontend taxonomy JSON files have drifted! Edit the backend copy, then run `pnpm run sync:taxonomy`."

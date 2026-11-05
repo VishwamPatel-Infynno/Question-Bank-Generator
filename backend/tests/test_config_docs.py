@@ -80,3 +80,36 @@ def test_documented_defaults_match_the_code():
         ):
             problems.append(f".env.example {name}: {example!r} != code {expected!r}")
     assert problems == [], problems
+
+
+def test_testing_guide_states_the_real_test_counts():
+    """The one authoritative count in docs/TESTING_AND_QA.md must match what pytest collects."""
+    import subprocess
+    import sys
+
+    out = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "backend/tests",
+            "--collect-only",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env={**__import__("os").environ, "PYTHONPATH": str(ROOT / "backend")},
+    ).stdout
+    match = re.search(r"(\d+)/(\d+) tests collected \((\d+) deselected\)", out)
+    assert match, out[-300:]
+    deterministic, total = match.group(1), match.group(2)
+    guide = (ROOT / "docs" / "TESTING_AND_QA.md").read_text()
+    assert f"{deterministic} deterministic" in guide, (
+        f"update the deterministic count to {deterministic}"
+    )
+    assert f"{total} backend tests" in guide or f"{total} Total Backend Tests" in guide, (
+        f"update the total test count to {total}"
+    )

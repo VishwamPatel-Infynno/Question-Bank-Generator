@@ -4,27 +4,18 @@ import asyncio
 
 import pytest
 from app.core.config import config
-from app.schemas import GenerationRequest, OptionChoice, QuestionDraft
+from app.schemas import GenerationRequest
 from app.workflow import engine_helpers
 from app.workflow.engine_helpers import (
     _run_question_review_loop,
     count_llm_calls,
     llm_budget_exhausted,
 )
+from factories import make_draft
 
 
 def _draft(stem="Which statement best explains the observed rate change?"):
-    return QuestionDraft(
-        question_stem=stem,
-        options=[
-            OptionChoice(id="A", text="The catalyst lowers activation energy"),
-            OptionChoice(id="B", text="The reaction becomes thermodynamically favored"),
-            OptionChoice(id="C", text="The equilibrium constant increases sharply"),
-            OptionChoice(id="D", text="The reactant concentration is held constant"),
-        ],
-        correct_answer_id="A",
-        explanation="Option A is right. Option B no. Option C no. Option D no.",
-    )
+    return make_draft(question_stem=stem)
 
 
 def _state(prior=0, calls=0):

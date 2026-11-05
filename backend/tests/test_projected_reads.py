@@ -10,28 +10,20 @@ from app.repositories import (
     save_job,
     save_question,
 )
-from app.schemas import GenerationBatch, GenerationJob, Question
+from app.schemas import GenerationBatch, GenerationJob
+from factories import make_question
 
 pytestmark = pytest.mark.requires_db
 
 
 def _question(batch_id, job_id, status, stimulus="Passage text"):
-    return Question(
-        id=str(uuid.uuid4()),
+    return make_question(
         batch_id=batch_id,
         job_id=job_id,
         run_id=job_id,
-        section="CPBS",
-        section_label="Chemical and Physical Foundations of Biological Systems",
-        subtopic="Kinetics",
-        difficulty="medium",
-        stimulus_text=stimulus,
-        question_stem=f"Stem {uuid.uuid4()} about kinetics",
-        options=[{"id": "A", "text": "opt A"}, {"id": "B", "text": "opt B"}],
-        correct_answer_id="A",
-        explanation="Because.",
-        final_score=95,
         status=status,
+        stimulus_text=stimulus,
+        options=[{"id": "A", "text": "opt A"}, {"id": "B", "text": "opt B"}],
     )
 
 
