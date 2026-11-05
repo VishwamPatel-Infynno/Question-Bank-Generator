@@ -1,0 +1,12 @@
+/* Users who ask the OS for less transparency get solid surfaces: backdrop blur is also one of
+   the costlier compositing effects, so this doubles as a low-power fallback. */
+@media (prefers-reduced-transparency: reduce) {
+  .modal-backdrop,
+  .modal-backdrop-theme,
+  .custom-select-popover,
+  .navbar-header,
+  .lightbox-overlay {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

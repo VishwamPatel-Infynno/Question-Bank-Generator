@@ -128,7 +128,6 @@
   background: var(--brand-primary);
   color: #ffffff;
   box-shadow: 0 0 8px rgba(79, 48, 185, 0.6);
-  animation: pulse 1.8s infinite;
 }
 
 .stepper-step.pending .stepper-icon-pill {
@@ -219,7 +218,6 @@
   color: var(--brand-primary);
   border-color: rgba(51, 90, 207, 0.35);
   box-shadow: 0 0 6px rgba(51, 90, 207, 0.25);
-  animation: pulse 1.6s infinite;
 }
 
 .job-q-pill.pending {
