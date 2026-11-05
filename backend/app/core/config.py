@@ -12,6 +12,10 @@ from app.core import pricing
 logger = logging.getLogger(__name__)
 
 
+# DeepInfra FLUX-1-schnell is billed per denoising step (the app's FLUX-2-klein is per image)
+FLUX_SCHNELL_COST_PER_STEP = 0.0005
+
+
 class Settings(BaseSettings):
     # Base paths
 
@@ -32,8 +36,10 @@ class Settings(BaseSettings):
 
     # Dedicated DeepInfra settings
     DEEPINFRA_MODEL: str = "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017"
-    DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS: float = 0.098
-    DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS: float = 0.294
+    # Standard price. DeepInfra currently also lists a 51% promo ($0.098 / $0.294, no end date);
+    # set these two values to use it (see core/pricing.py PRICE_SOURCES).
+    DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS: float = 0.20
+    DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS: float = 0.60
     DEEPINFRA_API_KEY: str = ""
     DEEPINFRA_IMAGE_MODEL: str = "black-forest-labs/FLUX-2-klein-4b"
     DEEPINFRA_IMAGE_COST_PER_UNIT: float = 0.014
@@ -44,6 +50,12 @@ class Settings(BaseSettings):
     OPENAI_COST_PER_MILLION_OUTPUT_TOKENS: float = 0.60
     OPENAI_API_KEY: str = ""
     OPENAI_IMAGE_MODEL: str = "gpt-image-2.5-flare"
+    # gpt-image models are billed per token: the cost of an image is the returned usage times these
+    # rates (USD per million tokens). The per-unit value below is only the fallback estimate for a
+    # response without usage (a 1024x1024 image).
+    OPENAI_IMAGE_COST_PER_MILLION_TEXT_INPUT_TOKENS: float = 5.00
+    OPENAI_IMAGE_COST_PER_MILLION_IMAGE_INPUT_TOKENS: float = 8.00
+    OPENAI_IMAGE_COST_PER_MILLION_OUTPUT_TOKENS: float = 30.00
     OPENAI_IMAGE_COST_PER_UNIT: float = 0.020
 
     # Private runtime override attributes
@@ -155,7 +167,6 @@ class Settings(BaseSettings):
     IMAGE_WIDTH: int = 1024
     IMAGE_HEIGHT: int = 1024
     IMAGE_ITERS: int = 0
-    IMAGE_COST_PER_BASE_UNIT: float = 0.014
 
     @property
     def DEFAULT_IMAGE_MODEL(self) -> str:
@@ -196,18 +207,11 @@ class Settings(BaseSettings):
                 width=w, height=h, iters=iters, model=model, quality=quality
             )
 
-        base_rate = (
-            self.DEEPINFRA_IMAGE_COST_PER_UNIT
-            if self.DEEPINFRA_IMAGE_COST_PER_UNIT != 0.014
-            else self.IMAGE_COST_PER_BASE_UNIT
-        )
-
         # If iters is explicitly passed (>0), compute per-step rate (FLUX-1-schnell standard)
         if iters is not None and iters > 0:
-            rate = 0.0005 if base_rate == 0.014 else base_rate
-            return round(rate * (w / 1024.0) * (h / 1024.0) * iters, 7)
+            return round(FLUX_SCHNELL_COST_PER_STEP * (w / 1024.0) * (h / 1024.0) * iters, 7)
 
-        return round(base_rate * (w / 1024.0) * (h / 1024.0), 7)
+        return round(self.DEEPINFRA_IMAGE_COST_PER_UNIT * (w / 1024.0) * (h / 1024.0), 7)
 
     def calculate_image_cost(
         self,
@@ -313,24 +317,41 @@ class Settings(BaseSettings):
             return key
         return "openai" if self.is_openai_image_model() else "deepinfra"
 
+    def rate_override_applies(self, model: str | None = None) -> bool:
+        """True when a runtime rate override (COST_PER_MILLION_* setter) governs this model.
+
+        An override is a price for the ACTIVE provider's models; it must never re-price a model
+        that belongs to another provider.
+        """
+        has_override = (
+            getattr(self, "_override_cost_input", None) is not None
+            or getattr(self, "_override_cost_output", None) is not None
+        )
+        if not has_override:
+            return False
+        return model is None or self.get_active_provider(model) == self.get_active_provider()
+
     def get_default_pricing_rates(self, model: str | None = None) -> tuple[float, float]:
         """
-        Returns default (cost_per_million_input, cost_per_million_output) based on active/given model:
-        1. If model is Claude Haiku 5.5: returns configured Anthropic rates.
-        2. If model is another Claude model (e.g. Sonnet, Opus): queries LiteLLM model_cost registry.
-        3. Fallbacks: Sonnet ($3.00/$15.00), Opus ($15.00/$75.00), Haiku 3.5 ($0.80/$4.00), DeepInfra.
+        Returns (cost_per_million_input, cost_per_million_output) for the given/default model.
+
+        Rates follow the MODEL's provider, not the active provider, so a request-time model from
+        another provider is never billed at the active provider's prices:
+        1. A runtime override applies to the active provider's models only.
+        2. Claude Haiku 5.5 and gpt-4o-mini use their configured rates.
+        3. Other Claude/OpenAI models: LiteLLM registry, then family fallbacks.
+        4. Everything else is a DeepInfra-hosted model: DeepSeek reasoner, else the configured
+           DeepInfra rates (with a one-time warning when the model is not the configured one).
         """
         target = (model or self.DEFAULT_TEXT_MODEL).strip().lower()
 
-        # If rates are explicitly overridden at runtime, prioritize them
-        if (
-            getattr(self, "_override_cost_input", None) is not None
-            or getattr(self, "_override_cost_output", None) is not None
-        ):
+        if self.rate_override_applies(target):
             return self.COST_PER_MILLION_INPUT_TOKENS, self.COST_PER_MILLION_OUTPUT_TOKENS
 
-        if self.is_anthropic_model(target):
-            if "haiku-5-5" in target:  # the configured flagship model uses the configured rates
+        provider = self.get_active_provider(target)
+
+        if provider == "anthropic":
+            if pricing.is_haiku_5_5(target):  # the configured flagship model
                 return (
                     self.ANTHROPIC_COST_PER_MILLION_INPUT_TOKENS,
                     self.ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS,
@@ -341,8 +362,8 @@ class Settings(BaseSettings):
                 or pricing.ANTHROPIC_DEFAULT_RATE
             )
 
-        if self.is_openai_model(target):
-            if "gpt-4o-mini" in target:  # the configured default model uses the configured rates
+        if provider == "openai":
+            if "gpt-4o-mini" in target:  # the configured default model
                 return (
                     self.OPENAI_COST_PER_MILLION_INPUT_TOKENS,
                     self.OPENAI_COST_PER_MILLION_OUTPUT_TOKENS,
@@ -356,11 +377,16 @@ class Settings(BaseSettings):
                 )
             )
 
-        # DeepInfra / custom models
+        # DeepInfra-hosted / custom models
         if pricing.is_deepseek_reasoner(target):
             return pricing.DEEPSEEK_REASONER_RATE
 
-        return self.COST_PER_MILLION_INPUT_TOKENS, self.COST_PER_MILLION_OUTPUT_TOKENS
+        if target != self.DEEPINFRA_MODEL.strip().lower() and not target.startswith("deepinfra/"):
+            pricing.warn_unpriced_model(target, "deepinfra")
+        return (
+            self.DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS,
+            self.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS,
+        )
 
     # CORS Trusted Origins (extra origins beyond localhost defaults, comma-separated or JSON list in .env)
     ALLOWED_ORIGINS: list[str] | str = []

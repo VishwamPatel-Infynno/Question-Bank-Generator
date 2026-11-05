@@ -143,7 +143,7 @@ Every approved question presents a comprehensive **3-Card Mentor Explanation**:
 
 Every generated item tracks real-time inference telemetry and costs across dual first-class inference providers (DeepInfra DeepSeek V4.1 Flash or Anthropic Claude Haiku 5.5 / Sonnet / Opus with prompt caching):
 
-$$\text{Total Cost (DeepInfra)} = \left(\frac{\text{Input Tokens}}{1{,}000{,}000} \times \$0.098\right) + \left(\frac{\text{Output Tokens}}{1{,}000{,}000} \times \$0.294\right)$$
+$$\text{Total Cost (DeepInfra)} = \left(\frac{\text{Input Tokens}}{1{,}000{,}000} \times \$0.20\right) + \left(\frac{\text{Output Tokens}}{1{,}000{,}000} \times \$0.60\right)$$ (standard DeepInfra price; rates always follow the model's own provider, see `docs/TOKEN_TRACKING.md`)
 
 - **Predictable Micro-Costs**: An audited 5-question batch typically costs **between $0.006 and $0.012 USD** in total inference under DeepInfra, or competitive prompt-cached rates under Anthropic Claude.
 - **Repository Observability**: The Question Bank header displays accumulated input tokens, output tokens, total execution time, and cumulative investment across the entire repository.

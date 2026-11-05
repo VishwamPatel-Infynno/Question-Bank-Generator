@@ -45,7 +45,7 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (279 deterministic unit & integration tests across 51 modules; 203 pass offline, 76 DB tests skip cleanly without PostgreSQL; 289 total backend tests)
+# 1. Backend pytest suite (296 deterministic unit & integration tests across 52 modules; 220 pass offline, 76 DB tests skip cleanly without PostgreSQL; 306 total backend tests)
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
 # 2. Backend Python linter and formatting checks (enforcing SIM, RET, B, C4, E, W, F, I, UP)
@@ -76,9 +76,9 @@ pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
 5. **Autonomous 3-Trials Retry Policy**: Background batch runs execute in-flight replenishment retries up to 3 trials per set (`trial_count <= 3`). Manual retry controls are strictly reserved as "Resume Sets" for manually paused runs under 3 trials, returning HTTP 400 when all trials are exhausted.
 6. **Custom Authoring Instructions Enforcement**: Educator directives (`additional_instructions`) supplied via Step 3 must be injected into prompt builders with high-priority pedagogical mandate across passage drafting, question drafting, and remediation critique cycles.
 7. **Deterministic Token & Cost Math**: All costs must be computed accurately across dual first-class providers:
-   - DeepInfra: $0.098 input / $0.294 output per 1M tokens.
+   - DeepInfra: $0.20 input / $0.60 output per 1M tokens (standard price; cached input 3%). Rates follow the model's own provider: see `docs/TOKEN_TRACKING.md` and `app/core/pricing.py`.
    - Anthropic: Claude Haiku 5.5 ($0.10 in / $0.50 out per 1M), Claude 3.5 Sonnet, Claude 3 Opus, and prompt cache read/write rates.
-   - Image: Flat baseline rate of $0.014 USD per image (scaled by $(\text{width}/1024) \times (\text{height}/1024)$).
+   - Image: FLUX-2-klein $0.014 per image (scaled by $(\text{width}/1024) \times (\text{height}/1024)$); gpt-image-2.5-flare is token-billed from the returned usage.
 8. **Modular Layer Separation**:
    - Routing: `backend/app/api/v1/` (39 endpoint operations)
    - Business/Agent Logic: `backend/app/agents/` (Generator, Blind Solver, Reviewer, Regenerator, Visuals)

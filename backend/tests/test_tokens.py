@@ -17,8 +17,9 @@ async def test_deepinfra_model_configuration(monkeypatch):
     monkeypatch.setattr(config, "ACTIVE_LLM_PROVIDER", "deepinfra")
     assert "deepinfra" in config.DEFAULT_TEXT_MODEL.lower()
     assert "DeepSeek-V4.1-Flash-1017" in config.DEFAULT_TEXT_MODEL
-    assert config.COST_PER_MILLION_INPUT_TOKENS == 0.098
-    assert config.COST_PER_MILLION_OUTPUT_TOKENS == 0.294
+    # whatever the configured DeepInfra rates are (a developer's .env may override the defaults)
+    assert config.COST_PER_MILLION_INPUT_TOKENS == config.DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS
+    assert config.COST_PER_MILLION_OUTPUT_TOKENS == config.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS
 
 
 async def test_token_and_cost_calculation(monkeypatch):

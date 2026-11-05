@@ -11,7 +11,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 - **Base URL**: `http://localhost:8000` (or configured deployment host)
 - **Content Type**: `application/json` (REST endpoints), `text/event-stream` (Live generation SSE stream)
 - **CORS Policy & Security Headers**: Restricted to trusted origins (`http://localhost:5173`, etc.) with OWASP security headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`).
-- **Autonomous Inference Gateway**: Multi-provider inference engine supporting dual first-class providers: **DeepInfra** (DeepSeek V4.1 Flash at $0.098 in / $0.294 out per 1M tokens) and **Anthropic** (Claude Haiku 5.5 / Sonnet / Opus with prompt cache read/write rates), dynamically switchable via `ACTIVE_LLM_PROVIDER`.
+- **Autonomous Inference Gateway**: Multi-provider inference engine supporting dual first-class providers: **DeepInfra** (DeepSeek V4.1 Flash at $0.20 in / $0.60 out per 1M tokens, standard price) and **Anthropic** (Claude Haiku 5.5 / Sonnet / Opus with prompt cache read/write rates), dynamically switchable via `ACTIVE_LLM_PROVIDER`.
 - **MCAT 4-Choice Purity**: All question endpoints enforce strictly 4 options ($A, B, C, D$) with length symmetry and zero multi-choice artifacts.
 
 ---
@@ -1111,8 +1111,8 @@ Evaluates system status, database connectivity, active text reasoning model, neu
   "has_deepinfra_key": true,
   "max_regenerations": 3,
   "passing_threshold": 90,
-  "cost_per_million_input": 0.098,
-  "cost_per_million_output": 0.294,
+  "cost_per_million_input": 0.2,
+  "cost_per_million_output": 0.6,
   "image_width": 1024,
   "image_height": 1024,
   "image_iters": 0,
@@ -1153,8 +1153,8 @@ Retrieves active runtime engine configuration, active provider (`deepinfra` or `
   "global_max_concurrent_jobs": 4,
   "global_max_concurrent_llm_calls": 10,
   "workflow_max_worker_retries": 2,
-  "cost_per_million_input": 0.098,
-  "cost_per_million_output": 0.294,
+  "cost_per_million_input": 0.2,
+  "cost_per_million_output": 0.6,
   "image_width": 1024,
   "image_height": 1024,
   "image_iters": 0,

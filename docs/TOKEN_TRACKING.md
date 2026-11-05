@@ -8,133 +8,90 @@ This document details the token accounting engine, high-throughput pricing rate 
 
 ## 1. Inference Engines & Pricing Rate Cards
 
-The system features multi-provider inference support, seamlessly switchable via `ACTIVE_LLM_PROVIDER=anthropic`, `ACTIVE_LLM_PROVIDER=openai`, or `ACTIVE_LLM_PROVIDER=deepinfra` in `.env`:
+The system supports several providers, switchable via `ACTIVE_LLM_PROVIDER=anthropic|openai|deepinfra` in `.env`. **Costs follow the model's own provider**, not the active one: a request-time model from another provider is billed at that provider's rates, and a runtime rate override only re-prices the active provider's models. The single place that records where each built-in price comes from (page and verification date) is `PRICE_SOURCES` in [`backend/app/core/pricing.py`](../backend/app/core/pricing.py); re-check those pages whenever a rate changes. Prices below were verified on **2026-11-05**.
 
-### OpenAI Engine: GPT-4o-mini & GPT-4o Family
-- **Model Identifiers**: `gpt-4o-mini` (default), `gpt-4o`, `o3-mini`, `o1`
-- **Context Window**: 128,000 tokens (up to 200,000 for o1)
-- **Official OpenAI Rates**:
-  - `gpt-4o-mini`: $0.150 / 1M in ($0.075 / 1M cached prompt), $0.600 / 1M out
-  - `gpt-4o`: $2.500 / 1M in ($1.250 / 1M cached prompt), $10.000 / 1M out
-  - `o3-mini`: $1.100 / 1M in ($0.550 / 1M cached prompt), $4.400 / 1M out
-  - `o1`: $15.000 / 1M in ($7.500 / 1M cached prompt), $60.000 / 1M out
-- **Prompt Caching Discount**: Universal 50% discount on cached input tokens (`prompt_tokens_details.cached_tokens`).
+### Anthropic: Claude Haiku 5.5 (`claude-haiku-5-5`)
+Source: [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing). USD per million tokens:
 
-### DeepInfra Engine: DeepSeek-V4.1-Flash-1017 & DeepSeek-R1
-- **Model Identifier**: `deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017`
-- **Context Window**: 1,024,000 tokens (1M)
-- **Inference Speed**: ~110-140 tokens/second
-- **Official Rates**:
-  - DeepSeek-V3 / Flash: Input: $0.098 USD per 1,000,000 tokens, Output: $0.294 USD per 1,000,000 tokens
-  - DeepSeek-R1: Input: $0.550 USD per 1,000,000 tokens, Output: $2.190 USD per 1,000,000 tokens
+| | Prompt up to 100K tokens | Prompt over 100K tokens |
+| :--- | :---: | :---: |
+| Input | $0.10 | $0.50 |
+| Output | $0.50 | $2.50 |
+| Cache read | $0.01 | $0.05 |
+| Cache write, 5 minute (used by the app) | $0.125 | $0.625 |
+| Cache write, 1 hour (not requested by the app) | $0.20 | $1.00 |
 
-### Anthropic Engine: Claude Haiku 5.5
-- **Model Identifier**: `claude-haiku-5-5` (or aliases `anthropic/claude-haiku-5-5`, `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`)
-- **Context Window**: 200,000 tokens
-- **Inference Speed**: ~100-130 tokens/second
-- **Official Claude Haiku 5.5 Rates**:
-  - Standard Prompt ($\le$ 100K tokens): $0.10 USD / 1M in, $0.50 USD / 1M out
-  - Extended Prompt (> 100K tokens): $0.50 USD / 1M in, $2.50 USD / 1M out
-  - Prompt Cache Read: $0.01 / 1M tokens ($\le$ 100K) or $0.05 / 1M (> 100K)
-  - Prompt Cache Creation: $0.125 / 1M tokens ($\le$ 100K) or $0.625 / 1M (> 100K)
+The prompt length that selects the tier counts every input token, including cache reads and writes (LiteLLM folds them into `prompt_tokens`, which is what the app tiers on). Any spelling (`claude-haiku-5-5`, `claude-haiku-5.5`, `anthropic/...`) is recognised. Other Claude models come from LiteLLM's registry, then family fallbacks (Sonnet $3/$15, Opus $15/$75, Haiku $0.80/$4), with cache read at 10% and 5-minute write at 125% of the input rate.
+
+### OpenAI: `gpt-4o-mini` (default OpenAI text model)
+Source: [OpenAI pricing](https://developers.openai.com/api/docs/pricing). $0.15 in, **$0.075 cached in**, $0.60 out per 1M tokens. Cached input (`prompt_tokens_details.cached_tokens`) is costed at 50% of the input rate. Other OpenAI models (`gpt-4o`, `o3-mini`, `o1`, ...) come from LiteLLM's registry, then family fallbacks.
+
+### DeepInfra: DeepSeek-V4.1-Flash-1017 (`deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017`)
+Source: [DeepInfra model page](https://deepinfra.com/deepseek-ai/DeepSeek-V4.1-Flash-1017).
+- **Standard (the default here): $0.20 in, $0.60 out, $0.006 cached in** per 1M tokens. Cached input is costed at 3% of the input rate.
+- DeepInfra currently also shows a **51% promotional price: $0.098 in / $0.294 out / $0.003 cached**, with no end date on the page. To cost at the promo set `DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS=0.098` and `DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS=0.294`, and switch back when it ends.
+- Priority (1.5x) and Flex (0.8x) service tiers exist; the app uses Standard.
+- DeepSeek-R1 (`deepseek-r1`): $0.55 in / $2.19 out (built-in fallback).
 
 ---
 
 ## 2. Mathematical Cost Computation Engine
 
-The calculation is implemented in [`backend/app/agents/base.py`](../backend/app/agents/base.py) via `calculate_token_cost`:
+The calculation is implemented in [`backend/app/agents/base.py`](../backend/app/agents/base.py) via `calculate_token_cost`; rates come from `Settings.get_default_pricing_rates` ([`core/config.py`](../backend/app/core/config.py)) and the tables in [`core/pricing.py`](../backend/app/core/pricing.py).
 
-For **DeepInfra**:
-$$\text{Cost}_{\text{USD}} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times 0.098\right) + \left(\frac{\text{Completion Tokens}}{1,000,000} \times 0.294\right)$$
+For **DeepInfra** and **OpenAI** (cached prompt tokens at a discount, no cache writes):
+$$\text{Cost}_{\text{USD}} = \frac{P - K}{10^6} R_{\text{in}} + \frac{K}{10^6} R_{\text{in}} f_{\text{cached}} + \frac{C}{10^6} R_{\text{out}}$$
+with $P$ prompt tokens, $K$ cached tokens, $C$ completion tokens, $f_{\text{cached}} = 0.03$ (DeepInfra) or $0.50$ (OpenAI).
 
-For **Anthropic** (with prompt caching):
-$$\text{Cost}_{\text{USD}} = \left(\frac{\text{Base In}}{1,000,000} \times R_{\text{in}}\right) + \left(\frac{\text{Completion}}{1,000,000} \times R_{\text{out}}\right) + \left(\frac{\text{Cache Read}}{1,000,000} \times R_{\text{read}}\right) + \left(\frac{\text{Cache Create}}{1,000,000} \times R_{\text{write}}\right)$$
+For **Anthropic** (with prompt caching; for Haiku 5.5 the four rates come from the tier table above):
+$$\text{Cost}_{\text{USD}} = \frac{\text{Base In}}{10^6} R_{\text{in}} + \frac{C}{10^6} R_{\text{out}} + \frac{\text{Cache Read}}{10^6} R_{\text{read}} + \frac{\text{Cache Create}}{10^6} R_{\text{write}}$$
 
-To preserve numerical accuracy and avoid IEEE 754 floating-point drift, calculations are rounded to **7 decimal places** (sub-micro-cent precision):
+Results are rounded to **7 decimal places** (sub-micro-cent precision). A model that matches no known provider or table is costed with the DeepInfra rates and logged once as `No price known for model ...`.
 
-```python
-def calculate_token_cost(
-    prompt_tokens: int,
-    completion_tokens: int,
-    model: str | None = None,
-    cache_read_tokens: int = 0,
-    cache_creation_tokens: int = 0,
-) -> float:
-    """Calculates exact USD cost across DeepInfra or Anthropic with prompt caching."""
-    target_model = model or config.DEFAULT_TEXT_MODEL
-    if config.is_anthropic_model(target_model):
-        in_rate, out_rate = config.get_default_pricing_rates(target_model)
-        cache_read_rate = in_rate * 0.10
-        cache_creation_rate = in_rate * 1.25
+### Calculation Examples (DeepInfra standard price, $0.20 in / $0.60 out)
 
-        base_prompt_tokens = max(0, prompt_tokens - cache_read_tokens - cache_creation_tokens)
-        in_cost = (base_prompt_tokens / 1_000_000.0) * in_rate
-        out_cost = (completion_tokens / 1_000_000.0) * out_rate
-        cache_read_cost = (cache_read_tokens / 1_000_000.0) * cache_read_rate
-        cache_creation_cost = (cache_creation_tokens / 1_000_000.0) * cache_creation_rate
-        return round(in_cost + out_cost + cache_read_cost + cache_creation_cost, 7)
-
-    in_rate = config.COST_PER_MILLION_INPUT_TOKENS
-    out_rate = config.COST_PER_MILLION_OUTPUT_TOKENS
-    in_cost = (prompt_tokens / 1_000_000.0) * in_rate
-    out_cost = (completion_tokens / 1_000_000.0) * out_rate
-    return round(in_cost + out_cost, 7)
-```
-
-### Calculation Examples
-
-| Scenario | Prompt Tokens ($P$) | Completion Tokens ($C$) | Input Cost | Output Cost | Total Cost (USD) |
+| Scenario | Prompt Tokens | Completion Tokens | Input Cost | Output Cost | Total Cost (USD) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Micro Benchmark (1k / 1k)** | 1,000 | 1,000 | $0.000098 | $0.000294 | **$0.000392** |
-| **Fused Draft & Self-Critique Pass** | 720 | 480 | $0.00007056 | $0.00014112 | **$0.00021168** |
-| **Blind-Solver Verification Pass** | 650 | 180 | $0.00006370 | $0.00005292 | **$0.00011662** |
-| **Generator Pass (Draft v1)** | 450 | 320 | $0.00004410 | $0.00009408 | **$0.00013818** |
-| **Independent Reviewer Audit Pass** | 380 | 210 | $0.00003724 | $0.00006174 | **$0.00009898** |
-| **Re-Generator Remediation** | 510 | 390 | $0.00004998 | $0.00011466 | **$0.00016464** |
-| **2-Cycle Full Question Lifecycle** | 1,720 | 1,130 | $0.00016856 | $0.00033222 | **$0.00050078** |
-| **Full Mock Section (50 Questions)** | ~40,000 | ~28,000 | ~$0.00392 | ~$0.00823 | **~$0.01215** |
-| **1 Million Input Tokens** | 1,000,000 | 0 | $0.09800 | $0.00000 | **$0.09800** |
-| **1 Million Output Tokens** | 0 | 1,000,000 | $0.00000 | $0.29400 | **$0.29400** |
+| Micro benchmark (1k / 1k) | 1,000 | 1,000 | $0.000200 | $0.000600 | **$0.000800** |
+| Fused draft + self-critique | 720 | 480 | $0.000144 | $0.000288 | **$0.000432** |
+| Blind-solver pass | 650 | 180 | $0.000130 | $0.000108 | **$0.000238** |
+| Independent reviewer pass | 380 | 210 | $0.000076 | $0.000126 | **$0.000202** |
+| Re-generator remediation | 510 | 390 | $0.000102 | $0.000234 | **$0.000336** |
+| Full mock section (50 questions, approx.) | 40,000 | 28,000 | $0.008000 | $0.016800 | **$0.024800** |
+| 1 million input tokens | 1,000,000 | 0 | $0.200000 | $0.000000 | **$0.200000** |
+| 1 million output tokens | 0 | 1,000,000 | $0.000000 | $0.600000 | **$0.600000** |
+
+The same micro benchmark on Claude Haiku 5.5 is $0.000600 ($0.10 in + $0.50 out) and on `gpt-4o-mini` $0.000750.
 
 ---
 
 ## 3. Dedicated AI Image Generation Pricing
 
-The system supports dedicated AI image generation via **OpenAI** (`ACTIVE_IMAGE_PROVIDER=openai`) and **DeepInfra** (`ACTIVE_IMAGE_PROVIDER=deepinfra`).
+Images use **OpenAI** (`ACTIVE_IMAGE_PROVIDER=openai`) or **DeepInfra** (`ACTIVE_IMAGE_PROVIDER=deepinfra`).
 
-### 3.1 OpenAI Image Generation Models
-The engine automatically routes to official OpenAI Image endpoints with token-metered extraction and rate-card fallbacks:
+### 3.1 OpenAI: `gpt-image-2.5-flare` (default)
+Source: [OpenAI model page](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare). It is **billed per token, not per image**: text input $5, image input $8 (cached $1.25 / $2), **image output $30** per 1M tokens (Batch is half). OpenAI publishes no per-image table; the number of output tokens depends on size and quality (the app requests quality `auto`). As a rough guide a 1024x1024 image is about $0.006 at low quality up to about $0.21 at high quality (token counts are an unofficial community estimate).
 
-- **`gpt-image-2.5-flare` (Default)**:
-  - **Token-Metered Telemetry**: Calculated from API `usage` if reported ($5.00 / 1M prompt tokens, $30.00 / 1M image output tokens).
-  - **Rate Card Fallback**: $0.020 per 1024x1024 base unit, scaled by $(\text{width} / 1024) \times (\text{height} / 1024)$.
-- **`gpt-image-2.5-sunburst` (High-Precision Tier)**:
-  - **Rate Card**: $0.060 per 1024x1024 base unit, scaled by $(\text{width} / 1024) \times (\text{height} / 1024)$.
-- **`dall-e-3`**:
-  - **1024x1024**: Standard = $0.040 | HD = $0.080
-  - **1024x1792 / 1792x1024**: Standard = $0.080 | HD = $0.120
-- **`dall-e-2`**:
-  - **1024x1024**: $0.020 | **512x512**: $0.018 | **256x256**: $0.016
+- The cost the app records is the **returned `usage`** times the configured rates (`OPENAI_IMAGE_COST_PER_MILLION_*`): text tokens at the text rate, image tokens at the image rate, output at the output rate.
+- Only when a response carries no `usage` does the app fall back to the flat estimate `OPENAI_IMAGE_COST_PER_UNIT` ($0.020 per 1024x1024, scaled by area) and log a warning.
+- Legacy models keep their rate cards for completeness: `gpt-image-2.5-sunburst` fallback estimate $0.060 per 1024x1024 (same token rates as flare), `dall-e-3` $0.040 / $0.080 HD (1024x1024) and $0.080 / $0.120 HD (1792), `dall-e-2` $0.016 / $0.018 / $0.020.
 
-### 3.2 DeepInfra FLUX Models
-- **`black-forest-labs/FLUX-2-klein-4b`**:
-  - Flat base rate of $0.014 per 1024x1024 image, scaled by $(\text{width}/1024) \times (\text{height}/1024)$.
-  - Automatically extracts exact provider-reported cost from `inference_status.cost` when present.
-- **`black-forest-labs/FLUX-1-schnell`**:
-  - $0.0005 per step at 1024x1024 base unit (e.g. 4 steps = $0.002).
+### 3.2 DeepInfra FLUX
+Source: [DeepInfra FLUX-2-klein-4b](https://deepinfra.com/black-forest-labs/FLUX-2-klein-4b).
+- **`black-forest-labs/FLUX-2-klein-4b`**: $0.014 x (width/1024) x (height/1024) per image (`DEEPINFRA_IMAGE_COST_PER_UNIT`). The provider-reported cost (`inference_status.cost`) is used when a response carries it.
+- **`black-forest-labs/FLUX-1-schnell`** (only with `IMAGE_ITERS > 0`): $0.0005 per step at 1024x1024 base unit, scaled by area.
 
-### Resolution Variation Cost Matrix
+### Cost examples
 
-| Model | Resolution | Mode / Quality | Scaling Factor | Cost per Image (USD) |
-| :--- | :--- | :---: | :---: | :---: |
-| **`gpt-image-2.5-flare`** | 1024 × 1024 | Standard | 1.0x | **$0.020000** |
-| **`gpt-image-2.5-flare`** | 512 × 512 | Fast | 0.25x | **$0.005000** |
-| **`gpt-image-2.5-sunburst`** | 1024 × 1024 | High-Precision | 1.0x | **$0.060000** |
-| **`dall-e-3`** | 1024 × 1024 | Standard | Flat | **$0.040000** |
-| **`dall-e-3`** | 1024 × 1024 | HD Quality | Flat | **$0.080000** |
-| **`dall-e-3`** | 1024 × 1792 | HD Quality | Flat | **$0.120000** |
-| **`FLUX-2-klein-4b`** | 1024 × 1024 | Single pass | 1.0x | **$0.014000** |
-| **`FLUX-1-schnell`** | 1024 × 1024 | 4 steps | 4 × $0.0005 | **$0.002000** |
+| Model | Resolution | Cost per image (USD) |
+| :--- | :--- | :---: |
+| `FLUX-2-klein-4b` | 1024 x 1024 | **$0.014000** |
+| `FLUX-2-klein-4b` | 512 x 512 | **$0.003500** |
+| `FLUX-2-klein-4b` | 2048 x 2048 | **$0.056000** |
+| `gpt-image-2.5-flare` | 1,000 output tokens (usage) | **$0.030000** |
+| `gpt-image-2.5-flare` | 196 output tokens (about low quality, 1024x1024) | **$0.005880** + prompt tokens |
+| `gpt-image-2.5-flare` | no usage in the response | **$0.020000** (estimate) |
+| `FLUX-1-schnell` | 1024 x 1024, 4 steps | **$0.002000** |
 
 ---
 

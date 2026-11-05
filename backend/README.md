@@ -76,7 +76,7 @@ backend/
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (51 deterministic modules / 279 tests + 1 live E2E module with 10 tests = 289 total)
+└── tests/                   # Deterministic Automated Test Suite (52 deterministic modules / 296 tests + 1 live E2E module with 10 tests = 306 total)
     ├── conftest.py          # Pytest fixtures, offline DB socket probe & async test client
     ├── test_additional_instructions.py # Educator custom instructions and prompt builder integration
     ├── test_agents.py       # Cognitive agent unit tests
@@ -144,12 +144,16 @@ graph TD
 
 Token costs are calculated per request at the lowest execution layer ([`backend/app/agents/base.py`](app/agents/base.py)) and accumulated across all agent cycles:
 
-- **Input Tokens**: $0.098 per 1,000,000 tokens
-- **Output Tokens**: $0.294 per 1,000,000 tokens
-- **FLUX-2-klein-4b Image Generation**: Flat unit rate of $0.014 per image, scaled dynamically by resolution.
+- **DeepInfra DeepSeek-V4.1-Flash-1017** (standard price): $0.20 input / $0.60 output per 1,000,000 tokens (cached input $0.006); DeepInfra also lists a 51% promo ($0.098 / $0.294), selectable through the `DEEPINFRA_COST_PER_MILLION_*` settings.
+- **Claude Haiku 5.5**: $0.10 / $0.50 up to 100K prompt tokens, $0.50 / $2.50 above (cache read $0.01 / write $0.125).
+- **gpt-4o-mini**: $0.15 / $0.60 (cached $0.075).
+- **FLUX-2-klein-4b**: $0.014 per 1024x1024 image, scaled by resolution. **gpt-image-2.5-flare** is billed per token from the returned usage ($5 text in / $8 image in / $30 out per 1M).
+- Rates follow the model's own provider. Sources and verification dates live in `app/core/pricing.py` (`PRICE_SOURCES`); details in `docs/TOKEN_TRACKING.md`.
 
 Calculations are rounded to **7 decimal places** to prevent IEEE 754 floating-point drift:
-$$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times 0.098\right) + \left(\frac{\text{Completion Tokens}}{1,000,000} \times 0.294\right)$$
+$$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\text{in}}\right) + \left(\frac{\text{Completion Tokens}}{1,000,000} \times R_{\text{out}}\right)$$
+
+with the per-model rates above (plus cache read/write terms where the provider bills them).
 
 ---
 
@@ -194,8 +198,8 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (279 deterministic tests across 51 modules)
-# Smart auto-skip: 203 pure unit tests pass offline, 76 DB-dependent tests skip cleanly if PostgreSQL is offline
+# Run all unit and integration tests (296 deterministic tests across 52 modules)
+# Smart auto-skip: 220 pure unit tests pass offline, 76 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 

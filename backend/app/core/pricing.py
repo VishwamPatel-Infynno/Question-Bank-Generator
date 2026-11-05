@@ -6,7 +6,9 @@ LiteLLM registry lookup so the pricing logic is data, not a long if-chain inside
 
 from __future__ import annotations
 
+import functools
 import logging
+import re
 from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
@@ -39,13 +41,53 @@ class CachedRates(NamedTuple):
     input: float
     output: float
     cache_read: float
-    cache_write: float
+    cache_write: float  # 5-minute TTL (the only TTL the app requests)
+    cache_write_1h: float = 0.0  # 1-hour TTL; informational, the app never asks for it
 
 
-# Claude Haiku 5.5 is billed in two tiers by prompt size (official Anthropic pricing).
+# Claude Haiku 5.5 is billed in two tiers by prompt size (official Anthropic pricing). The
+# prompt length counts ALL input tokens, including cache reads and writes.
 HAIKU_5_5_LONG_PROMPT_TOKENS = 100_000
-HAIKU_5_5_SHORT_RATES = CachedRates(0.10, 0.50, 0.01, 0.125)
-HAIKU_5_5_LONG_RATES = CachedRates(0.50, 2.50, 0.05, 0.625)
+HAIKU_5_5_SHORT_RATES = CachedRates(0.10, 0.50, 0.01, 0.125, 0.20)
+HAIKU_5_5_LONG_RATES = CachedRates(0.50, 2.50, 0.05, 0.625, 1.00)
+
+# Cached-input multipliers of the base input rate, per provider
+ANTHROPIC_CACHE_READ_FACTOR = 0.10  # Claude models without their own table: read = 10% of input
+ANTHROPIC_CACHE_WRITE_FACTOR = 1.25  # 5-minute cache write = 125% of input
+OPENAI_CACHED_INPUT_FACTOR = 0.50  # gpt-4o-mini: $0.075 cached vs $0.15 input
+DEEPINFRA_CACHED_INPUT_FACTOR = 0.03  # DeepSeek V4.1 Flash: $0.006 cached vs $0.20 input
+
+# Where the built-in prices come from. Re-check these pages when updating any default rate
+# (config.py defaults, .env.example, docs/TOKEN_TRACKING.md): docs and a test keep them in step.
+PRICE_SOURCES: dict[str, dict[str, str]] = {
+    "claude-haiku-5-5": {
+        "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "verified": "2026-11-05",
+        "note": "USD/MTok; tiers at 100K prompt tokens; cache read/write per the tier table",
+    },
+    "gpt-4o-mini": {
+        "url": "https://developers.openai.com/api/docs/pricing",
+        "verified": "2026-11-05",
+        "note": "$0.15 in / $0.075 cached / $0.60 out",
+    },
+    "deepseek-v4.1-flash-1017 (DeepInfra)": {
+        "url": "https://deepinfra.com/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        "verified": "2026-11-05",
+        "note": "standard $0.20 in / $0.006 cached / $0.60 out; the page also shows a 51% promo "
+        "($0.098 / $0.294) with no end date: set the DEEPINFRA_* rates to use it",
+    },
+    "gpt-image-2.5-flare": {
+        "url": "https://developers.openai.com/api/docs/models/gpt-image-2.5-flare",
+        "verified": "2026-11-05",
+        "note": "token billed: text in $5, image in $8, image out $30 per MTok (batch half); "
+        "no per-image price: cost = returned usage tokens",
+    },
+    "FLUX-2-klein-4b (DeepInfra)": {
+        "url": "https://deepinfra.com/black-forest-labs/FLUX-2-klein-4b",
+        "verified": "2026-11-05",
+        "note": "$0.014 x (width / 1024) x (height / 1024) per image",
+    },
+}
 
 
 def haiku_5_5_rates(prompt_tokens: int) -> CachedRates:
@@ -53,6 +95,25 @@ def haiku_5_5_rates(prompt_tokens: int) -> CachedRates:
     if prompt_tokens > HAIKU_5_5_LONG_PROMPT_TOKENS:
         return HAIKU_5_5_LONG_RATES
     return HAIKU_5_5_SHORT_RATES
+
+
+_HAIKU_5_5 = re.compile(r"haiku-5[-.]5")
+
+
+def is_haiku_5_5(target: str) -> bool:
+    """True for any spelling of Claude Haiku 5.5 (claude-haiku-5-5, claude-haiku-5.5, prefixed)."""
+    return bool(_HAIKU_5_5.search(target.lower()))
+
+
+@functools.lru_cache(maxsize=256)
+def warn_unpriced_model(target: str, assumed_provider: str) -> None:
+    """Logs once per model that no price is known, so a wrong estimate is visible in the logs."""
+    logger.warning(
+        "No price known for model '%s'; costing it with the %s provider's configured rates. "
+        "Set the provider's *_COST_PER_MILLION_* values or add the model to core/pricing.py.",
+        target,
+        assumed_provider,
+    )
 
 
 def family_rate(target: str, table: tuple[tuple[str, Rate], ...]) -> Rate | None:

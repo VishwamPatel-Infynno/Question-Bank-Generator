@@ -193,53 +193,50 @@ def calculate_token_cost(
         - Rates from config.get_default_pricing_rates(target_model)
         - Universal OpenAI prompt caching: 50% discount on cached prompt tokens
     - DeepInfra / Custom Rates:
-        - Rates from config.get_default_pricing_rates(target_model)
-        - Default: config.COST_PER_MILLION_INPUT_TOKENS ($0.098 / 1M tokens)
-        - Default: config.COST_PER_MILLION_OUTPUT_TOKENS ($0.294 / 1M tokens)
+        - Rates from config.get_default_pricing_rates(target_model): the configured DeepInfra
+          rates ($0.20 in / $0.60 out per 1M tokens standard price)
+        - Cached prompt tokens at 3% of the input rate (DeepSeek V4.1 Flash cached $0.006)
+    Rates follow the model's provider, never the active provider (see core/pricing.py for sources).
     """
     target_model = model or config.DEFAULT_TEXT_MODEL
-    has_rate_override = (
-        getattr(config, "_override_cost_input", None) is not None
-        or getattr(config, "_override_cost_output", None) is not None
-    )
+    # Billing follows the model's own provider; a runtime override only re-prices the active one
+    has_rate_override = config.rate_override_applies(target_model)
+    provider = config.get_active_provider(target_model)
+    per_million = 1_000_000.0
 
-    if config.is_anthropic_model(target_model):
-        if (
-            "haiku-5-5" in target_model.lower() or target_model == "claude-haiku-5-5"
-        ) and not has_rate_override:
-            in_rate, out_rate, cache_read_rate, cache_creation_rate = pricing.haiku_5_5_rates(
-                prompt_tokens
-            )
+    if provider == "anthropic":
+        if pricing.is_haiku_5_5(target_model) and not has_rate_override:
+            tier = pricing.haiku_5_5_rates(prompt_tokens)
+            in_rate, out_rate = tier.input, tier.output
+            cache_read_rate, cache_creation_rate = tier.cache_read, tier.cache_write
         else:
             in_rate, out_rate = config.get_default_pricing_rates(target_model)
-            cache_read_rate = in_rate * 0.10
-            cache_creation_rate = in_rate * 1.25
+            cache_read_rate = in_rate * pricing.ANTHROPIC_CACHE_READ_FACTOR
+            cache_creation_rate = in_rate * pricing.ANTHROPIC_CACHE_WRITE_FACTOR
 
         base_prompt_tokens = max(0, prompt_tokens - cache_read_tokens - cache_creation_tokens)
-        in_cost = (base_prompt_tokens / 1_000_000.0) * in_rate
-        out_cost = (completion_tokens / 1_000_000.0) * out_rate
-        cache_read_cost = (cache_read_tokens / 1_000_000.0) * cache_read_rate
-        cache_creation_cost = (cache_creation_tokens / 1_000_000.0) * cache_creation_rate
-        return round(in_cost + out_cost + cache_read_cost + cache_creation_cost, 7)
-
-    if config.is_openai_model(target_model):
-        if has_rate_override:
-            in_rate = config.COST_PER_MILLION_INPUT_TOKENS
-            out_rate = config.COST_PER_MILLION_OUTPUT_TOKENS
-        else:
-            in_rate, out_rate = config.get_default_pricing_rates(target_model)
-
-        cached_rate = in_rate * 0.50
-        base_prompt_tokens = max(0, prompt_tokens - cache_read_tokens)
-        in_cost = (base_prompt_tokens / 1_000_000.0) * in_rate
-        cached_cost = (cache_read_tokens / 1_000_000.0) * cached_rate
-        out_cost = (completion_tokens / 1_000_000.0) * out_rate
-        return round(in_cost + cached_cost + out_cost, 7)
+        return round(
+            (base_prompt_tokens / per_million) * in_rate
+            + (completion_tokens / per_million) * out_rate
+            + (cache_read_tokens / per_million) * cache_read_rate
+            + (cache_creation_tokens / per_million) * cache_creation_rate,
+            7,
+        )
 
     in_rate, out_rate = config.get_default_pricing_rates(target_model)
-    in_cost = (prompt_tokens / 1_000_000.0) * in_rate
-    out_cost = (completion_tokens / 1_000_000.0) * out_rate
-    return round(in_cost + out_cost, 7)
+    # OpenAI and DeepInfra bill cached prompt tokens at a discount and report no cache writes
+    cached_factor = (
+        pricing.OPENAI_CACHED_INPUT_FACTOR
+        if provider == "openai"
+        else pricing.DEEPINFRA_CACHED_INPUT_FACTOR
+    )
+    cached_tokens = min(max(0, cache_read_tokens), prompt_tokens)
+    return round(
+        ((prompt_tokens - cached_tokens) / per_million) * in_rate
+        + (cached_tokens / per_million) * in_rate * cached_factor
+        + (completion_tokens / per_million) * out_rate,
+        7,
+    )
 
 
 class LLMNotConfiguredError(ValueError):

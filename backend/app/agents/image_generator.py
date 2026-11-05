@@ -64,6 +64,32 @@ def calculate_image_cost(
     )
 
 
+def openai_image_usage_cost(usage: object) -> float | None:
+    """Cost of an OpenAI image generation from the usage the API returned, or None without usage.
+
+    gpt-image models bill text input, image input and image output tokens at different rates
+    (text $5, image $8, output $30 per million for gpt-image-2.5-flare). Without a text/image split
+    in ``input_tokens_details`` all input tokens are text, which is what a plain prompt is.
+    """
+    if not isinstance(usage, dict):
+        return None
+    input_tokens = int(usage.get("input_tokens") or usage.get("prompt_tokens") or 0)
+    output_tokens = int(usage.get("output_tokens") or usage.get("completion_tokens") or 0)
+    if not (input_tokens or output_tokens):
+        return None
+    details = usage.get("input_tokens_details")
+    details = details if isinstance(details, dict) else {}
+    image_input = int(details.get("image_tokens") or 0)
+    text_input = details.get("text_tokens")
+    text_input = int(text_input) if text_input is not None else max(0, input_tokens - image_input)
+    return round(
+        (text_input / 1_000_000.0) * config.OPENAI_IMAGE_COST_PER_MILLION_TEXT_INPUT_TOKENS
+        + (image_input / 1_000_000.0) * config.OPENAI_IMAGE_COST_PER_MILLION_IMAGE_INPUT_TOKENS
+        + (output_tokens / 1_000_000.0) * config.OPENAI_IMAGE_COST_PER_MILLION_OUTPUT_TOKENS,
+        7,
+    )
+
+
 _IMAGE_MAX_RETRIES = 2
 
 
@@ -142,17 +168,13 @@ async def call_openai_image_api(
             )
             return (None, None)
         data = res.json()
-        calculated_cost = None
-        usage = data.get("usage")
-        if usage and isinstance(usage, dict):
-            in_tok = usage.get("prompt_tokens") or usage.get("input_tokens") or 0
-            out_tok = usage.get("completion_tokens") or usage.get("output_tokens") or 0
-            if in_tok or out_tok:
-                calculated_cost = round(
-                    (in_tok / 1_000_000.0) * 5.00 + (out_tok / 1_000_000.0) * 30.00, 7
-                )
-
+        calculated_cost = openai_image_usage_cost(data.get("usage"))
         if calculated_cost is None:
+            # No usage in the response: a flat estimate for this size (actual cost depends on
+            # quality, see core/pricing.py PRICE_SOURCES), so say so in the log
+            logger.warning(
+                "OpenAI image response for %s had no usage; using the flat estimate", model_id
+            )
             calculated_cost = config.calculate_image_cost(
                 width=width, height=height, model=model_id, quality=quality
             )

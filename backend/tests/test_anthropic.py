@@ -32,8 +32,9 @@ async def test_anthropic_model_detection_and_settings():
     di_in, di_out = config.get_default_pricing_rates(
         "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017"
     )
-    assert di_in == config.COST_PER_MILLION_INPUT_TOKENS
-    assert di_out == config.COST_PER_MILLION_OUTPUT_TOKENS
+    # a DeepInfra model is billed at DeepInfra's rates even while Anthropic is the active provider
+    assert di_in == config.DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS
+    assert di_out == config.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS
 
 
 async def test_provider_switcher_via_settings(monkeypatch):
@@ -153,7 +154,8 @@ async def test_claude_opus_pricing_auto_detection():
 
 
 async def test_custom_env_pricing_override(monkeypatch):
-    """Verify that explicitly setting COST_PER_MILLION_* in .env overrides catalog rates."""
+    """An explicit COST_PER_MILLION_* override re-prices the active provider's models."""
+    monkeypatch.setattr(config, "ACTIVE_LLM_PROVIDER", "anthropic")  # the override is scoped to it
     monkeypatch.setattr(config, "COST_PER_MILLION_INPUT_TOKENS", 4.50)
     monkeypatch.setattr(config, "COST_PER_MILLION_OUTPUT_TOKENS", 18.00)
 

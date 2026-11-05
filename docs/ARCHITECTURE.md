@@ -52,7 +52,7 @@ The multi-agent workflow is architected with a decoupled, provider-agnostic infe
 1. **DeepInfra Provider (`ACTIVE_LLM_PROVIDER=deepinfra`)**:
    - **Primary Model**: `deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017`
    - **Characteristics**: Extreme throughput (~110-140 tok/s), 1,024,000-token context window, sub-second TTFT (Time-To-First-Token).
-   - **Official Rate Card**: $0.098 input / $0.294 output per 1M tokens.
+   - **Official Rate Card**: $0.20 input / $0.60 output per 1M tokens (standard price; $0.006 cached input; a 51% promo of $0.098 / $0.294 is also listed by DeepInfra).
    - **Visual Stimuli**: Integrated with `black-forest-labs/FLUX-2-klein-4b` ($0.014/unit base rate).
 
 2. **Anthropic Provider (`ACTIVE_LLM_PROVIDER=anthropic`)**:
@@ -291,7 +291,7 @@ class AgentWorkflowState(TypedDict, total=False):
     total_tokens: int  # Cumulative tokens consumed
     total_prompt_tokens: int  # Cumulative input tokens
     total_completion_tokens: int  # Cumulative output tokens
-    total_cost_usd: float  # Cumulative cost in USD ($0.098 in / $0.294 out)
+    total_cost_usd: float  # Cumulative cost in USD (per-model rates, see docs/TOKEN_TRACKING.md)
     agent_usage_breakdown: List[Dict[str, Any]]  # Itemized usage per agent cycle
     latest_usage: Optional[Dict[str, Any]]  # Usage of the most recently executed node
 ```

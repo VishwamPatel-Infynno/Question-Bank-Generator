@@ -47,7 +47,7 @@ async def get_runtime_settings(request: Request = None) -> dict[str, Any]:  # ty
             "image_width": config.IMAGE_WIDTH,
             "image_height": config.IMAGE_HEIGHT,
             "image_iters": config.IMAGE_ITERS,
-            "image_cost_base_rate": config.IMAGE_COST_PER_BASE_UNIT,
+            "image_cost_base_rate": config.DEEPINFRA_IMAGE_COST_PER_UNIT,
             "current_image_cost_usd": config.calculate_image_cost(),
         }
 
@@ -91,6 +91,6 @@ async def get_runtime_settings(request: Request = None) -> dict[str, Any]:  # ty
         "image_width": config.IMAGE_WIDTH,
         "image_height": config.IMAGE_HEIGHT,
         "image_iters": config.IMAGE_ITERS,
-        "image_cost_base_rate": config.IMAGE_COST_PER_BASE_UNIT,
+        "image_cost_base_rate": config.DEEPINFRA_IMAGE_COST_PER_UNIT,
         "current_image_cost_usd": config.calculate_image_cost(),
     }

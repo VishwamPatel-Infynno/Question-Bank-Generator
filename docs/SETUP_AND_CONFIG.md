@@ -34,24 +34,27 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 
 | Variable | Type | Default Value | Description |
 | :--- | :--- | :--- | :--- |
-| `ACTIVE_LLM_PROVIDER` | `string` | `deepinfra` | Active inference provider: `deepinfra` or `anthropic` |
+| `ACTIVE_LLM_PROVIDER` | `string` | `deepinfra` | Active inference provider: `deepinfra`, `anthropic` or `openai`. Costs always follow the model's own provider, so a request-time model from another provider is never billed at the active provider's rates |
 | `ANTHROPIC_MODEL` | `string` | `claude-haiku-5-5` | Primary Anthropic model identifier |
-| `ANTHROPIC_COST_PER_MILLION_INPUT_TOKENS` | `float` | `0.10` | Input token price for Anthropic model ($0.10 / 1M) |
-| `ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS` | `float` | `0.50` | Output token price for Anthropic model ($0.50 / 1M) |
+| `ANTHROPIC_COST_PER_MILLION_INPUT_TOKENS` | `float` | `0.10` | Input price for Claude Haiku 5.5 ($0.10 / 1M up to 100K prompt tokens; the built-in tier above 100K is $0.50; cache read $0.01, 5-minute write $0.125) |
+| `ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS` | `float` | `0.50` | Output price for Claude Haiku 5.5 ($0.50 / 1M; $2.50 above 100K prompt tokens) |
 | `ANTHROPIC_API_KEY` | `string` | `""` | Anthropic API authorization key |
 | `DEEPINFRA_MODEL` | `string` | `deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017` | Primary DeepInfra model identifier |
-| `DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS` | `float` | `0.098` | Input token price for DeepInfra ($0.098 / 1M) |
-| `DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS` | `float` | `0.294` | Output token price for DeepInfra ($0.294 / 1M) |
+| `DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS` | `float` | `0.20` | Input price for the DeepInfra model: standard $0.20 / 1M (cached input is costed at 3%, i.e. $0.006). DeepInfra also lists a 51% promo, $0.098 in / $0.294 out, with no end date: set both values to cost at the promo |
+| `DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS` | `float` | `0.60` | Output price for the DeepInfra model: standard $0.60 / 1M (promo $0.294) |
 | `DATABASE_URL` | `string` | `postgresql+asyncpg://mcat_user:mcat_password@localhost:5432/mcat_db` | Async SQLAlchemy PostgreSQL connection string |
 | `ACTIVE_IMAGE_PROVIDER` | `string` | `openai` | Image engine: `openai` or `deepinfra`. Note: the code default is `openai` while `.env.example` ships `deepinfra`; set it explicitly |
 | `DEEPINFRA_IMAGE_MODEL` | `string` | `black-forest-labs/FLUX-2-klein-4b` | DeepInfra image model for visual stimuli |
-| `DEEPINFRA_IMAGE_COST_PER_UNIT` | `float` | `0.014` | DeepInfra image price per 1024x1024 base unit |
+| `DEEPINFRA_IMAGE_COST_PER_UNIT` | `float` | `0.014` | FLUX-2-klein price per 1024x1024 image, scaled by (width/1024) x (height/1024); DeepInfra's reported cost is preferred when a response carries one |
 | `OPENAI_API_KEY` | `string` | `""` | OpenAI API authorization key |
 | `OPENAI_MODEL` | `string` | `gpt-4o-mini` | OpenAI text model |
 | `OPENAI_COST_PER_MILLION_INPUT_TOKENS` | `float` | `0.15` | OpenAI input price per 1M tokens |
 | `OPENAI_COST_PER_MILLION_OUTPUT_TOKENS` | `float` | `0.60` | OpenAI output price per 1M tokens |
 | `OPENAI_IMAGE_MODEL` | `string` | `gpt-image-2.5-flare` | OpenAI image model |
-| `OPENAI_IMAGE_COST_PER_UNIT` | `float` | `0.02` | OpenAI image price per 1024x1024 base unit |
+| `OPENAI_IMAGE_COST_PER_MILLION_TEXT_INPUT_TOKENS` | `float` | `5.0` | gpt-image-2.5-flare text input price per 1M tokens (billed from the usage OpenAI returns) |
+| `OPENAI_IMAGE_COST_PER_MILLION_IMAGE_INPUT_TOKENS` | `float` | `8.0` | gpt-image-2.5-flare image input price per 1M tokens (used only when a request carries input images) |
+| `OPENAI_IMAGE_COST_PER_MILLION_OUTPUT_TOKENS` | `float` | `30.0` | gpt-image-2.5-flare image output price per 1M tokens (about $0.006 low to $0.21 high quality per 1024x1024 image; the app requests quality auto) |
+| `OPENAI_IMAGE_COST_PER_UNIT` | `float` | `0.02` | Fallback estimate for one 1024x1024 OpenAI image, used only when a response has no usage |
 | `DEEPINFRA_API_KEY` | `string` | `""` | DeepInfra API authorization key |
 | `MAX_REGENERATION_ATTEMPTS`| `integer`| `3` | Maximum remediation loops before Quality Gate reject |
 | `PASSING_SCORE_THRESHOLD` | `integer`| `90` | Minimum score required to pass individual psychometric gate (Tier 1) |
@@ -72,8 +75,8 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `BATCH_PASSING_SCORE_THRESHOLD` | `integer`| `85` | Benchmark score required for batch activity run acceptance (Tier 2) |
 | `DEFAULT_MAX_TOKENS` | `integer`| `3000` | Default maximum completion token budget for generator nodes |
 | `REVIEWER_MAX_TOKENS` | `integer`| `1800` | Maximum completion token budget for 100-point psychometric reviewer |
-| `COST_PER_MILLION_INPUT_TOKENS` | `float` | Dynamic | Dynamic property mapping to active provider input price ($0.098 DeepInfra / $0.10 Anthropic) |
-| `COST_PER_MILLION_OUTPUT_TOKENS`| `float` | Dynamic | Dynamic property mapping to active provider output price ($0.294 DeepInfra / $0.50 Anthropic) |
+| `COST_PER_MILLION_INPUT_TOKENS` | `float` | Dynamic | Dynamic property mapping to the active provider's configured input price (DeepInfra $0.20 standard / Anthropic $0.10 / OpenAI $0.15); rates for a specific model always follow that model's provider |
+| `COST_PER_MILLION_OUTPUT_TOKENS`| `float` | Dynamic | Dynamic property mapping to the active provider's configured output price (DeepInfra $0.60 standard / Anthropic $0.50 / OpenAI $0.60) |
 | `DEFAULT_TEMPERATURE` | `float` | `0.2` | Global default sampling temperature for call_llm |
 | `GENERATOR_TEMPERATURE` | `float` | `0.5` | Drafting temperature: enough variety that a batch on one subtopic does not converge on near-identical questions (invalid JSON is repaired once; low-temperature agents are unchanged) |
 | `DUPLICATE_HARD_THRESHOLD` | `float` | `0.75` | Similarity at or above which a candidate counts as a duplicate (engine anti-collision, batch clustering and auto-resolve) |
@@ -101,7 +104,6 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `IMAGE_WIDTH` | `integer` | `1024` | Default width for FLUX diagrams |
 | `IMAGE_HEIGHT` | `integer` | `1024` | Default height for FLUX diagrams |
 | `IMAGE_ITERS` | `integer` | `0` | Inference step iterations (0 for flat-rate models) |
-| `IMAGE_COST_PER_BASE_UNIT` | `float` | `0.014` | Flat unit rate in USD ($0.014/img) |
 
 > [!NOTE]
 > `COST_PER_MILLION_INPUT_TOKENS`, `COST_PER_MILLION_OUTPUT_TOKENS`, and `FAST_MODEL_CASCADE` are dynamic `@property` getters and setters in `backend/app/core/config.py`. When unset, they automatically resolve to the active provider rates (`DEEPINFRA_*` or `ANTHROPIC_*`). Setters allow optional programmatic overrides during tests or custom runs.
@@ -184,13 +186,13 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 289-test backend verification suite across 52 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 306-test backend verification suite across 53 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 279 deterministic unit and integration tests across 51 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 203 pure unit tests pass and 76 DB tests skip cleanly
+# 1. Run all 296 deterministic unit and integration tests across 52 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 220 pure unit tests pass and 76 DB tests skip cleanly
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
@@ -204,10 +206,10 @@ ruff format --check .
 ```
 
 #### Dual Test Execution Modes
-- **Offline Mode** (PostgreSQL offline): Executes all 203 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`203 passed, 76 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 279 deterministic tests across 51 modules in ~23-28 seconds (10 live tests deselected).
+- **Offline Mode** (PostgreSQL offline): Executes all 220 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`220 passed, 76 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 296 deterministic tests across 52 modules in ~23-28 seconds (10 live tests deselected).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 289 tests across 52 test files.
+- **Total Backend Suite**: 306 tests across 53 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.
