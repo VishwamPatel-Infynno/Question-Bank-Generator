@@ -112,8 +112,13 @@ async def update_job_progress(
     error_message: str | None = None,
     started_at: str | None = None,
     completed_at: str | None = None,
+    clear: tuple[str, ...] = (),
 ) -> GenerationJob | None:
-    """Updates atomic fields on a job record."""
+    """Updates atomic fields on a job record.
+
+    ``None`` arguments mean "leave unchanged". To reset a field to NULL, name it in ``clear``
+    (supported: error_message, started_at, completed_at).
+    """
     async with async_session_factory() as session:
         model = await session.get(GenerationJobModel, job_id)
         if not model:
@@ -141,6 +146,9 @@ async def update_job_progress(
             model.started_at = to_datetime(started_at) if started_at else None
         if completed_at is not None:
             model.completed_at = to_datetime(completed_at) if completed_at else None
+        for field in clear:
+            if field in ("error_message", "started_at", "completed_at"):
+                setattr(model, field, None)
 
         await session.commit()
         await session.refresh(model)

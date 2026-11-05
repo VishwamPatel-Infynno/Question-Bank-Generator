@@ -54,6 +54,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `POST` | `/api/batches/{batch_id}/refill` | Replenishes batch question deficit up to target count using pedagogical thematic variations |
 | `GET` | `/api/export` | Exports repository in standardized JSON or CSV format |
 | `GET` | `/api/health` | Service health, database connectivity, active provider, models, and pricing |
+| `GET` | `/api/health/ready` | Readiness probe: `200` when the database answers, `503` otherwise (for orchestrators and load balancers); `/api/health` reports `degraded` when the database is down |
 | `GET` | `/api/config` | Retrieves active model configuration, runtime parameters (28 fields), and pricing constants |
 | `GET` | `/api/sections` | Returns official AAMC MCAT sections, syllabus hierarchy, skills, and pacing |
 | `GET` | `/api/taxonomy` | Returns the complete official AAMC Dependent Taxonomy JSON tree |

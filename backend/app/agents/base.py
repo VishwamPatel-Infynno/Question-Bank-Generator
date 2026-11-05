@@ -6,6 +6,7 @@ import logging
 import os
 import random
 import re
+import time
 from typing import Any
 
 import litellm
@@ -314,6 +315,7 @@ async def call_llm(
 
     last_error: Exception | None = None
     semaphore = get_global_llm_semaphore()
+    call_started = time.perf_counter()
 
     for candidate in candidate_models:
         try:
@@ -413,6 +415,7 @@ async def call_llm(
                     completion_tokens=completion_tokens,
                     total_tokens=total_tokens,
                     cost_usd=cost_usd,
+                    duration_ms=int((time.perf_counter() - call_started) * 1000),
                 )
                 provider_label = config.get_active_provider(candidate).capitalize()
                 logger.info(

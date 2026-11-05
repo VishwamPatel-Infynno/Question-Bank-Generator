@@ -470,6 +470,9 @@ class Settings(BaseSettings):
     PASSING_SCORE_THRESHOLD: int = 90
     # When True the independent reviewer always audits a draft, even if its own self-critique passed.
     ALWAYS_INDEPENDENT_REVIEW: bool = True
+    LOG_FORMAT: str = "text"  # 'text' or 'json' (one JSON object per line)
+    # Optional secret for the full /health diagnostic payload (header x-admin-key).
+    ADMIN_API_KEY: str = ""
     # Run the reviewer and blind solver concurrently (saves one LLM round trip per question).
     PARALLEL_REVIEW_AND_SOLVE: bool = True
     # Mark static system prompts cacheable for providers that need an explicit marker (Anthropic).

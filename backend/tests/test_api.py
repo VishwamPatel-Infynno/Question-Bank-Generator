@@ -1101,3 +1101,31 @@ async def test_passage_lifecycle_and_restore_api(client):
     # 7. Non-existent passage restore returns 404
     non_existent = await client.post(f"/api/passages/non-existent-{uuid.uuid4().hex[:6]}/restore")
     assert non_existent.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_health_admin_key_is_validated_when_configured(client, monkeypatch):
+    from app.core.config import config
+
+    monkeypatch.setattr(config, "ADMIN_API_KEY", "s3cret")
+    masked = (await client.get("/api/health", headers={"x-admin-key": "wrong"})).json()
+    assert "default_text_model" not in masked
+    full = (await client.get("/api/health", headers={"x-admin-key": "s3cret"})).json()
+    assert "default_text_model" in full
+
+
+@pytest.mark.asyncio
+async def test_readiness_probe_reflects_database_state(client, monkeypatch):
+    import app.api.v1.health as health_mod
+
+    ok = await client.get("/api/health/ready")
+    assert ok.status_code == 200 and ok.json()["status"] == "ready"
+
+    async def down():
+        return {"connected": False, "status": "unavailable"}
+
+    monkeypatch.setattr(health_mod, "check_db_health", down)
+    bad = await client.get("/api/health/ready")
+    assert bad.status_code == 503 and bad.json()["status"] == "not_ready"
+    degraded = (await client.get("/api/health")).json()
+    assert degraded["status"] == "degraded"

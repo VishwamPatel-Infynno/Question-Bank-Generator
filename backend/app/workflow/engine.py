@@ -19,6 +19,7 @@ from typing import Any
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
 from app.core.config import config
+from app.core.logging import bind_log_context
 from app.repositories import (
     get_batch_by_id,
     get_subtopic_reference_questions,
@@ -160,6 +161,9 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
     all_staged_questions: list[dict[str, Any]] = []
     all_agent_usage: list[dict[str, Any]] = []
     tasks: list[asyncio.Task] = []
+    monitor_task: asyncio.Task | None = None
+    # Declared up front so cancellation handlers work even if the stream is closed early.
+    outcomes_questions: list[dict[str, Any] | None] = []
 
     try:
         # Step 0: Draft Shared Reading Passage and Diagram (if passage-set mode)
@@ -609,7 +613,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 # Small bounded stagger so siblings can see each other's in-flight stems for dedup,
                 # without delaying the last worker of a 50-question run by ~17 seconds.
                 await asyncio.sleep(min(0.35 * w_idx, 2.0))
-            await _worker(w_idx)
+            with bind_log_context(batch_id=batch_id, run_id=req.run_id, slot=w_idx + 1):
+                await _worker(w_idx)
 
         tasks.extend([asyncio.create_task(_staggered_worker(i)) for i in range(total_qty)])
 
@@ -735,6 +740,18 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 completed_total=completed_total,
             )
         raise
+    except GeneratorExit:
+        # Consumer closed the stream (client disconnect delivered as GeneratorExit, not
+        # CancelledError): treat it exactly like a cancellation so jobs do not stay "running".
+        logger.info("Workflow stream closed by consumer.")
+        if is_standalone_live_run:
+            completed_total = sum(1 for q in outcomes_questions if q is not None)
+            await _handle_live_job_cancellation(
+                job_id=job_id,
+                batch_id=batch_id,
+                completed_total=completed_total,
+            )
+        raise
     except Exception as e:
         logger.error(f"Workflow stream error: {e}")
         if is_standalone_live_run:
@@ -751,6 +768,14 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             data={"error": err_msg},
         )
         yield f"data: {error_evt.model_dump_json()}\n\n"
+    finally:
+        # Whatever the exit path (success, error, cancel, consumer close), never leave worker or
+        # monitor tasks running: they would keep spending LLM tokens with nobody listening.
+        pending = [t for t in (*tasks, monitor_task) if t is not None and not t.done()]
+        for t in pending:
+            t.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
 
 class WorkflowRunResult:

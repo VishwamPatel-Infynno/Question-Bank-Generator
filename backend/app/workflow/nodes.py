@@ -53,6 +53,8 @@ def _record_agent_usage(
         "total_tokens": usage.total_tokens,
         "cost_usd": usage.cost_usd,
     }
+    if usage.duration_ms is not None:
+        agent_entry["duration_ms"] = usage.duration_ms
 
     breakdown = list(state.get("agent_usage_breakdown", []))
     breakdown.append(agent_entry)

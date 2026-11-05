@@ -247,6 +247,17 @@ async def reconcile_interrupted_batches() -> int:
             b.error_message = "Server restarted while batch was generating. Progress preserved."
             await _execute_promote_batch_questions(session, b.id, timestamp=now)
 
+        # Jobs of orphaned batches would otherwise show "running" forever. 'stopped' keeps them
+        # retryable: the retry flow re-launches any job below its target count.
+        await session.execute(
+            update(GenerationJobModel)
+            .where(
+                GenerationJobModel.batch_id.in_([b.id for b in orphans]),
+                GenerationJobModel.status.in_(("pending", "running", "in_progress")),
+            )
+            .values(status="stopped", completed_at=now)
+        )
+
         await session.commit()
         logger.info(
             f"Startup batch reconciliation: safely marked {len(orphans)} orphan batch(es) as 'stopped'."

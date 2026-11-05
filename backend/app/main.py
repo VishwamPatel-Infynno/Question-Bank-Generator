@@ -11,8 +11,9 @@ from starlette.types import Receive, Scope, Send
 from app.api.router import api_router
 from app.core.config import config
 from app.core.logging import configure_logging
-from app.db.session import init_db
+from app.db.session import engine, init_db
 from app.repositories import reconcile_interrupted_batches
+from app.services.batch_concurrency import cancel_all_background_batches
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,17 @@ async def lifespan(_app: FastAPI):
         pass
     finally:
         logger.info("Shutting down backend...")
+        # Stop running batches gracefully so progress is saved and no LLM spend is orphaned.
+        try:
+            stopped = await asyncio.wait_for(cancel_all_background_batches(), timeout=15)
+            if stopped:
+                logger.info(f"Gracefully stopped {stopped} running batch(es) before shutdown.")
+        except Exception as exc:
+            logger.warning(f"Batch shutdown drain incomplete: {exc}")
+        try:
+            await engine.dispose()
+        except Exception as exc:
+            logger.warning(f"Database engine disposal failed: {exc}")
 
 
 core_app = FastAPI(

@@ -328,9 +328,7 @@ async def retry_incomplete_jobs_for_batch(
         await update_job_progress(
             j.id,
             status="pending",
-            error_message=None,
-            started_at=None,
-            completed_at=None,
+            clear=("error_message", "started_at", "completed_at"),
         )
 
     b.status = "in_progress"

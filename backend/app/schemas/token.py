@@ -10,3 +10,6 @@ class TokenUsage(BaseModel):
     cost_usd: float = Field(
         0.0, description="Estimated total cost in USD based on official pricing"
     )
+    duration_ms: int | None = Field(
+        None, description="Wall-clock latency of the LLM call in milliseconds, retries included"
+    )

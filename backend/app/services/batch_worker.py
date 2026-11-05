@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.config import config
+from app.core.logging import bind_log_context
 from app.repositories import (
     get_batch_by_id,
     get_jobs_by_batch_id,
@@ -109,6 +110,17 @@ async def _get_active_job_questions(batch_id: str, job_id: str) -> list[Question
 
 
 async def _run_single_job(
+    batch_id: str,
+    job: GenerationJob,
+    base_req: GenerationRequest,
+    semaphore: asyncio.Semaphore,
+) -> None:
+    """Runs one job with batch/job ids bound to every log line it produces."""
+    with bind_log_context(batch_id=batch_id, job_id=job.id):
+        await _run_single_job_impl(batch_id, job, base_req, semaphore)
+
+
+async def _run_single_job_impl(
     batch_id: str,
     job: GenerationJob,
     base_req: GenerationRequest,
@@ -301,6 +313,18 @@ async def _run_single_job(
 
 
 async def _run_single_job_refill(
+    batch_id: str,
+    job: GenerationJob,
+    job_deficit: int,
+    base_req: GenerationRequest,
+    semaphore: asyncio.Semaphore,
+) -> None:
+    """Runs a refill job with batch/job ids bound to every log line it produces."""
+    with bind_log_context(batch_id=batch_id, job_id=job.id):
+        await _run_single_job_refill_impl(batch_id, job, job_deficit, base_req, semaphore)
+
+
+async def _run_single_job_refill_impl(
     batch_id: str,
     job: GenerationJob,
     job_deficit: int,
