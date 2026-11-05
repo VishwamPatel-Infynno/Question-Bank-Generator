@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import { BATCH_FILTER } from '../../constants';
 
 export default function BatchFiltersBar({
   searchQuery = '',
@@ -8,7 +9,7 @@ export default function BatchFiltersBar({
   onScopeFilterChange,
   sectionFilter = 'all',
   onSectionFilterChange,
-  statusFilter = 'all',
+  statusFilter = BATCH_FILTER.ALL,
   onStatusFilterChange,
   autoRefresh = true,
   onAutoRefreshChange
@@ -63,7 +64,7 @@ export default function BatchFiltersBar({
 
         {/* Status Tabs */}
         <div className="pill-track batch-filter-pill-track">
-          {['all', 'in_progress', 'completed', 'failed'].map((st) => (
+          {Object.values(BATCH_FILTER).map((st) => (
             <button
               key={st}
               type="button"

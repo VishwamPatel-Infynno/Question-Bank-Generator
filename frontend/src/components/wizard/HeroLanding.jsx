@@ -7,6 +7,7 @@ import {
   Brain
 } from 'lucide-react';
 import InfynnoLogo from '../common/InfynnoLogo';
+import { DIFFICULTY } from '../../constants';
 
 export default function HeroLanding({
   onGetStarted,
@@ -20,7 +21,7 @@ export default function HeroLanding({
       icon: FlaskConical,
       config: {
         section: 'chem_phys',
-        difficulty: 'medium',
+        difficulty: DIFFICULTY.MEDIUM,
         totalQuestions: 50,
         passageMode: 'single_passage',
         passageQuestionCount: 50,
@@ -34,7 +35,7 @@ export default function HeroLanding({
       icon: BookOpen,
       config: {
         section: 'cars',
-        difficulty: 'medium',
+        difficulty: DIFFICULTY.MEDIUM,
         totalQuestions: 50,
         passageCount: 10,
         passageMode: 'single_passage',
@@ -48,7 +49,7 @@ export default function HeroLanding({
       icon: Dna,
       config: {
         section: 'bio_biochem',
-        difficulty: 'hard',
+        difficulty: DIFFICULTY.HIGH,
         totalQuestions: 50,
         passageMode: 'single_passage',
         passageQuestionCount: 50,
@@ -62,7 +63,7 @@ export default function HeroLanding({
       icon: Brain,
       config: {
         section: 'psych_soc',
-        difficulty: 'medium',
+        difficulty: DIFFICULTY.MEDIUM,
         totalQuestions: 50,
         passageMode: 'independent',
         passageQuestionCount: 0,

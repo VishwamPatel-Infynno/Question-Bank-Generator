@@ -3,6 +3,7 @@ import {
   FileText,
   CheckCircle2
 } from 'lucide-react';
+import { normalizeDifficulty } from '../../../constants';
 
 const DEFAULT_DIFFICULTY_TIERS = [];
 const COUNT_OPTIONS = Object.freeze([
@@ -45,11 +46,7 @@ export default function WizardStep2LevelFormat({
 
         <div className="wizard-difficulty-grid">
           {DIFFICULTY_TIERS.map((tier) => {
-            const diffNormalized = (difficulty || '').toLowerCase();
-            const tierId = tier.id.toLowerCase();
-            const isSelected = diffNormalized === tierId ||
-              (tierId === 'low' && diffNormalized === 'easy') ||
-              (tierId === 'high' && diffNormalized === 'hard');
+            const isSelected = normalizeDifficulty(difficulty) === normalizeDifficulty(tier.id);
 
             return (
               <div

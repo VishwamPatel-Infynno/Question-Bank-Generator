@@ -9,6 +9,7 @@ import {
 } from '../services/api';
 import { useConfirmModal } from './useConfirmModal';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { useRequestGuard } from './useRequestGuard';
 import { QUESTION_STATUS, SCORE_CUTOFFS } from '../constants';
 
 /**
@@ -61,23 +62,23 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
   const [selectedIds, setSelectedIds] = useState([]);
 
   // Load questions and counts asynchronously without synchronous pre-render state mutations
-  const requestSeqRef = useRef(0);
+  const guard = useRequestGuard();
 
   const performFetchValidated = useCallback(
     async (isSilent = false) => {
       // Only the newest request may write state: a slow response for an old filter must not
       // overwrite the list for the current one.
-      const seq = ++requestSeqRef.current;
+      const request = guard.begin();
       try {
         const [qsRes, countsRes] = await Promise.all([
           fetchQuestions({
             status: QUESTION_STATUS.AI_VALIDATED,
             section: sectionFilter || undefined,
             slim: true
-          }),
+          }, request.signal),
           fetchQuestionCounts()
         ]);
-        if (seq !== requestSeqRef.current) return;
+        if (!request.isCurrent()) return;
         const loadedQs = qsRes.questions || [];
         setLoadError(null);
         setQuestions(loadedQs);
@@ -85,7 +86,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
         // Hand over the counts we just loaded so the parent does not fetch them again
         if (onRefreshCounts) onRefreshCounts(countsRes);
       } catch (err) {
-        if (seq !== requestSeqRef.current) return;
+        if (!request.isCurrent()) return;
         console.error('Failed to load AI validated questions:', err);
         setLoadError(err.message || 'Request failed');
         if (!isSilent && onShowToast) {
@@ -96,13 +97,13 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
           });
         }
       } finally {
-        if (seq === requestSeqRef.current) {
+        if (request.isCurrent()) {
           setLoading(false);
           if (!isSilent) setRefreshing(false);
         }
       }
     },
-    [sectionFilter, onRefreshCounts, onShowToast]
+    [guard, sectionFilter, onRefreshCounts, onShowToast]
   );
 
   const loadData = useCallback(
@@ -113,18 +114,12 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     [performFetchValidated]
   );
 
-  // Initial load on mount and when filter changes
+  // Initial load on mount and when the filter changes
   useEffect(() => {
-    let ignore = false;
     async function init() {
-      if (!ignore) {
-        await performFetchValidated(true);
-      }
+      await performFetchValidated(true);
     }
     init();
-    return () => {
-      ignore = true;
-    };
   }, [performFetchValidated]);
 
   // Filtered in-memory questions by search query (strictly preserving score > 90 benchmark)

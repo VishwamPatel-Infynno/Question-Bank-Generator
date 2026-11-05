@@ -1,5 +1,5 @@
 import { CheckCircle2, ArrowRight } from 'lucide-react';
-import { PaginationBar, LoadError } from '../components/common';
+import { PaginationBar, LoadError, EmptyState } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
 import { usePagination, useAiValidated } from '../hooks';
 import {
@@ -118,42 +118,28 @@ export default function AiValidatedQuestionsView({
           onRetry={() => loadData(false)}
         />
       ) : filteredQuestions.length === 0 ? (
-        <div className="view-empty-state">
-          <div className="view-empty-icon-box success">
-            <CheckCircle2 size={28} />
-          </div>
-          <div>
-            <h3 className="view-empty-title">
-              No Questions Awaiting Review
-            </h3>
-            <p className="view-empty-desc">
-              {debouncedSearch || sectionFilter
-                ? 'No questions matched your current search filters.'
-                : 'All generated questions have been reviewed and moved to the Question Bank. Start a new generation run to create more.'}
-            </p>
-          </div>
-          <div className="view-empty-actions">
-            {onNavigateToBatches && (
-              <button
-                type="button"
-                onClick={onNavigateToBatches}
-                className="btn-secondary"
-              >
-                View Batch Progress
-              </button>
-            )}
-            {onNavigateToWizard && (
-              <button
-                type="button"
-                onClick={() => onNavigateToWizard(1)}
-                className="btn-primary"
-              >
-                <span>Generate Questions</span>
-                <ArrowRight size={15} />
-              </button>
-            )}
-          </div>
-        </div>
+        <EmptyState
+          icon={<CheckCircle2 size={28} />}
+          iconTone="success"
+          title="No Questions Awaiting Review"
+          description={
+            debouncedSearch || sectionFilter
+              ? 'No questions matched your current search filters.'
+              : 'All generated questions have been reviewed and moved to the Question Bank. Start a new generation run to create more.'
+          }
+        >
+          {onNavigateToBatches && (
+            <button type="button" onClick={onNavigateToBatches} className="btn-secondary">
+              View Batch Progress
+            </button>
+          )}
+          {onNavigateToWizard && (
+            <button type="button" onClick={() => onNavigateToWizard(1)} className="btn-primary">
+              <span>Generate Questions</span>
+              <ArrowRight size={15} />
+            </button>
+          )}
+        </EmptyState>
       ) : (
         <>
           <div className="ai-validated-list ai-validated-list-container">

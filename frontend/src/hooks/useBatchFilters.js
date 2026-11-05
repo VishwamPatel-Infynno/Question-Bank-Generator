@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { BATCH_STATUS, SECTION_CODE_MAP } from '../constants';
+import { BATCH_FILTER, BATCH_STATUS, SECTION_CODE_MAP } from '../constants';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 
 /**
@@ -8,7 +8,7 @@ import { useKeyboardShortcuts } from './useKeyboardShortcuts';
  */
 export function useBatchFilters(batches) {
   const [scopeFilter, setScopeFilter] = useState('all'); // 'all' | 'mini' | 'full'
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'in_progress' | 'completed' | 'failed'
+  const [statusFilter, setStatusFilter] = useState(BATCH_FILTER.ALL);
   const [sectionFilter, setSectionFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
@@ -28,7 +28,7 @@ export function useBatchFilters(batches) {
     return batches.filter((b) => {
       if (scopeFilter === 'mini' && !(b.total_jobs === 1 || b.target_count === 5)) return false;
       if (scopeFilter === 'full' && !(b.total_jobs > 1 || b.target_count > 5)) return false;
-      if (statusFilter !== 'all' && b.status !== statusFilter) return false;
+      if (statusFilter !== BATCH_FILTER.ALL && b.status !== statusFilter) return false;
       if (sectionFilter !== 'all') {
         const code = SECTION_CODE_MAP[b.section] || b.section;
         if (code !== sectionFilter && b.section !== sectionFilter) return false;

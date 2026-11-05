@@ -3,6 +3,7 @@ import {
   PACING_INFO,
   getSkillsForSection,
   SECTION_METADATA,
+  DIFFICULTY,
   DIFFICULTY_TIERS,
   COGNITIVE_TRAPS
 } from '../../constants';
@@ -42,7 +43,7 @@ export default function GuidedWizard({
   const selectedSkill = form.selectedSkill || '';
   const selectedSubskill = form.selectedSubskill || '';
   const questionType = form.questionType || 'PASSAGE_BASED_MCQ';
-  const difficulty = form.difficulty || 'medium';
+  const difficulty = form.difficulty || DIFFICULTY.MEDIUM;
   const totalQuestions = form.totalQuestions || 50;
   const setGenerationTotal = generatorForm?.setGenerationTotal || ((t) => update('totalQuestions', t));
   const primaryTrap = form.primaryTrap || 'Automatic';

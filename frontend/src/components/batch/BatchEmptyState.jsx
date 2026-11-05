@@ -1,4 +1,6 @@
 import { Layers, Sparkles } from 'lucide-react';
+import { BATCH_FILTER } from '../../constants';
+import EmptyState from '../common/EmptyState';
 
 /**
  * BatchEmptyState
@@ -7,39 +9,28 @@ import { Layers, Sparkles } from 'lucide-react';
  */
 export default function BatchEmptyState({
   searchQuery = '',
-  statusFilter = 'all',
+  statusFilter = BATCH_FILTER.ALL,
   sectionFilter = 'all',
   onNavigateToWizard
 }) {
-  const isFiltered = Boolean(searchQuery || statusFilter !== 'all' || sectionFilter !== 'all');
+  const isFiltered = Boolean(searchQuery || statusFilter !== BATCH_FILTER.ALL || sectionFilter !== 'all');
 
   return (
-    <div className="view-empty-state">
-      <div className="view-empty-icon-box">
-        <Layers size={26} />
-      </div>
-      <div>
-        <h3 className="view-empty-title">
-          No Batches Found
-        </h3>
-        <p className="view-empty-desc">
-          {isFiltered
-            ? 'No generation batches match your active filters. Try clearing your search.'
-            : 'You have not generated any question batches yet. Click below to start your first batch in the Question Studio.'}
-        </p>
-      </div>
-      <div className="view-empty-actions">
-        {onNavigateToWizard && (
-          <button
-            type="button"
-            className="btn-primary batch-empty-btn"
-            onClick={onNavigateToWizard}
-          >
-            <Sparkles size={14} />
-            <span>Start Question Batch</span>
-          </button>
-        )}
-      </div>
-    </div>
+    <EmptyState
+      icon={<Layers size={26} />}
+      title="No Batches Found"
+      description={
+        isFiltered
+          ? 'No generation batches match your active filters. Try clearing your search.'
+          : 'You have not generated any question batches yet. Click below to start your first batch in the Question Studio.'
+      }
+    >
+      {onNavigateToWizard && (
+        <button type="button" className="btn-primary batch-empty-btn" onClick={onNavigateToWizard}>
+          <Sparkles size={14} />
+          <span>Start Question Batch</span>
+        </button>
+      )}
+    </EmptyState>
   );
 }

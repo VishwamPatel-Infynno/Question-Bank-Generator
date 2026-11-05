@@ -7,5 +7,6 @@ export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as PaginationBar } from './PaginationBar';
 export { default as Modal } from './Modal';
 export { default as LoadError } from './LoadError';
+export { default as EmptyState } from './EmptyState';
 
 export { default as SafeSvg } from './SafeSvg';

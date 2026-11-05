@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useCopyToClipboard } from './useCopyToClipboard';
+import { useRequestGuard } from './useRequestGuard';
+import { formatQuestionForCopy } from '../utils/questionHelpers';
 import { fetchQuestions, deleteQuestion } from '../services/api';
 import { QUESTION_STATUS } from '../constants';
 
@@ -24,11 +26,11 @@ export function useQuestionBank() {
   }, [searchQuery]);
 
   const [refreshCount, setRefreshCount] = useState(0);
+  const guard = useRequestGuard();
 
   // Fetch questions with inflight cancellation via AbortController
   useEffect(() => {
-    let isCancelled = false;
-    const controller = new AbortController();
+    const request = guard.begin();
 
     // Trigger reload when dependencies or refreshCount change
     fetchQuestions(
@@ -40,10 +42,10 @@ export function useQuestionBank() {
         sort_by: sortBy || 'newest',
         slim: true
       },
-      controller.signal
+      request.signal
     )
       .then((data) => {
-        if (!isCancelled) {
+        if (request.isCurrent()) {
           setLoadError(null);
           setRawQuestions(data.questions || []);
           setRepoStats({
@@ -58,17 +60,12 @@ export function useQuestionBank() {
       .catch((err) => {
         if (err.name === 'AbortError') return;
         console.error('Failed to load question bank:', err);
-        if (!isCancelled) {
+        if (request.isCurrent()) {
           setLoadError(err.message || 'Request failed');
           setLoading(false);
         }
       });
-
-    return () => {
-      isCancelled = true;
-      controller.abort();
-    };
-  }, [sectionFilter, diffFilter, statusFilter, debouncedSearch, sortBy, refreshCount]);
+  }, [guard, sectionFilter, diffFilter, statusFilter, debouncedSearch, sortBy, refreshCount]);
 
   const loadQuestions = useCallback(() => {
     setLoadError(null);
@@ -87,13 +84,7 @@ export function useQuestionBank() {
 
   const handleCopy = useCallback((q, e) => {
     if (e) e.stopPropagation();
-    const formatted =
-      `[AAMC MCAT - ${q.section_label || q.section}] (${q.difficulty})\n` +
-      `${q.stimulus_text ? q.stimulus_text + '\n\n' : ''}` +
-      `Question: ${q.question_stem}\n\n` +
-      (q.options || []).map((o) => `${o.id}: ${o.text}`).join('\n') +
-      `\n\nCorrect Answer: ${q.correct_answer_id}\n\nExplanation: ${q.explanation}`;
-    copy(formatted, q.id);
+    copy(formatQuestionForCopy(q), q.id);
   }, [copy]);
 
   const handleUpdate = useCallback((updatedQuestion) => {

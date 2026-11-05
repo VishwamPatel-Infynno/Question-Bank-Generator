@@ -11,3 +11,5 @@ export { usePassageBank } from './usePassageBank';
 export { useAiValidated } from './useAiValidated';
 
 export { useCopyToClipboard } from './useCopyToClipboard';
+export { useRequestGuard } from './useRequestGuard';
+export { useExportActions } from './useExportActions';

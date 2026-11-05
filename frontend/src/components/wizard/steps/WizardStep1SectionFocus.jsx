@@ -9,6 +9,7 @@ import {
   Compass
 } from 'lucide-react';
 import { EMPTY_ARRAY, EMPTY_OBJECT, getSubjectsForSection } from '../../../constants';
+import { flattenTopics } from '../../../utils/taxonomyHelpers';
 
 export default function WizardStep1SectionFocus({
   selectedSection = 'chem_phys',
@@ -39,45 +40,11 @@ export default function WizardStep1SectionFocus({
     return subjects.find((s) => s.id === selectedSubject) || null;
   }, [subjects, selectedSubject, isAllDisciplines]);
 
-  // Gather available topics
-  const availableTopics = useMemo(() => {
-    if (activeSubject) {
-      const res = [];
-      (activeSubject.units || []).forEach((u) => {
-        (u.topics || []).forEach((t) => {
-          res.push({
-            ...t,
-            unitId: u.id,
-            unitName: u.name,
-            subjectId: activeSubject.id,
-            subjectName: activeSubject.name
-          });
-        });
-      });
-      return res;
-    }
-
-    // When All Disciplines is selected, gather the primary high-yield topics across the section
-    const res = [];
-    subjects.forEach((s) => {
-      (s.units || []).forEach((u, uIdx) => {
-        if (uIdx < 2) {
-          (u.topics || []).forEach((t, tIdx) => {
-            if (tIdx < 2) {
-              res.push({
-                ...t,
-                unitId: u.id,
-                unitName: u.name,
-                subjectId: s.id,
-                subjectName: s.name
-              });
-            }
-          });
-        }
-      });
-    });
-    return res;
-  }, [subjects, activeSubject]);
+  // Gather available topics (all of the subject's, or the overview selection)
+  const availableTopics = useMemo(
+    () => flattenTopics(subjects, activeSubject),
+    [subjects, activeSubject]
+  );
 
   const isAllTopics = !selectedTopic || selectedTopic === 'all';
 

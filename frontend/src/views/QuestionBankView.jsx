@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo } from 'react';
 import { Database, Sparkles, Eye } from 'lucide-react';
 import { batchDeleteQuestions, saveEditedQuestion } from '../services/api';
 import { useQuestionBank, usePagination, useConfirmModal, useKeyboardShortcuts } from '../hooks';
-import { PaginationBar, Modal, LoadError } from '../components/common';
+import { PaginationBar, Modal, LoadError, EmptyState } from '../components/common';
 import { QuestionCard } from '../components/question';
 import { ExportPrintModal, ConfirmationModal } from '../components/modals';
 import QuestionBankFilters from '../components/bank/QuestionBankFilters';
@@ -264,32 +264,27 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
           onRetry={loadQuestions}
         />
       ) : questions.length === 0 ? (
-        <div className="view-empty-state">
-          <div className="view-empty-icon-box">
-            <Database size={28} />
-          </div>
-          <div>
-            <h3 className="view-empty-title">No Questions Found</h3>
-            <p className="view-empty-desc">
-              {hasActiveFilters
-                ? 'No questions match your current search or filters. Clear your filters to see more, or create questions.'
-                : 'Your Question Bank is currently empty. Create your first practice set to get started!'}
-            </p>
-          </div>
+        <EmptyState
+          icon={<Database size={28} />}
+          title="No Questions Found"
+          description={
+            hasActiveFilters
+              ? 'No questions match your current search or filters. Clear your filters to see more, or create questions.'
+              : 'Your Question Bank is currently empty. Create your first practice set to get started!'
+          }
+        >
           {!hasActiveFilters && onNavigateToWizard && (
-            <div className="view-empty-actions">
-              <button
-                type="button"
-                id="btn-bank-empty-create"
-                onClick={onNavigateToWizard}
-                className="btn-primary"
-              >
-                <Sparkles size={14} />
-                <span>Create New Questions</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              id="btn-bank-empty-create"
+              onClick={onNavigateToWizard}
+              className="btn-primary"
+            >
+              <Sparkles size={14} />
+              <span>Create New Questions</span>
+            </button>
           )}
-        </div>
+        </EmptyState>
       ) : (
         <QuestionBankTable
           paginatedQuestions={paginatedQuestions}

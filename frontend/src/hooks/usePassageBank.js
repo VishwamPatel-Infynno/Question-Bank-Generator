@@ -8,6 +8,7 @@ import {
 } from '../services/api';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { makeId } from '../utils/ids';
+import { useRequestGuard } from './useRequestGuard';
 
 /**
  * Custom hook encapsulating reading passages state, search debouncing,
@@ -62,8 +63,12 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     onFocusSearch: () => searchInputRef.current?.focus()
   });
 
-  // Fetch all passages and build question counts directly from server aggregation
-  const performFetchPassages = useCallback(async (isSilent = false, signal = null) => {
+  const guard = useRequestGuard();
+
+  // Fetch all passages and build question counts directly from server aggregation. Only the newest
+  // request may write state or clear the loading flag (an aborted one must not).
+  const performFetchPassages = useCallback(async (isSilent = false) => {
+    const request = guard.begin();
     if (!isSilent) setLoading(true);
     try {
       const passageRes = await fetchPassages(
@@ -71,8 +76,9 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
           section: sectionFilter || undefined,
           search: debouncedSearch || undefined
         },
-        signal
+        request.signal
       );
+      if (!request.isCurrent()) return;
 
       const fetchedPassages = passageRes?.passages || [];
 
@@ -84,7 +90,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
       setQuestionCounts(counts);
       setPassages(fetchedPassages);
     } catch (err) {
-      if (err.name === 'AbortError') return;
+      if (err.name === 'AbortError' || !request.isCurrent()) return;
       console.error('Failed to load passages:', err);
       if (onShowToast) {
         onShowToast({
@@ -94,36 +100,21 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
         });
       }
     } finally {
-      setLoading(false);
+      if (request.isCurrent()) setLoading(false);
     }
-  }, [sectionFilter, debouncedSearch, onShowToast]);
+  }, [guard, sectionFilter, debouncedSearch, onShowToast]);
 
-  const loadPassages = useCallback(async (isSilent = false, signal = null) => {
-    return performFetchPassages(isSilent, signal);
-  }, [performFetchPassages]);
+  const loadPassages = useCallback(
+    (isSilent = false) => performFetchPassages(isSilent),
+    [performFetchPassages]
+  );
 
   // Initial load and dependency-driven fetch on filter changes
   useEffect(() => {
-    let ignore = false;
-    const controller = new AbortController();
-
     async function init() {
-      if (!ignore) {
-        try {
-          await performFetchPassages(true, controller.signal);
-        } catch (err) {
-          if (err.name !== 'AbortError' && !ignore) {
-            console.error('Failed to initialize passages:', err);
-          }
-        }
-      }
+      await performFetchPassages(true);
     }
     init();
-
-    return () => {
-      ignore = true;
-      controller.abort();
-    };
   }, [performFetchPassages]);
 
   // Sort passages locally

@@ -49,3 +49,42 @@ describe('section helpers', () => {
     expect(getSectionPacingSeconds('nope')).toBe(96);
   });
 });
+
+import {
+  DIFFICULTY,
+  formatDifficulty,
+  getDifficultyBadgeClass,
+  normalizeDifficulty
+} from '../mcat';
+
+describe('normalizeDifficulty', () => {
+  it.each([
+    ['low', DIFFICULTY.LOW],
+    ['EASY', DIFFICULTY.LOW],
+    [' Medium ', DIFFICULTY.MEDIUM],
+    ['standard', DIFFICULTY.MEDIUM],
+    ['High', DIFFICULTY.HIGH],
+    ['hard', DIFFICULTY.HIGH]
+  ])('maps %s to %s', (input, expected) => {
+    expect(normalizeDifficulty(input)).toBe(expected);
+  });
+
+  it('returns null for empty or unknown input', () => {
+    for (const bad of ['', null, undefined, 'expert']) expect(normalizeDifficulty(bad)).toBeNull();
+  });
+});
+
+describe('difficulty display helpers', () => {
+  it('label and badge every alias consistently', () => {
+    expect(formatDifficulty('easy')).toBe('Easy');
+    expect(formatDifficulty('low')).toBe('Easy');
+    expect(formatDifficulty('hard')).toBe('Hard');
+    expect(getDifficultyBadgeClass('hard')).toBe('badge-rose');
+    expect(getDifficultyBadgeClass('LOW')).toBe('badge-emerald');
+  });
+
+  it('treat unknown levels as medium', () => {
+    expect(formatDifficulty('???')).toBe('Medium');
+    expect(getDifficultyBadgeClass(undefined)).toBe('badge-amber');
+  });
+});

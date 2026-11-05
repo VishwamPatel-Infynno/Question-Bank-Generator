@@ -9,6 +9,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import CustomSelect from '../common/CustomSelect';
+import { DIFFICULTY, normalizeDifficulty } from '../../constants';
 
 const SORT_OPTIONS = [
   { id: 'newest', label: 'Newest First' },
@@ -27,9 +28,9 @@ const SECTION_FILTER_OPTIONS = [
 
 const DIFFICULTY_FILTER_OPTIONS = [
   { id: '', label: 'All Levels' },
-  { id: 'low', label: 'Low' },
-  { id: 'medium', label: 'Medium' },
-  { id: 'high', label: 'High' }
+  { id: DIFFICULTY.LOW, label: 'Low' },
+  { id: DIFFICULTY.MEDIUM, label: 'Medium' },
+  { id: DIFFICULTY.HIGH, label: 'High' }
 ];
 
 /**
@@ -98,9 +99,7 @@ export default function QuestionBankFilters({
         {/* Difficulty Filter Chips */}
         <div className="pill-track qbank-filters-track-wrap">
           {DIFFICULTY_FILTER_OPTIONS.map(d => {
-            const isActive = diffFilter === d.id ||
-              (d.id === 'low' && diffFilter === 'easy') ||
-              (d.id === 'high' && diffFilter === 'hard');
+            const isActive = diffFilter === d.id || normalizeDifficulty(diffFilter) === d.id;
             return (
               <button
                 key={d.id}

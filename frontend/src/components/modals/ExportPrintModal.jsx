@@ -13,14 +13,9 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { fetchQuestions } from '../../services/api';
-import { useFocusTrap, useCopyToClipboard } from '../../hooks';
-import { 
-  formatExamTime,
-  generateExamCsv,
-  generateExamJson,
-  generateExamHtmlDoc,
-  downloadTextFile
-} from '../../utils';
+import { useFocusTrap, useExportActions } from '../../hooks';
+import { formatExamTime } from '../../utils';
+import { pickExportQuestions } from '../../utils/questionHelpers';
 import ExportPaperPreview from './ExportPaperPreview';
 import { EMPTY_ARRAY } from '../../constants';
 
@@ -43,9 +38,6 @@ export default function ExportPrintModal({
   const [scope, setScope] = useState(initialScope);
   const [format, setFormat] = useState('paper'); // 'paper' | 'csv' | 'json'
   const [paperMode, setPaperMode] = useState('student'); // 'student' | 'studypack'
-  const { copiedKey, copy } = useCopyToClipboard();
-  const copiedCsv = copiedKey === 'csv';
-  const copiedJson = copiedKey === 'json';
   const [fetchedAll, setFetchedAll] = useState(null);
   const previewRef = useRef(null);
 
@@ -60,130 +52,25 @@ export default function ExportPrintModal({
   // Compute active export dataset
   const bankPool = fetchedAll || allQuestions;
 
-  const exportQuestions = useMemo(() => {
-    if (scope === 'selected' && selectedIds.length > 0) {
-      return bankPool.filter(q => selectedIds.includes(q.id));
-    }
-    if (scope === 'filtered' && hasActiveFilters) {
-      return filteredQuestions;
-    }
-    return bankPool;
-  }, [scope, selectedIds, bankPool, filteredQuestions, hasActiveFilters]);
+  const exportQuestions = useMemo(
+    () =>
+      pickExportQuestions({ scope, selectedIds, bankPool, filteredQuestions, hasActiveFilters }),
+    [scope, selectedIds, bankPool, filteredQuestions, hasActiveFilters]
+  );
 
   const timeAllowed = useMemo(() => formatExamTime(exportQuestions), [exportQuestions]);
 
-  // Generate CSV String
-  const csvContent = useMemo(() => {
-    return generateExamCsv(exportQuestions);
-  }, [exportQuestions]);
-
-  // Download CSV
-  const handleDownloadCsv = () => {
-    if (!csvContent) return;
-    downloadTextFile(
-      csvContent,
-      `mcat_exam_${exportQuestions.length}_questions.csv`,
-      'text/csv;charset=utf-8;',
-      { bom: true }
-    );
-    if (onShowToast) {
-      onShowToast({
-        type: 'success',
-        title: 'CSV Exported',
-        message: `Successfully downloaded CSV for ${exportQuestions.length} questions.`
-      });
-    }
-  };
-
-  // Copy CSV
-  const handleCopyCsv = async () => {
-    if (!csvContent) return;
-    const ok = await copy(csvContent, 'csv');
-    if (ok) {
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Copied to Clipboard',
-          message: 'CSV data copied.'
-        });
-      }
-    } else {
-      // Clipboard needs HTTPS and permission; say so instead of failing silently
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Copy Failed',
-          message: 'The browser blocked clipboard access. Use Download instead.'
-        });
-      }
-    }
-  };
-
-  // Generate JSON String
-  const jsonContent = useMemo(() => {
-    return generateExamJson(exportQuestions);
-  }, [exportQuestions]);
-
-  // Download JSON
-  const handleDownloadJson = () => {
-    downloadTextFile(
-      jsonContent,
-      `mcat_exam_${exportQuestions.length}_questions.json`,
-      'application/json;charset=utf-8;'
-    );
-    if (onShowToast) {
-      onShowToast({
-        type: 'success',
-        title: 'JSON Exported',
-        message: `Successfully downloaded JSON for ${exportQuestions.length} questions.`
-      });
-    }
-  };
-
-  // Copy JSON
-  const handleCopyJson = async () => {
-    const ok = await copy(jsonContent, 'json');
-    if (ok) {
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Copied to Clipboard',
-          message: 'JSON data copied.'
-        });
-      }
-    } else {
-      // Clipboard needs HTTPS and permission; say so instead of failing silently
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Copy Failed',
-          message: 'The browser blocked clipboard access. Use Download instead.'
-        });
-      }
-    }
-  };
-
-  // Trigger Native Print / Save as PDF
-  const handleNativePrint = () => {
-    if (!exportQuestions || exportQuestions.length === 0) return;
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Pop-up Blocked',
-          message: 'Please allow pop-ups for this site to print or save as PDF.'
-        });
-      }
-      return;
-    }
-
-    const htmlDoc = generateExamHtmlDoc(exportQuestions, { paperMode });
-    printWindow.document.open();
-    printWindow.document.write(htmlDoc);
-    printWindow.document.close();
-  };
+  const {
+    csvContent,
+    jsonContent,
+    copiedCsv,
+    copiedJson,
+    handleDownloadCsv,
+    handleCopyCsv,
+    handleDownloadJson,
+    handleCopyJson,
+    handleNativePrint
+  } = useExportActions({ questions: exportQuestions, paperMode, onShowToast });
 
   if (!isOpen) return null;
 

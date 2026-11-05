@@ -225,19 +225,34 @@ export const DIFFICULTY_TIERS = [
   }
 ];
 
-export const formatDifficulty = (diff) => {
-  const d = (diff || '').toLowerCase();
-  if (d === 'low' || d === 'easy') return 'Easy';
-  if (d === 'high' || d === 'hard') return 'Hard';
-  return 'Medium';
-};
+/** The three difficulty levels the UI works with (the API/DB also stores easy/hard aliases). */
+export const DIFFICULTY = Object.freeze({ LOW: 'low', MEDIUM: 'medium', HIGH: 'high' });
 
-export const getDifficultyBadgeClass = (diff) => {
-  const d = (diff || '').toLowerCase();
-  if (d === 'low' || d === 'easy') return 'badge-emerald';
-  if (d === 'high' || d === 'hard') return 'badge-rose';
-  return 'badge-amber';
-};
+const DIFFICULTY_ALIASES = Object.freeze({
+  low: DIFFICULTY.LOW,
+  easy: DIFFICULTY.LOW,
+  medium: DIFFICULTY.MEDIUM,
+  standard: DIFFICULTY.MEDIUM,
+  high: DIFFICULTY.HIGH,
+  hard: DIFFICULTY.HIGH
+});
+
+/**
+ * Canonical level ('low' | 'medium' | 'high') for any stored spelling (case-insensitive, with the
+ * easy/hard/standard aliases), or null for empty or unknown input.
+ */
+export function normalizeDifficulty(diff) {
+  return DIFFICULTY_ALIASES[String(diff ?? '').trim().toLowerCase()] ?? null;
+}
+
+const DIFFICULTY_LABELS = { low: 'Easy', medium: 'Medium', high: 'Hard' };
+const DIFFICULTY_BADGES = { low: 'badge-emerald', medium: 'badge-amber', high: 'badge-rose' };
+
+export const formatDifficulty = (diff) =>
+  DIFFICULTY_LABELS[normalizeDifficulty(diff) ?? DIFFICULTY.MEDIUM];
+
+export const getDifficultyBadgeClass = (diff) =>
+  DIFFICULTY_BADGES[normalizeDifficulty(diff) ?? DIFFICULTY.MEDIUM];
 
 export * from './mcatTraps';
 
@@ -258,6 +273,14 @@ export const BATCH_STATUS = Object.freeze({
   FAILED: 'failed',
   CANCELLED: 'cancelled',
   STOPPED: 'stopped'
+});
+
+/** Values of the batch list's status filter tabs (a view concern: 'all' is not a status). */
+export const BATCH_FILTER = Object.freeze({
+  ALL: 'all',
+  RUNNING: BATCH_STATUS.IN_PROGRESS,
+  COMPLETED: BATCH_STATUS.COMPLETED,
+  FAILED: BATCH_STATUS.FAILED
 });
 
 /** Job lifecycle statuses (mirrors backend JobStatus). */

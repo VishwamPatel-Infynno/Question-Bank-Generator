@@ -1,13 +1,33 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "oxc"],
+  "plugins": [
+    "react",
+    "oxc"
+  ],
   "env": {
     "browser": true
   },
   "rules": {
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }],
-    "react/no-object-type-as-default-prop": "error"
-  }
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
+    "react/no-object-type-as-default-prop": "error",
+    "no-undef": "error"
+  },
+  "overrides": [
+    {
+      "files": [
+        "vite.config.js",
+        "scripts/**"
+      ],
+      "env": {
+        "node": true
+      }
+    }
+  ]
 }
