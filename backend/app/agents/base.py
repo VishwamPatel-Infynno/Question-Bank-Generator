@@ -11,7 +11,6 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 import json_repair
-import litellm
 
 from app.core.config import config
 from app.schemas import TokenUsage
@@ -21,9 +20,27 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-# Configure litellm behavior
-litellm.suppress_debug_info = True
-litellm.drop_params = True
+_litellm_module: Any = None
+
+
+def _get_litellm() -> Any:
+    """Imports litellm on first use (it is slow to import and not needed to boot or run tests)."""
+    global _litellm_module
+    if _litellm_module is None:
+        import litellm
+
+        litellm.suppress_debug_info = True
+        litellm.drop_params = True
+        _litellm_module = litellm
+    return _litellm_module
+
+
+def __getattr__(name: str) -> Any:
+    # Keeps `app.agents.base.litellm` working (tests patch it) without an eager import
+    if name == "litellm":
+        return _get_litellm()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 _global_llm_semaphore: asyncio.Semaphore | None = None
 
@@ -123,7 +140,7 @@ def normalize_model_for_litellm(model: str) -> str:
         if m.startswith(("anthropic/", "anthropic.")):
             return m
         try:
-            litellm.get_llm_provider(m)
+            _get_litellm().get_llm_provider(m)
             return m
         except Exception:
             return f"anthropic/{m}"
@@ -131,7 +148,7 @@ def normalize_model_for_litellm(model: str) -> str:
         if m.startswith(("openai/", "openai.")):
             return m
         try:
-            litellm.get_llm_provider(m)
+            _get_litellm().get_llm_provider(m)
             return m
         except Exception:
             return f"openai/{m}"
@@ -344,7 +361,7 @@ async def call_llm(
             try:
                 # Hold a global LLM slot only for the call itself, never while backing off.
                 async with semaphore:
-                    response = await litellm.acompletion(**kwargs)
+                    response = await _get_litellm().acompletion(**kwargs)
                 content = (response.choices[0].message.content or "").strip()
                 if not content:
                     finish_reason = getattr(response.choices[0], "finish_reason", "unknown")

@@ -9,6 +9,7 @@ to the client, manages worker pool concurrency, and stages questions for user co
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import uuid
@@ -48,6 +49,7 @@ from app.workflow.engine_helpers import (
     _refresh_duplicate_info_after_review,
     _run_deduplication_anti_collision_loop,
     _run_question_review_loop,
+    clear_in_flight_batch,
     count_llm_calls,
     remove_in_flight_draft,
 )
@@ -59,6 +61,9 @@ from app.workflow.nodes import (
 from app.workflow.state import AgentWorkflowState
 
 logger = logging.getLogger(__name__)
+
+# Max buffered SSE events before workers wait for the consumer to catch up
+_EVENT_QUEUE_MAX = 256
 
 
 async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, None]:
@@ -238,7 +243,10 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
         # Worker Pool Concurrency
         semaphore = get_global_pipeline_semaphore()
-        event_queue: asyncio.Queue[WorkflowEvent | None] = asyncio.Queue()
+        # Bounded so a stalled SSE consumer applies backpressure to the workers instead of letting
+        # events (each with a full question payload) pile up in memory. Nothing is dropped.
+        event_queue: asyncio.Queue[WorkflowEvent | None] = asyncio.Queue(maxsize=_EVENT_QUEUE_MAX)
+        monitor_done = asyncio.Event()
 
         outcomes_questions: list[dict[str, Any] | None] = [None] * total_qty
         outcomes_rejections: list[dict[str, Any]] = []
@@ -692,12 +700,21 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             exc_info=res,
                         )
             finally:
-                await event_queue.put(None)
+                # Never block here: when the queue is full (or this task is being cancelled) the
+                # flag alone ends the consumer loop once it has drained what is queued.
+                monitor_done.set()
+                with contextlib.suppress(asyncio.QueueFull):
+                    event_queue.put_nowait(None)
 
         monitor_task = asyncio.create_task(_monitor_tasks())
 
         while True:
-            evt = await event_queue.get()
+            try:
+                evt = await asyncio.wait_for(event_queue.get(), timeout=1.0)
+            except TimeoutError:
+                if monitor_done.is_set() and event_queue.empty():
+                    break
+                continue
             if evt is None:
                 break
             yield f"data: {evt.model_dump_json()}\n\n"
@@ -864,6 +881,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             t.cancel()
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
+        # Drop anything a cancelled worker left in the sibling-collision pool
+        await clear_in_flight_batch(batch_id)
 
 
 class WorkflowRunResult:

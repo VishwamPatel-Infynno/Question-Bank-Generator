@@ -852,6 +852,21 @@ async def _handle_live_job_failure(
         logger.warning(f"Error updating failed live batch {batch_id}: {clean_err}")
 
 
+# Pools at least this large are scored in a worker thread so the event loop (SSE, polling, other
+# slots) is not blocked by pure-CPU string matching.
+_DEDUP_THREAD_POOL_MIN = 150
+
+
+async def _evaluate_duplicate_async(
+    draft: dict[str, Any], ref_pool: list[Any], *, threshold: float, soft_threshold: float
+):
+    if len(ref_pool) >= _DEDUP_THREAD_POOL_MIN:
+        return await asyncio.to_thread(
+            evaluate_duplicate, draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
+        )
+    return evaluate_duplicate(draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold)
+
+
 _IN_FLIGHT_BATCH_STEMS: dict[str, list[dict[str, Any]]] = {}
 _IN_FLIGHT_LOCK = asyncio.Lock()
 
@@ -894,6 +909,14 @@ async def remove_in_flight_draft(batch_id: str | None, worker_idx: int) -> None:
             _IN_FLIGHT_BATCH_STEMS.pop(batch_id, None)
 
 
+async def clear_in_flight_batch(batch_id: str | None) -> None:
+    """Forgets every in-flight draft of a batch (end of run, whatever the exit path)."""
+    if not batch_id:
+        return
+    async with _IN_FLIGHT_LOCK:
+        _IN_FLIGHT_BATCH_STEMS.pop(batch_id, None)
+
+
 async def _refresh_duplicate_info_after_review(
     state: AgentWorkflowState,
     idx: int,
@@ -918,7 +941,7 @@ async def _refresh_duplicate_info_after_review(
     ref_pool = (
         list(db_reference_pool) + [q for q in outcomes_questions if q is not None] + in_flight
     )
-    result = evaluate_duplicate(
+    result = await _evaluate_duplicate_async(
         cur_draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
     )
     state["duplicate_info"] = result.model_dump()
@@ -958,7 +981,7 @@ async def _run_deduplication_anti_collision_loop(
     active_siblings = [q for q in outcomes_questions if q is not None]
     ref_pool = list(db_reference_pool) + active_siblings + in_flight
 
-    dup_result = evaluate_duplicate(
+    dup_result = await _evaluate_duplicate_async(
         cur_draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
     )
 
@@ -1010,7 +1033,7 @@ async def _run_deduplication_anti_collision_loop(
         await register_in_flight_draft(batch_key, cur_draft, idx)
         in_flight = await get_in_flight_drafts(batch_key, idx)
         ref_pool = list(db_reference_pool) + active_siblings + in_flight
-        dup_result = evaluate_duplicate(
+        dup_result = await _evaluate_duplicate_async(
             cur_draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
         )
 

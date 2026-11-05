@@ -46,3 +46,9 @@ Prompts are long and heavily tuned. Make surgical edits, keep section numbering,
 
 ## Tests without live LLMs
 Mock fixtures are in `agents/mock_fixtures.py` and `_mock_tokens.py`. Tests marked `live_e2e` hit real APIs and are excluded by default; never run them without the user's say-so since they cost money.
+
+## Runtime hygiene
+- The SSE event queue is bounded (`_EVENT_QUEUE_MAX`): a slow consumer slows workers instead of growing memory; no event is dropped. The monitor ends the stream via a flag, never a blocking put.
+- `clear_in_flight_batch` runs in the engine's `finally`; per-worker `remove_in_flight_draft` remains for normal paths.
+- `litellm` is imported lazily through `_get_litellm()` in `agents/base.py`; never add a top-level `import litellm` (a test guards it).
+- `compute_*_similarity(..., prune=True)` returns upper bounds for clearly distinct pairs: use it only to decide duplicate status, not to display exact scores.

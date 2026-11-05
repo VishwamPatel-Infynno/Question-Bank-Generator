@@ -8,6 +8,7 @@ or active batch siblings to prevent repetitive questions.
 
 from __future__ import annotations
 
+import contextlib
 import difflib
 import logging
 import re
@@ -143,7 +144,9 @@ def get_or_create_stem_tokens(stem: str | None) -> _StemTokens:
     norm = normalize_text(stem)
     cached = _STEM_TOKEN_CACHE.get(norm)
     if cached is not None:
-        _STEM_TOKEN_CACHE.move_to_end(norm)
+        # A concurrent worker thread may have evicted it; the cached value is still valid
+        with contextlib.suppress(KeyError):
+            _STEM_TOKEN_CACHE.move_to_end(norm)
         return cached
 
     tokens = [t for t in norm.split() if t not in STOP_WORDS and len(t) > 1] if norm else []
@@ -154,8 +157,9 @@ def get_or_create_stem_tokens(stem: str | None) -> _StemTokens:
     item: _StemTokens = (norm, tokens, token_set, bigrams)
 
     _STEM_TOKEN_CACHE[norm] = item
-    while len(_STEM_TOKEN_CACHE) > _MAX_STEM_CACHE_SIZE:
-        _STEM_TOKEN_CACHE.popitem(last=False)
+    with contextlib.suppress(KeyError):  # another thread may already have trimmed it
+        while len(_STEM_TOKEN_CACHE) > _MAX_STEM_CACHE_SIZE:
+            _STEM_TOKEN_CACHE.popitem(last=False)
     return item
 
 
@@ -171,10 +175,20 @@ def compute_sequence_ratio(text1: str, text2: str) -> float:
     return round(matcher.ratio(), 4)
 
 
-def compute_stem_similarity(stem1: str, stem2: str) -> float:
+# A pair whose stem similarity is below this can never be flagged: compute_question_similarity
+# short-circuits to 0.7 * stem_sim (< 0.28), under any sane soft threshold.
+_STEM_PRUNE_BELOW = 0.40
+
+
+def compute_stem_similarity(stem1: str, stem2: str, *, prune: bool = False) -> float:
     """
     Hybrid stem similarity combining token containment, 1-gram Jaccard, 2-gram Jaccard,
     and character sequence ratio.
+
+    With ``prune=True`` the expensive SequenceMatcher ratio is skipped when cheap upper bounds
+    already prove the blended score stays under ``_STEM_PRUNE_BELOW``; the returned value is then
+    an upper bound (still below the cut-off), not the exact score. Callers that only need to know
+    whether a pair can be a duplicate use this; the default stays exact.
     """
     norm1, tokens1, s1, b1 = get_or_create_stem_tokens(stem1)
     norm2, tokens2, s2, b2 = get_or_create_stem_tokens(stem2)
@@ -190,7 +204,17 @@ def compute_stem_similarity(stem1: str, stem2: str) -> float:
     u2 = len(b1 | b2)
     jaccard_2 = len(b1 & b2) / u2 if u2 > 0 else 0.0
 
-    seq_ratio = difflib.SequenceMatcher(None, norm1, norm2).ratio() if norm1 and norm2 else 0.0
+    seq_ratio = 0.0
+    if norm1 and norm2:
+        matcher = difflib.SequenceMatcher(None, norm1, norm2)
+        if prune:
+            base = (0.35 * containment) + (0.25 * jaccard_1) + (0.20 * jaccard_2)
+            # real_quick_ratio >= quick_ratio >= ratio, each cheaper than the next
+            for bound in (matcher.real_quick_ratio, matcher.quick_ratio):
+                upper = base + 0.20 * bound()
+                if upper < _STEM_PRUNE_BELOW - 1e-4:
+                    return round(upper, 4)
+        seq_ratio = matcher.ratio()
 
     # Weighted blend: 35% containment, 25% 1-gram Jaccard, 20% 2-gram Jaccard, 20% SequenceMatcher
     score = (0.35 * containment) + (0.25 * jaccard_1) + (0.20 * jaccard_2) + (0.20 * seq_ratio)
@@ -240,10 +264,13 @@ def compute_options_overlap(
 def compute_question_similarity(
     candidate: dict[str, Any] | Any,
     reference: dict[str, Any] | Any,
+    *,
+    prune: bool = False,
 ) -> tuple[float, str]:
     """
     Computes comprehensive similarity between two questions.
-    Returns (similarity_score, reason).
+    Returns (similarity_score, reason). ``prune=True`` may return a score for clearly distinct
+    pairs that is an upper bound rather than exact (see ``compute_stem_similarity``).
     """
     stem1 = (
         candidate.get("question_stem")
@@ -255,7 +282,7 @@ def compute_question_similarity(
         if isinstance(reference, dict)
         else getattr(reference, "question_stem", "")
     )
-    stem_sim = compute_stem_similarity(stem1, stem2)
+    stem_sim = compute_stem_similarity(stem1, stem2, prune=prune)
 
     # Early-exit prune: if stem similarity is below 0.40, composite similarity can NEVER reach 0.80
     if stem_sim < 0.40:
@@ -328,7 +355,7 @@ def evaluate_duplicate(
         if candidate_id and ref_id and str(candidate_id) == str(ref_id):
             continue
 
-        score, reason = compute_question_similarity(candidate, ref)
+        score, reason = compute_question_similarity(candidate, ref, prune=True)
         if score > highest_score:
             highest_score = score
             matched_ref = ref
