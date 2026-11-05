@@ -90,6 +90,24 @@ async def _persist_job_question(
         return (None, False)
 
 
+def _is_passage_mode(req: GenerationRequest) -> bool:
+    """Returns True when the request needs a shared passage (CARS, single-passage, or explicit)."""
+    return (
+        _is_cars_section(req.section)
+        or req.passage_mode == "single_passage"
+        or str(req.passage_required).lower() in ("yes", "true", "1")
+    )
+
+
+async def _get_active_job_questions(batch_id: str, job_id: str) -> list[Question]:
+    """Returns the job's questions that currently count toward its target (not deleted/discarded)."""
+    return [
+        q
+        for q in await get_questions(batch_id=batch_id, job_id=job_id)
+        if is_question_active(q.status)
+    ]
+
+
 async def _run_single_job(
     batch_id: str,
     job: GenerationJob,
@@ -104,12 +122,7 @@ async def _run_single_job(
     max_trials = 3
     async with semaphore:
         total_jobs = len(await get_jobs_by_batch_id(batch_id)) or 10
-        is_cars = _is_cars_section(base_req.section)
-        is_passage_mode = (
-            is_cars
-            or base_req.passage_mode == "single_passage"
-            or str(base_req.passage_required).lower() in ("yes", "true", "1")
-        )
+        is_passage_mode = _is_passage_mode(base_req)
 
         passage_id_for_job = job.passage_id or (str(uuid.uuid4()) if is_passage_mode else None)
         job_tokens = job.total_tokens or 0
@@ -126,11 +139,7 @@ async def _run_single_job(
             now_iso = datetime.now(UTC).isoformat()
 
             # Check existing active questions for this set
-            existing_active_qs = [
-                q
-                for q in (await get_questions(batch_id=batch_id, job_id=job.id))
-                if is_question_active(q.status)
-            ]
+            existing_active_qs = await _get_active_job_questions(batch_id, job.id)
             deficit = max(0, (job.target_count or 5) - len(existing_active_qs))
             if deficit <= 0 and len(existing_active_qs) >= (job.target_count or 5):
                 logger.info(
@@ -233,11 +242,7 @@ async def _run_single_job(
 
             except asyncio.CancelledError:
                 logger.info(f"Job {job.job_number}/{total_jobs} (ID: {job.id}) was cancelled.")
-                current_qs = [
-                    q
-                    for q in (await get_questions(batch_id=batch_id, job_id=job.id))
-                    if is_question_active(q.status)
-                ]
+                current_qs = await _get_active_job_questions(batch_id, job.id)
                 await update_job_progress(
                     job.id,
                     status="cancelled",
@@ -261,11 +266,7 @@ async def _run_single_job(
                 await update_job_progress(job.id, error_message=str(exc))
 
             # Re-evaluate active question count after attempt
-            updated_active_qs = [
-                q
-                for q in (await get_questions(batch_id=batch_id, job_id=job.id))
-                if is_question_active(q.status)
-            ]
+            updated_active_qs = await _get_active_job_questions(batch_id, job.id)
             if len(updated_active_qs) >= (job.target_count or 5):
                 logger.info(
                     f"Job {job.job_number}/{total_jobs} (ID: {job.id}) successfully reached target "
@@ -274,11 +275,7 @@ async def _run_single_job(
                 break
 
         # Finalize job progress after all attempts
-        final_active_qs = [
-            q
-            for q in (await get_questions(batch_id=batch_id, job_id=job.id))
-            if is_question_active(q.status)
-        ]
+        final_active_qs = await _get_active_job_questions(batch_id, job.id)
         final_count = len(final_active_qs)
         completed_now = datetime.now(UTC).isoformat()
         job_status = "completed" if final_count > 0 else "failed"
@@ -326,18 +323,9 @@ async def _run_single_job_refill(
         )
 
         # Determine passage and stimulus from existing questions in this job
-        job_existing_qs = [
-            q
-            for q in (await get_questions(batch_id=batch_id, job_id=job.id))
-            if is_question_active(q.status)
-        ]
+        job_existing_qs = await _get_active_job_questions(batch_id, job.id)
 
-        is_cars = _is_cars_section(base_req.section)
-        is_passage_mode = (
-            is_cars
-            or base_req.passage_mode == "single_passage"
-            or str(base_req.passage_required).lower() in ("yes", "true", "1")
-        )
+        is_passage_mode = _is_passage_mode(base_req)
 
         passage_id_for_job = job.passage_id or (
             job_existing_qs[0].passage_id if job_existing_qs else None

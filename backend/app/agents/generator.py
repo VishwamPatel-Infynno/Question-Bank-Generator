@@ -343,8 +343,9 @@ STANDARDS FOR AAMC MCAT PASSAGES:
                     passage_text = str(data["text"]).strip()
                     image_needed = bool(data.get("image_needed", True))
                     image_prompt = data.get("image_prompt")
-            except Exception:
-                pass
+            except Exception as parse_err:
+                # Plain-text passages are valid; fall back to the cleaned raw output.
+                logger.debug("Passage output was not JSON, using raw text: %s", parse_err)
 
             # Guarantee that science passages have a diagram when visuals are permitted
             image_needed = True

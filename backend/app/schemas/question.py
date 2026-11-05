@@ -347,6 +347,14 @@ class BatchDetailResponse(BaseModel):
     questions: list[Question] = Field(default_factory=list)
 
 
+class ResolveDuplicatesRequest(BaseModel):
+    """Payload for resolving duplicate clusters inside a batch."""
+
+    action: str = "delete"  # "delete" (permanently remove) or "archive" (mark status='discarded')
+    cluster_ids: list[str] | None = None  # Specific cluster IDs, or None for all
+    custom_leader_ids: list[str] | None = None  # Optional custom leader question IDs
+
+
 class BatchDeleteRequest(BaseModel):
     """Request body for bulk question deletion."""
 

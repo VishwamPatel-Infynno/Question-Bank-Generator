@@ -24,7 +24,7 @@ Verifies that PostgreSQL 16 is running on port `5432` with database `mcat_db`.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r backend/requirements.txt
+pip install -r backend/requirements-dev.txt
 cp .env.example .env
 ```
 Run FastAPI dev server:

@@ -17,7 +17,7 @@ pnpm dev                 # predev frees :8000 and :5173, then runs backend + fro
 ## First-time setup
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r backend/requirements.txt
+pip install -r backend/requirements-dev.txt
 cp .env.example .env     # then fill provider keys
 pnpm install
 ```

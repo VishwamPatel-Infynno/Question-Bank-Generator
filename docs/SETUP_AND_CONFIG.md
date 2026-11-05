@@ -112,7 +112,7 @@ source .venv/bin/activate
 
 # 3. Upgrade pip and install backend dependencies
 pip install --upgrade pip
-pip install -r backend/requirements.txt
+pip install -r backend/requirements-dev.txt
 
 # 4. Launch the FastAPI server with hot-reload
 PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload

@@ -115,7 +115,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # Install backend dependencies
-pip install -r backend/requirements.txt
+pip install -r backend/requirements-dev.txt
 
 # Start FastAPI server
 PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
@@ -201,7 +201,7 @@ Question Bank Generator/
 │   └── testsprite-mcp-test-report.html # HTML visual test report
 ├── backend/
 │   ├── README.md                # Dedicated backend developer guide (20 test modules)
-│   ├── requirements.txt         # Python dependencies
+│   ├── requirements.txt         # Runtime dependencies (requirements-dev.txt adds pytest, ruff, httpx)
 │   ├── scripts/
 │   │   └── seed_questions.py    # CLI database seeding script with authentic AAMC rubrics
 │   ├── tests/

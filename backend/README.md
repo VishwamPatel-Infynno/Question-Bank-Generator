@@ -161,7 +161,7 @@ source .venv/bin/activate
 
 # Upgrade pip and install requirements
 pip install --upgrade pip
-pip install -r backend/requirements.txt
+pip install -r backend/requirements-dev.txt
 ```
 
 ### Step 2: Database Initialization

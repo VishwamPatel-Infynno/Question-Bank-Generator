@@ -29,7 +29,7 @@ def to_datetime(val: Any) -> datetime:
             if dt.tzinfo is None:
                 return dt.replace(tzinfo=UTC)
             return dt
-        except Exception:
+        except ValueError:
             pass
     return datetime.now(UTC)
 

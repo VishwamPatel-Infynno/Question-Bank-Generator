@@ -4,7 +4,6 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel
 
 from app.repositories import (
     batch_update_question_status,
@@ -17,7 +16,12 @@ from app.repositories import (
     refresh_batch_aggregates,
     save_batch,
 )
-from app.schemas import GenerationBatch, GenerationRequest, is_question_active
+from app.schemas import (
+    GenerationBatch,
+    GenerationRequest,
+    ResolveDuplicatesRequest,
+    is_question_active,
+)
 from app.services import (
     cancel_all_background_batches,
     cancel_background_batch,
@@ -174,12 +178,6 @@ async def create_or_update_batch(batch: GenerationBatch):
     """Admin endpoint to create or update a generation batch record."""
     saved = await save_batch(batch)
     return {"success": True, "batch": saved.model_dump()}
-
-
-class ResolveDuplicatesRequest(BaseModel):
-    action: str = "delete"  # "delete" (permanently remove) or "archive" (mark status='discarded')
-    cluster_ids: list[str] | None = None  # Specific cluster IDs, or None for all
-    custom_leader_ids: list[str] | None = None  # Optional custom leader question IDs
 
 
 @router.get("/batches/{batch_id}/duplicate-clusters")
