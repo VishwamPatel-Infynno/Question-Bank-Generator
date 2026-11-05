@@ -46,8 +46,6 @@ body {
   border-color: var(--border-medium);
 }
 
-
-
 /* Primary Action Buttons */
 .btn-primary {
   display: inline-flex;
@@ -283,7 +281,6 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
-
 /* Minimalist Choice Cards (Question Preview) */
 .choice-option-card {
   display: flex;
@@ -334,7 +331,6 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--status-success);
   color: #ffffff;
 }
-
 
 @keyframes spin {
   from {
@@ -496,8 +492,6 @@ input:focus, select:focus, textarea:focus {
   letter-spacing: -0.003em;
 }
 
-
-
 /* Modern Minimalist Badge */
 .badge-minimal {
   display: inline-flex;
@@ -513,28 +507,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Shimmer Skeleton Animation */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--bg-surface-subtle) 25%,
-    var(--bg-surface-elevated) 50%,
-    var(--bg-surface-subtle) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.8s infinite ease-in-out;
-  border-radius: var(--radius-xs);
-}
-
-
 /* ==========================================================================
    CORE SHARED PRIMITIVES, MODALS & GLOBAL SHELL (Track 9)
    ========================================================================== */
@@ -786,9 +758,7 @@ input:focus, select:focus, textarea:focus {
   flex-shrink: 0;
 }
 
-
 .no-margin {
   margin: 0 !important;
 }
-
 

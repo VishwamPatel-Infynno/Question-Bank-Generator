@@ -1,6 +1,5 @@
 import { ChevronDown, ChevronUp, Sliders, CheckCircle2 } from 'lucide-react';
-
-const EMPTY_ARRAY = Object.freeze([]);
+import { EMPTY_ARRAY } from '../../../constants';
 
 /**
  * WizardAdvancedSettings

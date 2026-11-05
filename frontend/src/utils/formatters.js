@@ -58,6 +58,20 @@ export function formatTokenCount(tokens) {
  * @param {string} iso - ISO date string
  * @returns {string} Formatted date e.g. "Oct 28, 2026"
  */
+/** Local date and time of an ISO timestamp, or '' when missing/invalid. */
+export function formatDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '' : d.toLocaleString();
+}
+
+/** Local hh:mm of an ISO timestamp, or '' when missing/invalid. */
+export function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 export function formatDate(iso) {
   if (!iso) return '';
   try {

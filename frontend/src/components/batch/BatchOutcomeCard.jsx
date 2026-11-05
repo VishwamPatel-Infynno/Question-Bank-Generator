@@ -7,6 +7,7 @@ import {
   ArrowRight,
   RotateCcw
 } from 'lucide-react';
+import { BATCH_STATUS, isStoppedStatus } from '../../constants';
 
 function BatchOutcomeCard({
   batch,
@@ -60,7 +61,7 @@ function BatchOutcomeCard({
     );
   }
 
-  if (batch.status === 'partially_completed') {
+  if (batch.status === BATCH_STATUS.PARTIALLY_COMPLETED) {
     return (
       <div className="batch-outcome-card warning" onClick={(e) => e.stopPropagation()}>
         <div className="batch-outcome-left">
@@ -101,7 +102,7 @@ function BatchOutcomeCard({
     );
   }
 
-  if (batch.status === 'stopped' || batch.status === 'cancelled') {
+  if (isStoppedStatus(batch.status)) {
     return (
       <div className="batch-outcome-card stopped" onClick={(e) => e.stopPropagation()}>
         <div className="batch-outcome-left">

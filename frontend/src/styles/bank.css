@@ -254,35 +254,6 @@
   flex-wrap: wrap;
 }
 
-.validated-options-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-@media (max-width: 640px) {
-  .validated-options-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.validated-option-cell {
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-surface-elevated);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-}
-
-.validated-option-cell.correct {
-  background: var(--status-success-bg, rgba(16, 185, 129, 0.08));
-  border-color: var(--status-success-border, rgba(16, 185, 129, 0.25));
-}
-
 .validated-score-pill {
   background: var(--status-success-bg, rgba(16, 185, 129, 0.08));
   color: var(--status-success, #10b981);
@@ -369,18 +340,6 @@
   border-color: var(--status-success, #10b981) !important;
 }
 
-.validated-stats-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 18px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  flex-wrap: wrap;
-}
-
 .validated-filters-bar {
   display: flex;
   align-items: center;
@@ -393,13 +352,11 @@
   flex-wrap: wrap;
 }
 
-
 .ai-validated-list-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-
 
 .qbank-header-stat-num {
   color: var(--text-primary);
@@ -423,7 +380,6 @@
   align-items: center;
   gap: 6px;
 }
-
 
 /* ==========================================================================
    Track 12: Question Bank & AI-Validated Complete Sub-Element Tokenization
@@ -480,14 +436,6 @@
 }
 
 .validated-stats-btn-primary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 0.76rem;
-}
-
-.validated-stats-btn-danger {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -837,15 +785,6 @@
   border: 1px solid var(--status-warning-border);
 }
 
-.qbank-table-opt-letter {
-  font-weight: 700;
-  min-width: 16px;
-}
-
-.qbank-table-opt-letter.correct {
-  color: var(--status-success);
-}
-
 .qbank-table-action-btn {
   padding: 6px 12px;
   font-size: 0.78rem;
@@ -932,5 +871,4 @@
   font-size: 0.78rem;
   gap: 6px;
 }
-
 

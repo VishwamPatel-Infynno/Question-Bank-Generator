@@ -62,7 +62,7 @@ function keyedByIdAndCode(pick) {
  * Resolves a section id, short code, or legacy label to a canonical id (chem_phys, cars,
  * bio_biochem, psych_soc), or null when it cannot be recognized.
  */
-export function normalizeSectionId(section) {
+function normalizeSectionId(section) {
   if (!section) return null;
   if (SECTIONS[section]) return section;
   if (SECTION_CODE_TO_ID[section]) return SECTION_CODE_TO_ID[section];
@@ -245,3 +245,42 @@ export * from './mcatTraps';
  * here so the review queue and the batch views never disagree.
  */
 export const SCORE_CUTOFFS = Object.freeze({ aiValidatedAbove: 90, batchAbove: 85 });
+
+/** Batch lifecycle statuses as the API returns them (mirrors backend BatchStatus). */
+export const BATCH_STATUS = Object.freeze({
+  PENDING: 'pending',
+  IN_PROGRESS: 'in_progress',
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+  PARTIALLY_COMPLETED: 'partially_completed',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+  STOPPED: 'stopped'
+});
+
+/** Job lifecycle statuses (mirrors backend JobStatus). */
+export const JOB_STATUS = Object.freeze({
+  PENDING: 'pending',
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+  STOPPED: 'stopped'
+});
+
+/** Question lifecycle statuses (mirrors backend QuestionStatus). */
+export const QUESTION_STATUS = Object.freeze({
+  IN_BANK: 'in_bank',
+  AI_VALIDATED: 'ai_validated',
+  BATCH_ONLY: 'batch_only',
+  BELOW_THRESHOLD: 'below_threshold',
+  DISCARDED: 'discarded',
+  DELETED: 'deleted'
+});
+
+/** True for a batch or job that was halted (stopped by the user or cancelled). */
+export const isStoppedStatus = (status) =>
+  status === BATCH_STATUS.STOPPED || status === BATCH_STATUS.CANCELLED;
+
+export const EMPTY_ARRAY = Object.freeze([]);
+export const EMPTY_OBJECT = Object.freeze({});

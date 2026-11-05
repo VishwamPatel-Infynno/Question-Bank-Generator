@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCopyToClipboard } from './useCopyToClipboard';
 import { fetchQuestions, deleteQuestion } from '../services/api';
+import { QUESTION_STATUS } from '../constants';
 
 export function useQuestionBank() {
   const [rawQuestions, setRawQuestions] = useState([]);
@@ -8,13 +10,11 @@ export function useQuestionBank() {
   const [loadError, setLoadError] = useState(null);
   const [sectionFilter, setSectionFilter] = useState('');
   const [diffFilter, setDiffFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('in_bank');
+  const [statusFilter, setStatusFilter] = useState(QUESTION_STATUS.IN_BANK);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'score_desc' | 'score_asc' | 'difficulty'
-  const [copiedId, setCopiedId] = useState(null);
-  const copiedTimerRef = useRef(null);
-  useEffect(() => () => clearTimeout(copiedTimerRef.current), []);
+  const { copiedKey: copiedId, copy } = useCopyToClipboard();
   // Debounce search query by 250ms
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -36,7 +36,7 @@ export function useQuestionBank() {
         section: sectionFilter || undefined,
         difficulty: diffFilter || undefined,
         search: debouncedSearch || undefined,
-        status: statusFilter || 'in_bank',
+        status: statusFilter || QUESTION_STATUS.IN_BANK,
         sort_by: sortBy || 'newest',
         slim: true
       },
@@ -93,17 +93,8 @@ export function useQuestionBank() {
       `Question: ${q.question_stem}\n\n` +
       (q.options || []).map((o) => `${o.id}: ${o.text}`).join('\n') +
       `\n\nCorrect Answer: ${q.correct_answer_id}\n\nExplanation: ${q.explanation}`;
-    // writeText rejects on non-secure origins or when permission is denied: only report "copied"
-    // when it really worked
-    navigator.clipboard
-      ?.writeText(formatted)
-      .then(() => {
-        setCopiedId(q.id);
-        clearTimeout(copiedTimerRef.current);
-        copiedTimerRef.current = setTimeout(() => setCopiedId(null), 2000);
-      })
-      .catch((err) => console.warn('Clipboard copy failed:', err));
-  }, []);
+    copy(formatted, q.id);
+  }, [copy]);
 
   const handleUpdate = useCallback((updatedQuestion) => {
     setRawQuestions((prev) =>

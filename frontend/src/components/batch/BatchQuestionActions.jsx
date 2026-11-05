@@ -1,5 +1,6 @@
 import React from 'react';
 import { Database, Sparkles, RotateCcw } from 'lucide-react';
+import { QUESTION_STATUS } from '../../constants';
 
 /**
  * BatchQuestionActions - Bottom action bar for question items (Restore, Save to Bank, Review, Audit).
@@ -13,7 +14,7 @@ export default function BatchQuestionActions({
   onSaveToBank,
   onRestoreQuestion
 }) {
-  const isDeleted = Boolean(question.is_deleted && question.status !== 'discarded');
+  const isDeleted = Boolean(question.is_deleted && question.status !== QUESTION_STATUS.DISCARDED);
 
   return (
     <div className="batch-qitem-actions-bar">
@@ -33,7 +34,7 @@ export default function BatchQuestionActions({
           </button>
         )}
 
-        {!isDeleted && status === 'batch_only' && onSaveToBank && (
+        {!isDeleted && status === QUESTION_STATUS.BATCH_ONLY && onSaveToBank && (
           <button
             type="button"
             onClick={() => onSaveToBank(question)}
@@ -45,7 +46,7 @@ export default function BatchQuestionActions({
           </button>
         )}
 
-        {!isDeleted && status === 'ai_validated' && onNavigateToValidated && (
+        {!isDeleted && status === QUESTION_STATUS.AI_VALIDATED && onNavigateToValidated && (
           <button
             type="button"
             onClick={onNavigateToValidated}
@@ -57,7 +58,7 @@ export default function BatchQuestionActions({
           </button>
         )}
 
-        {!isDeleted && status === 'in_bank' && onNavigateToBank && (
+        {!isDeleted && status === QUESTION_STATUS.IN_BANK && onNavigateToBank && (
           <button
             type="button"
             onClick={onNavigateToBank}

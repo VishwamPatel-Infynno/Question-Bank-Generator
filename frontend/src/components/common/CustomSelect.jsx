@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import { ChevronDown, Check, Search } from 'lucide-react';
+import { EMPTY_ARRAY, EMPTY_OBJECT } from '../../constants';
 
 /**
  * CustomSelect:
@@ -21,8 +22,6 @@ import { ChevronDown, Check, Search } from 'lucide-react';
  * - menuStyle?: React.CSSProperties
  * - align?: 'left' | 'right'
  */
-const EMPTY_ARRAY = [];
-const EMPTY_OBJECT = Object.freeze({});
 
 export default function CustomSelect({
   id,

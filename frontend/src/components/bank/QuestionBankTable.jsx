@@ -17,7 +17,7 @@ import VisualStimulusViewer from '../question/VisualStimulusViewer';
 import SharedPassageCard from '../question/SharedPassageCard';
 import MentorExplanationView from '../question/MentorExplanationView';
 import { countWords, getEffectiveTrapInfo } from '../../utils';
-import { formatDifficulty, getDifficultyBadgeClass, getSectionBadgeClass } from '../../constants/mcat';
+import { EMPTY_ARRAY, formatDifficulty, getDifficultyBadgeClass, getSectionBadgeClass } from '../../constants';
 
 const SECTION_SHORT_LABEL = {
   chem_phys: 'Chem / Phys',
@@ -254,8 +254,6 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
     </div>
   );
 });
-
-const EMPTY_ARRAY = Object.freeze([]);
 
 /**
  * QuestionBankTable

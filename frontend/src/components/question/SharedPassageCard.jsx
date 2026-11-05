@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { countWords } from '../../utils';
 import VisualStimulusViewer from './VisualStimulusViewer';
+import { EMPTY_OBJECT } from '../../constants';
 
 /**
  * SharedPassageCard:
@@ -17,7 +18,6 @@ import VisualStimulusViewer from './VisualStimulusViewer';
  * - High-legibility editorial serif passage typography.
  * - Embedded VisualStimulusViewer with fullscreen preview support.
  */
-const EMPTY_OBJECT = Object.freeze({});
 
 export default function SharedPassageCard({
   title,

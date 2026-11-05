@@ -8,11 +8,9 @@ import {
   Clock,
   CheckCircle2
 } from 'lucide-react';
-import { MCAT_SECTION_LABELS } from '../../constants/mcat';
+import { EMPTY_ARRAY, MCAT_SECTION_LABELS } from '../../constants';
 import { formatCostUsd, formatTokenCount } from '../../utils';
 import { LiveStopwatch } from '../common';
-
-const EMPTY_ARRAY = [];
 
 function ActiveMultiBatchMonitor({
   activeBatches = EMPTY_ARRAY,

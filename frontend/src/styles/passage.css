@@ -572,17 +572,6 @@
   color: var(--text-muted);
 }
 
-
-.passage-stimulus-editor-card {
-  background: var(--bg-surface-subtle);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .passage-stimulus-editor-badge {
   font-size: 0.625rem;
   padding: 2px 6px;
@@ -597,7 +586,6 @@
   align-items: center;
   gap: 4px;
 }
-
 
 /* --- COMPREHENSIVE FINAL SWEEP TOKENS (DESIGN.md) --- */
 
@@ -752,5 +740,4 @@
   margin-top: 2px;
   flex-shrink: 0;
 }
-
 

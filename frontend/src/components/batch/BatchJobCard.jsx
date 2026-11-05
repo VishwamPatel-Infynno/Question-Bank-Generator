@@ -10,6 +10,7 @@ import BatchJobHeader from './BatchJobHeader';
 import BatchJobPillStrip from './BatchJobPillStrip';
 import BatchJobTelemetryBadges from './BatchJobTelemetryBadges';
 import BatchQuestionItem from './BatchQuestionItem';
+import { JOB_STATUS, QUESTION_STATUS } from '../../constants';
 
 /**
  * BatchJobCard - Coordinates an individual question set (e.g. Set #1 of 10) in a batch card.
@@ -27,17 +28,17 @@ export default function BatchJobCard({
   if (!job) return null;
 
   const jobQuestions = job.questions || [];
-  const isJobDone = job.status === 'completed';
-  const isJobRunning = job.status === 'running';
-  const isJobFailed = job.status === 'failed';
-  const isJobPending = job.status === 'pending';
+  const isJobDone = job.status === JOB_STATUS.COMPLETED;
+  const isJobRunning = job.status === JOB_STATUS.RUNNING;
+  const isJobFailed = job.status === JOB_STATUS.FAILED;
+  const isJobPending = job.status === JOB_STATUS.PENDING;
   const targetCount = job.target_count || 5;
 
   const counts = computeJobQuestionCounts(jobQuestions);
   const hasPassage = hasJobPassage(jobQuestions);
   const hasDiagram = hasJobDiagram(jobQuestions);
   const sortedQuestions = sortJobQuestions(jobQuestions);
-  const visibleQuestions = jobQuestions.filter((q) => q.status !== 'discarded');
+  const visibleQuestions = jobQuestions.filter((q) => q.status !== QUESTION_STATUS.DISCARDED);
 
   return (
     <div className={`batch-job-card ${isJobRunning ? 'running' : ''}`}>

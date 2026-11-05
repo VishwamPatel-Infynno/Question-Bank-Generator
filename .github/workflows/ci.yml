@@ -110,6 +110,12 @@ jobs:
       - name: Run Frontend Linting (Oxlint)
         run: pnpm lint
 
+      - name: Run Frontend Unit Tests (Vitest)
+        run: pnpm --dir frontend run test
+
+      - name: Check For Unused CSS Classes
+        run: pnpm --dir frontend run check:css
+
       - name: Verify Taxonomy Copies Are In Sync
         run: cmp backend/app/data/mcat_dependent_taxonomy.json frontend/src/constants/mcat_dependent_taxonomy.json
 

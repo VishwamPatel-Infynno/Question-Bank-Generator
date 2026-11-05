@@ -9,7 +9,7 @@ import {
 } from '../services/api';
 import { useConfirmModal } from './useConfirmModal';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import { SCORE_CUTOFFS } from '../constants';
+import { QUESTION_STATUS, SCORE_CUTOFFS } from '../constants';
 
 /**
  * Custom hook encapsulating AI Validated questions state, search debouncing,
@@ -71,7 +71,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
       try {
         const [qsRes, countsRes] = await Promise.all([
           fetchQuestions({
-            status: 'ai_validated',
+            status: QUESTION_STATUS.AI_VALIDATED,
             section: sectionFilter || undefined,
             slim: true
           }),
@@ -164,7 +164,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
   const handleMoveToBankSingle = async (q) => {
     setActionInProgress(true);
     try {
-      await updateQuestionStatus(q.id, 'in_bank');
+      await updateQuestionStatus(q.id, QUESTION_STATUS.IN_BANK);
       setQuestions((prev) => prev.filter((item) => item.id !== q.id));
       setSelectedIds((prev) => prev.filter((id) => id !== q.id));
       if (onShowToast) {
@@ -228,7 +228,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     const count = selectedIds.length;
     setActionInProgress(true);
     try {
-      await batchUpdateQuestionStatus(selectedIds, 'in_bank');
+      await batchUpdateQuestionStatus(selectedIds, QUESTION_STATUS.IN_BANK);
       setQuestions((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
       if (onShowToast) {
         onShowToast({
@@ -321,7 +321,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
   const approveAllNow = async (allIds, count) => {
     setActionInProgress(true);
     try {
-      await batchUpdateQuestionStatus(allIds, 'in_bank');
+      await batchUpdateQuestionStatus(allIds, QUESTION_STATUS.IN_BANK);
       setQuestions((prev) => prev.filter((item) => !allIds.includes(item.id)));
       setSelectedIds([]);
       if (onShowToast) {

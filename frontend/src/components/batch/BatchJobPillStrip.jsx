@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 import { resolveQuestionStatus } from '../../utils';
+import { QUESTION_STATUS } from '../../constants';
 
 const EMPTY_QUESTIONS = [];
 
@@ -25,7 +26,7 @@ export default function BatchJobPillStrip({
         if (matchedQ) {
           const st = resolveQuestionStatus(matchedQ);
           const score = matchedQ.final_score ?? 95;
-          const isBank = st === 'in_bank';
+          const isBank = st === QUESTION_STATUS.IN_BANK;
           return (
             <span
               key={matchedQ.id || slot.slotKey}

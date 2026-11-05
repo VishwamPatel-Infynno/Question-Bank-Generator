@@ -10,3 +10,4 @@ export { useBatchActivity } from './useBatchActivity';
 export { usePassageBank } from './usePassageBank';
 export { useAiValidated } from './useAiValidated';
 
+export { useCopyToClipboard } from './useCopyToClipboard';

@@ -1,22 +1,13 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import {
-  fetchBatches,
-  fetchBatchDetail,
-  deleteBatch,
-  stopBatch,
-  retryBatchJobs,
-  cancelAllBatches,
-  updateQuestionStatus,
-  restoreQuestion
-} from '../services/api';
-import { SECTION_CODE_MAP } from '../constants/mcat';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchBatches, fetchBatchDetail } from '../services/api';
+import { BATCH_STATUS } from '../constants';
 import { reuseUnchangedBatches } from '../utils/batchHelpers';
-import { useConfirmModal } from './useConfirmModal';
-import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { useBatchFilters } from './useBatchFilters';
+import { useBatchMutations } from './useBatchMutations';
 
 /**
- * Custom hook encapsulating full batch management state, polling telemetry,
- * accordion caching, and lifecycle mutation actions for BatchActivityView.
+ * Batch activity state for BatchActivityView: polling telemetry and accordion/detail caching
+ * live here; filtering is `useBatchFilters` and lifecycle actions are `useBatchMutations`.
  *
  * @param {Object} options
  * @param {(toast: { type?: string, title: string, message?: string, action?: any }) => void} [options.onShowToast]
@@ -30,31 +21,10 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
   const [refreshing, setRefreshing] = useState(false);
   const [activeCount, setActiveCount] = useState(0);
 
-  // Filter states
-  const [scopeFilter, setScopeFilter] = useState('all'); // 'all' | 'mini' | 'full'
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'in_progress' | 'completed' | 'failed'
-  const [sectionFilter, setSectionFilter] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const searchInputRef = useRef(null);
-
-  // Focus search input on '/' shortcut
-  useKeyboardShortcuts({
-    onFocusSearch: () => searchInputRef.current?.focus()
-  });
-
   // Multi-expand batch details cache: Set of expanded batch IDs
   const [expandedBatchIds, setExpandedBatchIds] = useState(new Set());
   const [batchDetails, setBatchDetails] = useState({});
   const [loadingDetails, setLoadingDetails] = useState({});
-
-  // Individual action loading states
-  const [stoppingBatchIds, setStoppingBatchIds] = useState({});
-  const [retryingBatchIds, setRetryingBatchIds] = useState({});
-  const [isDeletingBatch, setIsDeletingBatch] = useState(false);
-  const [isCancellingAll, setIsCancellingAll] = useState(false);
-
-  // Standardized accessible confirmation modal state hook
-  const { confirmModal, openConfirmModal, closeConfirmModal } = useConfirmModal('batch');
 
   // Expanded job within the expanded batches: { [jobId]: boolean }
   const [expandedJobIds, setExpandedJobIds] = useState({});
@@ -100,7 +70,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
         const matchingBatch = data.batches?.find((b) => b.id === bId);
         if (!matchingBatch) return false;
         return (
-          matchingBatch.status === 'in_progress' || previousStatus.get(bId) === 'in_progress'
+          matchingBatch.status === BATCH_STATUS.IN_PROGRESS || previousStatus.get(bId) === BATCH_STATUS.IN_PROGRESS
         );
       });
       lastStatusRef.current = new Map((data.batches || []).map((b) => [b.id, b.status]));
@@ -165,7 +135,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
     };
   }, [performFetchBatches]);
 
-  const hasActiveBatches = activeCount > 0 || batches.some((b) => b.status === 'in_progress');
+  const hasActiveBatches = activeCount > 0 || batches.some((b) => b.status === BATCH_STATUS.IN_PROGRESS);
 
   // Auto-polling effect (every 2.5s if active batches, else 8s, paused if window hidden)
   useEffect(() => {
@@ -205,7 +175,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
     });
 
     // Fetch batch detail if not yet cached or if in progress
-    if (!batchDetails[batchId] || batchDetails[batchId]?.batch?.status === 'in_progress') {
+    if (!batchDetails[batchId] || batchDetails[batchId]?.batch?.status === BATCH_STATUS.IN_PROGRESS) {
       setLoadingDetails((prev) => ({ ...prev, [batchId]: true }));
       try {
         const detail = await fetchBatchDetail(batchId);
@@ -226,271 +196,16 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
     }));
   };
 
-  // Stop a running batch
-  const handleStopBatch = async (batchId) => {
-    setStoppingBatchIds((prev) => ({ ...prev, [batchId]: true }));
-    try {
-      await stopBatch(batchId);
-      if (onShowToast) {
-        onShowToast({
-          type: 'info',
-          title: 'Batch Stopped',
-          message: 'Active background tasks halted. Generated questions remain preserved in the bank.'
-        });
-      }
-      await loadBatches(true);
-      const detail = await fetchBatchDetail(batchId);
-      setBatchDetails((prev) => ({ ...prev, [batchId]: detail }));
-    } catch (err) {
-      console.error('Failed to stop batch:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Stop Failed',
-          message: err.message
-        });
-      }
-    } finally {
-      setStoppingBatchIds((prev) => ({ ...prev, [batchId]: false }));
-    }
-  };
+  const { filteredBatches, activeBatchesList, ...filters } = useBatchFilters(batches);
 
-  // Retry incomplete or failed jobs in a batch
-  const handleRetryBatch = async (batchId) => {
-    setRetryingBatchIds((prev) => ({ ...prev, [batchId]: true }));
-    try {
-      await retryBatchJobs(batchId);
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Incomplete Sets Resumed',
-          message: 'Incomplete question sets have resumed generation.'
-        });
-      }
-      await loadBatches(true);
-      const detail = await fetchBatchDetail(batchId);
-      setBatchDetails((prev) => ({ ...prev, [batchId]: detail }));
-    } catch (err) {
-      console.error('Failed to retry batch jobs:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Retry Failed',
-          message: err.message
-        });
-      }
-    } finally {
-      setRetryingBatchIds((prev) => ({ ...prev, [batchId]: false }));
-    }
-  };
-
-  // Cancel all active background batches
-  const handleCancelAllBatches = async () => {
-    setIsCancellingAll(true);
-    try {
-      const res = await cancelAllBatches();
-      if (onShowToast) {
-        onShowToast({
-          type: 'info',
-          title: 'All Active Batches Stopped',
-          message: res.message || 'All background batches have been stopped.'
-        });
-      }
-      await loadBatches(false);
-    } catch (err) {
-      console.error('Failed to cancel all batches:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Cancel All Failed',
-          message: err.message
-        });
-      }
-    } finally {
-      setIsCancellingAll(false);
-    }
-  };
-
-  // Delete a batch via Confirmation Modal
-  const handleDeleteBatch = (e, batchId) => {
-    e.stopPropagation();
-    openConfirmModal({
-      title: 'Delete Batch Record',
-      description: 'Are you sure you want to delete this batch history? Any questions you already saved to your Question Bank will remain safe.',
-      confirmLabel: 'Delete Batch',
-      variant: 'danger',
-      itemCount: 1,
-      itemLabel: 'batch',
-      onConfirm: async () => {
-        setIsDeletingBatch(true);
-        try {
-          await deleteBatch(batchId);
-          setBatches((prev) => prev.filter((b) => b.id !== batchId));
-          setExpandedBatchIds((prev) => {
-            const next = new Set(prev);
-            next.delete(batchId);
-            return next;
-          });
-          if (onShowToast) {
-            onShowToast({
-              type: 'info',
-              title: 'Batch Deleted',
-              message: 'The batch log has been deleted.'
-            });
-          }
-          closeConfirmModal();
-        } catch (err) {
-          console.error('Failed to delete batch:', err);
-          if (onShowToast) {
-            onShowToast({
-              type: 'error',
-              title: 'Delete Failed',
-              message: err.message
-            });
-          }
-        } finally {
-          setIsDeletingBatch(false);
-        }
-      }
-    });
-  };
-
-  // Handle saving a question directly to Question Bank
-  const handleSaveQuestionToBank = async (question) => {
-    try {
-      await updateQuestionStatus(question.id, 'in_bank');
-      setBatchDetails((prev) => {
-        const next = { ...prev };
-        for (const [bId, detail] of Object.entries(next)) {
-          if (!detail) continue;
-          let changed = false;
-          const updatedJobs = (detail.jobs || []).map((job) => {
-            const hasQ = (job.questions || []).some((q) => q.id === question.id);
-            if (!hasQ) return job;
-            changed = true;
-            return Object.assign({}, job, {
-              questions: job.questions.map((q) =>
-                q.id === question.id ? Object.assign({}, q, { status: 'in_bank' }) : q
-              )
-            });
-          });
-          const updatedQs = (detail.questions || []).map((q) =>
-            q.id === question.id ? Object.assign({}, q, { status: 'in_bank' }) : q
-          );
-          if (changed) {
-            next[bId] = {
-              ...detail,
-              jobs: updatedJobs,
-              questions: updatedQs
-            };
-          }
-        }
-        return next;
-      });
-
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Saved to Question Bank',
-          message: 'Question promoted directly into your official Question Bank.',
-          action: onNavigateToBank ? { label: 'View in Bank', onClick: onNavigateToBank } : undefined
-        });
-      }
-    } catch (err) {
-      console.error('Failed to move question to bank:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Action Failed',
-          message: err.message || 'Could not move question to bank.'
-        });
-      }
-    }
-  };
-
-  // Handle restoring a soft-deleted question back to Question Bank
-  const handleRestoreQuestion = async (question) => {
-    try {
-      await restoreQuestion(question.id);
-      setBatchDetails((prev) => {
-        const next = { ...prev };
-        for (const [bId, detail] of Object.entries(next)) {
-          if (!detail) continue;
-          let changed = false;
-          const updatedJobs = (detail.jobs || []).map((job) => {
-            const hasQ = (job.questions || []).some((q) => q.id === question.id);
-            if (!hasQ) return job;
-            changed = true;
-            return Object.assign({}, job, {
-              questions: job.questions.map((q) =>
-                q.id === question.id
-                  ? Object.assign({}, q, { is_deleted: false, deleted_at: null, status: 'in_bank' })
-                  : q
-              )
-            });
-          });
-          const updatedQs = (detail.questions || []).map((q) =>
-            q.id === question.id
-              ? Object.assign({}, q, { is_deleted: false, deleted_at: null, status: 'in_bank' })
-              : q
-          );
-          if (changed) {
-            next[bId] = {
-              ...detail,
-              jobs: updatedJobs,
-              questions: updatedQs
-            };
-          }
-        }
-        return next;
-      });
-
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Question Restored',
-          message: 'Question and stimulus restored back to your Question Bank.',
-          action: onNavigateToBank ? { label: 'View in Bank', onClick: onNavigateToBank } : undefined
-        });
-      }
-    } catch (err) {
-      console.error('Failed to restore question:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Restore Failed',
-          message: err.message || 'Could not restore question.'
-        });
-      }
-    }
-  };
-
-  // Active batches list for multi-batch monitor
-  const activeBatchesList = useMemo(
-    () => batches.filter((b) => b.status === 'in_progress'),
-    [batches]
-  );
-
-  // Filtered batches
-  const filteredBatches = useMemo(() => {
-    return batches.filter((b) => {
-      if (scopeFilter === 'mini' && !(b.total_jobs === 1 || b.target_count === 5)) return false;
-      if (scopeFilter === 'full' && !(b.total_jobs > 1 || b.target_count > 5)) return false;
-      if (statusFilter !== 'all' && b.status !== statusFilter) return false;
-      if (sectionFilter !== 'all') {
-        const code = SECTION_CODE_MAP[b.section] || b.section;
-        if (code !== sectionFilter && b.section !== sectionFilter) return false;
-      }
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchTopic = (b.subtopic || '').toLowerCase().includes(query);
-        const matchSection = (b.section || '').toLowerCase().includes(query);
-        const matchId = b.id.toLowerCase().includes(query);
-        if (!matchTopic && !matchSection && !matchId) return false;
-      }
-      return true;
-    });
-  }, [batches, scopeFilter, statusFilter, sectionFilter, searchQuery]);
+  const mutations = useBatchMutations({
+    loadBatches,
+    setBatches,
+    setBatchDetails,
+    setExpandedBatchIds,
+    onShowToast,
+    onNavigateToBank
+  });
 
   return {
     // Data & status
@@ -503,16 +218,8 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
     loadError,
     refreshing,
     loadBatches,
-    // Filters
-    scopeFilter,
-    setScopeFilter,
-    statusFilter,
-    setStatusFilter,
-    sectionFilter,
-    setSectionFilter,
-    searchQuery,
-    setSearchQuery,
-    searchInputRef,
+    // Filters (scope/status/section/search + their setters, searchInputRef)
+    ...filters,
     autoRefresh,
     setAutoRefresh,
     // Expansion & detail caching
@@ -522,20 +229,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
     handleToggleExpandBatch,
     expandedJobIds,
     handleToggleJob,
-    // Actions & mutations
-    handleStopBatch,
-    handleRetryBatch,
-    handleCancelAllBatches,
-    handleDeleteBatch,
-    handleSaveQuestionToBank,
-    handleRestoreQuestion,
-    stoppingBatchIds,
-    retryingBatchIds,
-    isCancellingAll,
-    isDeletingBatch,
-    // Modal
-    confirmModal,
-    closeConfirmModal
+    // Actions, loading flags and the confirm modal
+    ...mutations
   };
 }
-

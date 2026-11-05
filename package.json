@@ -15,7 +15,8 @@
     "test": "pnpm run test:backend",
     "test:backend": "PYTHONPATH=backend pytest backend/tests",
     "db:clean-duplicates": "PYTHONPATH=backend ./.venv/bin/python scripts/clean_duplicate_artifacts.py",
-    "preview": "pnpm --dir frontend run preview"
+    "preview": "pnpm --dir frontend run preview",
+    "test:frontend": "pnpm --dir frontend run test"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"

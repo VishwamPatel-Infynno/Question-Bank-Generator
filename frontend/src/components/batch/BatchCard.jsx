@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { getSectionColor } from '../../constants/mcat';
+import { BATCH_STATUS, getSectionColor } from '../../constants';
 import { getBatchStageInfo } from '../../utils';
 import BatchCardSummary from './BatchCardSummary';
 import BatchLifecycleStepper from './BatchLifecycleStepper';
@@ -33,8 +33,8 @@ function BatchCard({
   const totalTarget = batch.target_count || 50;
   const actualTotal = batch.actual_count || 0;
   const isMiniSet = totalJobs === 1 || totalTarget === 5;
-  const isCompleted = batch.status === 'completed';
-  const isInProgress = batch.status === 'in_progress';
+  const isCompleted = batch.status === BATCH_STATUS.COMPLETED;
+  const isInProgress = batch.status === BATCH_STATUS.IN_PROGRESS;
 
   // Accurate true progress percentage without artificial 95% caps
   const rawPercent = Math.min(100, Math.round((actualTotal / Math.max(1, totalTarget)) * 100));

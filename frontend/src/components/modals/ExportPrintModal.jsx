@@ -13,17 +13,16 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { fetchQuestions } from '../../services/api';
-import { useFocusTrap } from '../../hooks';
+import { useFocusTrap, useCopyToClipboard } from '../../hooks';
 import { 
   formatExamTime,
   generateExamCsv,
   generateExamJson,
-  generateExamHtmlDoc 
+  generateExamHtmlDoc,
+  downloadTextFile
 } from '../../utils';
 import ExportPaperPreview from './ExportPaperPreview';
-
-const EMPTY_ARRAY = [];
-
+import { EMPTY_ARRAY } from '../../constants';
 
 export default function ExportPrintModal({
   isOpen,
@@ -44,8 +43,9 @@ export default function ExportPrintModal({
   const [scope, setScope] = useState(initialScope);
   const [format, setFormat] = useState('paper'); // 'paper' | 'csv' | 'json'
   const [paperMode, setPaperMode] = useState('student'); // 'student' | 'studypack'
-  const [copiedJson, setCopiedJson] = useState(false);
-  const [copiedCsv, setCopiedCsv] = useState(false);
+  const { copiedKey, copy } = useCopyToClipboard();
+  const copiedCsv = copiedKey === 'csv';
+  const copiedJson = copiedKey === 'json';
   const [fetchedAll, setFetchedAll] = useState(null);
   const previewRef = useRef(null);
 
@@ -80,15 +80,12 @@ export default function ExportPrintModal({
   // Download CSV
   const handleDownloadCsv = () => {
     if (!csvContent) return;
-    // BOM so Excel reads the file as UTF-8 (otherwise symbols like µ and Δ turn to garbage)
-    const blob = new Blob(['\uFEFF', csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `mcat_exam_${exportQuestions.length}_questions.csv`;
-    a.click();
-    // Revoking synchronously can cancel the download in some browsers
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadTextFile(
+      csvContent,
+      `mcat_exam_${exportQuestions.length}_questions.csv`,
+      'text/csv;charset=utf-8;',
+      { bom: true }
+    );
     if (onShowToast) {
       onShowToast({
         type: 'success',
@@ -101,10 +98,8 @@ export default function ExportPrintModal({
   // Copy CSV
   const handleCopyCsv = async () => {
     if (!csvContent) return;
-    try {
-      await navigator.clipboard.writeText(csvContent);
-      setCopiedCsv(true);
-      setTimeout(() => setCopiedCsv(false), 2000);
+    const ok = await copy(csvContent, 'csv');
+    if (ok) {
       if (onShowToast) {
         onShowToast({
           type: 'success',
@@ -112,7 +107,7 @@ export default function ExportPrintModal({
           message: 'CSV data copied.'
         });
       }
-    } catch {
+    } else {
       // Clipboard needs HTTPS and permission; say so instead of failing silently
       if (onShowToast) {
         onShowToast({
@@ -131,14 +126,11 @@ export default function ExportPrintModal({
 
   // Download JSON
   const handleDownloadJson = () => {
-    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `mcat_exam_${exportQuestions.length}_questions.json`;
-    a.click();
-    // Revoking synchronously can cancel the download in some browsers
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadTextFile(
+      jsonContent,
+      `mcat_exam_${exportQuestions.length}_questions.json`,
+      'application/json;charset=utf-8;'
+    );
     if (onShowToast) {
       onShowToast({
         type: 'success',
@@ -150,10 +142,8 @@ export default function ExportPrintModal({
 
   // Copy JSON
   const handleCopyJson = async () => {
-    try {
-      await navigator.clipboard.writeText(jsonContent);
-      setCopiedJson(true);
-      setTimeout(() => setCopiedJson(false), 2000);
+    const ok = await copy(jsonContent, 'json');
+    if (ok) {
       if (onShowToast) {
         onShowToast({
           type: 'success',
@@ -161,7 +151,7 @@ export default function ExportPrintModal({
           message: 'JSON data copied.'
         });
       }
-    } catch {
+    } else {
       // Clipboard needs HTTPS and permission; say so instead of failing silently
       if (onShowToast) {
         onShowToast({

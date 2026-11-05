@@ -12,6 +12,7 @@ import {
   extractDistractorLines
 } from '../../utils';
 import { FormattedText } from '../common';
+import { EMPTY_ARRAY } from '../../constants';
 
 /**
  * MentorExplanationView
@@ -21,7 +22,6 @@ import { FormattedText } from '../common';
  * 2. Why Distractors Fail (Itemized option breakdown with subtle trap annotations)
  * 3. Tactical Trap Defense Strategy
  */
-const EMPTY_ARRAY = [];
 
 export default function MentorExplanationView({
   explanation = '',

@@ -2,13 +2,7 @@ import { useState, useMemo } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import WizardReviewSummary from './WizardReviewSummary';
 import WizardAdvancedSettings from './WizardAdvancedSettings';
-import {
-  getSkillsForSection,
-  LIKELY_MISTAKE_PATTERNS
-} from '../../../constants';
-
-const EMPTY_OBJECT = Object.freeze({});
-const EMPTY_ARRAY = Object.freeze([]);
+import { EMPTY_ARRAY, EMPTY_OBJECT, LIKELY_MISTAKE_PATTERNS, getSkillsForSection } from '../../../constants';
 
 export default function WizardStep3ReviewAdvanced({
   selectedSection = 'chem_phys',

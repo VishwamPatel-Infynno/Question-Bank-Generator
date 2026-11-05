@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useCopyToClipboard } from '../../hooks';
 import {
   Maximize2,
   Copy,
@@ -28,7 +29,8 @@ export default function VisualStimulusViewer({
   compact = false
 }) {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const [copiedSvg, setCopiedSvg] = useState(false);
+  const { copiedKey, copy } = useCopyToClipboard();
+  const copiedSvg = copiedKey === true;
 
   // Extract visual data from direct props or question or stage outcomes (supporting both discrete and passage stimuli)
   const svgContent =
@@ -61,9 +63,7 @@ export default function VisualStimulusViewer({
   const handleCopySvg = (e) => {
     e?.stopPropagation();
     if (!svgContent) return;
-    navigator.clipboard.writeText(svgContent);
-    setCopiedSvg(true);
-    setTimeout(() => setCopiedSvg(false), 2000);
+    copy(svgContent);
   };
 
   // Compact Thumbnail View for list cards

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useCopyToClipboard } from '../../hooks';
 import { Code2, Copy, Check, ChevronDown, ChevronUp, PenTool, ShieldCheck, RotateCcw, ImageIcon, Sparkles } from 'lucide-react';
 
 export default function StageJsonInspector({ question }) {
   const [isOpen, setIsOpen] = useState(true);
   const [activeStage, setActiveStage] = useState('drafting');
-  const [copied, setCopied] = useState(false);
+  const { copiedKey, copy } = useCopyToClipboard();
+  const copied = copiedKey === true;
 
   if (!question) return null;
 
@@ -102,9 +104,7 @@ export default function StageJsonInspector({ question }) {
 
   const handleCopy = () => {
     if (jsonString) {
-      navigator.clipboard.writeText(jsonString);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copy(jsonString);
     }
   };
 

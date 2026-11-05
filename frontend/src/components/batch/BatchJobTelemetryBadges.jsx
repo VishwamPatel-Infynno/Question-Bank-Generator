@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layers, BookOpen, Image as ImageIcon, Trash2 } from 'lucide-react';
-import { formatCostUsd, formatTokenCount } from '../../utils';
+import { formatCostUsd, formatTime, formatTokenCount } from '../../utils';
 import { LiveStopwatch } from '../common';
 
 const EMPTY_COUNTS = {};
@@ -38,10 +38,7 @@ export default function BatchJobTelemetryBadges({
         ) : job.completed_at ? (
           <span>
             Finished{' '}
-            {new Date(job.completed_at).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
+            {formatTime(job.completed_at)}
           </span>
         ) : null}
       </div>

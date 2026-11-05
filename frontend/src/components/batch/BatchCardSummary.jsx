@@ -9,42 +9,42 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { MCAT_SECTION_LABELS, formatDifficulty } from '../../constants/mcat';
-import { formatCostUsd, formatTokenCount } from '../../utils';
+import { BATCH_STATUS, formatDifficulty, isStoppedStatus, MCAT_SECTION_LABELS } from '../../constants';
+import { formatCostUsd, formatDateTime, formatTokenCount } from '../../utils';
 import { LiveStopwatch } from '../common';
 
 function getStatusBadge(status, stageBadge = null) {
   switch (status) {
-    case 'in_progress':
+    case BATCH_STATUS.IN_PROGRESS:
       return (
         <span className="badge batch-summary-badge-inprogress">
           <span className="batch-summary-pulse-dot" />
           {stageBadge || 'In Progress'}
         </span>
       );
-    case 'completed':
+    case BATCH_STATUS.COMPLETED:
       return (
         <span className="badge badge-success batch-summary-status-badge">
           <CheckCircle2 size={12} />
           Completed
         </span>
       );
-    case 'partially_completed':
+    case BATCH_STATUS.PARTIALLY_COMPLETED:
       return (
         <span className="badge badge-warning batch-summary-status-badge">
           <AlertCircle size={12} />
           Partially Complete
         </span>
       );
-    case 'cancelled':
-    case 'stopped':
+    case BATCH_STATUS.CANCELLED:
+    case BATCH_STATUS.STOPPED:
       return (
         <span className="badge badge-neutral batch-summary-status-badge">
           <Square size={11} />
           Stopped
         </span>
       );
-    case 'failed':
+    case BATCH_STATUS.FAILED:
       return (
         <span className="badge badge-danger batch-summary-status-badge">
           <AlertCircle size={12} />
@@ -127,7 +127,7 @@ function BatchCardSummary({
           </div>
           <div className="batch-summary-meta">
             <Clock size={11} />
-            <span>{new Date(batch.created_at).toLocaleString()}</span>
+            <span>{formatDateTime(batch.created_at)}</span>
             {isInProgress && (
               <>
                 <span>•</span>
@@ -157,7 +157,7 @@ function BatchCardSummary({
         {/* Progress Bar Track */}
         <div className="batch-summary-progress-track">
           <div
-            className={`batch-summary-progress-fill ${batch.status === 'failed' ? 'failed' : isCompleted ? 'done' : ''}`}
+            className={`batch-summary-progress-fill ${batch.status === BATCH_STATUS.FAILED ? 'failed' : isCompleted ? 'done' : ''}`}
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -187,7 +187,7 @@ function BatchCardSummary({
         {getStatusBadge(batch.status, isInProgress ? stageInfo.stageBadge : null)}
 
         {/* Stop Batch button for in_progress runs */}
-        {batch.status === 'in_progress' && (
+        {batch.status === BATCH_STATUS.IN_PROGRESS && (
           <button
             type="button"
             onClick={(e) => {
@@ -204,7 +204,7 @@ function BatchCardSummary({
         )}
 
         {/* Resume Sets button: strictly reserved for batches manually stopped mid-run */}
-        {(batch.status === 'cancelled' || batch.status === 'stopped') && (
+        {isStoppedStatus(batch.status) && (
           <button
             type="button"
             onClick={(e) => {

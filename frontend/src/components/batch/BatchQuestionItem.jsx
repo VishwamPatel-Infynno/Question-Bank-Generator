@@ -13,6 +13,7 @@ import BatchQuestionPassageDrawer from './BatchQuestionPassageDrawer';
 import BatchQuestionOptionsList from './BatchQuestionOptionsList';
 import BatchQuestionActions from './BatchQuestionActions';
 import { resolveQuestionStatus } from '../../utils';
+import { QUESTION_STATUS } from '../../constants';
 
 /**
  * BatchQuestionItem - Renders an individual question item accordion within a batch set drawer.
@@ -42,7 +43,7 @@ export default function BatchQuestionItem({
 
   const status = resolveQuestionStatus(question);
   const finalScore = question.final_score ?? 95;
-  const isBelowThreshold = status === 'below_threshold' || finalScore <= 85;
+  const isBelowThreshold = status === QUESTION_STATUS.BELOW_THRESHOLD || finalScore <= 85;
 
   const scoreTierClass = finalScore > 90 ? 'high' : finalScore > 85 ? 'mid' : 'low';
 
@@ -56,37 +57,37 @@ export default function BatchQuestionItem({
           </span>
 
           {/* Status Badge */}
-          {question.is_deleted && question.status !== 'discarded' ? (
+          {question.is_deleted && question.status !== QUESTION_STATUS.DISCARDED ? (
             <span className="batch-qitem-tag deleted">
               <Trash2 size={11} /> Deleted from Bank
             </span>
           ) : (
             <>
-              {status === 'in_bank' && (
+              {status === QUESTION_STATUS.IN_BANK && (
                 <span className="batch-qitem-tag in-bank">
                   <CheckCircle2 size={11} /> In Question Bank
                 </span>
               )}
 
-              {status === 'ai_validated' && (
+              {status === QUESTION_STATUS.AI_VALIDATED && (
                 <span className="batch-qitem-tag validated">
                   <Sparkles size={11} /> Ready for Review
                 </span>
               )}
 
-              {status === 'batch_only' && (
+              {status === QUESTION_STATUS.BATCH_ONLY && (
                 <span className="batch-qitem-tag batch-only">
                   <Layers size={11} /> Good Quality
                 </span>
               )}
 
-              {status === 'discarded' && (
+              {status === QUESTION_STATUS.DISCARDED && (
                 <span className="batch-qitem-tag discarded">
                   <XCircle size={11} /> Discarded
                 </span>
               )}
 
-              {status === 'below_threshold' && (
+              {status === QUESTION_STATUS.BELOW_THRESHOLD && (
                 <span className="batch-qitem-tag below">
                   <AlertCircle size={11} /> Needs Polish (&le;85)
                 </span>

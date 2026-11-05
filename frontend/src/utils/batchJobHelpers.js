@@ -1,4 +1,4 @@
-import { SCORE_CUTOFFS } from '../constants/mcat';
+import { QUESTION_STATUS, SCORE_CUTOFFS } from '../constants';
 
 /**
  * batchJobHelpers.js - Status resolution and filtering helpers for BatchJobCard and BatchQuestionItem.
@@ -8,26 +8,26 @@ import { SCORE_CUTOFFS } from '../constants/mcat';
  * Resolves the lifecycle status of a question within a batch job.
  */
 export function resolveQuestionStatus(q) {
-  if (!q) return 'below_threshold';
-  if (q.status === 'discarded') return 'discarded';
+  if (!q) return QUESTION_STATUS.BELOW_THRESHOLD;
+  if (q.status === QUESTION_STATUS.DISCARDED) return QUESTION_STATUS.DISCARDED;
   if (q.is_deleted) return 'deleted';
   if (q.status) return q.status;
   const score = q.final_score ?? 95;
-  if (score > SCORE_CUTOFFS.aiValidatedAbove) return 'ai_validated';
-  if (score > SCORE_CUTOFFS.batchAbove) return 'batch_only';
-  return 'below_threshold';
+  if (score > SCORE_CUTOFFS.aiValidatedAbove) return QUESTION_STATUS.AI_VALIDATED;
+  if (score > SCORE_CUTOFFS.batchAbove) return QUESTION_STATUS.BATCH_ONLY;
+  return QUESTION_STATUS.BELOW_THRESHOLD;
 }
 
 /**
  * Computes breakdown counts of questions in a job.
  */
 export function computeJobQuestionCounts(jobQuestions = []) {
-  const deletedCount = jobQuestions.filter((q) => Boolean(q.is_deleted) && q.status !== 'discarded').length;
-  const validatedCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === 'ai_validated').length;
-  const batchOnlyCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === 'batch_only').length;
-  const inBankCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === 'in_bank').length;
-  const discardedCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === 'discarded').length;
-  const belowCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === 'below_threshold').length;
+  const deletedCount = jobQuestions.filter((q) => Boolean(q.is_deleted) && q.status !== QUESTION_STATUS.DISCARDED).length;
+  const validatedCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === QUESTION_STATUS.AI_VALIDATED).length;
+  const batchOnlyCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === QUESTION_STATUS.BATCH_ONLY).length;
+  const inBankCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === QUESTION_STATUS.IN_BANK).length;
+  const discardedCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === QUESTION_STATUS.DISCARDED).length;
+  const belowCount = jobQuestions.filter((q) => !q.is_deleted && resolveQuestionStatus(q) === QUESTION_STATUS.BELOW_THRESHOLD).length;
 
   return {
     deletedCount,
@@ -70,10 +70,10 @@ export function hasJobDiagram(jobQuestions = []) {
  * Discarded questions are excluded.
  */
 export function sortJobQuestions(jobQuestions = []) {
-  const visible = jobQuestions.filter((q) => q.status !== 'discarded');
+  const visible = jobQuestions.filter((q) => q.status !== QUESTION_STATUS.DISCARDED);
   return [...visible].sort((a, b) => {
-    const isKeptA = resolveQuestionStatus(a) !== 'below_threshold';
-    const isKeptB = resolveQuestionStatus(b) !== 'below_threshold';
+    const isKeptA = resolveQuestionStatus(a) !== QUESTION_STATUS.BELOW_THRESHOLD;
+    const isKeptB = resolveQuestionStatus(b) !== QUESTION_STATUS.BELOW_THRESHOLD;
     if (isKeptA && !isKeptB) return -1;
     if (!isKeptA && isKeptB) return 1;
     return 0;

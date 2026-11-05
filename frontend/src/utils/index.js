@@ -5,7 +5,9 @@ export {
   formatCostUsd,
   formatDurationMs,
   formatTokenCount,
-  formatDate
+  formatDate,
+  formatDateTime,
+  formatTime
 } from './formatters';
 
 /** MCAT cognitive trap detectors & resolvers */
@@ -46,3 +48,6 @@ export {
   hasJobDiagram,
   sortJobQuestions
 } from './batchJobHelpers';
+
+/** Browser file download helper */
+export { downloadTextFile } from './download';

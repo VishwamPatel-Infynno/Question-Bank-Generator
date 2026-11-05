@@ -8,12 +8,10 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { getSectionBadgeClass } from '../../constants/mcat';
+import { EMPTY_ARRAY, getSectionBadgeClass } from '../../constants';
 import { countWords } from '../../utils';
 import PassageVisualStimulusEditor from './PassageVisualStimulusEditor';
 import PassageLinkedQuestionCard from './PassageLinkedQuestionCard';
-
-const EMPTY_ARRAY = Object.freeze([]);
 
 /**
  * PassageEditorialDesk

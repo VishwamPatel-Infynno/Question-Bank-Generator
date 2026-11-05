@@ -1,7 +1,6 @@
 import { CheckCircle, Scale } from 'lucide-react';
 import { countWords } from '../../utils';
-
-const EMPTY_ARRAY = Object.freeze([]);
+import { EMPTY_ARRAY } from '../../constants';
 
 /**
  * QuestionOptionsList

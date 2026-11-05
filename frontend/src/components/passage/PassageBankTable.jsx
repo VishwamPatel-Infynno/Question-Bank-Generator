@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Edit3,
   Trash2,
@@ -9,7 +9,8 @@ import {
   Layers
 } from 'lucide-react';
 import { countWords, formatDate } from '../../utils';
-import { getSectionBadgeClass } from '../../constants/mcat';
+import { useCopyToClipboard } from '../../hooks';
+import { EMPTY_ARRAY, EMPTY_OBJECT, getSectionBadgeClass } from '../../constants';
 
 const SECTION_SHORT_LABEL = {
   chem_phys: 'Chem / Phys',
@@ -17,9 +18,6 @@ const SECTION_SHORT_LABEL = {
   bio_biochem: 'Bio / Biochem',
   psych_soc: 'Psych / Soc'
 };
-
-const EMPTY_ARRAY = Object.freeze([]);
-const EMPTY_OBJECT = Object.freeze({});
 
 /**
  * PassageBankTable
@@ -34,13 +32,11 @@ export default function PassageBankTable({
   onDeletePassage,
   onCopyPassageId
 }) {
-  const [copiedId, setCopiedId] = useState(null);
+  const { copiedKey: copiedId, copy } = useCopyToClipboard();
 
   const handleCopy = (id, e) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(id);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    copy(id, id);
     if (onCopyPassageId) onCopyPassageId(id);
   };
 

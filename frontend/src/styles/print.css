@@ -11,8 +11,7 @@
 
   .navbar,
   .footer,
-  .toast-container,
-  .modal-backdrop,
+  .toast-viewport,
   .modal-backdrop-theme {
     display: none !important;
   }
@@ -22,7 +21,6 @@
     break-before: page !important;
   }
 }
-
 
 /* ==========================================================================
    Exam Export & Paper Print Preview Component Classes
@@ -428,5 +426,4 @@
   color: #334155;
   line-height: 1.4;
 }
-
 

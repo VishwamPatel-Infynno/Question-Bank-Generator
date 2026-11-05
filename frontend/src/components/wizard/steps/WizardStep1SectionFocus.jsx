@@ -8,12 +8,7 @@ import {
   Check,
   Compass
 } from 'lucide-react';
-import {
-  getSubjectsForSection
-} from '../../../constants';
-
-const EMPTY_OBJECT = Object.freeze({});
-const EMPTY_ARRAY = Object.freeze([]);
+import { EMPTY_ARRAY, EMPTY_OBJECT, getSubjectsForSection } from '../../../constants';
 
 export default function WizardStep1SectionFocus({
   selectedSection = 'chem_phys',

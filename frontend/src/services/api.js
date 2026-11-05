@@ -161,7 +161,7 @@ export async function restoreQuestion(id) {
  * @returns {Promise<Object>} The saved question record as returned by the API.
  * @throws {Error} If the HTTP response is not 2xx.
  */
-export async function approveQuestion(question) {
+async function approveQuestion(question) {
   const res = await apiFetch(`${API_BASE}/questions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
