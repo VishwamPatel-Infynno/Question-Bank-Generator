@@ -125,7 +125,7 @@
 }
 
 .qbank-option-cell.correct {
-  background: var(--status-success-bg, rgba(16, 185, 129, 0.08));
+  background: var(--status-success-bg, var(--success-tint));
   border-color: var(--status-success-border, rgba(16, 185, 129, 0.25));
 }
 
@@ -224,7 +224,7 @@
   border-radius: var(--radius-sm);
   padding: 16px 18px;
   box-shadow: var(--shadow-xs);
-  transition: all var(--transition-fast);
+  transition: var(--transition-ui);
 }
 
 .validated-card.selected {
@@ -255,7 +255,7 @@
 }
 
 .validated-score-pill {
-  background: var(--status-success-bg, rgba(16, 185, 129, 0.08));
+  background: var(--status-success-bg, var(--success-tint));
   color: var(--status-success, #10b981);
   border: 1px solid var(--status-success-border, rgba(16, 185, 129, 0.25));
   border-radius: 12px;
@@ -321,7 +321,7 @@
 }
 
 .validated-option-row.correct {
-  background: var(--status-success-bg, rgba(16, 185, 129, 0.08));
+  background: var(--status-success-bg, var(--success-tint));
   border-color: var(--status-success-border, rgba(16, 185, 129, 0.25));
 }
 

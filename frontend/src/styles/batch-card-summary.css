@@ -100,13 +100,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: all var(--transition-fast);
+  transition: var(--transition-ui);
 }
 
 .batch-summary-resume-btn {
   background: rgba(51, 90, 207, 0.08);
   color: var(--brand-primary);
-  border: 1px solid rgba(51, 90, 207, 0.25);
+  border: 1px solid var(--brand-ring);
   border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-size: 0.72rem;
@@ -115,7 +115,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: all var(--transition-fast);
+  transition: var(--transition-ui);
 }
 
 .batch-summary-badge-inprogress {
@@ -259,7 +259,7 @@
 }
 
 .batch-stat-icon-box.success {
-  background: rgba(16, 185, 129, 0.08);
+  background: var(--success-tint);
   color: var(--status-success);
 }
 
@@ -368,7 +368,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: all var(--transition-normal);
+  transition: var(--transition-ui-normal);
 }
 
 .batch-card-wrapper.expanded {
@@ -595,7 +595,7 @@
 .batch-job-tag.batch-only {
   background: rgba(51, 90, 207, 0.12);
   color: var(--brand-primary);
-  border: 1px solid rgba(51, 90, 207, 0.25);
+  border: 1px solid var(--brand-ring);
 }
 
 .batch-job-tag.in-bank {
@@ -641,7 +641,7 @@
   border-radius: var(--radius-xs);
   padding: 10px 12px;
   font-size: 0.78rem;
-  transition: all var(--transition-fast);
+  transition: var(--transition-ui);
 }
 
 .batch-qitem.below-threshold {
@@ -786,7 +786,7 @@
 }
 
 .batch-qitem-option-row.correct {
-  background: rgba(16, 185, 129, 0.08);
+  background: var(--success-tint);
   border-color: rgba(16, 185, 129, 0.3);
 }
 

@@ -76,7 +76,7 @@
   padding: 6px 10px;
   border-radius: var(--radius-xs);
   border: 1px solid transparent;
-  transition: all var(--transition-fast);
+  transition: var(--transition-ui);
 }
 
 .stepper-step.completed {
@@ -190,7 +190,7 @@
   font-size: 0.68rem;
   font-weight: 700;
   border: 1px solid transparent;
-  transition: all var(--transition-fast);
+  transition: var(--transition-ui);
 }
 
 .job-q-pill.done {
@@ -209,7 +209,7 @@
   background: rgba(51, 90, 207, 0.14);
   color: var(--brand-primary);
   border-color: rgba(51, 90, 207, 0.35);
-  box-shadow: 0 0 6px rgba(51, 90, 207, 0.25);
+  box-shadow: 0 0 6px var(--brand-ring);
 }
 
 .job-q-pill.pending {
@@ -258,7 +258,7 @@
 }
 
 .batch-outcome-card.completed {
-  background: rgba(16, 185, 129, 0.08);
+  background: var(--success-tint);
   border-color: rgba(16, 185, 129, 0.25);
 }
 

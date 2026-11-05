@@ -28,6 +28,9 @@
   --infynno-cyan: #1E7ADF;
   --infynno-gradient: linear-gradient(135deg, #4F30B9 0%, #335ACF 50%, #1E7ADF 100%);
   --infynno-glow: 0 0 20px rgba(51, 90, 207, 0.25);
+  /* Translucent tints reused across components (identical in both themes) */
+  --brand-ring: rgba(51, 90, 207, 0.25);
+  --success-tint: rgba(16, 185, 129, 0.08);
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -37,6 +40,17 @@
 
   --transition-fast: 0.12s ease-out;
   --transition-normal: 0.18s ease-out;
+
+  /* Interactive-state transitions: the properties hover/focus/active styles actually change, so the
+     browser animates nothing else (`transition: all` also animates layout properties by accident). */
+  --transition-ui: color var(--transition-fast), background var(--transition-fast),
+    border-color var(--transition-fast), box-shadow var(--transition-fast),
+    opacity var(--transition-fast), transform var(--transition-fast),
+    filter var(--transition-fast), fill var(--transition-fast), stroke var(--transition-fast);
+  --transition-ui-normal: color var(--transition-normal), background var(--transition-normal),
+    border-color var(--transition-normal), box-shadow var(--transition-normal),
+    opacity var(--transition-normal), transform var(--transition-normal),
+    filter var(--transition-normal), fill var(--transition-normal), stroke var(--transition-normal);
 }
 
 /* --- LIGHT THEME (DEFAULT) --- */
