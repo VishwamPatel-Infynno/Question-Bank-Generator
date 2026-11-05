@@ -80,13 +80,15 @@ export default function ExportPrintModal({
   // Download CSV
   const handleDownloadCsv = () => {
     if (!csvContent) return;
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // BOM so Excel reads the file as UTF-8 (otherwise symbols like µ and Δ turn to garbage)
+    const blob = new Blob(['\uFEFF', csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `mcat_exam_${exportQuestions.length}_questions.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    // Revoking synchronously can cancel the download in some browsers
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     if (onShowToast) {
       onShowToast({
         type: 'success',
@@ -111,7 +113,14 @@ export default function ExportPrintModal({
         });
       }
     } catch {
-      // Fallback
+      // Clipboard needs HTTPS and permission; say so instead of failing silently
+      if (onShowToast) {
+        onShowToast({
+          type: 'error',
+          title: 'Copy Failed',
+          message: 'The browser blocked clipboard access. Use Download instead.'
+        });
+      }
     }
   };
 
@@ -128,7 +137,8 @@ export default function ExportPrintModal({
     a.href = url;
     a.download = `mcat_exam_${exportQuestions.length}_questions.json`;
     a.click();
-    URL.revokeObjectURL(url);
+    // Revoking synchronously can cancel the download in some browsers
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     if (onShowToast) {
       onShowToast({
         type: 'success',
@@ -152,7 +162,14 @@ export default function ExportPrintModal({
         });
       }
     } catch {
-      // Fallback
+      // Clipboard needs HTTPS and permission; say so instead of failing silently
+      if (onShowToast) {
+        onShowToast({
+          type: 'error',
+          title: 'Copy Failed',
+          message: 'The browser blocked clipboard access. Use Download instead.'
+        });
+      }
     }
   };
 

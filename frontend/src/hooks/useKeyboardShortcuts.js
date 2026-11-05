@@ -14,7 +14,11 @@ export function useKeyboardShortcuts({
   useEffect(() => {
     const handleKeyDown = (e) => {
       const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-      const isInputActive = activeTag === 'input' || activeTag === 'textarea' || document.activeElement?.isContentEditable;
+      const isInputActive =
+        activeTag === 'input' ||
+        activeTag === 'textarea' ||
+        activeTag === 'select' ||
+        document.activeElement?.isContentEditable;
 
       // Escape always handles modal/editor dismissal
       if (e.key === 'Escape') {
@@ -34,36 +38,46 @@ export function useKeyboardShortcuts({
 
       // Key: T -> Toggle Theme
       if (e.key.toLowerCase() === 't' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        if (onToggleTheme) onToggleTheme();
+        if (onToggleTheme) {
+          e.preventDefault();
+          onToggleTheme();
+        }
         return;
       }
 
       // Key: / -> Focus Search
       if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        if (onFocusSearch) onFocusSearch();
+        if (onFocusSearch) {
+          e.preventDefault();
+          onFocusSearch();
+        }
         return;
       }
 
       // Key: A -> Approve Candidate
       if (e.key.toLowerCase() === 'a' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        if (onApprove) onApprove();
+        if (onApprove) {
+          e.preventDefault();
+          onApprove();
+        }
         return;
       }
 
       // Key: D -> Discard Candidate
       if (e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        if (onDiscard) onDiscard();
+        if (onDiscard) {
+          e.preventDefault();
+          onDiscard();
+        }
         return;
       }
 
       // Key: E -> Quick Edit
       if (e.key.toLowerCase() === 'e' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        if (onToggleEdit) onToggleEdit();
+        if (onToggleEdit) {
+          e.preventDefault();
+          onToggleEdit();
+        }
         return;
       }
 

@@ -58,17 +58,15 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
   const stageTimings = (Array.isArray(question.token_usage_details) ? question.token_usage_details : [])
     .filter((entry) => entry && Number(entry.duration_ms) > 0);
   const totalDurationMs = stageTimings.reduce((sum, entry) => sum + Number(entry.duration_ms), 0);
-  const visualCost = Number(
-    question.stage_outcomes?.visual_stimulus?.usage?.cost_usd ||
-    (hasVisual ? 0.020 : 0.0)
-  );
+  // Only the recorded visual cost: showing an assumed figure would misreport spend
+  const visualCost = Number(question.stage_outcomes?.visual_stimulus?.usage?.cost_usd || 0);
   const cognitiveCost = Math.max(0, totalCost - (hasVisual ? visualCost : 0.0));
 
   const pillars = [
-    { label: 'Scientific Style', score: review?.authenticity_score ?? 24, max: 25, color: 'var(--brand-primary)' },
-    { label: 'Clarity & Logic', score: review?.clarity_score ?? 24, max: 25, color: 'var(--brand-indigo)' },
-    { label: 'Wrong Answers', score: review?.distractor_score ?? 23, max: 25, color: 'var(--status-warning)' },
-    { label: 'Explanation Accuracy', score: review?.explanation_score ?? 24, max: 25, color: 'var(--status-success)' },
+    { label: 'Scientific Style', score: review?.authenticity_score ?? null, max: 25, color: 'var(--brand-primary)' },
+    { label: 'Clarity & Logic', score: review?.clarity_score ?? null, max: 25, color: 'var(--brand-indigo)' },
+    { label: 'Wrong Answers', score: review?.distractor_score ?? null, max: 25, color: 'var(--status-warning)' },
+    { label: 'Explanation Accuracy', score: review?.explanation_score ?? null, max: 25, color: 'var(--status-success)' },
   ];
 
   const iconElement = (
@@ -109,7 +107,7 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
               {question.final_score > 90 ? 'Passed' : 'Needs Polish'}
             </span>
             <div className="audit-rounds-label">
-              Rounds: {question.iteration_count || 1} of 3
+              Rounds: {question.iteration_count || 1}
             </div>
           </div>
         </div>
@@ -197,13 +195,13 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
               <div key={p.label} className="audit-pillar-card">
                 <div className="audit-pillar-header">
                   <span className="audit-pillar-label">{p.label}</span>
-                  <span className="audit-pillar-score" style={{ color: p.color }}>{p.score} / {p.max}</span>
+                  <span className="audit-pillar-score" style={{ color: p.color }}>{p.score ?? 'N/A'} / {p.max}</span>
                 </div>
                 <div className="audit-progress-track">
                   <div
                     className="audit-progress-bar"
                     style={{
-                      width: `${(p.score / p.max) * 100}%`,
+                      width: `${((p.score ?? 0) / p.max) * 100}%`,
                       background: p.color
                     }}
                   />

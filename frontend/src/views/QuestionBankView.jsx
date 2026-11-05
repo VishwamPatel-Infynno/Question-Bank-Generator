@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { Database, Sparkles, Eye } from 'lucide-react';
 import { batchDeleteQuestions, saveEditedQuestion } from '../services/api';
 import { useQuestionBank, usePagination, useConfirmModal, useKeyboardShortcuts } from '../hooks';
-import { PaginationBar, Modal } from '../components/common';
+import { PaginationBar, Modal, LoadError } from '../components/common';
 import { QuestionCard } from '../components/question';
 import { ExportPrintModal, ConfirmationModal } from '../components/modals';
 import QuestionBankFilters from '../components/bank/QuestionBankFilters';
@@ -23,6 +23,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const {
     questions,
     loading,
+    loadError,
     sectionFilter,
     setSectionFilter,
     diffFilter,
@@ -41,13 +42,20 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
 
   const searchInputRef = useRef(null);
   const [expandedId, setExpandedId] = useState(null);
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedRaw, setSelectedIds] = useState([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [inspectingQuestion, setInspectingQuestion] = useState(null);
 
   // Standardized accessible confirmation modal state hook
   const { confirmModal, openConfirmModal, closeConfirmModal } = useConfirmModal('question');
+
+  // Selection only counts items still in the loaded list: after a filter change or reload, ids
+  // the user can no longer see must not be bulk-deleted or exported.
+  const selectedIds = useMemo(() => {
+    const loaded = new Set(questions.map((q) => q.id));
+    return selectedRaw.filter((id) => loaded.has(id));
+  }, [selectedRaw, questions]);
 
   const handleUpdateInspectedQuestion = async (updated) => {
     try {
@@ -70,6 +78,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
           message: 'Could not save question updates to database.'
         });
       }
+      throw err; // lets the editor stay open with the user's changes
     }
   };
 
@@ -77,11 +86,11 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
 
   // ─── Pagination ────────────────────────────────────────────────────────────
   const {
-    currentPage,
     setCurrentPage,
     pageSize,
     setPageSize,
     totalPages,
+    safeCurrentPage,
     paginatedItems: paginatedQuestions
   } = usePagination({
     items: questions,
@@ -248,6 +257,12 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
           <div className="view-loading-spinner" />
           <span className="view-loading-text">Loading Question Bank...</span>
         </div>
+      ) : loadError && questions.length === 0 ? (
+        <LoadError
+          title="Could not load the Question Bank"
+          message={loadError}
+          onRetry={loadQuestions}
+        />
       ) : questions.length === 0 ? (
         <div className="view-empty-state">
           <div className="view-empty-icon-box">
@@ -292,7 +307,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       {/* ── Pagination Bar ────────────────────────────────────────────────── */}
       {!loading && questions.length > 0 && (
         <PaginationBar
-          currentPage={currentPage}
+          currentPage={safeCurrentPage}
           totalPages={totalPages}
           pageSize={pageSize}
           totalItems={questions.length}

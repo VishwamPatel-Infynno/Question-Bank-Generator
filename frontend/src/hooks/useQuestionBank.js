@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchQuestions, deleteQuestion } from '../services/api';
 
 export function useQuestionBank() {
   const [rawQuestions, setRawQuestions] = useState([]);
   const [repoStats, setRepoStats] = useState({ total_tokens: 0, total_cost_usd: 0 });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [sectionFilter, setSectionFilter] = useState('');
   const [diffFilter, setDiffFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('in_bank');
@@ -12,6 +13,8 @@ export function useQuestionBank() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'score_desc' | 'score_asc' | 'difficulty'
   const [copiedId, setCopiedId] = useState(null);
+  const copiedTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(copiedTimerRef.current), []);
   // Debounce search query by 250ms
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -41,6 +44,7 @@ export function useQuestionBank() {
     )
       .then((data) => {
         if (!isCancelled) {
+          setLoadError(null);
           setRawQuestions(data.questions || []);
           setRepoStats({
             total_tokens: data.total_tokens || 0,
@@ -54,7 +58,10 @@ export function useQuestionBank() {
       .catch((err) => {
         if (err.name === 'AbortError') return;
         console.error('Failed to load question bank:', err);
-        if (!isCancelled) setLoading(false);
+        if (!isCancelled) {
+          setLoadError(err.message || 'Request failed');
+          setLoading(false);
+        }
       });
 
     return () => {
@@ -64,6 +71,7 @@ export function useQuestionBank() {
   }, [sectionFilter, diffFilter, statusFilter, debouncedSearch, sortBy, refreshCount]);
 
   const loadQuestions = useCallback(() => {
+    setLoadError(null);
     setLoading(true);
     setRefreshCount(c => c + 1);
   }, []);
@@ -85,9 +93,16 @@ export function useQuestionBank() {
       `Question: ${q.question_stem}\n\n` +
       (q.options || []).map((o) => `${o.id}: ${o.text}`).join('\n') +
       `\n\nCorrect Answer: ${q.correct_answer_id}\n\nExplanation: ${q.explanation}`;
-    navigator.clipboard.writeText(formatted);
-    setCopiedId(q.id);
-    setTimeout(() => setCopiedId(null), 2000);
+    // writeText rejects on non-secure origins or when permission is denied: only report "copied"
+    // when it really worked
+    navigator.clipboard
+      ?.writeText(formatted)
+      .then(() => {
+        setCopiedId(q.id);
+        clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = setTimeout(() => setCopiedId(null), 2000);
+      })
+      .catch((err) => console.warn('Clipboard copy failed:', err));
   }, []);
 
   const handleUpdate = useCallback((updatedQuestion) => {
@@ -125,6 +140,7 @@ export function useQuestionBank() {
     rawQuestionsCount: rawQuestions.length,
     repoStats,
     loading,
+    loadError,
     sectionFilter,
     setSectionFilter,
     diffFilter,

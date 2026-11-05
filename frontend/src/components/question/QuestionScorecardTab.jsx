@@ -6,7 +6,7 @@
  *
  * Props:
  * - question: object - The question instance containing final_score and review_rubric
- * - pillars: Array<{ label: string, score: number, max: number, color: string }>
+ * - pillars: Array<{ label: string, score: number | null, max: number, color: string }>
  */
 const EMPTY_PILLARS = [];
 
@@ -34,12 +34,12 @@ export default function QuestionScorecardTab({ question, pillars = EMPTY_PILLARS
           >
             <div className="scorecard-pillar-row">
               <span className="scorecard-pillar-label">{p.label}</span>
-              <span className="scorecard-pillar-score" style={{ color: p.color }}>{p.score}/{p.max}</span>
+              <span className="scorecard-pillar-score" style={{ color: p.color }}>{p.score ?? 'N/A'}/{p.max}</span>
             </div>
             <div className="scorecard-progress-track">
               <div
                 className="scorecard-progress-fill"
-                style={{ width: `${(p.score / p.max) * 100}%`, background: p.color }}
+                style={{ width: `${((p.score ?? 0) / p.max) * 100}%`, background: p.color }}
               />
             </div>
           </div>

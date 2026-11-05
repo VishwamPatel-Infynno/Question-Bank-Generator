@@ -596,3 +596,8 @@
 }
 
 
+
+.load-error-icon {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--status-danger);
+}

@@ -47,6 +47,16 @@ function BatchCard({
       {/* Batch Summary & Status Area (clickable to expand/collapse) */}
       <div
         onClick={() => onToggleExpand(batch.id)}
+        onKeyDown={(e) => {
+          // Only when the header itself has focus: Enter/Space on inner buttons keep their meaning
+          if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onToggleExpand(batch.id);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
         className={`batch-card-clickable ${isExpanded ? 'expanded' : ''}`}
       >
         <BatchCardSummary

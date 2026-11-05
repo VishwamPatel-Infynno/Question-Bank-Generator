@@ -148,7 +148,7 @@ export function generateExamHtmlDoc(questions = [], { paperMode = 'student' } = 
         </div>
 
         <div class="instructions-bar">
-          <strong>Instructions to Candidates:</strong> Answer all ${questions.length} questions under timed exam conditions. Mark your chosen answer choice [A&ndash;E] clearly. Calculators are permitted only for Quantitative Reasoning.
+          <strong>Instructions to Candidates:</strong> Answer all ${questions.length} questions under timed exam conditions. Mark your chosen answer choice [A&ndash;D] clearly. Calculators are permitted only for Quantitative Reasoning.
         </div>
       </div>
 

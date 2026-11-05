@@ -238,3 +238,10 @@ export const getDifficultyBadgeClass = (diff) => {
 };
 
 export * from './mcatTraps';
+
+/**
+ * Score cut-offs (exclusive) used when a question has no explicit status. They mirror the
+ * backend's PASSING_SCORE_THRESHOLD (90) and BATCH_PASSING_SCORE_THRESHOLD (85); keep one copy
+ * here so the review queue and the batch views never disagree.
+ */
+export const SCORE_CUTOFFS = Object.freeze({ aiValidatedAbove: 90, batchAbove: 85 });

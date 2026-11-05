@@ -7,6 +7,7 @@ import {
   saveEditedQuestion
 } from '../services/api';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { makeId } from '../utils/ids';
 
 /**
  * Custom hook encapsulating reading passages state, search debouncing,
@@ -176,7 +177,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
 
   // Manual New Passage Creation
   const handleCreateNewPassage = () => {
-    const newId = `passage-${crypto.randomUUID().slice(0, 8)}`;
+    const newId = `passage-${makeId().slice(0, 8)}`;
     const blankPassage = {
       id: newId,
       title: 'New Reading Passage',
@@ -315,6 +316,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
           message: 'Could not update question in database.'
         });
       }
+      throw err; // lets the editor stay open with the user's changes
     }
   };
 

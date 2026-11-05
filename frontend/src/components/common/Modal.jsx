@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { X } from 'lucide-react';
 import { useFocusTrap } from '../../hooks';
 
@@ -38,7 +39,14 @@ export default function Modal({
   className = '',
   cardStyle = DEFAULT_CARD_STYLE
 }) {
-  const modalRef = useFocusTrap({ isActive: Boolean(isOpen), onClose });
+  // While a request is running the dialog must not be dismissable (Escape included)
+  const modalRef = useFocusTrap({
+    isActive: Boolean(isOpen),
+    onClose: isProcessing ? null : onClose
+  });
+  // Unique per instance so stacked dialogs never share a label id
+  const uid = useId();
+  const labelId = ariaLabelledBy === 'modal-dialog-title' ? `modal-title-${uid}` : ariaLabelledBy;
 
   if (!isOpen) return null;
 
@@ -60,7 +68,7 @@ export default function Modal({
       className="modal-backdrop-theme"
       role="dialog"
       aria-modal="true"
-      aria-labelledby={title ? ariaLabelledBy : undefined}
+      aria-labelledby={title ? labelId : undefined}
       onClick={handleBackdropClick}
     >
       <div
@@ -84,7 +92,7 @@ export default function Modal({
               <div className="modal-title-text-box">
                 {title && (
                   <h2
-                    id={ariaLabelledBy}
+                    id={labelId}
                     className="modal-title modal-title-text"
                   >
                     {title}

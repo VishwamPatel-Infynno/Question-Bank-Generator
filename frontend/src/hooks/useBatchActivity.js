@@ -26,6 +26,7 @@ import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [activeCount, setActiveCount] = useState(0);
 
@@ -63,6 +64,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
   const pollTimerRef = useRef(null);
   const fetchInFlightRef = useRef(false);
   const abortRef = useRef(null);
+  const lastStatusRef = useRef(new Map());
   const failureCountRef = useRef(0);
   const nextPollAllowedRef = useRef(0);
   const expandedBatchIdsRef = useRef(expandedBatchIds);
@@ -91,10 +93,17 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
 
       // Re-fetch details for any expanded batches that are in progress atomically
       const expandedIds = Array.from(expandedBatchIdsRef.current);
+      // ...plus any that just left in_progress, so the card shows the final state instead of the
+      // last in-progress snapshot.
+      const previousStatus = lastStatusRef.current;
       const inProgressIds = expandedIds.filter((bId) => {
         const matchingBatch = data.batches?.find((b) => b.id === bId);
-        return matchingBatch && matchingBatch.status === 'in_progress';
+        if (!matchingBatch) return false;
+        return (
+          matchingBatch.status === 'in_progress' || previousStatus.get(bId) === 'in_progress'
+        );
       });
+      lastStatusRef.current = new Map((data.batches || []).map((b) => [b.id, b.status]));
 
       if (inProgressIds.length > 0) {
         const results = await Promise.allSettled(
@@ -112,6 +121,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
       }
       failureCountRef.current = 0;
       nextPollAllowedRef.current = 0;
+      setLoadError(null);
     } catch (err) {
       // A newer request superseded this one (or the view unmounted): not a failure
       if (err?.name === 'AbortError') return;
@@ -120,6 +130,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
       nextPollAllowedRef.current =
         Date.now() + Math.min(30000, 2500 * 2 ** failureCountRef.current);
       console.error('Failed to load batches:', err);
+      setLoadError(err?.message || 'Request failed');
       if (!isSilent && onShowToastRef.current) {
         onShowToastRef.current({
           type: 'error',
@@ -489,6 +500,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
     activeCount,
     hasActiveBatches,
     loading,
+    loadError,
     refreshing,
     loadBatches,
     // Filters

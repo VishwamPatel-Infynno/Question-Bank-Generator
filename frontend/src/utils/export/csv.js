@@ -6,8 +6,11 @@
  */
 function escapeCsv(val) {
   if (val === null || val === undefined) return '""';
-  const str = String(val).replace(/"/g, '""');
-  return `"${str}"`;
+  let str = String(val);
+  // Spreadsheets run cells that start with = + - @ (or tab/CR) as formulas, and question text is
+  // LLM-generated: a leading apostrophe turns such a cell into plain text.
+  if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
+  return `"${str.replace(/"/g, '""')}"`;
 }
 
 /**

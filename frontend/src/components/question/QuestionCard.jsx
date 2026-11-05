@@ -79,7 +79,7 @@ function QuestionCard({
     }
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     const updated = {
       ...question,
       question_stem: editedStem,
@@ -88,8 +88,13 @@ function QuestionCard({
       explanation: editedExplanation,
       image_description: editedImageDescription
     };
-    if (onUpdateQuestion) onUpdateQuestion(updated);
-    setIsEditing(false);
+    try {
+      if (onUpdateQuestion) await onUpdateQuestion(updated);
+      setIsEditing(false);
+    } catch {
+      // The save failed (the owner already showed an error): stay in edit mode so the user's
+      // changes are not lost
+    }
   };
 
   const handleCancelEdit = () => {
@@ -104,10 +109,10 @@ function QuestionCard({
 
   const review = question.review_rubric;
   const pillars = [
-    { label: 'Scientific Style', score: review?.authenticity_score ?? 24, max: 25, color: 'var(--brand-primary)' },
-    { label: 'Clarity & Logic', score: review?.clarity_score ?? 24, max: 25, color: 'var(--brand-indigo)' },
-    { label: 'Wrong Answers', score: review?.distractor_score ?? 23, max: 25, color: 'var(--status-warning)' },
-    { label: 'Explanation Accuracy', score: review?.explanation_score ?? 24, max: 25, color: 'var(--status-success)' },
+    { label: 'Scientific Style', score: review?.authenticity_score ?? null, max: 25, color: 'var(--brand-primary)' },
+    { label: 'Clarity & Logic', score: review?.clarity_score ?? null, max: 25, color: 'var(--brand-indigo)' },
+    { label: 'Wrong Answers', score: review?.distractor_score ?? null, max: 25, color: 'var(--status-warning)' },
+    { label: 'Explanation Accuracy', score: review?.explanation_score ?? null, max: 25, color: 'var(--status-success)' },
   ];
 
   const correctKeysList = Array.isArray(question.correct_answer_ids) && question.correct_answer_ids.length > 0

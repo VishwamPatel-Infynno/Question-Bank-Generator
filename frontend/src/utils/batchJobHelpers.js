@@ -1,3 +1,5 @@
+import { SCORE_CUTOFFS } from '../constants/mcat';
+
 /**
  * batchJobHelpers.js - Status resolution and filtering helpers for BatchJobCard and BatchQuestionItem.
  */
@@ -11,8 +13,8 @@ export function resolveQuestionStatus(q) {
   if (q.is_deleted) return 'deleted';
   if (q.status) return q.status;
   const score = q.final_score ?? 95;
-  if (score > 90) return 'ai_validated';
-  if (score > 85) return 'batch_only';
+  if (score > SCORE_CUTOFFS.aiValidatedAbove) return 'ai_validated';
+  if (score > SCORE_CUTOFFS.batchAbove) return 'batch_only';
   return 'below_threshold';
 }
 

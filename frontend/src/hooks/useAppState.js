@@ -17,6 +17,7 @@ import {
   fetchBatches,
   fetchQuestionCounts
 } from '../services';
+import { makeId } from '../utils/ids';
 
 /**
  * Central application state hook.
@@ -39,7 +40,7 @@ import {
  *   handleNavigateToPassages: () => void,
  *   passagesResetSignal: number,
  *   sectionsData: Array<any>,
- *   backendStatus: boolean,
+ *   backendStatus: boolean | null,  (null while the first check is pending)
  *   activeBatchCount: number,
  *   generatorForm: ReturnType<typeof useGeneratorForm>,
  *   auditQuestion: any,
@@ -65,7 +66,8 @@ export function useAppState() {
 
   // ─── Sections / Backend Status ────────────────────────────────────────────
   const [sectionsData, setSectionsData] = useState([]);
-  const [backendStatus, setBackendStatus] = useState(false);
+  // null = still connecting, true = online, false = offline
+  const [backendStatus, setBackendStatus] = useState(null);
   const [activeBatchCount, setActiveBatchCount] = useState(0);
   const [validatedCount, setValidatedCount] = useState(0);
 
@@ -81,7 +83,7 @@ export function useAppState() {
   const [toasts, setToasts] = useState([]);
 
   const showToast = useCallback(({ type = 'info', title, message, duration = 4000 }) => {
-    const id = crypto.randomUUID();
+    const id = makeId();
     setToasts(prev => [...prev, { id, type, title, message, duration }]);
   }, []);
 
@@ -148,8 +150,12 @@ export function useAppState() {
     fetchBatches({ limit: 1 }, signal)
       .then((data) => {
         setActiveBatchCount(data.active_running_batches || 0);
+        setBackendStatus(true);
       })
-      .catch(() => {});
+      .catch((err) => {
+        // This poll doubles as the health check, so the navbar recovers and goes offline live
+        if (err?.name !== 'AbortError') setBackendStatus(false);
+      });
 
     if (prefetchedCounts && typeof prefetchedCounts === 'object' && 'ai_validated' in prefetchedCounts) {
       Promise.resolve(prefetchedCounts).then((counts) => {

@@ -141,9 +141,10 @@ export default function Navbar({
         <div className="navbar-status-indicator">
           <span
             className={`navbar-status-dot ${backendStatus ? 'online' : 'offline'}`}
+            aria-hidden="true"
           />
           <span className="navbar-status-text">
-            {backendStatus ? 'Online' : 'Connecting...'}
+            {backendStatus === null ? 'Connecting...' : backendStatus ? 'Online' : 'Offline'}
           </span>
         </div>
 
@@ -152,6 +153,7 @@ export default function Navbar({
           id="btn-toggle-theme"
           onClick={onToggleTheme}
           className="btn-secondary navbar-theme-btn"
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode (Press T)`}
         >
           {theme === 'dark' ? <Sun size={13} color="var(--status-warning)" /> : <Moon size={13} color="var(--infynno-blue)" />}

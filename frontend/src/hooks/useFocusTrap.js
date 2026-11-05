@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react';
 
+// Open traps, innermost last: Escape closes only the top dialog, never every stacked one.
+const trapStack = [];
+
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -15,9 +18,18 @@ const FOCUSABLE_SELECTOR =
 export function useFocusTrap({ isActive = true, onClose = null }) {
   const containerRef = useRef(null);
   const previousActiveElementRef = useRef(null);
+  // Callers pass inline closures; keeping the latest one in a ref stops the effect below from
+  // re-running (and stealing focus back to the first control) on every parent re-render.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isActive) return;
+
+    const trapToken = {};
+    trapStack.push(trapToken);
 
     previousActiveElementRef.current = document.activeElement;
 
@@ -34,10 +46,11 @@ export function useFocusTrap({ isActive = true, onClose = null }) {
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (onClose) {
-          e.stopPropagation();
-          onClose();
-        }
+        // Only the topmost dialog reacts; a disabled close (null onClose, e.g. while saving) still
+        // swallows the key so it cannot dismiss anything underneath.
+        if (trapStack[trapStack.length - 1] !== trapToken) return;
+        e.stopPropagation();
+        if (onCloseRef.current) onCloseRef.current();
         return;
       }
 
@@ -67,15 +80,18 @@ export function useFocusTrap({ isActive = true, onClose = null }) {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    // Capture phase: runs before the app-level Escape handler, so stopPropagation really isolates it
+    window.addEventListener('keydown', handleKeyDown, true);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
+      const at = trapStack.indexOf(trapToken);
+      if (at !== -1) trapStack.splice(at, 1);
       if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === 'function') {
         previousActiveElementRef.current.focus();
       }
     };
-  }, [isActive, onClose]);
+  }, [isActive]);
 
   return containerRef;
 }

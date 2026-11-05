@@ -9,6 +9,7 @@ import {
 } from '../services/api';
 import { useConfirmModal } from './useConfirmModal';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { SCORE_CUTOFFS } from '../constants';
 
 /**
  * Custom hook encapsulating AI Validated questions state, search debouncing,
@@ -29,6 +30,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     below_threshold: 0
   });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [actionInProgress, setActionInProgress] = useState(false);
 
@@ -59,8 +61,13 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
   const [selectedIds, setSelectedIds] = useState([]);
 
   // Load questions and counts asynchronously without synchronous pre-render state mutations
+  const requestSeqRef = useRef(0);
+
   const performFetchValidated = useCallback(
     async (isSilent = false) => {
+      // Only the newest request may write state: a slow response for an old filter must not
+      // overwrite the list for the current one.
+      const seq = ++requestSeqRef.current;
       try {
         const [qsRes, countsRes] = await Promise.all([
           fetchQuestions({
@@ -70,13 +77,17 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
           }),
           fetchQuestionCounts()
         ]);
+        if (seq !== requestSeqRef.current) return;
         const loadedQs = qsRes.questions || [];
+        setLoadError(null);
         setQuestions(loadedQs);
         setCounts(countsRes || {});
         // Hand over the counts we just loaded so the parent does not fetch them again
         if (onRefreshCounts) onRefreshCounts(countsRes);
       } catch (err) {
+        if (seq !== requestSeqRef.current) return;
         console.error('Failed to load AI validated questions:', err);
+        setLoadError(err.message || 'Request failed');
         if (!isSilent && onShowToast) {
           onShowToast({
             type: 'error',
@@ -85,8 +96,10 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
           });
         }
       } finally {
-        setLoading(false);
-        if (!isSilent) setRefreshing(false);
+        if (seq === requestSeqRef.current) {
+          setLoading(false);
+          if (!isSilent) setRefreshing(false);
+        }
       }
     },
     [sectionFilter, onRefreshCounts, onShowToast]
@@ -116,7 +129,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
 
   // Filtered in-memory questions by search query (strictly preserving score > 90 benchmark)
   const filteredQuestions = useMemo(() => {
-    const validQuestions = questions.filter((item) => (item.final_score || 0) > 90);
+    const validQuestions = questions.filter((item) => (item.final_score || 0) > SCORE_CUTOFFS.aiValidatedAbove);
     if (!debouncedSearch.trim()) return validQuestions;
     const q = debouncedSearch.toLowerCase().trim();
     return validQuestions.filter(
@@ -286,10 +299,26 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     });
   };
 
-  const handleApproveAllValidated = async () => {
+  const handleApproveAllValidated = () => {
     const allIds = filteredQuestions.map((q) => q.id);
     if (allIds.length === 0) return;
     const count = allIds.length;
+    // One click can move every listed question into the bank, so ask first
+    openConfirmModal({
+      title: 'Save All to Question Bank',
+      description: `Save ${count} validated question${count !== 1 ? 's' : ''} to the Question Bank${debouncedSearch || sectionFilter ? ' (only those matching your current filters)' : ''}?`,
+      confirmLabel: `Save ${count} Question${count !== 1 ? 's' : ''}`,
+      variant: 'info',
+      itemCount: count,
+      itemLabel: 'question',
+      onConfirm: async () => {
+        await approveAllNow(allIds, count);
+        closeConfirmModal();
+      }
+    });
+  };
+
+  const approveAllNow = async (allIds, count) => {
     setActionInProgress(true);
     try {
       await batchUpdateQuestionStatus(allIds, 'in_bank');
@@ -335,6 +364,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     filteredQuestions,
     counts,
     loading,
+    loadError,
     refreshing,
     actionInProgress,
     loadData,

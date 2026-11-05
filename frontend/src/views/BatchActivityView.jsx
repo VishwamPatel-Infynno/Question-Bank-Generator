@@ -1,4 +1,4 @@
-import { PaginationBar } from '../components/common';
+import { PaginationBar, LoadError } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
 import { usePagination, useBatchActivity } from '../hooks';
 import {
@@ -37,6 +37,7 @@ export default function BatchActivityView({
     activeBatchesList,
     activeCount,
     loading,
+    loadError,
     refreshing,
     loadBatches,
     scopeFilter,
@@ -126,6 +127,12 @@ export default function BatchActivityView({
           <div className="view-loading-spinner" />
           <span className="view-loading-text">Loading batch records...</span>
         </div>
+      ) : loadError && batches.length === 0 ? (
+        <LoadError
+          title="Could not load batch records"
+          message={loadError}
+          onRetry={() => loadBatches(false)}
+        />
       ) : filteredBatches.length === 0 ? (
         <BatchEmptyState
           searchQuery={searchQuery}

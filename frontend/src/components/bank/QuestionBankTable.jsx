@@ -55,6 +55,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
             className={`qbank-card-select-btn ${isSelected ? 'selected' : ''}`}
             title="Select question"
             aria-label="Select question"
+            aria-pressed={isSelected}
           >
             {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
           </button>
@@ -162,6 +163,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
             onClick={() => onToggleExpand(isExpanded ? null : q.id)}
             className="btn-secondary qbank-table-action-icon"
             title={isExpanded ? 'Collapse preview' : 'Expand preview inline'}
+            aria-expanded={isExpanded}
           >
             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>

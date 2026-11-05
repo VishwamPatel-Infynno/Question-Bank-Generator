@@ -1,5 +1,5 @@
 import { CheckCircle2, ArrowRight } from 'lucide-react';
-import { PaginationBar } from '../components/common';
+import { PaginationBar, LoadError } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
 import { usePagination, useAiValidated } from '../hooks';
 import {
@@ -37,6 +37,7 @@ export default function AiValidatedQuestionsView({
     filteredQuestions,
     counts,
     loading,
+    loadError,
     refreshing,
     actionInProgress,
     loadData,
@@ -110,6 +111,12 @@ export default function AiValidatedQuestionsView({
           <div className="view-loading-spinner" />
           <span className="view-loading-text">Loading validated questions...</span>
         </div>
+      ) : loadError && questions.length === 0 ? (
+        <LoadError
+          title="Could not load validated questions"
+          message={loadError}
+          onRetry={() => loadData(false)}
+        />
       ) : filteredQuestions.length === 0 ? (
         <div className="view-empty-state">
           <div className="view-empty-icon-box success">
