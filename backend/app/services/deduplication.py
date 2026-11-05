@@ -133,11 +133,11 @@ _STEM_TOKEN_CACHE: OrderedDict[str, _StemTokens] = OrderedDict()
 _MAX_STEM_CACHE_SIZE = 2000
 
 
-def get_or_create_stem_tokens(stem: str | None, ref_id: str | None = None) -> _StemTokens:
+def get_or_create_stem_tokens(stem: str | None) -> _StemTokens:
     """
     Returns normalized text, filtered tokens list, tokens set, and bigrams set for a stem.
 
-    ``ref_id`` is accepted for backward compatibility and ignored: entries are keyed by content.
+    Entries are keyed by the normalized stem text, so equal stems share one cache entry.
     Least-recently-used entries are evicted one at a time instead of flushing the whole cache.
     """
     norm = normalize_text(stem)
@@ -171,13 +171,13 @@ def compute_sequence_ratio(text1: str, text2: str) -> float:
     return round(matcher.ratio(), 4)
 
 
-def compute_stem_similarity(stem1: str, stem2: str, ref_id: str | None = None) -> float:
+def compute_stem_similarity(stem1: str, stem2: str) -> float:
     """
     Hybrid stem similarity combining token containment, 1-gram Jaccard, 2-gram Jaccard,
     and character sequence ratio.
     """
     norm1, tokens1, s1, b1 = get_or_create_stem_tokens(stem1)
-    norm2, tokens2, s2, b2 = get_or_create_stem_tokens(stem2, ref_id)
+    norm2, tokens2, s2, b2 = get_or_create_stem_tokens(stem2)
     if not tokens1 or not tokens2:
         return 0.0
 
@@ -255,9 +255,7 @@ def compute_question_similarity(
         if isinstance(reference, dict)
         else getattr(reference, "question_stem", "")
     )
-    ref_id = reference.get("id") if isinstance(reference, dict) else getattr(reference, "id", None)
-
-    stem_sim = compute_stem_similarity(stem1, stem2, ref_id=str(ref_id) if ref_id else None)
+    stem_sim = compute_stem_similarity(stem1, stem2)
 
     # Early-exit prune: if stem similarity is below 0.40, composite similarity can NEVER reach 0.80
     if stem_sim < 0.40:
@@ -318,7 +316,7 @@ def evaluate_duplicate(
         else getattr(candidate, "question_stem", "")
     )
     if cand_stem:
-        get_or_create_stem_tokens(cand_stem, str(candidate_id) if candidate_id else None)
+        get_or_create_stem_tokens(cand_stem)
 
     highest_score = 0.0
     matched_ref: dict[str, Any] | Any | None = None

@@ -13,3 +13,20 @@ class TokenUsage(BaseModel):
     duration_ms: int | None = Field(
         None, description="Wall-clock latency of the LLM call in milliseconds, retries included"
     )
+
+
+def sum_usage(usages: list[TokenUsage], parallel: bool = False) -> TokenUsage:
+    """Combines several calls' usage into one.
+
+    Tokens and cost always add up (every call is billed). Latency adds up for sequential calls
+    but is the slowest call for calls that ran concurrently (``parallel=True``).
+    """
+    durations = [u.duration_ms or 0 for u in usages]
+    duration = (max(durations, default=0) if parallel else sum(durations)) or None
+    return TokenUsage(
+        prompt_tokens=sum(u.prompt_tokens for u in usages),
+        completion_tokens=sum(u.completion_tokens for u in usages),
+        total_tokens=sum(u.total_tokens for u in usages),
+        cost_usd=round(sum(u.cost_usd for u in usages), 7),
+        duration_ms=duration,
+    )

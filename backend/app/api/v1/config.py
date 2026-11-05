@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Request
 
@@ -12,7 +13,8 @@ router = APIRouter(tags=["Configuration & Settings"])
 
 
 @router.get("/config")
-async def get_settings(request: Request = None):
+async def get_runtime_settings(request: Request = None) -> dict[str, Any]:  # type: ignore[assignment]
+    # FastAPI only injects a bare ``Request`` annotation, hence the None default instead of ``| None``.
     """Retrieves current runtime configuration and pricing constants."""
     in_rate, out_rate = config.get_default_pricing_rates()
 

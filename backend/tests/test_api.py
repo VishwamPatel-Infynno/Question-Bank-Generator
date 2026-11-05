@@ -16,6 +16,7 @@ from app.repositories import (
 )
 from app.schemas import (
     Difficulty,
+    DuplicateCheckRequest,
     GenerationRequest,
     MCATSection,
     OptionChoice,
@@ -859,7 +860,7 @@ async def test_deduplication_and_override_api():
             {"id": "D", "text": "Leaves apparent Km unchanged"},
         ],
     }
-    check_res = await check_question_duplicate_endpoint(dup_payload)
+    check_res = await check_question_duplicate_endpoint(DuplicateCheckRequest(**dup_payload))
     assert check_res["success"] is True
     dup_info = check_res["duplicate_check"]
     assert dup_info["is_duplicate"] is True

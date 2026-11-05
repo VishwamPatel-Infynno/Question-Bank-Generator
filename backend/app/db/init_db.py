@@ -6,6 +6,7 @@ import re
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from app.core.config import config
 from app.db.base import Base
 from app.models.batch import GenerationBatchModel  # noqa: F401 - Registered for Base.metadata
 from app.models.job import GenerationJobModel  # noqa: F401 - Registered for Base.metadata
@@ -556,24 +557,33 @@ async def init_db_schema(engine: AsyncEngine):
             )
         )
 
-        # 6. Reconcile question status for two-tier quality thresholds (>90 -> ai_validated, 86-90 -> batch_only, <=85 -> below_threshold)
+        # 6. Reconcile question status for the two-tier quality thresholds. The numbers come from
+        # config (never literals) so this SQL cannot drift from determine_question_status:
+        # > PASSING -> ai_validated, (BATCH, PASSING] -> batch_only, <= BATCH -> below_threshold.
+        thresholds = {
+            "passing": int(config.PASSING_SCORE_THRESHOLD),
+            "batch": int(config.BATCH_PASSING_SCORE_THRESHOLD),
+        }
         await conn.execute(
             text(
                 """
                 UPDATE questions
                 SET status = 'batch_only'
-                WHERE status = 'ai_validated' AND final_score > 85 AND final_score <= 90;
+                WHERE status = 'ai_validated'
+                  AND final_score > :batch AND final_score <= :passing;
                 """
-            )
+            ),
+            thresholds,
         )
         await conn.execute(
             text(
                 """
                 UPDATE questions
                 SET status = 'below_threshold'
-                WHERE status = 'ai_validated' AND final_score <= 85;
+                WHERE status = 'ai_validated' AND final_score <= :batch;
                 """
-            )
+            ),
+            thresholds,
         )
 
     logger.info(

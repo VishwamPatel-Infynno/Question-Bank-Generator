@@ -16,10 +16,10 @@ import logging
 from app.agents._mock_tokens import (
     REGENERATOR_MOCK_COMPLETION_TOKENS,
     REGENERATOR_MOCK_PROMPT_TOKENS,
+    mock_usage,
 )
 from app.agents.base import (
     LLMNotConfiguredError,
-    calculate_token_cost,
     call_llm_validated,
     require_offline_mode,
     safe_json_loads,
@@ -167,16 +167,10 @@ Please re-generate and refine this question to resolve all weaknesses and produc
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         logger.warning(f"Re-Generator LLM not configured, using offline heuristic remediation: {e}")
-        mock_usage = TokenUsage(
-            prompt_tokens=REGENERATOR_MOCK_PROMPT_TOKENS,
-            completion_tokens=REGENERATOR_MOCK_COMPLETION_TOKENS,
-            total_tokens=REGENERATOR_MOCK_PROMPT_TOKENS + REGENERATOR_MOCK_COMPLETION_TOKENS,
-            cost_usd=calculate_token_cost(
-                REGENERATOR_MOCK_PROMPT_TOKENS,
-                REGENERATOR_MOCK_COMPLETION_TOKENS,
-            ),
+        fallback_usage = mock_usage(
+            REGENERATOR_MOCK_PROMPT_TOKENS, REGENERATOR_MOCK_COMPLETION_TOKENS
         )
         fallback_draft = improve_draft_heuristically(draft, review, iteration)
         if not is_passage_active:
             fallback_draft.stimulus_text = ""
-        return fallback_draft, mock_usage
+        return fallback_draft, fallback_usage

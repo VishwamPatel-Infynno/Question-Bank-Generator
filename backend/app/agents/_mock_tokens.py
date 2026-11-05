@@ -28,3 +28,19 @@ REGENERATOR_MOCK_COMPLETION_TOKENS: int = 390
 # ── Blind-Solver ──────────────────────────────────────────────────────────────
 BLIND_SOLVER_MOCK_PROMPT_TOKENS: int = 280
 BLIND_SOLVER_MOCK_COMPLETION_TOKENS: int = 160
+
+
+def mock_usage(prompt_tokens: int, completion_tokens: int):
+    """Plausible ``TokenUsage`` for a mock/heuristic result, priced like a real call.
+
+    Imported lazily so this constants module stays free of heavy imports.
+    """
+    from app.agents.base import calculate_token_cost
+    from app.schemas import TokenUsage
+
+    return TokenUsage(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=prompt_tokens + completion_tokens,
+        cost_usd=calculate_token_cost(prompt_tokens, completion_tokens),
+    )

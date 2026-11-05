@@ -13,6 +13,7 @@ from app.db.session import async_session_factory
 from app.models.batch import GenerationBatchModel
 from app.models.job import GenerationJobModel
 from app.models.question import QuestionModel
+from app.repositories._filters import active_question_clause
 from app.schemas import GenerationBatch
 
 logger = logging.getLogger(__name__)
@@ -130,7 +131,7 @@ async def _execute_promote_batch_questions(
         .where(
             QuestionModel.batch_id == batch_id,
             QuestionModel.status == "batch_only",
-            QuestionModel.is_deleted.is_(False),
+            active_question_clause(),
             QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD,
         )
         .values(status="ai_validated", updated_at=ts)
@@ -198,7 +199,7 @@ async def refresh_batch_aggregates(
         # Count real active questions in the batch (excluding soft-deleted, discarded, failed, rejected)
         q_count_stmt = select(func.count(QuestionModel.id)).where(
             QuestionModel.batch_id == batch_id,
-            QuestionModel.is_deleted.is_(False),
+            active_question_clause(),
             QuestionModel.status.notin_(
                 ("discarded", "rejected_below_threshold", "error", "failed")
             ),

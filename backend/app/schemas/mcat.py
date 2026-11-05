@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from enum import Enum
 from pathlib import Path
 
@@ -184,7 +185,12 @@ _DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "mcat_dependent_t
 try:
     with open(_DATA_PATH, encoding="utf-8") as _f:
         DEPENDENT_TAXONOMY = json.load(_f)
-except Exception:
+except (OSError, json.JSONDecodeError) as _taxonomy_error:
+    logging.getLogger(__name__).error(
+        "Could not load %s (%s); using an EMPTY taxonomy. Selection flows will have no data.",
+        _DATA_PATH,
+        _taxonomy_error,
+    )
     DEPENDENT_TAXONOMY = {
         "schema_version": "1.0",
         "exam": {"id": "MCAT", "name": "MCAT"},

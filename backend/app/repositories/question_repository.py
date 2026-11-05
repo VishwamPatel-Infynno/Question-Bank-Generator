@@ -13,6 +13,7 @@ from app.db.session import async_session_factory
 from app.models.batch import GenerationBatchModel
 from app.models.passage import PassageModel
 from app.models.question import QuestionModel
+from app.repositories._filters import active_question_clause
 from app.schemas import DuplicateInfo, OptionChoice, Question, ReviewScore
 
 logger = logging.getLogger(__name__)
@@ -329,7 +330,7 @@ async def get_repository_metrics(status: str | None = None) -> dict[str, Any]:
             func.count(QuestionModel.id).label("total_count"),
             func.coalesce(func.sum(QuestionModel.total_tokens), 0).label("total_tokens"),
             func.coalesce(func.sum(QuestionModel.cost_usd), 0.0).label("total_cost_usd"),
-        ).where(QuestionModel.is_deleted.is_(False))
+        ).where(active_question_clause())
         if status and status != "all":
             stmt = stmt.where(QuestionModel.status == status)
         res = await session.execute(stmt)
@@ -356,7 +357,7 @@ def _build_question_filters(
     """Builds shared SQLAlchemy filter conditions across list and count queries."""
     conditions: list[Any] = []
     if not include_deleted:
-        conditions.append(QuestionModel.is_deleted.is_(False))
+        conditions.append(active_question_clause())
 
     if section:
         conditions.append(QuestionModel.section == section)
@@ -528,7 +529,7 @@ async def get_question_by_id(question_id: str, include_deleted: bool = False) ->
     async with async_session_factory() as session:
         stmt = select(QuestionModel).where(QuestionModel.id == question_id)
         if not include_deleted:
-            stmt = stmt.where(QuestionModel.is_deleted.is_(False))
+            stmt = stmt.where(active_question_clause())
         res = await session.execute(stmt)
         model = res.scalar_one_or_none()
         if not model:
@@ -658,7 +659,7 @@ async def get_question_status_counts() -> dict[str, int]:
         stmt = (
             select(QuestionModel.status, func.count(QuestionModel.id))
             .where(
-                QuestionModel.is_deleted.is_(False),
+                active_question_clause(),
                 or_(
                     QuestionModel.status != "ai_validated",
                     and_(
@@ -701,7 +702,7 @@ async def get_subtopic_reference_questions(
     """
     async with async_session_factory() as session:
         stmt = select(QuestionModel).where(
-            QuestionModel.is_deleted.is_(False),
+            active_question_clause(),
             QuestionModel.status.in_(["in_bank", "ai_validated", "approved"]),
         )
         if section:

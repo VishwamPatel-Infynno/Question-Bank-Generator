@@ -8,7 +8,7 @@ from app.agents.base import (
     call_llm,
     normalize_model_for_litellm,
 )
-from app.api.v1.config import get_settings
+from app.api.v1.config import get_runtime_settings
 from app.api.v1.health import health_check
 from app.core.config import config
 
@@ -247,7 +247,7 @@ async def test_health_and_config_endpoints_anthropic_reporting():
         config.DEFAULT_TEXT_MODEL = "claude-haiku-5-5"
         config.ANTHROPIC_API_KEY = "sk-ant-live"
 
-        cfg_data = await get_settings()
+        cfg_data = await get_runtime_settings()
         assert cfg_data["default_text_model"] == "claude-haiku-5-5"
         assert cfg_data["active_provider"] == "anthropic"
         assert cfg_data["has_anthropic_key"] is True

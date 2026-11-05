@@ -308,8 +308,8 @@ def test_stem_token_cache_is_keyed_by_content_and_evicts_one_at_a_time(monkeypat
     monkeypatch.setattr(dd, "_MAX_STEM_CACHE_SIZE", 3)
 
     first = dd.get_or_create_stem_tokens("Which enzyme catalyzes glycolysis step one?")
-    # An edited stem under the same id must NOT return the old tokens (the old id-keyed cache did)
-    edited = dd.get_or_create_stem_tokens("Completely different stem about optics lenses", "q1")
+    # A different stem must never return another stem's tokens (the old id-keyed cache could)
+    edited = dd.get_or_create_stem_tokens("Completely different stem about optics lenses")
     assert edited[0] != first[0]
     assert dd.get_or_create_stem_tokens("Which enzyme catalyzes glycolysis step one?") is first
 

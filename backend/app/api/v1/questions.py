@@ -215,10 +215,8 @@ async def batch_update_status(payload: StatusUpdateRequest):
 
 
 @router.patch("/questions/{question_id}/status")
-async def update_single_status(question_id: str, payload: SingleStatusUpdateRequest | dict):
+async def update_single_status(question_id: str, payload: SingleStatusUpdateRequest):
     """Update single question lifecycle status."""
-    if isinstance(payload, dict):
-        payload = SingleStatusUpdateRequest(**payload)
     new_status = payload.status.value if hasattr(payload.status, "value") else str(payload.status)
     success = await update_question_status(question_id, new_status)
     if not success:
@@ -240,12 +238,10 @@ async def override_question_duplicate_endpoint(question_id: str):
 
 
 @router.post("/questions/check-duplicate")
-async def check_question_duplicate_endpoint(payload: DuplicateCheckRequest | dict):
+async def check_question_duplicate_endpoint(payload: DuplicateCheckRequest):
     """
     On-demand deduplication check: evaluates a candidate question draft against existing bank items.
     """
-    if isinstance(payload, dict):
-        payload = DuplicateCheckRequest(**payload)
     section = payload.section or ""
     subtopic = payload.subtopic or ""
     ref_pool = await get_subtopic_reference_questions(section=section, subtopic=subtopic, limit=50)

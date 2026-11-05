@@ -13,11 +13,11 @@ import logging
 from app.agents._mock_tokens import (
     REVIEWER_MOCK_COMPLETION_TOKENS,
     REVIEWER_MOCK_PROMPT_TOKENS,
+    mock_usage,
 )
 from app.agents.base import (
     LLMNotConfiguredError,
     QualityCheckUnavailableError,
-    calculate_token_cost,
     call_llm_validated,
     require_offline_mode,
     safe_json_loads,
@@ -132,16 +132,8 @@ Evaluate this question thoroughly and return your 100-point rubric breakdown as 
         require_offline_mode(e)
         # No credentials at all: offline demo/test mode keeps using the heuristic reviewer.
         logger.warning(f"Reviewer LLM not configured, using heuristic review: {e}")
-        mock_usage = TokenUsage(
-            prompt_tokens=REVIEWER_MOCK_PROMPT_TOKENS,
-            completion_tokens=REVIEWER_MOCK_COMPLETION_TOKENS,
-            total_tokens=REVIEWER_MOCK_PROMPT_TOKENS + REVIEWER_MOCK_COMPLETION_TOKENS,
-            cost_usd=calculate_token_cost(
-                REVIEWER_MOCK_PROMPT_TOKENS,
-                REVIEWER_MOCK_COMPLETION_TOKENS,
-            ),
-        )
-        return evaluate_heuristically(draft, req, iteration), mock_usage
+        fallback_usage = mock_usage(REVIEWER_MOCK_PROMPT_TOKENS, REVIEWER_MOCK_COMPLETION_TOKENS)
+        return evaluate_heuristically(draft, req, iteration), fallback_usage
     except Exception as e:
         # Fail closed: an item must never pass because its reviewer broke.
         logger.error(f"Quality reviewer failed: {e}")

@@ -6,8 +6,8 @@ from pathlib import Path
 from app.core.config import Settings
 
 ROOT = Path(__file__).resolve().parents[2]
-# Internal values that are not user-configurable
-INTERNAL_FIELDS = {"BASE_DIR"}
+# Fields that are internal and not meant to appear in .env.example (none today)
+INTERNAL_FIELDS: set[str] = set()
 
 
 def _env_example_keys() -> set[str]:

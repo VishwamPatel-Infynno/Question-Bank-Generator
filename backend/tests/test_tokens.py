@@ -106,12 +106,12 @@ async def test_deepinfra_strict_api_key_enforcement(monkeypatch):
 @pytest.mark.asyncio
 async def test_max_tokens_settings_and_config_endpoint():
     """Verify that DEFAULT_MAX_TOKENS and REVIEWER_MAX_TOKENS are properly set in config and returned by /config."""
-    from app.api.v1.config import get_settings
+    from app.api.v1.config import get_runtime_settings
 
     assert config.DEFAULT_MAX_TOKENS == 3000
     assert config.REVIEWER_MAX_TOKENS == 1800
 
-    settings_data = await get_settings()
+    settings_data = await get_runtime_settings()
     assert settings_data["default_max_tokens"] == 3000
     assert settings_data["reviewer_max_tokens"] == 1800
     assert settings_data["default_temperature"] == 0.2

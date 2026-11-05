@@ -26,6 +26,7 @@ from app.agents.base import (
 )
 from app.core.config import config
 from app.schemas import GenerationRequest, QuestionDraft, TokenUsage
+from app.schemas.token import sum_usage
 
 logger = logging.getLogger(__name__)
 
@@ -195,16 +196,6 @@ async def _solve_once(
     return sample
 
 
-def _sum_usage(samples: list[_Sample]) -> TokenUsage:
-    return TokenUsage(
-        prompt_tokens=sum(s.usage.prompt_tokens for s in samples),
-        completion_tokens=sum(s.usage.completion_tokens for s in samples),
-        total_tokens=sum(s.usage.total_tokens for s in samples),
-        cost_usd=round(sum(s.usage.cost_usd for s in samples), 7),
-        duration_ms=max((s.usage.duration_ms or 0) for s in samples) or None,
-    )
-
-
 def aggregate_samples(samples: list[_Sample], expected_key: str) -> BlindSolverResult:
     """Combines independent solves into one verdict by majority vote.
 
@@ -237,7 +228,7 @@ def aggregate_samples(samples: list[_Sample], expected_key: str) -> BlindSolverR
         solver_rationale=shown.rationale,
         agrees_with_key=majority_key == expected,
         is_verified=is_verified,
-        usage=_sum_usage(samples),
+        usage=sum_usage([s.usage for s in samples], parallel=True),
     )
 
 

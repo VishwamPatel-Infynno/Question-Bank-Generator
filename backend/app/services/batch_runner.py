@@ -326,6 +326,31 @@ async def auto_resolve_batch_and_refill(
     }
 
 
+def _resolve_effective_request(
+    batch: GenerationBatch, req: GenerationRequest | None = None
+) -> GenerationRequest:
+    """Request used to (re)launch a batch: explicit, then cached, then stored payload, then a default.
+
+    The stored payload never contains the client's ``api_key`` (it is scrubbed), so a relaunch
+    without an in-memory request falls back to the server-configured credentials.
+    """
+    effective = req or get_stored_batch_request(batch.id)
+    if not effective and batch.request_payload:
+        try:
+            effective = GenerationRequest(**batch.request_payload)
+        except Exception as err:
+            logger.warning(f"Could not deserialize stored batch request_payload: {err}")
+    if not effective:
+        effective = GenerationRequest(
+            section=batch.section or "chem_phys",
+            difficulty=batch.difficulty or "medium",
+            subtopic=batch.subtopic,
+            passage_mode=batch.passage_mode,
+            questions_to_generate=5,
+        )
+    return effective
+
+
 async def retry_incomplete_jobs_for_batch(
     batch_id: str,
     req: GenerationRequest | None = None,
@@ -364,21 +389,7 @@ async def retry_incomplete_jobs_for_batch(
     b.error_message = None
     await save_batch(b)
 
-    # Resolve GenerationRequest
-    effective_req = req or get_stored_batch_request(batch_id)
-    if not effective_req and b and b.request_payload:
-        try:
-            effective_req = GenerationRequest(**b.request_payload)
-        except Exception as err:
-            logger.warning(f"Could not deserialize stored batch request_payload: {err}")
-    if not effective_req:
-        effective_req = GenerationRequest(
-            section=b.section or "chem_phys",
-            difficulty=b.difficulty or "medium",
-            subtopic=b.subtopic,
-            passage_mode=b.passage_mode,
-            questions_to_generate=5,
-        )
+    effective_req = _resolve_effective_request(b, req)
 
     task = asyncio.create_task(_execute_batch_workflow(batch_id, effective_req, retryable_jobs))
     register_batch_task(batch_id, task)
@@ -421,20 +432,7 @@ async def refill_batch_deficit(
     b.error_message = None
     await save_batch(b)
 
-    effective_req = get_stored_batch_request(batch_id)
-    if not effective_req and b and b.request_payload:
-        try:
-            effective_req = GenerationRequest(**b.request_payload)
-        except Exception as err:
-            logger.warning(f"Could not deserialize stored batch request_payload: {err}")
-    if not effective_req:
-        effective_req = GenerationRequest(
-            section=b.section or "chem_phys",
-            difficulty=b.difficulty or "medium",
-            subtopic=b.subtopic,
-            passage_mode=b.passage_mode,
-            questions_to_generate=5,
-        )
+    effective_req = _resolve_effective_request(b)
 
     task = asyncio.create_task(
         _execute_in_set_refill(

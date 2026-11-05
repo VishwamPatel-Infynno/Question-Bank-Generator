@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
 from app.agents.validators import (
@@ -706,9 +708,10 @@ async def _persist_live_question(
         q_obj.status = determine_question_status(score, is_in_progress_batch=True)
         await save_question(q_obj)
         await update_job_progress(job_id, actual_count=completed_so_far)
-    except Exception as q_save_err:
+    except (SQLAlchemyError, OSError) as q_save_err:
         logger.warning(
-            f"Could not auto-persist question {idx + 1} for live batch {batch_id}: {q_save_err}"
+            f"Could not auto-persist question {idx + 1} for live batch {batch_id}: {q_save_err}",
+            exc_info=True,
         )
 
 
@@ -741,7 +744,7 @@ async def _finalize_live_job_progress(
         await refresh_batch_aggregates(batch_id, allow_complete=True)
         if job_status == "completed":
             await promote_completed_batch_questions(batch_id)
-    except Exception as db_err:
+    except (SQLAlchemyError, OSError) as db_err:
         logger.warning(f"Could not finalize live job progress (DB offline): {db_err}")
 
 
@@ -760,7 +763,7 @@ async def _handle_live_job_cancellation(
             completed_at=now_iso,
         )
         await refresh_batch_aggregates(batch_id)
-    except Exception as clean_err:
+    except (SQLAlchemyError, OSError) as clean_err:
         logger.warning(f"Error updating cancelled live batch {batch_id}: {clean_err}")
 
 
@@ -779,7 +782,7 @@ async def _handle_live_job_failure(
             completed_at=now_iso,
         )
         await refresh_batch_aggregates(batch_id)
-    except Exception as clean_err:
+    except (SQLAlchemyError, OSError) as clean_err:
         logger.warning(f"Error updating failed live batch {batch_id}: {clean_err}")
 
 

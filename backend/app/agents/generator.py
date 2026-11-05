@@ -22,10 +22,10 @@ from app.agents._mock_tokens import (
     PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS,
     QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
     QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
+    mock_usage,
 )
 from app.agents.base import (
     LLMNotConfiguredError,
-    calculate_token_cost,
     call_llm,
     call_llm_validated,
     require_offline_mode,
@@ -35,13 +35,12 @@ from app.agents.mock_fixtures import evaluate_heuristically, get_mock_draft
 from app.agents.option_balancer import balance_and_shuffle_options
 from app.agents.prompt_builder import _build_generator_user_prompt
 from app.agents.prompts import FUSED_GENERATOR_SYSTEM_PROMPT, GENERATOR_SYSTEM_PROMPT
-from app.agents.standards import passage_words_text
+from app.agents.standards import is_cars, passage_words_text
 from app.core.config import config
 from app.schemas import (
     KNOWN_VISUAL_TYPES,
     MCAT_SECTION_LABELS,
     GenerationRequest,
-    MCATSection,
     OptionChoice,
     QuestionDraft,
     ReviewScore,
@@ -229,7 +228,7 @@ def _parse_question_draft_data(data: dict, req: GenerationRequest) -> QuestionDr
     aamc_skill = (
         data.get("aamc_skill")
         or req.aamc_skill
-        or ("CARS_Skill_1" if req.section in (MCATSection.CARS, "CARS", "cars") else "Skill_2")
+        or ("CARS_Skill_1" if is_cars(req.section) else "Skill_2")
     )
 
     return QuestionDraft(
@@ -248,10 +247,7 @@ def _parse_question_draft_data(data: dict, req: GenerationRequest) -> QuestionDr
         likely_mistake_pattern=effective_mistake,
         image_needed=(
             False
-            if (
-                req.section in (MCATSection.CARS, "CARS", "cars")
-                or not (req.allow_ai_images or req.require_image)
-            )
+            if (is_cars(req.section) or not (req.allow_ai_images or req.require_image))
             else bool(data.get("image_needed", False))
         ),
         image_prompt_or_type=data.get("image_prompt_or_type"),
@@ -265,20 +261,18 @@ async def generate_passage_stimulus(
     section_val = req.section.value if hasattr(req.section, "value") else str(req.section)
     section_name = MCAT_SECTION_LABELS.get(req.section, section_val)
     domain = req.content_domain or (
-        "Humanities & Social Sciences"
-        if req.section in (MCATSection.CARS, "CARS", "cars")
-        else "Biomedical & Physical Sciences"
+        "Humanities & Social Sciences" if is_cars(req.section) else "Biomedical & Physical Sciences"
     )
     topic = req.subtopic or "Foundational Concepts & Research Design"
 
-    is_cars = req.section in (MCATSection.CARS, "CARS", "cars")
-    target_length = passage_words_text(is_cars)
+    cars = is_cars(req.section)
+    target_length = passage_words_text(cars)
     allow_visuals = (
         req.allow_ai_images
         or req.require_image
         or req.require_passage_image
         or req.visual_type in KNOWN_VISUAL_TYPES
-    ) and not is_cars
+    ) and not cars
 
     angle_instruction = (
         f"\nPedagogical / Experimental Angle: {req.thematic_angle}\n"
@@ -331,7 +325,7 @@ Target Length: {target_length}.
 STANDARDS FOR AAMC MCAT PASSAGES:
 1. Formal, intellectual scholarly register using precise American English scientific or academic vocabulary.
 2. Structured in 3 to 5 coherent paragraphs.
-3. {"For CARS: Dense scholarly argument in philosophy, ethics, cultural theory, or social sciences. Expresses a distinct thesis, contrasting critical viewpoints, and authorial attitude. Strictly avoid scientific jargon." if is_cars else "For Sciences: Substantive experimental or biomedical study detailing a research hypothesis, experimental methods (e.g. assays, Western blots, kinetic measurements), observed quantitative data or findings, and conclusions."}
+3. {"For CARS: Dense scholarly argument in philosophy, ethics, cultural theory, or social sciences. Expresses a distinct thesis, contrasting critical viewpoints, and authorial attitude. Strictly avoid scientific jargon." if cars else "For Sciences: Substantive experimental or biomedical study detailing a research hypothesis, experimental methods (e.g. assays, Western blots, kinetic measurements), observed quantitative data or findings, and conclusions."}
 4. Provides rich material for multiple distinct reasoning questions evaluating AAMC skills.
 5. DO NOT include questions, choices, or answers in this output. Output ONLY the pure reading passage text."""
 
@@ -388,7 +382,7 @@ STANDARDS FOR AAMC MCAT PASSAGES:
         logger.warning(
             f"Passage generation LLM not configured, using offline fallback passage: {e}"
         )
-        if is_cars:
+        if cars:
             fallback_passage = (
                 "The philosophical justification of aesthetic value has long struggled to reconcile subjective sensory experience "
                 "with the demand for objective critical consensus. In his Critique of Judgment, Immanuel Kant attempted to bridge this chasm "
@@ -428,23 +422,26 @@ STANDARDS FOR AAMC MCAT PASSAGES:
                 "These findings demonstrate that cellular energy charge (AMP/ATP ratio) coupled with local proton concentration precisely regulates "
                 "glycolytic flux through coordinated conformational switching of PFK-1."
             )
-        mock_usage = TokenUsage(
-            prompt_tokens=PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS,
-            completion_tokens=PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS,
-            total_tokens=PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS
-            + PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS,
-            cost_usd=calculate_token_cost(
-                PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS,
-                PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS,
-            ),
+        fallback_usage = mock_usage(
+            PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS, PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS
         )
-        fallback_image_needed = bool(allow_visuals and not is_cars)
+        fallback_image_needed = bool(allow_visuals and not cars)
         fallback_image_prompt = (
             "Lineweaver-Burk and Michaelis-Menten plot of PFK-1 allosteric regulation by ATP and F2,6BP"
             if fallback_image_needed
             else None
         )
-        return fallback_passage, mock_usage, fallback_image_needed, fallback_image_prompt
+        return fallback_passage, fallback_usage, fallback_image_needed, fallback_image_prompt
+
+
+def _offline_mock_draft(req: GenerationRequest) -> QuestionDraft:
+    """Offline fixture draft whose stimulus follows the request (shared passage or none)."""
+    draft = get_mock_draft(req)
+    if req.shared_stimulus:
+        draft.stimulus_text = req.shared_stimulus.strip()
+    elif req.passage_required and str(req.passage_required).lower() in ("no", "false"):
+        draft.stimulus_text = ""
+    return draft
 
 
 async def generate_question(
@@ -471,22 +468,11 @@ async def generate_question(
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         logger.warning(f"Generator LLM not configured, using offline mock draft: {e}")
-        mock_usage = TokenUsage(
-            prompt_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
-            completion_tokens=QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
-            total_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS
-            + QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
-            cost_usd=calculate_token_cost(
-                QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
-                QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
-            ),
+        fallback_usage = mock_usage(
+            QUESTION_GENERATOR_MOCK_PROMPT_TOKENS, QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS
         )
-        mock_draft = get_mock_draft(req)
-        if req.shared_stimulus:
-            mock_draft.stimulus_text = req.shared_stimulus.strip()
-        elif req.passage_required and str(req.passage_required).lower() in ("no", "false"):
-            mock_draft.stimulus_text = ""
-        return mock_draft, mock_usage
+        mock_draft = _offline_mock_draft(req)
+        return mock_draft, fallback_usage
 
 
 async def generate_question_with_self_critique(
@@ -544,20 +530,9 @@ async def generate_question_with_self_critique(
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         logger.warning(f"Fused Generator LLM not configured, using offline mock draft: {e}")
-        mock_usage = TokenUsage(
-            prompt_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
-            completion_tokens=QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
-            total_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS
-            + QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
-            cost_usd=calculate_token_cost(
-                QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
-                QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
-            ),
+        fallback_usage = mock_usage(
+            QUESTION_GENERATOR_MOCK_PROMPT_TOKENS, QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS
         )
-        mock_draft = get_mock_draft(req)
-        if req.shared_stimulus:
-            mock_draft.stimulus_text = req.shared_stimulus.strip()
-        elif req.passage_required and str(req.passage_required).lower() in ("no", "false"):
-            mock_draft.stimulus_text = ""
+        mock_draft = _offline_mock_draft(req)
         mock_review = evaluate_heuristically(mock_draft, req, 1)
-        return mock_draft, mock_review, mock_usage
+        return mock_draft, mock_review, fallback_usage

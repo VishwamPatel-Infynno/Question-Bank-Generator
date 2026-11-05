@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from pydantic import PrivateAttr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+logger = logging.getLogger(__name__)
+
 
 class Settings(BaseSettings):
     # Base paths
-    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
 
     # Active LLM Provider: 'deepinfra', 'anthropic', or 'openai'
     ACTIVE_LLM_PROVIDER: str = "deepinfra"
@@ -169,18 +171,6 @@ class Settings(BaseSettings):
             self._override_default_image_model = None
         else:
             self._override_default_image_model = value
-
-    @property
-    def ACTIVE_IMAGE_COST_PER_UNIT(self) -> float:
-        """Active base unit image cost, dynamically resolved from active image provider."""
-        provider = self.get_active_image_provider()
-        if provider == "openai":
-            return self.OPENAI_IMAGE_COST_PER_UNIT
-        return (
-            self.DEEPINFRA_IMAGE_COST_PER_UNIT
-            if self.DEEPINFRA_IMAGE_COST_PER_UNIT != 0.014
-            else self.IMAGE_COST_PER_BASE_UNIT
-        )
 
     def calculate_flux_image_cost(
         self,
@@ -362,8 +352,8 @@ class Settings(BaseSettings):
                         in_rate = round(float(info["input_cost_per_token"]) * 1_000_000.0, 4)
                         out_rate = round(float(info["output_cost_per_token"]) * 1_000_000.0, 4)
                         return in_rate, out_rate
-            except Exception:
-                pass
+            except (KeyError, ValueError, TypeError, AttributeError) as exc:
+                logger.debug("litellm pricing lookup failed for %s: %s", target, exc)
 
             # Known Anthropic family heuristics
             if "sonnet" in target:
@@ -398,8 +388,8 @@ class Settings(BaseSettings):
                         in_rate = round(float(info["input_cost_per_token"]) * 1_000_000.0, 4)
                         out_rate = round(float(info["output_cost_per_token"]) * 1_000_000.0, 4)
                         return in_rate, out_rate
-            except Exception:
-                pass
+            except (KeyError, ValueError, TypeError, AttributeError) as exc:
+                logger.debug("litellm pricing lookup failed for %s: %s", target, exc)
 
             if "gpt-4o" in target:
                 return 2.50, 10.00

@@ -19,6 +19,7 @@ except ImportError:
 
 from app.core.config import config
 from app.schemas import TokenUsage
+from app.schemas.token import sum_usage
 
 logger = logging.getLogger(__name__)
 
@@ -482,16 +483,6 @@ async def call_llm(
 _PARSE_ERRORS = (ValueError, KeyError, TypeError, AttributeError)
 
 
-def _merge_usage(a: TokenUsage, b: TokenUsage) -> TokenUsage:
-    return TokenUsage(
-        prompt_tokens=a.prompt_tokens + b.prompt_tokens,
-        completion_tokens=a.completion_tokens + b.completion_tokens,
-        total_tokens=a.total_tokens + b.total_tokens,
-        cost_usd=round(a.cost_usd + b.cost_usd, 7),
-        duration_ms=(a.duration_ms or 0) + (b.duration_ms or 0) or None,
-    )
-
-
 async def call_llm_validated(
     prompt: str,
     system_prompt: str,
@@ -521,7 +512,7 @@ async def call_llm_validated(
         raw2, usage2 = await call_llm(
             prompt=repair_prompt, system_prompt=system_prompt, **repair_kwargs
         )
-        total = _merge_usage(usage, usage2)
+        total = sum_usage([usage, usage2])
         try:
             return parse(raw2), total
         except _PARSE_ERRORS as second_error:

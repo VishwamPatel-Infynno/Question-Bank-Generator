@@ -9,6 +9,7 @@ from app.db.base import to_datetime, to_iso_str
 from app.db.session import async_session_factory
 from app.models.passage import PassageModel
 from app.models.question import QuestionModel
+from app.repositories._filters import active_passage_clause, active_question_clause
 from app.schemas import Passage
 
 logger = logging.getLogger(__name__)
@@ -68,13 +69,13 @@ async def get_passages(
                 QuestionModel,
                 and_(
                     QuestionModel.passage_id == PassageModel.id,
-                    QuestionModel.is_deleted.is_(False),
+                    active_question_clause(),
                 ),
             )
             .group_by(PassageModel.id)
         )
         if not include_deleted:
-            stmt = stmt.where(PassageModel.is_deleted.is_(False))
+            stmt = stmt.where(active_passage_clause())
         if section:
             stmt = stmt.where(PassageModel.section == section)
         if subtopic:
@@ -105,14 +106,14 @@ async def get_passage_by_id(passage_id: str, include_deleted: bool = False) -> P
                 QuestionModel,
                 and_(
                     QuestionModel.passage_id == PassageModel.id,
-                    QuestionModel.is_deleted.is_(False),
+                    active_question_clause(),
                 ),
             )
             .where(PassageModel.id == passage_id)
             .group_by(PassageModel.id)
         )
         if not include_deleted:
-            stmt = stmt.where(PassageModel.is_deleted.is_(False))
+            stmt = stmt.where(active_passage_clause())
         result = await session.execute(stmt)
         row = result.first()
         if not row:

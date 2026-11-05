@@ -12,6 +12,7 @@ from app.agents.standards import (
     CARS_PASSAGE_WORDS,
     OPTION_PARITY_TEXT,
     SCIENCE_PASSAGE_WORDS,
+    is_cars,
 )
 from app.schemas import (
     MCAT_SECTION_LABELS,
@@ -124,7 +125,7 @@ Section: {section_name}"""
         user_prompt += f"\nCROSS-ITEM VARIETY CALIBRATION: {diversity_context}"
 
     # Section-specific CARS warning
-    if req.section in (MCATSection.CARS, "CARS", "cars"):
+    if is_cars(req.section):
         user_prompt += (
             "\nCRITICAL CARS RULE: Strictly test ONLY what is justified directly by the passage text. "
             "Do NOT test or permit any outside scientific, clinical, or unmentioned real-world knowledge. "
