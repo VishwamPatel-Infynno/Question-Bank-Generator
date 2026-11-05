@@ -507,6 +507,9 @@ class Settings(BaseSettings):
 
     # Blind-Solver Dual Validation Agent
     ENABLE_BLIND_SOLVER: bool = True
+    # Independent solver: optional dedicated model (empty = the request's model) and sample count
+    BLIND_SOLVER_MODEL: str = ""
+    BLIND_SOLVER_SAMPLES: int = 2  # 1 = single sample; 2 = two layouts; 3 = tie-breaker on split
     BLIND_SOLVER_CONFIDENCE_THRESHOLD: int = 88
     BLIND_SOLVER_MAX_TOKENS: int = 1200
 

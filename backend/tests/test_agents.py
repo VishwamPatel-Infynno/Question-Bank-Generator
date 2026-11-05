@@ -236,9 +236,18 @@ async def test_blind_solver_node_agreement(monkeypatch):
     draft = get_mock_draft(req)
 
     # Mock call_llm in blind_solver to agree with draft's key
-    async def mock_solver_llm(*_args, **_kwargs):
+    correct_text = next(o.text for o in draft.options if o.id == draft.correct_answer_id)
+
+    async def mock_solver_llm(*_args, **kwargs):
+        # The solver shows options in different layouts; answer with the letter shown for the
+        # correct option's text, as a real solver that knows the right answer would.
+        shown = next(
+            line.split(".", 1)[0]
+            for line in kwargs["prompt"].splitlines()
+            if line[1:3] == ". " and line[3:] == correct_text
+        )
         json_resp = f"""{{
-            "selected_key": "{draft.correct_answer_id}",
+            "selected_key": "{shown}",
             "confidence": 96,
             "is_ambiguous": false,
             "ambiguity_notes": "",

@@ -48,6 +48,8 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `MAX_REGENERATION_ATTEMPTS`| `integer`| `3` | Maximum remediation loops before Quality Gate reject |
 | `PASSING_SCORE_THRESHOLD` | `integer`| `90` | Minimum score required to pass individual psychometric gate (Tier 1) |
 | `ALWAYS_INDEPENDENT_REVIEW` | `boolean` | `true` | Always run the independent Reviewer, even when the generator's own self-critique passes |
+| `BLIND_SOLVER_MODEL` | `string` | `""` | Optional dedicated model for the Blind Solver so it is independent of the generator (empty = the request's model); the client's `api_key` is never sent to it |
+| `BLIND_SOLVER_SAMPLES` | `integer` | `2` | Independent solver samples shown in different option layouts (reversed, rotated); a strict majority must pick the author's key, a split vote is never verified. `1` restores single-sample behavior |
 | `OFFLINE_MODE` | `boolean` | `false` | Allow mock/heuristic fixtures when no LLM credentials are configured (demos, tests). When `false`, a missing key raises a clear configuration error and the run fails fast; mock-produced questions carry `stage_outcomes.offline_mode = true` |
 | `PARALLEL_REVIEW_AND_SOLVE` | `boolean` | `true` | Run the Reviewer and Blind Solver concurrently, saving one LLM round trip per question |
 | `ENABLE_PROMPT_CACHING` | `boolean` | `true` | Mark static system prompts cacheable for providers that need an explicit marker (Anthropic) |
