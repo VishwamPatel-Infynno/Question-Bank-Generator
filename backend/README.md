@@ -41,6 +41,7 @@ backend/
 │   │   ├── image_generator.py # FLUX-2-klein-4b neural visual & SVG vector generator
 │   │   ├── prompt_builder.py # User prompt assembly & cross-item diversity calibration
 │   │   ├── prompts.py       # Centralized system prompts, pacing rules & rubrics
+│   │   ├── standards.py     # Shared option-length and passage-length authoring standards
 │   │   ├── mock_fixtures.py # Deterministic fallback fixtures for offline resilience
 │   │   └── base.py          # LiteLLM execution wrapper & sub-micro-cent token cost engine (DeepInfra + Anthropic)
 │   ├── services/            # Background Worker & Asynchronous Services
@@ -72,7 +73,7 @@ backend/
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (21 deterministic modules / 110 tests + 1 live E2E module = 153 total)
+└── tests/                   # Deterministic Automated Test Suite (21 deterministic modules / 110 tests + 1 live E2E module = 207 total)
     ├── conftest.py          # Pytest fixtures, offline DB socket probe & async test client
     ├── test_additional_instructions.py # Educator custom instructions and prompt builder integration
     ├── test_agents.py       # Cognitive agent unit tests
@@ -190,7 +191,7 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (143 deterministic tests across 28 modules)
+# Run all unit and integration tests (197 deterministic tests across 37 modules)
 # Smart auto-skip: 55 pure unit tests pass offline, 42 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"

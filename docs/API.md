@@ -66,7 +66,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 ### 3.1 Start Multi-Agent Generation (SSE Stream)
 `POST /api/generate`
 
-Initiates the multi-agent generation and psychometric evaluation workflow. While a long LLM stage is quiet the stream emits an SSE comment line (`: keepalive`) every 15 seconds so proxies keep the connection open; clients ignore comment lines. Returns a live Server-Sent Events stream delivering step-by-step agent telemetry, intermediate drafts, review rubrics, token usage, and candidate question payloads. Supports single-item and live practice set generation.
+Initiates the multi-agent generation and psychometric evaluation workflow. Per-attempt rejections arrive as the non-terminal `question_rejected` event; `workflow_rejected` is terminal (all slots rejected) and, like `workflow_error`, carries `cumulative_usage`. When the server sets `API_ACCESS_KEY`, send it as the `X-API-Key` header (all `POST`/`PUT`/`PATCH`/`DELETE` routes; `POST /api/questions/check-duplicate` stays open). While a long LLM stage is quiet the stream emits an SSE comment line (`: keepalive`) every 15 seconds so proxies keep the connection open; clients ignore comment lines. Returns a live Server-Sent Events stream delivering step-by-step agent telemetry, intermediate drafts, review rubrics, token usage, and candidate question payloads. Supports single-item and live practice set generation.
 
 #### Request Headers
 ```http

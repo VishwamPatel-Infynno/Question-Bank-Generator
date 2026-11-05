@@ -37,6 +37,8 @@ Routers contain no SQL and no business logic. Repositories own every query and c
 - Global job concurrency is bounded by semaphores in `services/batch_concurrency.py`; do not spawn unbounded LLM tasks. The global LLM semaphore is held only during the API call in `agents/base.py`.
 - Startup/shutdown: `main.py` lifespan stops batches gracefully and disposes the engine; `reconcile_interrupted_batches` stops orphaned batches and marks their `pending`/`running` jobs `stopped` (still retryable).
 - `update_job_progress` treats `None` as "unchanged"; pass `clear=("error_message", ...)` to reset a field to NULL.
+- Security: never persist or return `api_key` (`batch_repository._scrub_request_payload`); optional `API_ACCESS_KEY` gate lives in `api/security.py`; keep new text inputs length-limited in `schemas/workflow.py`.
+- DB writes: batch aggregates refresh under a `FOR NO KEY UPDATE` row lock; do not use plain `FOR UPDATE` (deadlocks with the key-share lock of question inserts). New migrations must go through `db/init_db.py` (DDL that already exists is skipped; never add unconditional DDL that locks tables on every start).
 - Health: `/api/health` (liveness, `degraded` without DB) and `/api/health/ready` (503 without DB); `ADMIN_API_KEY` gates the full payload.
 - Logging: bind correlation ids with `bind_log_context(batch_id=..., job_id=...)` from `app.core.logging`; set `LOG_FORMAT=json` for structured output.
 - Dedup lives in `services/deduplication.py`; reuse it, do not re-implement similarity checks.

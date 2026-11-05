@@ -172,12 +172,12 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 153-test backend verification suite across 28 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 207-test backend verification suite across 37 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 143 deterministic unit and integration tests across 28 modules
+# 1. Run all 197 deterministic unit and integration tests across 37 modules
 # Smart auto-skip: If PostgreSQL is offline on localhost:5432, 55 pure unit tests pass and 42 DB tests skip cleanly
 # Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
@@ -192,9 +192,9 @@ ruff format --check .
 
 #### Dual Test Execution Modes
 - **Offline Mode** (PostgreSQL offline): Executes all 55 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`55 passed, 42 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 143 deterministic tests across 28 modules in ~23-28 seconds (10 live tests deselected).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 197 deterministic tests across 37 modules in ~23-28 seconds (10 live tests deselected).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 153 tests across 29 test files.
+- **Total Backend Suite**: 207 tests across 38 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.

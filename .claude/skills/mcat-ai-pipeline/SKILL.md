@@ -27,6 +27,12 @@ Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_u
 - Generator and regenerator no longer substitute mock questions for real provider failures; the engine's slot retry handles the exception.
 - `ALWAYS_INDEPENDENT_REVIEW=true` forces the reviewer even if the self-critique passed. Truncated completions (`finish_reason == "length"`) are retried with a larger budget up to `LLM_MAX_TOKENS_CEILING`.
 
+## Authoring standards, outputs and the solver
+- Numbers (option-length spread, passage word bands) live only in `agents/standards.py`; prompts use `<<TOKEN>>` placeholders resolved there, and the validator imports the same values. Never hardcode "within N words" or a passage length in a prompt.
+- Model JSON is parsed with `call_llm_validated` (one repair retry at temperature 0, both calls billed). Tests that fake the LLM patch `app.agents.base.call_llm`, not a per-agent attribute. A missing key raises; never default it.
+- The blind solver samples two option layouts (`BLIND_SOLVER_SAMPLES`), requires a strict majority on the author's key, and never receives the client's `api_key` when `BLIND_SOLVER_MODEL` is set.
+- Mocks need `OFFLINE_MODE=true` (set by `tests/conftest.py`); without it a missing key raises and the run fails fast.
+
 ## Editing prompts
 Prompts are long and heavily tuned. Make surgical edits, keep section numbering, and run `test_agents.py`, `test_pedagogy.py`, `test_additional_instructions.py`. If a rubric or threshold changes, update `docs/MCAT_RUBRIC.md` and `docs/ARCHITECTURE.md` too.
 
