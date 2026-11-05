@@ -146,7 +146,12 @@ async def refresh_batch_aggregates(
             return None
 
         stmt = select(
-            func.count().filter(GenerationJobModel.status == "completed").label("completed_jobs"),
+            func.count()
+            .filter(GenerationJobModel.status.in_(("completed", "partially_completed")))
+            .label("completed_jobs"),
+            func.count()
+            .filter(GenerationJobModel.status.in_(("pending", "running", "in_progress")))
+            .label("active_jobs"),
             func.count().filter(GenerationJobModel.status == "failed").label("failed_jobs"),
             func.coalesce(func.sum(GenerationJobModel.actual_count), 0).label("actual_count"),
             func.coalesce(func.sum(GenerationJobModel.total_tokens), 0).label("total_tokens"),
@@ -158,6 +163,7 @@ async def refresh_batch_aggregates(
 
         completed_jobs = int(row.completed_jobs or 0)
         failed_jobs = int(row.failed_jobs or 0)
+        active_jobs = int(row.active_jobs or 0)
         job_sum_actual = int(row.actual_count or 0)
         total_tokens = int(row.total_tokens or 0)
         cost_usd = round(float(row.cost_usd or 0.0), 6)
@@ -184,8 +190,12 @@ async def refresh_batch_aggregates(
         total_jobs = batch_model.total_jobs or 10
         target_count = batch_model.target_count or 50
 
-        # Preserve terminal or user-stopped status unless transitioning upon completion
-        if batch_model.status not in ("cancelled", "stopped"):
+        # Preserve terminal or user-stopped status unless transitioning upon completion. A
+        # partially_completed batch with no live jobs is terminal (e.g. just stopped by the user).
+        keep_terminal = batch_model.status in ("cancelled", "stopped") or (
+            batch_model.status == "partially_completed" and active_jobs == 0
+        )
+        if not keep_terminal:
             if completed_jobs + failed_jobs >= total_jobs and failed_jobs > 0:
                 batch_model.status = "partially_completed" if completed_jobs > 0 else "failed"
             elif actual_count >= target_count and actual_count > 0:

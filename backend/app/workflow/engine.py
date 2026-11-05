@@ -164,6 +164,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
     monitor_task: asyncio.Task | None = None
     # Declared up front so cancellation handlers work even if the stream is closed early.
     outcomes_questions: list[dict[str, Any] | None] = []
+    # Once the live job row is finalized, a later consumer disconnect must not overwrite it.
+    job_finalized = False
 
     try:
         # Step 0: Draft Shared Reading Passage and Diagram (if passage-set mode)
@@ -257,9 +259,22 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         except Exception as ref_err:
             logger.warning(f"Could not load reference questions for deduplication: {ref_err}")
 
+        def _fold_attempt_usage(idx: int, st: AgentWorkflowState | None) -> None:
+            """Adds one attempt's complete spend (tokens, split, cost, breakdown) to the slot."""
+            if not st:
+                return
+            outcomes_tokens[idx] += st.get("total_tokens", 0)
+            outcomes_prompt_tokens[idx] += st.get("total_prompt_tokens", 0)
+            outcomes_completion_tokens[idx] += st.get("total_completion_tokens", 0)
+            outcomes_costs[idx] += st.get("total_cost_usd", 0.0)
+            outcomes_usage[idx].extend(st.get("agent_usage_breakdown", []))
+
         async def _worker(idx: int) -> None:
             max_slot_attempts = 3  # Try up to 3 times max per slot, then move forward
             for attempt in range(max_slot_attempts):
+                # Reset per attempt so an error before the new state exists can never fold the
+                # previous attempt's (already counted) usage a second time.
+                attempt_state: AgentWorkflowState | None = None
                 try:
                     async with semaphore:
                         item_req, item_run_id, is_passage_item, item_interaction = (
@@ -347,6 +362,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             "diversity_context": diversity_context,
                             "passing_threshold": effective_threshold,
                         }
+                        attempt_state = state
 
                         # Step 1: Question Writer & Reviewer (Fused Authoring & 100-pt Audit)
                         gen_evt = make_event(
@@ -378,6 +394,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             outcomes_questions=outcomes_questions,
                             event_queue=event_queue,
                             make_event=make_event,
+                            batch_key=batch_id,
                         )
 
                         cur_draft = state.get("current_draft") or {}
@@ -419,7 +436,12 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
                         if question_passed:
                             await _refresh_duplicate_info_after_review(
-                                state, idx, req, db_reference_pool, outcomes_questions
+                                state,
+                                idx,
+                                req,
+                                db_reference_pool,
+                                outcomes_questions,
+                                batch_key=batch_id,
                             )
 
                         dup_info = state.get("duplicate_info") or {}
@@ -537,13 +559,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             )
                             await event_queue.put(q_gen_evt)
 
-                            outcomes_tokens[idx] += state.get("total_tokens", 0)
-                            outcomes_prompt_tokens[idx] += state.get("total_prompt_tokens", 0)
-                            outcomes_completion_tokens[idx] += state.get(
-                                "total_completion_tokens", 0
-                            )
-                            outcomes_costs[idx] += state.get("total_cost_usd", 0.0)
-                            outcomes_usage[idx].extend(state.get("agent_usage_breakdown", []))
+                            _fold_attempt_usage(idx, state)
+                            attempt_state = None  # already counted
                             await remove_in_flight_draft(batch_id, idx)
                             return  # Successfully completed this slot!
 
@@ -560,22 +577,20 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             f"Question {idx + 1} attempt {attempt + 1}/{max_slot_attempts} not satisfied "
                             f"(passed={question_passed}, is_dup={is_hard_dup}). Auto-replenishing slot..."
                         )
-                        outcomes_tokens[idx] += state.get("total_tokens", 0)
-                        outcomes_prompt_tokens[idx] += state.get("total_prompt_tokens", 0)
-                        outcomes_completion_tokens[idx] += state.get("total_completion_tokens", 0)
-                        outcomes_costs[idx] += state.get("total_cost_usd", 0.0)
-                        outcomes_usage[idx].extend(state.get("agent_usage_breakdown", []))
+                        _fold_attempt_usage(idx, state)
+                        attempt_state = None  # already counted
                         await remove_in_flight_draft(batch_id, idx)
                         await asyncio.sleep(0.5)
                         continue
 
                 except asyncio.CancelledError:
+                    _fold_attempt_usage(idx, attempt_state)
                     await remove_in_flight_draft(batch_id, idx)
                     raise
                 except Exception as worker_err:
-                    if "state" in locals():
-                        outcomes_tokens[idx] += state.get("total_tokens", 0)
-                        outcomes_costs[idx] += state.get("total_cost_usd", 0.0)
+                    _fold_attempt_usage(idx, attempt_state)
+                    # A question staged in this failed attempt must not linger beside the retry
+                    outcomes_questions[idx] = None
                     await remove_in_flight_draft(batch_id, idx)
                     if attempt < max_slot_attempts - 1:
                         logger.warning(
@@ -648,7 +663,28 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         for usage_list in outcomes_usage:
             all_agent_usage.extend(usage_list)
 
+        def _cumulative_usage_dict() -> dict[str, Any]:
+            return {
+                "total_tokens": cumulative_tokens,
+                "total_prompt_tokens": cumulative_prompt_tokens,
+                "total_completion_tokens": cumulative_completion_tokens,
+                "total_cost_usd": cumulative_cost,
+            }
+
         if not all_staged_questions:
+            if is_standalone_live_run:
+                # Nothing was produced: mark the job failed instead of leaving it "running".
+                await _finalize_live_job_progress(
+                    job_id=job_id,
+                    batch_id=batch_id,
+                    completed_total=0,
+                    total_qty=total_qty,
+                    cumulative_tokens=cumulative_tokens,
+                    cumulative_prompt_tokens=cumulative_prompt_tokens,
+                    cumulative_completion_tokens=cumulative_completion_tokens,
+                    cumulative_cost=cumulative_cost,
+                )
+                job_finalized = True
             if outcomes_rejections:
                 rej_msg = f"All {total_qty} questions in the run were rejected by the Quality Gate (score <= {req.passing_threshold or config.PASSING_SCORE_THRESHOLD})."
                 rej_evt = make_event(
@@ -658,6 +694,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     data={
                         "rejections": outcomes_rejections,
                         "total_rejected": len(outcomes_rejections),
+                        "cumulative_usage": _cumulative_usage_dict(),
                     },
                 )
                 yield f"data: {rej_evt.model_dump_json()}\n\n"
@@ -670,7 +707,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     event_type="workflow_error",
                     agent_name="System",
                     message=error_msg,
-                    data={"error": error_msg},
+                    data={"error": error_msg, "cumulative_usage": _cumulative_usage_dict()},
                 )
                 yield f"data: {error_evt.model_dump_json()}\n\n"
                 return
@@ -713,8 +750,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 "usage_breakdown": all_agent_usage,
             },
         )
-        yield f"data: {complete_evt.model_dump_json()}\n\n"
-
+        # Finalize BEFORE the terminal event: a client that closes the stream on
+        # workflow_complete must not leave the job cancelled or its spend unsaved.
         if is_standalone_live_run:
             completed_total = sum(1 for q in outcomes_questions if q is not None)
             await _finalize_live_job_progress(
@@ -727,12 +764,14 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 cumulative_completion_tokens=cumulative_completion_tokens,
                 cumulative_cost=cumulative_cost,
             )
+            job_finalized = True
+        yield f"data: {complete_evt.model_dump_json()}\n\n"
     except asyncio.CancelledError:
         logger.info("Workflow stream cancelled by client disconnect.")
         for t in tasks:
             if not t.done():
                 t.cancel()
-        if is_standalone_live_run:
+        if is_standalone_live_run and not job_finalized:
             completed_total = sum(1 for q in outcomes_questions if q is not None)
             await _handle_live_job_cancellation(
                 job_id=job_id,
@@ -744,7 +783,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         # Consumer closed the stream (client disconnect delivered as GeneratorExit, not
         # CancelledError): treat it exactly like a cancellation so jobs do not stay "running".
         logger.info("Workflow stream closed by consumer.")
-        if is_standalone_live_run:
+        if is_standalone_live_run and not job_finalized:
             completed_total = sum(1 for q in outcomes_questions if q is not None)
             await _handle_live_job_cancellation(
                 job_id=job_id,

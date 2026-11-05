@@ -172,7 +172,9 @@ class TokenUsage(BaseModel):
     completion_tokens: int = Field(0, description="Output tokens generated")
     total_tokens: int = Field(0, description="Sum of prompt and completion tokens")
     cost_usd: float = Field(0.0, description="Estimated total cost in USD")
-    duration_ms: int | None = Field(None, description="Wall-clock latency of the LLM call in ms, retries included")
+    duration_ms: int | None = Field(
+        None, description="Wall-clock latency of the LLM call in ms, retries included"
+    )
 ```
 
 #### `agent_usage_breakdown` Item Schema

@@ -721,11 +721,9 @@ async def _finalize_live_job_progress(
     """Updates job and batch status to completed or partially_completed upon workflow termination."""
     try:
         now_iso = datetime.now(UTC).isoformat()
-        job_status = (
-            "completed"
-            if completed_total >= total_qty
-            else ("partially_completed" if completed_total > 0 else "failed")
-        )
+        # The jobs table has no 'partially_completed' status; a short job is 'completed' with
+        # actual_count below target (the retry flow re-launches any such job).
+        job_status = "completed" if completed_total > 0 else "failed"
         await update_job_progress(
             job_id,
             status=job_status,
@@ -736,7 +734,7 @@ async def _finalize_live_job_progress(
             cost_usd=cumulative_cost,
             completed_at=now_iso,
         )
-        await refresh_batch_aggregates(batch_id)
+        await refresh_batch_aggregates(batch_id, allow_complete=True)
         if job_status == "completed":
             await promote_completed_batch_questions(batch_id)
     except Exception as db_err:
@@ -796,6 +794,8 @@ async def register_in_flight_draft(
         pool[:] = [item for item in pool if item.get("_worker_idx") != worker_idx]
         item = dict(draft)
         item["_worker_idx"] = worker_idx
+        # Synthetic id so a collision with an in-flight sibling is recognisable as such.
+        item["id"] = f"in_flight_{worker_idx}"
         pool.append(item)
 
 
@@ -829,6 +829,7 @@ async def _refresh_duplicate_info_after_review(
     outcomes_questions: list[dict[str, Any] | None],
     threshold: float = 0.75,
     soft_threshold: float = 0.60,
+    batch_key: str | None = None,
 ) -> None:
     """Re-checks duplicates for a draft that the review loop rewrote.
 
@@ -838,7 +839,7 @@ async def _refresh_duplicate_info_after_review(
     if state.get("iteration_count", 1) <= 1:
         return
     cur_draft = state.get("current_draft") or {}
-    batch_key = req.batch_id or req.run_id
+    batch_key = batch_key or req.batch_id or req.run_id
     await register_in_flight_draft(batch_key, cur_draft, idx)
     in_flight = await get_in_flight_drafts(batch_key, idx)
     ref_pool = (
@@ -864,6 +865,7 @@ async def _run_deduplication_anti_collision_loop(
     max_retries: int = 3,
     threshold: float = 0.75,
     soft_threshold: float = 0.60,
+    batch_key: str | None = None,
 ) -> None:
     """
     Evaluates candidate draft against database reference pool, sibling batch questions,
@@ -873,7 +875,8 @@ async def _run_deduplication_anti_collision_loop(
     - If 0.60 <= similarity < 0.75 (Soft Warning): emits a variety warning and logs collision rationale.
     """
     cur_draft = state.get("current_draft") or {}
-    batch_key = req.batch_id or req.run_id
+    # Must match the key the engine uses to remove drafts, or every run leaks its registry entry.
+    batch_key = batch_key or req.batch_id or req.run_id
 
     # Immediately register candidate draft so concurrent siblings detect this stem in flight
     await register_in_flight_draft(batch_key, cur_draft, idx)

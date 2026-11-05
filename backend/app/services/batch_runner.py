@@ -133,6 +133,21 @@ async def _execute_in_set_refill(
         unregister_batch_task(batch_id, asyncio.current_task())
 
 
+async def _fail_stuck_jobs(batch_id: str, job_ids: list[str]) -> None:
+    """Marks jobs that a finished runner left pending/running as failed so they never hang."""
+    wanted = set(job_ids)
+    now_iso = datetime.now(UTC).isoformat()
+    for job in await get_jobs_by_batch_id(batch_id):
+        if job.id in wanted and job.status in ("pending", "running", "in_progress"):
+            logger.warning(f"Job {job.id} ended without a terminal status; marking it failed.")
+            await update_job_progress(
+                job.id,
+                status="failed",
+                error_message=job.error_message or "Job ended unexpectedly.",
+                completed_at=now_iso,
+            )
+
+
 async def _execute_batch_workflow(
     batch_id: str,
     req: GenerationRequest,
@@ -148,10 +163,18 @@ async def _execute_batch_workflow(
             logger.error(f"No jobs found for batch {batch_id}")
             return
 
-        # Execute jobs that need work (pending or running or failed/cancelled on retry)
-        executable_jobs = [
-            j for j in jobs if j.status in ("pending", "running", "failed", "cancelled")
-        ]
+        # An explicit target list (retry/resume) was already filtered by the caller against fresh
+        # database state, so trust it: its in-memory statuses are stale by now. Otherwise pick the
+        # jobs that still need work.
+        executable_jobs = (
+            list(target_jobs)
+            if target_jobs
+            else [
+                j
+                for j in jobs
+                if j.status in ("pending", "running", "failed", "cancelled", "stopped")
+            ]
+        )
         if not executable_jobs:
             logger.info(f"Batch {batch_id} has no pending jobs to execute.")
             await refresh_batch_aggregates(batch_id)
@@ -163,7 +186,11 @@ async def _execute_batch_workflow(
             asyncio.create_task(_run_single_job(batch_id, job, req, semaphore))
             for job in executable_jobs
         ]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for job, res in zip(executable_jobs, results, strict=True):
+            if isinstance(res, BaseException):
+                logger.error(f"Job {job.id} of batch {batch_id} crashed: {res!r}", exc_info=res)
+        await _fail_stuck_jobs(batch_id, [j.id for j in executable_jobs])
 
         # Finalize batch state atomically without premature completion
         updated_batch = await refresh_batch_aggregates(batch_id, allow_complete=False)
@@ -271,10 +298,11 @@ async def auto_resolve_batch_and_refill(
             f"refill_target={refill_target} (buffer={buffer}), "
             f"cycle={current_cycle + 1}/{max_cycles}"
         )
-        await refill_batch_deficit(
+        _, refill_jobs = await refill_batch_deficit(
             batch_id, refill_target, cycle=current_cycle + 1, max_cycles=max_cycles
         )
-        refill_launched = True
+        # No job to refill means nothing was launched; the caller must then finalize the batch.
+        refill_launched = bool(refill_jobs)
     elif remaining_active > target:
         excess_buffer_ids = identify_batch_buffer_excess(valid_active, target)
         if excess_buffer_ids:

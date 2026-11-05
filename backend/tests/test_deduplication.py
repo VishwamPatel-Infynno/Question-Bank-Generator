@@ -230,7 +230,8 @@ async def test_auto_resolve_batch_and_refill(monkeypatch):
         fake_batch.actual_count = sum(1 for q in current_questions if q.id not in archived_ids)
         return fake_batch
 
-    mock_refill = AsyncMock(return_value=(fake_batch, []))
+    # A refill only counts as launched when at least one job was actually started
+    mock_refill = AsyncMock(return_value=(fake_batch, [object()]))
     mock_get_jobs = AsyncMock(return_value=[])
     mock_update_job = AsyncMock(return_value=None)
 
@@ -261,3 +262,40 @@ async def test_auto_resolve_batch_and_refill(monkeypatch):
     assert res["deficit"] == 3
     assert res["refill_launched"] is True
     mock_refill.assert_awaited_once_with(batch_id, 4, cycle=2, max_cycles=2)
+
+
+@pytest.mark.asyncio
+async def test_auto_resolve_does_not_claim_refill_when_no_job_was_launched(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from app.schemas import GenerationBatch, Question
+    from app.services.batch_runner import auto_resolve_batch_and_refill
+
+    batch_id = "b-no-refill"
+    batch = GenerationBatch(id=batch_id, section="chem_phys", target_count=5, actual_count=1)
+    q = Question(
+        id="only",
+        batch_id=batch_id,
+        section="CPBS",
+        section_label="Chemical and Physical Foundations of Biological Systems",
+        subtopic="Kinetics",
+        difficulty="medium",
+        question_stem="Unique stem about enzyme kinetics and rates",
+        options=[{"id": "A", "text": "opt A text"}],
+        correct_answer_id="A",
+        explanation="Because.",
+        final_score=95,
+        status="batch_only",
+    )
+    monkeypatch.setattr("app.services.batch_runner.get_batch_by_id", AsyncMock(return_value=batch))
+    monkeypatch.setattr("app.services.batch_runner.get_questions", AsyncMock(return_value=[q]))
+    monkeypatch.setattr(
+        "app.services.batch_runner.refresh_batch_aggregates", AsyncMock(return_value=batch)
+    )
+    monkeypatch.setattr(
+        "app.services.batch_runner.refill_batch_deficit", AsyncMock(return_value=(batch, []))
+    )
+
+    res = await auto_resolve_batch_and_refill(batch_id, current_cycle=1, max_cycles=3)
+    assert res["deficit"] > 0
+    assert res["refill_launched"] is False

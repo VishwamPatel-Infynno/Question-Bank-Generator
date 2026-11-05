@@ -246,6 +246,18 @@ async def _run_single_job_impl(
                             job_completion_tokens += usage.get("total_completion_tokens", 0)
                             job_cost += float(usage.get("total_cost_usd", 0.0))
 
+                        elif etype in ("workflow_rejected", "workflow_error") and data.get(
+                            "cumulative_usage"
+                        ):
+                            # A run that produced nothing still spent tokens: count them.
+                            usage = data["cumulative_usage"]
+                            job_tokens += usage.get("total_tokens", 0)
+                            job_prompt_tokens += usage.get("total_prompt_tokens", 0)
+                            job_completion_tokens += usage.get("total_completion_tokens", 0)
+                            job_cost += float(usage.get("total_cost_usd", 0.0))
+                            if etype == "workflow_error":
+                                raise RuntimeError(data.get("error", "Unknown workflow error"))
+
                         elif etype == "workflow_error":
                             raise RuntimeError(data.get("error", "Unknown workflow error"))
 
