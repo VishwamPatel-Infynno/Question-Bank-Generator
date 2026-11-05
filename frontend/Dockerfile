@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 # Build context is the repository root:  docker build -f frontend/Dockerfile .
 FROM node:24-alpine AS build
-# Pin pnpm to the version CI and local development use. An unpinned corepack fetches the newest
-# major, whose default supply-chain policy rejects packages published in the last day and fails
-# `--frozen-lockfile` installs on a lockfile that is fine for pnpm 10.
-RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+# corepack installs the pnpm version pinned by "packageManager" in the root package.json (the
+# same one CI uses). Unpinned, it would fetch the newest major, whose default supply-chain policy
+# rejects packages published in the last day and fails `--frozen-lockfile` installs.
+RUN corepack enable
 WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY frontend/package.json frontend/

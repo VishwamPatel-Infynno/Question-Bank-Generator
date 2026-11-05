@@ -62,15 +62,17 @@ function keyedByIdAndCode(pick) {
  * Resolves a section id, short code, or legacy label to a canonical id (chem_phys, cars,
  * bio_biochem, psych_soc), or null when it cannot be recognized.
  */
-function normalizeSectionId(section) {
+export function normalizeSectionId(section) {
   if (!section) return null;
   if (SECTIONS[section]) return section;
   if (SECTION_CODE_TO_ID[section]) return SECTION_CODE_TO_ID[section];
-  const s = String(section).toLowerCase();
-  if (s.includes('chem') || s.includes('cp')) return 'chem_phys';
-  if (s.includes('cars')) return 'cars';
-  if (s.includes('bio') || s.includes('bb')) return 'bio_biochem';
-  if (s.includes('psych') || s.includes('ps')) return 'psych_soc';
+  const s = String(section).toLowerCase().trim();
+  // Order matters: the Psych/Soc label contains "biological" and the Bio/Biochem label contains
+  // "chem", so the more specific sections are tested before chem_phys.
+  if (/\bcars\b|critical analysis/.test(s)) return 'cars';
+  if (/psych|social|behavio|^ps(bb)?$/.test(s)) return 'psych_soc';
+  if (/biochem|\bbio\b|^bb(ls)?$/.test(s)) return 'bio_biochem';
+  if (/chem|physic|^cp(bs)?$/.test(s)) return 'chem_phys';
   return null;
 }
 

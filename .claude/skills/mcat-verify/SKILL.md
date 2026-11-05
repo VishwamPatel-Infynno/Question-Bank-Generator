@@ -19,13 +19,13 @@ pnpm build
 Shortcuts: `pnpm lint:backend`, `pnpm format`, `pnpm test`. Single test: `PYTHONPATH=backend pytest backend/tests/test_x.py -k name -x`.
 
 ## Reading results
-- Tests marked `requires_db` (about 76 of the 273 offline-capable tests) skip when Postgres is down. Start it (`docker compose up -d`, see mcat-dev-env) to run them; otherwise say plainly that those tests were skipped, not passed.
+- Tests marked `requires_db` (see docs/TESTING_AND_QA.md for the current counts) skip when Postgres is down. Start it (`docker compose up -d`, see mcat-dev-env) to run them; otherwise say plainly that those tests were skipped, not passed.
 - `live_e2e` tests need a running backend and paid LLM credentials; excluded by default (`addopts`). Do not run them unasked.
-- pytest is async (`asyncio_mode = "auto"`, session-scoped loop), so write tests as plain `async def` with no decorator.
+- pytest is async (`asyncio_mode = "auto"`, session-scoped loop), so write tests as plain `async def` with no decorator (older files still carry a redundant `@pytest.mark.asyncio`; it is harmless).
 - CI sets DB env vars and provider defaults; locally `.env` supplies them, and `ACTIVE_LLM_PROVIDER=deepinfra` matches CI.
 
 ## Writing tests
-Put them in `backend/tests/test_<area>.py`, reuse `conftest.py` fixtures, and prefer mocks from `agents/mock_fixtures.py` over network. Bug fixes get a regression test. Counts of tests and files quoted in docs drift; see mcat-docs-sync.
+Put them in `backend/tests/test_<area>.py`, reuse `conftest.py` fixtures and the builders in `tests/factories.py` (`make_draft`, `make_question`; import with `from factories import ...`) instead of writing another `_draft`/`_question` helper, and prefer mocks from `agents/mock_fixtures.py` over network. Bug fixes get a regression test. Counts of tests and files quoted in docs drift; see mcat-docs-sync.
 
 Fake the LLM with the `patch_llm` fixture from `tests/conftest.py` (it patches `app.agents.base.call_llm`). Tests that simulate an offline/no-credentials run must make it raise `LLMNotConfiguredError`; a generic exception now means a real provider failure and fails closed. Install dev tools with `pip install -r backend/requirements-dev.txt` (CI does the same).
 

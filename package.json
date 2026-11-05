@@ -1,6 +1,7 @@
 {
   "name": "infynno-mcat-question-bank-generator-root",
   "private": true,
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "predev": "pnpm run clean:ports",
     "dev": "concurrently --kill-others-on-fail -p '[{name}]' -n 'backend,frontend' -c 'magenta.bold,cyan.bold' 'pnpm --silent run dev:backend' 'pnpm --silent run dev:frontend'",
@@ -17,7 +18,8 @@
     "db:clean-duplicates": "PYTHONPATH=backend ./.venv/bin/python scripts/clean_duplicate_artifacts.py",
     "preview": "pnpm --dir frontend run preview",
     "test:frontend": "pnpm --dir frontend run test",
-    "sync:taxonomy": "cp backend/app/data/mcat_dependent_taxonomy.json frontend/src/constants/mcat_dependent_taxonomy.json"
+    "sync:taxonomy": "cp backend/app/data/mcat_dependent_taxonomy.json frontend/src/constants/mcat_dependent_taxonomy.json",
+    "db:seed": "PYTHONPATH=backend ./.venv/bin/python backend/scripts/seed_questions.py"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"

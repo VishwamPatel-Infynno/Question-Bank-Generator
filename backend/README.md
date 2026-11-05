@@ -225,6 +225,6 @@ To populate the Question Bank with realistic AAMC MCAT practice questions across
 
 ```bash
 source .venv/bin/activate
-python backend/scripts/seed_questions.py
+PYTHONPATH=backend python backend/scripts/seed_questions.py   # or: pnpm run db:seed
 ```
 This generates authentic questions with complete psychometric rubrics, evolution histories, distractors, and token telemetry.

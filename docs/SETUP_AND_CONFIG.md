@@ -13,8 +13,8 @@ Before starting, ensure your system meets the following requirements:
 | Tool | Minimum Version | Purpose |
 | :--- | :--- | :--- |
 | **Python** | `3.11+` | Backend runtime & FastAPI application |
-| **Node.js** | `18.0+` (LTS) | Frontend runtime & Vite build engine |
-| **pnpm** | `9.0+` | Fast, disk space efficient package manager |
+| **Node.js** | `24` (LTS; Vitest and jsdom need 22.12+) | Frontend runtime & Vite build engine |
+| **pnpm** | `10` (pinned by `packageManager`) | Fast, disk space efficient package manager |
 | **Docker & Docker Compose** | `20.10+` / `v2+` | Containerized PostgreSQL 16 database |
 | **Git** | `2.30+` | Version control |
 
@@ -266,7 +266,7 @@ To explicitly populate the database with authentic, high-quality MCAT practice q
 
 ```bash
 source .venv/bin/activate
-python backend/scripts/seed_questions.py
+pnpm run db:seed   # or: PYTHONPATH=backend python backend/scripts/seed_questions.py
 ```
 
 ---

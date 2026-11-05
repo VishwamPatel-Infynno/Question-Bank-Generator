@@ -10,7 +10,7 @@ Thank you for your interest in contributing to the **Infynno MCAT Question Bank 
 
 ### 1. Prerequisites
 - **Python 3.11+**
-- **Node.js 20+** & **pnpm (v9+)**
+- **Node.js 24** & **pnpm 10** (pinned by `packageManager`; Vitest/jsdom need Node 22.12+)
 - **Docker & Docker Compose** (for PostgreSQL 16)
 - High-Throughput Inference Gateway credentials
 
