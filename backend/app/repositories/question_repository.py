@@ -16,7 +16,7 @@ from app.models.batch import GenerationBatchModel
 from app.models.passage import PassageModel
 from app.models.question import QuestionModel
 from app.repositories._filters import active_question_clause
-from app.schemas import DuplicateInfo, OptionChoice, Question, ReviewScore
+from app.schemas import BatchStatus, DuplicateInfo, OptionChoice, Question, ReviewScore
 from app.schemas.question import ACTIVE_QUESTION_STATUSES
 
 logger = logging.getLogger(__name__)
@@ -401,7 +401,7 @@ def _build_question_filters(
         if status == "ai_validated":
             conditions.append(QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD)
             in_progress_batches = select(GenerationBatchModel.id).where(
-                GenerationBatchModel.status == "in_progress"
+                GenerationBatchModel.status == BatchStatus.IN_PROGRESS
             )
             conditions.append(
                 or_(
@@ -674,7 +674,7 @@ async def get_question_status_counts() -> dict[str, int]:
     """Returns counts of questions grouped by lifecycle status."""
     async with async_session_factory() as session:
         in_progress_batches = select(GenerationBatchModel.id).where(
-            GenerationBatchModel.status == "in_progress"
+            GenerationBatchModel.status == BatchStatus.IN_PROGRESS
         )
         stmt = (
             select(QuestionModel.status, func.count(QuestionModel.id))

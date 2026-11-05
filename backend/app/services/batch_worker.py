@@ -30,6 +30,7 @@ from app.repositories.question_repository import QuestionHead
 from app.schemas import (
     GenerationJob,
     GenerationRequest,
+    JobStatus,
     Question,
     determine_question_status,
 )
@@ -39,6 +40,10 @@ logger = logging.getLogger(__name__)
 
 # Each generation job targets exactly 5 questions
 QUESTIONS_PER_JOB: int = 5
+# Autonomous in-flight attempts per job (initial run plus replenishments)
+MAX_JOB_TRIALS: int = 3
+# Duplicate-resolution/refill rounds a batch may go through before it is finalized
+MAX_REFILL_CYCLES: int = 3
 
 BATCH_THEMATIC_ANGLES = [
     "Experimental & Analytical Instrumentation (e.g. Mass Spectrometry, deflection in electric/magnetic fields, detectors)",
@@ -166,7 +171,7 @@ async def _run_single_job_impl(
     Guarantees up to 3 autonomous in-flight trials if a shortfall or error occurs,
     fulfilling the target count guarantee without stopping the batch or requiring user intervention.
     """
-    max_trials = 3
+    max_trials = MAX_JOB_TRIALS
     async with semaphore:
         # total_jobs is only used in log lines: read it from the batch row, not by loading every job
         batch_row = await get_batch_by_id(batch_id)
@@ -186,8 +191,8 @@ async def _run_single_job_impl(
 
             # Check existing active questions for this set
             existing_active_qs = await _get_active_job_questions(batch_id, job.id)
-            deficit = max(0, (job.target_count or 5) - len(existing_active_qs))
-            if deficit <= 0 and len(existing_active_qs) >= (job.target_count or 5):
+            deficit = max(0, (job.target_count or QUESTIONS_PER_JOB) - len(existing_active_qs))
+            if deficit <= 0 and len(existing_active_qs) >= (job.target_count or QUESTIONS_PER_JOB):
                 logger.info(
                     f"Job {job.job_number}/{total_jobs} (ID: {job.id}) already fulfilled target count."
                 )
@@ -199,7 +204,7 @@ async def _run_single_job_impl(
             )
             await update_job_progress(
                 job.id,
-                status="running",
+                status=JobStatus.RUNNING,
                 trial_count=trial,
                 actual_count=len(existing_active_qs),
                 passage_id=passage_id_for_job,
@@ -296,7 +301,7 @@ async def _run_single_job_impl(
                 current_qs = await _get_active_job_questions(batch_id, job.id)
                 await update_job_progress(
                     job.id,
-                    status="cancelled",
+                    status=JobStatus.CANCELLED,
                     trial_count=trial,
                     actual_count=len(current_qs),
                     completed_at=datetime.now(UTC).isoformat(),
@@ -322,7 +327,7 @@ async def _run_single_job_impl(
 
             # Re-evaluate active question count after attempt
             updated_active_qs = await _get_active_job_questions(batch_id, job.id)
-            if len(updated_active_qs) >= (job.target_count or 5):
+            if len(updated_active_qs) >= (job.target_count or QUESTIONS_PER_JOB):
                 logger.info(
                     f"Job {job.job_number}/{total_jobs} (ID: {job.id}) successfully reached target "
                     f"{job.target_count} on Trial {trial}/{max_trials}."
@@ -333,7 +338,7 @@ async def _run_single_job_impl(
         final_active_qs = await _get_active_job_questions(batch_id, job.id)
         final_count = len(final_active_qs)
         completed_now = datetime.now(UTC).isoformat()
-        job_status = "completed" if final_count > 0 else "failed"
+        job_status = JobStatus.COMPLETED if final_count > 0 else JobStatus.FAILED
 
         await update_job_progress(
             job.id,
@@ -348,7 +353,7 @@ async def _run_single_job_impl(
         await refresh_batch_aggregates(batch_id, allow_complete=False)
         logger.info(
             f"Job {job.job_number}/{total_jobs} (ID: {job.id}) finished: generated {final_count}/"
-            f"{job.target_count or 5} questions across {trial}/{max_trials} trial(s)."
+            f"{job.target_count or QUESTIONS_PER_JOB} questions across {trial}/{max_trials} trial(s)."
         )
 
 
@@ -377,13 +382,13 @@ async def _run_single_job_refill_impl(
 
     async with semaphore:
         now_iso = datetime.now(UTC).isoformat()
-        new_trial = min(3, (job.trial_count or 1) + 1)
+        new_trial = min(MAX_JOB_TRIALS, (job.trial_count or 1) + 1)
         logger.info(
             f"Replenishing Set #{job.job_number} (Job ID: {job.id}) in Batch {batch_id} "
-            f"with {job_deficit} replacement question(s) [Trial {new_trial}/3]..."
+            f"with {job_deficit} replacement question(s) [Trial {new_trial}/{MAX_JOB_TRIALS}]..."
         )
         await update_job_progress(
-            job.id, status="running", trial_count=new_trial, started_at=now_iso
+            job.id, status=JobStatus.RUNNING, trial_count=new_trial, started_at=now_iso
         )
 
         # Determine passage and stimulus from existing questions in this job
@@ -471,7 +476,7 @@ async def _run_single_job_refill_impl(
             completed_now = datetime.now(UTC).isoformat()
             await update_job_progress(
                 job.id,
-                status="completed" if total_active > 0 else "failed",
+                status=JobStatus.COMPLETED if total_active > 0 else JobStatus.FAILED,
                 actual_count=total_active,
                 trial_count=new_trial,
                 passage_id=passage_id_for_job,
@@ -490,7 +495,7 @@ async def _run_single_job_refill_impl(
             )
             await update_job_progress(
                 job.id,
-                status="failed",
+                status=JobStatus.FAILED,
                 error_message=sanitize_error_text(exc),
                 **usage_totals.fields(),
             )

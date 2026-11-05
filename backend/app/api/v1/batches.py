@@ -19,6 +19,8 @@ from app.repositories import (
     save_batch,
 )
 from app.schemas import (
+    BATCH_STATUSES,
+    BatchStatus,
     GenerationBatch,
     GenerationRequest,
     ResolveDuplicatesRequest,
@@ -79,7 +81,7 @@ async def list_batches(
     """
     batches = await get_batches(section=section, status=status_filter, limit=limit, offset=offset)
     # Count running batches over the whole table so pagination never hides them from the monitor
-    active_count = len(await get_batches(section=section, status="in_progress"))
+    active_count = len(await get_batches(section=section, status=BatchStatus.IN_PROGRESS))
     metrics = get_active_batch_metrics()
     return {
         "batches": [b.model_dump() for b in batches],
@@ -190,25 +192,10 @@ async def delete_single_batch(batch_id: str):
     return {"success": True, "message": f"Batch {batch_id} deleted successfully."}
 
 
-# Mirrors ck_generation_batches_status; anything else would fail the CHECK with a 500
-_BATCH_STATUSES = frozenset(
-    {
-        "pending",
-        "in_progress",
-        "running",
-        "completed",
-        "partially_completed",
-        "failed",
-        "cancelled",
-        "stopped",
-    }
-)
-
-
 @router.post("/batches")
 async def create_or_update_batch(batch: GenerationBatch):
     """Admin endpoint to create or update a generation batch record."""
-    if batch.status not in _BATCH_STATUSES:
+    if batch.status not in BATCH_STATUSES:
         raise HTTPException(status_code=422, detail=f"Invalid batch status: {batch.status!r}")
     saved = await save_batch(batch)
     return {"success": True, "batch": saved.model_dump()}

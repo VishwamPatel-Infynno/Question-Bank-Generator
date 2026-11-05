@@ -179,6 +179,9 @@ def compute_sequence_ratio(text1: str, text2: str) -> float:
 # short-circuits to 0.7 * stem_sim (< 0.28), under any sane soft threshold.
 _STEM_PRUNE_BELOW = 0.40
 
+# Two answer options count as the same when their text similarity exceeds this
+_OPTION_MATCH_RATIO = 0.85
+
 
 def compute_stem_similarity(stem1: str, stem2: str, *, prune: bool = False) -> float:
     """
@@ -254,7 +257,7 @@ def compute_options_overlap(
             l1, l2 = len(t1), len(t2)
             if max(l1, l2) > 0 and (min(l1, l2) / max(l1, l2)) < 0.60:
                 continue
-            if compute_sequence_ratio(t1, t2) > 0.85:
+            if compute_sequence_ratio(t1, t2) > _OPTION_MATCH_RATIO:
                 matches += 1
                 break
 

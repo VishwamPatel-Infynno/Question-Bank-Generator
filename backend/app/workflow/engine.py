@@ -31,9 +31,11 @@ from app.repositories import (
 )
 from app.schemas import (
     ALT_TRAP_ROTATION,
+    BatchStatus,
     GenerationBatch,
     GenerationJob,
     GenerationRequest,
+    JobStatus,
     Question,
     WorkflowEvent,
 )
@@ -121,7 +123,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     total_jobs=1,
                     completed_jobs=0,
                     failed_jobs=0,
-                    status="in_progress",
+                    status=BatchStatus.IN_PROGRESS,
                     created_at=now_iso,
                 )
                 await save_batch(batch_record)
@@ -130,7 +132,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 id=job_id,
                 batch_id=batch_id,
                 job_number=1,
-                status="running",
+                status=JobStatus.RUNNING,
                 target_count=total_qty,
                 actual_count=0,
                 passage_id=shared_passage_id,

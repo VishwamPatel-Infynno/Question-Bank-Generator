@@ -29,9 +29,15 @@ from app.repositories import (
     update_job_progress,
 )
 from app.schemas import (
+    COMPLETED_STATES,
+    EXECUTABLE_JOB_STATES,
+    LIVE_STATES,
+    RETRYABLE_JOB_STATES,
+    BatchStatus,
     GenerationBatch,
     GenerationJob,
     GenerationRequest,
+    JobStatus,
     is_question_active,
 )
 from app.services.batch_concurrency import (
@@ -56,6 +62,8 @@ from app.services.batch_resolution import (
 )
 from app.services.batch_worker import (
     BATCH_THEMATIC_ANGLES,
+    MAX_JOB_TRIALS,
+    MAX_REFILL_CYCLES,
     QUESTIONS_PER_JOB,
     _persist_job_question,
     _run_single_job,
@@ -96,7 +104,7 @@ async def _execute_in_set_refill(
     req: GenerationRequest,
     jobs_to_refill: list[tuple[GenerationJob, int]],
     current_cycle: int = 2,
-    max_cycles: int = 3,
+    max_cycles: int = MAX_REFILL_CYCLES,
 ) -> None:
     """Coordinates execution of in-set replenishment without creating new jobs."""
     tasks: list[asyncio.Task[Any]] = []
@@ -116,7 +124,7 @@ async def _execute_in_set_refill(
         )
         if not refill_result.get("refill_launched"):
             final_b = await refresh_batch_aggregates(batch_id, allow_complete=True)
-            if final_b and final_b.status in ("completed", "partially_completed"):
+            if final_b and final_b.status in COMPLETED_STATES:
                 await promote_completed_batch_questions(batch_id)
     except asyncio.CancelledError:
         logger.info(f"In-set refill for batch {batch_id} was cancelled.")
@@ -130,7 +138,7 @@ async def _execute_in_set_refill(
         logger.error(f"Error during in-set refill for batch {batch_id}: {e}", exc_info=True)
         b = await get_batch_by_id(batch_id)
         if b:
-            b.status = "failed"
+            b.status = BatchStatus.FAILED
             b.error_message = sanitize_error_text(e)
             await save_batch(b)
     finally:
@@ -142,11 +150,11 @@ async def _fail_stuck_jobs(batch_id: str, job_ids: list[str]) -> None:
     wanted = set(job_ids)
     now_iso = datetime.now(UTC).isoformat()
     for job in await get_jobs_by_batch_id(batch_id):
-        if job.id in wanted and job.status in ("pending", "running", "in_progress"):
+        if job.id in wanted and job.status in LIVE_STATES:
             logger.warning(f"Job {job.id} ended without a terminal status; marking it failed.")
             await update_job_progress(
                 job.id,
-                status="failed",
+                status=JobStatus.FAILED,
                 error_message=job.error_message or "Job ended unexpectedly.",
                 completed_at=now_iso,
             )
@@ -157,7 +165,7 @@ async def _execute_batch_workflow(
     req: GenerationRequest,
     target_jobs: list[GenerationJob] | None = None,
     current_cycle: int = 1,
-    max_cycles: int = 3,
+    max_cycles: int = MAX_REFILL_CYCLES,
 ) -> None:
     """Coordinates the execution of jobs within a batch using the global worker semaphore."""
     tasks: list[asyncio.Task[Any]] = []
@@ -166,8 +174,8 @@ async def _execute_batch_workflow(
         if not jobs:
             logger.error(f"No jobs found for batch {batch_id}")
             failed = await get_batch_by_id(batch_id)
-            if failed and failed.status in ("pending", "running", "in_progress"):
-                failed.status = "failed"
+            if failed and failed.status in LIVE_STATES:
+                failed.status = BatchStatus.FAILED
                 failed.error_message = "Batch has no jobs to run."
                 await save_batch(failed)
             return
@@ -178,11 +186,7 @@ async def _execute_batch_workflow(
         executable_jobs = (
             list(target_jobs)
             if target_jobs
-            else [
-                j
-                for j in jobs
-                if j.status in ("pending", "running", "failed", "cancelled", "stopped")
-            ]
+            else [j for j in jobs if j.status in EXECUTABLE_JOB_STATES]
         )
         if not executable_jobs:
             logger.info(f"Batch {batch_id} has no pending jobs to execute.")
@@ -217,7 +221,7 @@ async def _execute_batch_workflow(
         if not refill_result.get("refill_launched"):
             # Batch has fully concluded all processing, deduplication, and refilling
             final_b = await refresh_batch_aggregates(batch_id, allow_complete=True)
-            if final_b and final_b.status in ("completed", "partially_completed"):
+            if final_b and final_b.status in COMPLETED_STATES:
                 await promote_completed_batch_questions(batch_id)
 
     except asyncio.CancelledError:
@@ -232,7 +236,7 @@ async def _execute_batch_workflow(
         logger.error(f"Fatal error in batch {batch_id} execution: {e}", exc_info=True)
         b = await get_batch_by_id(batch_id)
         if b:
-            b.status = "failed"
+            b.status = BatchStatus.FAILED
             b.error_message = sanitize_error_text(e)
             await save_batch(b)
     finally:
@@ -242,7 +246,7 @@ async def _execute_batch_workflow(
 async def auto_resolve_batch_and_refill(
     batch_id: str,
     current_cycle: int = 1,
-    max_cycles: int = 3,
+    max_cycles: int = MAX_REFILL_CYCLES,
     threshold: float = config.DUPLICATE_HARD_THRESHOLD,
 ) -> dict[str, Any]:
     """
@@ -300,7 +304,7 @@ async def auto_resolve_batch_and_refill(
 
     refill_launched = False
     if deficit > 0 and current_cycle < max_cycles:
-        buffer = 1 if deficit < 5 else 2
+        buffer = 1 if deficit < QUESTIONS_PER_JOB else 2
         refill_target = min(target, deficit + buffer)
         logger.info(
             f"Auto-refill triggered for batch {batch_id}: deficit={deficit}, "
@@ -372,14 +376,14 @@ async def retry_incomplete_jobs_for_batch(
     await cancel_background_batch(batch_id)
 
     jobs = await get_jobs_by_batch_id(batch_id)
-    # Strictly enforce 3-trial ceiling: only jobs with trial_count < 3 are eligible for retry/resume
+    # Strictly enforce the trial ceiling: only jobs with trial_count < MAX_JOB_TRIALS are eligible for retry/resume
     retryable_jobs = [
         j
         for j in jobs
-        if (j.trial_count or 1) < 3
+        if (j.trial_count or 1) < MAX_JOB_TRIALS
         and (
-            j.status in ("failed", "cancelled", "pending")
-            or (j.actual_count < (j.target_count or 5))
+            j.status in RETRYABLE_JOB_STATES
+            or (j.actual_count < (j.target_count or QUESTIONS_PER_JOB))
         )
     ]
     if not retryable_jobs:
@@ -389,11 +393,11 @@ async def retry_incomplete_jobs_for_batch(
     for j in retryable_jobs:
         await update_job_progress(
             j.id,
-            status="pending",
+            status=JobStatus.PENDING,
             clear=("error_message", "started_at", "completed_at"),
         )
 
-    b.status = "in_progress"
+    b.status = BatchStatus.IN_PROGRESS
     b.error_message = None
     await save_batch(b)
 
@@ -411,7 +415,7 @@ async def refill_batch_deficit(
     batch_id: str,
     deficit: int,
     cycle: int = 2,
-    max_cycles: int = 3,
+    max_cycles: int = MAX_REFILL_CYCLES,
 ) -> tuple[GenerationBatch | None, list[GenerationJob]]:
     """
     Replenishes questions in-place for existing jobs that have deficits,
@@ -436,7 +440,7 @@ async def refill_batch_deficit(
         logger.info(f"No existing jobs in batch {batch_id} have deficits to refill.")
         return b, []
 
-    b.status = "in_progress"
+    b.status = BatchStatus.IN_PROGRESS
     b.error_message = None
     await save_batch(b)
 
@@ -490,7 +494,7 @@ async def launch_background_batch(
         total_jobs=total_jobs,
         completed_jobs=0,
         failed_jobs=0,
-        status="in_progress",
+        status=BatchStatus.IN_PROGRESS,
         # Never persist credentials; retries fall back to the server-configured key.
         request_payload=req.model_dump(exclude={"api_key"}),
         created_at=now_iso,
@@ -508,7 +512,7 @@ async def launch_background_batch(
             id=str(uuid.uuid4()),
             batch_id=b_id,
             job_number=num,
-            status="pending",
+            status=JobStatus.PENDING,
             target_count=job_target,
             actual_count=0,
             created_at=now_iso,

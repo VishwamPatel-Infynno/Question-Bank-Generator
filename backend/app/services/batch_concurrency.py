@@ -21,7 +21,7 @@ from app.repositories import (
     save_batch,
     update_job_progress,
 )
-from app.schemas import GenerationRequest
+from app.schemas import TERMINAL_STATES, BatchStatus, GenerationRequest, JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +32,6 @@ _batch_requests: dict[str, GenerationRequest] = {}
 
 # Global worker pool semaphore governing concurrent jobs across ALL running batches
 _GLOBAL_JOB_SEMAPHORE: asyncio.Semaphore | None = None
-
-_TERMINAL_STATUSES = frozenset(
-    {"completed", "failed", "cancelled", "partially_completed", "stopped"}
-)
 
 
 def get_global_job_semaphore() -> asyncio.Semaphore:
@@ -85,7 +81,7 @@ async def stop_background_batch(batch_id: str) -> bool:
         return False
     # Nothing is running and the batch already reached a terminal status: stopping must not
     # rewrite its history (e.g. downgrade a completed batch to partially_completed).
-    if (task is None or task.done()) and batch.status in _TERMINAL_STATUSES:
+    if (task is None or task.done()) and batch.status in TERMINAL_STATES:
         return False
     if task and not task.done():
         task.cancel()
@@ -96,12 +92,16 @@ async def stop_background_batch(batch_id: str) -> bool:
     jobs = await get_jobs_by_batch_id(batch_id)
     now_iso = datetime.now(UTC).isoformat()
     for j in jobs:
-        if j.status in ("pending", "running"):
-            await update_job_progress(j.id, status="cancelled", completed_at=now_iso)
+        if j.status in (JobStatus.PENDING, JobStatus.RUNNING):
+            await update_job_progress(j.id, status=JobStatus.CANCELLED, completed_at=now_iso)
 
     b = await get_batch_by_id(batch_id)
     if b:
-        b.status = "cancelled" if (b.completed_jobs or 0) == 0 else "partially_completed"
+        b.status = (
+            BatchStatus.CANCELLED
+            if (b.completed_jobs or 0) == 0
+            else BatchStatus.PARTIALLY_COMPLETED
+        )
         await save_batch(b)
     await refresh_batch_aggregates(batch_id)
     return True

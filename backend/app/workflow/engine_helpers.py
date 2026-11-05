@@ -38,6 +38,7 @@ from app.schemas import (
     ALT_TRAP_ROTATION,
     KNOWN_VISUAL_TYPES,
     GenerationRequest,
+    JobStatus,
     OptionChoice,
     Question,
     QuestionDraft,
@@ -796,7 +797,7 @@ async def _finalize_live_job_progress(
         now_iso = datetime.now(UTC).isoformat()
         # The jobs table has no 'partially_completed' status; a short job is 'completed' with
         # actual_count below target (the retry flow re-launches any such job).
-        job_status = "completed" if completed_total > 0 else "failed"
+        job_status = JobStatus.COMPLETED if completed_total > 0 else JobStatus.FAILED
         await update_job_progress(
             job_id,
             status=job_status,
@@ -808,7 +809,7 @@ async def _finalize_live_job_progress(
             completed_at=now_iso,
         )
         await refresh_batch_aggregates(batch_id, allow_complete=True)
-        if job_status == "completed":
+        if job_status == JobStatus.COMPLETED:
             await promote_completed_batch_questions(batch_id)
     except (SQLAlchemyError, OSError) as db_err:
         logger.warning(f"Could not finalize live job progress (DB offline): {db_err}")
@@ -824,7 +825,7 @@ async def _handle_live_job_cancellation(
         now_iso = datetime.now(UTC).isoformat()
         await update_job_progress(
             job_id,
-            status="cancelled",
+            status=JobStatus.CANCELLED,
             actual_count=completed_total,
             completed_at=now_iso,
         )
@@ -844,7 +845,7 @@ async def _handle_live_job_failure(
         now_iso = datetime.now(UTC).isoformat()
         await update_job_progress(
             job_id,
-            status="failed",
+            status=JobStatus.FAILED,
             error_message=error_msg,
             completed_at=now_iso,
         )

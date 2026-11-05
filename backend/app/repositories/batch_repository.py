@@ -14,7 +14,13 @@ from app.models.batch import GenerationBatchModel
 from app.models.job import GenerationJobModel
 from app.models.question import QuestionModel
 from app.repositories._filters import active_question_clause
-from app.schemas import GenerationBatch
+from app.schemas import (
+    COMPLETED_STATES,
+    LIVE_STATES,
+    BatchStatus,
+    GenerationBatch,
+    JobStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -160,9 +166,6 @@ async def delete_batch(batch_id: str) -> bool:
         return True
 
 
-_LIVE_STATUSES = frozenset({"pending", "running", "in_progress"})
-
-
 async def refresh_batch_aggregates(
     batch_id: str, allow_complete: bool = False
 ) -> GenerationBatch | None:
@@ -187,12 +190,10 @@ async def refresh_batch_aggregates(
 
         stmt = select(
             func.count()
-            .filter(GenerationJobModel.status.in_(("completed", "partially_completed")))
+            .filter(GenerationJobModel.status.in_(COMPLETED_STATES))
             .label("completed_jobs"),
-            func.count()
-            .filter(GenerationJobModel.status.in_(("pending", "running", "in_progress")))
-            .label("active_jobs"),
-            func.count().filter(GenerationJobModel.status == "failed").label("failed_jobs"),
+            func.count().filter(GenerationJobModel.status.in_(LIVE_STATES)).label("active_jobs"),
+            func.count().filter(GenerationJobModel.status == JobStatus.FAILED).label("failed_jobs"),
             func.coalesce(func.sum(GenerationJobModel.actual_count), 0).label("actual_count"),
             func.coalesce(func.sum(GenerationJobModel.total_tokens), 0).label("total_tokens"),
             func.coalesce(func.sum(GenerationJobModel.cost_usd), 0.0).label("cost_usd"),
@@ -232,40 +233,46 @@ async def refresh_batch_aggregates(
 
         # Preserve terminal or user-stopped status unless transitioning upon completion. A
         # partially_completed batch with no live jobs is terminal (e.g. just stopped by the user).
-        keep_terminal = batch_model.status in ("cancelled", "stopped") or (
-            batch_model.status == "partially_completed" and active_jobs == 0
+        keep_terminal = batch_model.status in (BatchStatus.CANCELLED, BatchStatus.STOPPED) or (
+            batch_model.status == BatchStatus.PARTIALLY_COMPLETED and active_jobs == 0
         )
         if not keep_terminal:
             if completed_jobs + failed_jobs >= total_jobs and failed_jobs > 0:
-                batch_model.status = "partially_completed" if completed_jobs > 0 else "failed"
+                batch_model.status = (
+                    BatchStatus.PARTIALLY_COMPLETED if completed_jobs > 0 else BatchStatus.FAILED
+                )
             elif actual_count >= target_count and actual_count > 0:
-                batch_model.status = "completed" if allow_complete else "in_progress"
+                batch_model.status = (
+                    BatchStatus.COMPLETED if allow_complete else BatchStatus.IN_PROGRESS
+                )
             elif completed_jobs >= total_jobs:
                 if allow_complete:
                     batch_model.status = (
-                        "completed" if actual_count >= target_count else "partially_completed"
+                        BatchStatus.COMPLETED
+                        if actual_count >= target_count
+                        else BatchStatus.PARTIALLY_COMPLETED
                     )
                 else:
                     batch_model.status = "in_progress"
-            elif batch_model.status != "completed":
-                batch_model.status = "in_progress"
+            elif batch_model.status != BatchStatus.COMPLETED:
+                batch_model.status = BatchStatus.IN_PROGRESS
 
             # Final resolution: a caller that says the batch is done (allow_complete) while no job
             # is pending or running must leave a terminal status. Without this a batch whose jobs
             # ended cancelled/stopped (client disconnect, stop then resume) stayed "in_progress"
             # forever with nothing running it.
-            if allow_complete and active_jobs == 0 and batch_model.status in _LIVE_STATUSES:
+            if allow_complete and active_jobs == 0 and batch_model.status in LIVE_STATES:
                 if actual_count >= target_count and actual_count > 0:
-                    batch_model.status = "completed"
+                    batch_model.status = BatchStatus.COMPLETED
                 elif actual_count > 0 or completed_jobs > 0:
-                    batch_model.status = "partially_completed"
+                    batch_model.status = BatchStatus.PARTIALLY_COMPLETED
                 elif failed_jobs > 0:
-                    batch_model.status = "failed"
+                    batch_model.status = BatchStatus.FAILED
                 else:
-                    batch_model.status = "cancelled"
+                    batch_model.status = BatchStatus.CANCELLED
 
         # If batch is completed or partially completed, promote qualifying active questions (>90 score) to 'ai_validated'
-        if batch_model.status in ("completed", "partially_completed"):
+        if batch_model.status in COMPLETED_STATES:
             await _execute_promote_batch_questions(session, batch_id)
 
         await session.commit()
@@ -310,7 +317,9 @@ async def reconcile_interrupted_batches() -> int:
     """
     async with async_session_factory() as session:
         result = await session.execute(
-            select(GenerationBatchModel).where(GenerationBatchModel.status == "in_progress")
+            select(GenerationBatchModel).where(
+                GenerationBatchModel.status == BatchStatus.IN_PROGRESS
+            )
         )
         orphans = list(result.scalars().all())
         if not orphans:
@@ -318,7 +327,7 @@ async def reconcile_interrupted_batches() -> int:
 
         now = datetime.now(UTC)
         for b in orphans:
-            b.status = "stopped"
+            b.status = BatchStatus.STOPPED
             b.updated_at = now
             b.error_message = "Server restarted while batch was generating. Progress preserved."
             await _execute_promote_batch_questions(session, b.id, timestamp=now)
@@ -329,9 +338,9 @@ async def reconcile_interrupted_batches() -> int:
             update(GenerationJobModel)
             .where(
                 GenerationJobModel.batch_id.in_([b.id for b in orphans]),
-                GenerationJobModel.status.in_(("pending", "running", "in_progress")),
+                GenerationJobModel.status.in_(LIVE_STATES),
             )
-            .values(status="stopped", completed_at=now)
+            .values(status=JobStatus.STOPPED, completed_at=now)
         )
 
         await session.commit()

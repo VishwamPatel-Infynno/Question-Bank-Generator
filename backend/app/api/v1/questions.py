@@ -103,13 +103,18 @@ async def get_question_counts():
     return await get_question_status_counts()
 
 
-@router.get("/questions/{question_id}")
-async def get_single_question(question_id: str):
-    """Retrieves a single question by UUID4 primary key."""
+async def _require_question(question_id: str) -> Question:
+    """Loads a question or answers 404 (the repeated get-or-404 of this module)."""
     q = await get_question_by_id(question_id)
     if not q:
         raise HTTPException(status_code=404, detail="Question not found")
-    return q.model_dump()
+    return q
+
+
+@router.get("/questions/{question_id}")
+async def get_single_question(question_id: str):
+    """Retrieves a single question by UUID4 primary key."""
+    return (await _require_question(question_id)).model_dump()
 
 
 _ALLOWED_IMAGE_TYPES = frozenset({"image/png", "image/jpeg", "image/webp", "image/gif"})
@@ -122,9 +127,7 @@ _IMAGE_SAFETY_HEADERS = {
 @router.get("/questions/{question_id}/image")
 async def get_question_image(question_id: str):
     """Serves the visual stimulus image (AI FLUX image or Vector SVG diagram) for a question."""
-    q = await get_question_by_id(question_id)
-    if not q:
-        raise HTTPException(status_code=404, detail="Question not found")
+    q = await _require_question(question_id)
 
     img_url = q.image_url
     if not img_url and q.image_svg:

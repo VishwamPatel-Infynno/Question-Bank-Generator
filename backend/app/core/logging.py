@@ -16,11 +16,6 @@ from typing import Any
 _log_context: ContextVar[dict[str, Any]] = ContextVar("log_context", default={})  # noqa: B039
 
 
-def get_log_context() -> dict[str, Any]:
-    """Returns a copy of the correlation ids bound to the current task."""
-    return dict(_log_context.get())
-
-
 @contextmanager
 def bind_log_context(**fields: Any) -> Iterator[None]:
     """Binds correlation ids (e.g. batch_id, job_id, run_id) to every log line in this scope."""

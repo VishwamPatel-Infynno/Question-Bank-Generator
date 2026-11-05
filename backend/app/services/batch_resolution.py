@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.schemas import GenerationJob, Question
+from app.schemas import GenerationJob, JobStatus, Question
 from app.services.deduplication import cluster_questions
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ def compute_jobs_with_deficits(
 
     if not jobs_to_refill and total_deficit > 0:
         for job in sorted_jobs:
-            if job.status != "completed":
+            if job.status != JobStatus.COMPLETED:
                 jobs_to_refill.append((job, min(total_deficit, job.target_count)))
                 break
 
