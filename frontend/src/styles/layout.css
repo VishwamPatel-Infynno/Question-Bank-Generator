@@ -234,7 +234,7 @@
   background: var(--bg-surface);
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-sticky);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -510,7 +510,7 @@
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 1000;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   gap: 10px;

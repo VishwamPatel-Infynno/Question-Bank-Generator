@@ -3,91 +3,96 @@ import { FlaskConical, BookOpen, Dna, Brain } from 'lucide-react';
 // synchronized with backend/app/data/mcat_dependent_taxonomy.json
 import mcatTaxonomy from './mcat_dependent_taxonomy.json';
 
-export const PACING_INFO = {
-  chem_phys: { target: '~96s / question', desc: '59 questions in 95 mins' },
-  cars: { target: '~101s / question', desc: '53 questions in 90 mins' },
-  bio_biochem: { target: '~96s / question', desc: '59 questions in 95 mins' },
-  psych_soc: { target: '~96s / question', desc: '59 questions in 95 mins' },
-  CP: { target: '~96s / question', desc: '59 questions in 95 mins' },
-  CARS: { target: '~101s / question', desc: '53 questions in 90 mins' },
-  BB: { target: '~96s / question', desc: '59 questions in 95 mins' },
-  PS: { target: '~96s / question', desc: '59 questions in 95 mins' }
+/**
+ * Single source of truth for the four MCAT sections. Every other section map (labels, badge
+ * classes, colors, codes, pacing) is derived from this table so a value is written exactly once.
+ * Colors are hex on purpose: some consumers append an alpha suffix (e.g. `${color}15`).
+ */
+const SECTIONS = {
+  chem_phys: {
+    code: 'CP',
+    label: 'Chemical and Physical Foundations',
+    badge: 'badge-cyan',
+    color: '#38bdf8',
+    pacingSeconds: 96,
+    pacing: { target: '~96s / question', desc: '59 questions in 95 mins' }
+  },
+  cars: {
+    code: 'CARS',
+    label: 'Critical Analysis and Reasoning Skills',
+    badge: 'badge-rose',
+    color: '#f43f5e',
+    pacingSeconds: 101,
+    pacing: { target: '~101s / question', desc: '53 questions in 90 mins' }
+  },
+  bio_biochem: {
+    code: 'BB',
+    label: 'Biological and Biochemical Foundations',
+    badge: 'badge-emerald',
+    color: '#10b981',
+    pacingSeconds: 96,
+    pacing: { target: '~96s / question', desc: '59 questions in 95 mins' }
+  },
+  psych_soc: {
+    code: 'PS',
+    label: 'Psychological, Social, and Biological Foundations',
+    badge: 'badge-purple',
+    color: '#a855f7',
+    pacingSeconds: 96,
+    pacing: { target: '~96s / question', desc: '59 questions in 95 mins' }
+  }
 };
 
-const SECTION_ID_TO_CODE = {
-  chem_phys: 'CP',
-  cars: 'CARS',
-  bio_biochem: 'BB',
-  psych_soc: 'PS',
-  CP: 'CP',
-  CARS: 'CARS',
-  BB: 'BB',
-  PS: 'PS'
-};
+const NEUTRAL_SECTION_COLOR = '#94a3b8';
+const SECTION_CODE_TO_ID = Object.fromEntries(
+  Object.entries(SECTIONS).map(([id, sec]) => [sec.code, id])
+);
 
-const SECTION_CODE_TO_ID = {
-  CP: 'chem_phys',
-  CARS: 'cars',
-  BB: 'bio_biochem',
-  PS: 'psych_soc',
-  chem_phys: 'chem_phys',
-  cars: 'cars',
-  bio_biochem: 'bio_biochem',
-  psych_soc: 'psych_soc'
-};
+/** Builds a map keyed by BOTH the long id (chem_phys) and the short code (CP). */
+function keyedByIdAndCode(pick) {
+  return Object.fromEntries(
+    Object.entries(SECTIONS).flatMap(([id, sec]) => [
+      [id, pick(sec)],
+      [sec.code, pick(sec)]
+    ])
+  );
+}
 
-export const SECTION_CODE_MAP = SECTION_ID_TO_CODE;
+/**
+ * Resolves a section id, short code, or legacy label to a canonical id (chem_phys, cars,
+ * bio_biochem, psych_soc), or null when it cannot be recognized.
+ */
+export function normalizeSectionId(section) {
+  if (!section) return null;
+  if (SECTIONS[section]) return section;
+  if (SECTION_CODE_TO_ID[section]) return SECTION_CODE_TO_ID[section];
+  const s = String(section).toLowerCase();
+  if (s.includes('chem') || s.includes('cp')) return 'chem_phys';
+  if (s.includes('cars')) return 'cars';
+  if (s.includes('bio') || s.includes('bb')) return 'bio_biochem';
+  if (s.includes('psych') || s.includes('ps')) return 'psych_soc';
+  return null;
+}
 
-const SECTION_BADGE_CLASSES = {
-  chem_phys: 'badge-cyan',
-  cars: 'badge-rose',
-  bio_biochem: 'badge-emerald',
-  psych_soc: 'badge-purple',
-  CP: 'badge-cyan',
-  CARS: 'badge-rose',
-  BB: 'badge-emerald',
-  PS: 'badge-purple'
-};
+export const PACING_INFO = keyedByIdAndCode((sec) => sec.pacing);
+export const SECTION_CODE_MAP = keyedByIdAndCode((sec) => sec.code);
+export const MCAT_SECTION_LABELS = keyedByIdAndCode((sec) => sec.label);
 
 export function getSectionBadgeClass(section) {
-  if (!section) return 'badge-neutral';
-  return SECTION_BADGE_CLASSES[section] || SECTION_BADGE_CLASSES[SECTION_CODE_TO_ID[section]] || 'badge-neutral';
+  const id = normalizeSectionId(section);
+  return id ? SECTIONS[id].badge : 'badge-neutral';
 }
-
-const SECTION_COLORS = {
-  chem_phys: '#38bdf8',
-  cars: '#f43f5e',
-  bio_biochem: '#10b981',
-  psych_soc: '#a855f7',
-  CP: '#38bdf8',
-  CARS: '#f43f5e',
-  BB: '#10b981',
-  PS: '#a855f7'
-};
 
 export function getSectionColor(section) {
-  if (!section) return '#94a3b8';
-  if (SECTION_COLORS[section]) return SECTION_COLORS[section];
-  const normalized = SECTION_CODE_TO_ID[section];
-  if (normalized && SECTION_COLORS[normalized]) return SECTION_COLORS[normalized];
-  const s = String(section).toLowerCase();
-  if (s.includes('chem') || s.includes('cp')) return '#38bdf8';
-  if (s.includes('cars')) return '#f43f5e';
-  if (s.includes('bio') || s.includes('bb')) return '#10b981';
-  if (s.includes('psych') || s.includes('ps')) return '#a855f7';
-  return '#94a3b8';
+  const id = normalizeSectionId(section);
+  return id ? SECTIONS[id].color : NEUTRAL_SECTION_COLOR;
 }
 
-export const MCAT_SECTION_LABELS = {
-  chem_phys: 'Chemical and Physical Foundations',
-  cars: 'Critical Analysis and Reasoning Skills',
-  bio_biochem: 'Biological and Biochemical Foundations',
-  psych_soc: 'Psychological, Social, and Biological Foundations',
-  CP: 'Chemical and Physical Foundations',
-  CARS: 'Critical Analysis and Reasoning Skills',
-  BB: 'Biological and Biochemical Foundations',
-  PS: 'Psychological, Social, and Biological Foundations'
-};
+/** Seconds per question used for exam-time estimates (96 when the section is unknown). */
+export function getSectionPacingSeconds(section) {
+  const id = normalizeSectionId(section);
+  return id ? SECTIONS[id].pacingSeconds : 96;
+}
 
 /**
  * Builds fallback sections list with aggregated subtopics.
@@ -137,7 +142,7 @@ export const LIKELY_MISTAKE_PATTERNS = (mcatTaxonomy.generation_options?.likely_
 }));
 
 function getSectionTree(sectionIdOrCode) {
-  const code = SECTION_ID_TO_CODE[sectionIdOrCode] || String(sectionIdOrCode).toUpperCase();
+  const code = SECTION_CODE_MAP[sectionIdOrCode] || String(sectionIdOrCode).toUpperCase();
   return (mcatTaxonomy.sections || []).find((s) => s.id === code) || null;
 }
 
@@ -147,7 +152,7 @@ export function getSubjectsForSection(sectionIdOrCode) {
 }
 
 export function getSkillsForSection(sectionIdOrCode) {
-  const code = SECTION_ID_TO_CODE[sectionIdOrCode] || String(sectionIdOrCode).toUpperCase();
+  const code = SECTION_CODE_MAP[sectionIdOrCode] || String(sectionIdOrCode).toUpperCase();
   return (mcatTaxonomy.skills || []).filter((sk) => (sk.applies_to || []).includes(code));
 }
 

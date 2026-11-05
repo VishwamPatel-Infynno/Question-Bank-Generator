@@ -15,6 +15,13 @@
   --mcat-bio-biochem: #059669;
   --mcat-psych-soc: #7c3aed;
 
+  /* Stacking layers (lowest to highest): sticky bars, dropdowns, modals and toasts, full-screen overlays */
+  --z-sticky: 50;
+  --z-dropdown: 100;
+  --z-modal: 1000;
+  --z-toast: 1000;
+  --z-overlay: 9999;
+
   /* Infynno Solutions LLP Brand Identity */
   --infynno-violet: #4F30B9;
   --infynno-blue: #335ACF;

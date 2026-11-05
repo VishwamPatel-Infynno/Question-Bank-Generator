@@ -70,16 +70,6 @@ export async function fetchSections() {
   return res.json();
 }
 
-/**
- * Fetches the full manager MCAT dependent taxonomy directly from backend API.
- * Used for dynamic outline updates and synchronizing runtime taxonomy state.
- */
-export async function fetchTaxonomy() {
-  const res = await apiFetch(`${API_BASE}/taxonomy`);
-  await assertOk(res, 'Fetch taxonomy');
-  return res.json();
-}
-
 export async function fetchQuestions(params = {}, signal = null) {
   const query = buildQuery(params);
   const res = await apiFetch(`${API_BASE}/questions?${query.toString()}`, { signal });
@@ -181,37 +171,6 @@ export async function approveQuestion(question) {
   return res.json();
 }
 
-/**
- * Programmatic SDK Method: Manually overrides a duplicate warning on a question and approves it to Question Bank.
- * Available for administrative API operations and external scripting.
- * @param {string} id - Question ID.
- * @returns {Promise<Object>} The updated question record.
- */
-export async function overrideQuestionDuplicate(id) {
-  const res = await apiFetch(`${API_BASE}/questions/${id}/override-duplicate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
-  });
-  await assertOk(res, `Override duplicate on question ${id}`);
-  return res.json();
-}
-
-/**
- * Programmatic SDK Method: Checks a candidate question for duplicates against the Question Bank on demand.
- * Available for administrative API operations and external pre-validation pipelines.
- * @param {Object} payload - Question payload with section, subtopic, question_stem, options.
- * @returns {Promise<Object>} Duplicate check result with similarity score and matched question.
- */
-export async function checkQuestionDuplicate(payload) {
-  const res = await apiFetch(`${API_BASE}/questions/check-duplicate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  await assertOk(res, 'Check question duplicate');
-  return res.json();
-}
-
 export async function startBackgroundBatch(payload) {
   const res = await apiFetch(`${API_BASE}/batches/start`, {
     method: 'POST',
@@ -260,52 +219,6 @@ export async function retryBatchJobs(batchId, payload = null) {
 export async function cancelAllBatches() {
   const res = await apiFetch(`${API_BASE}/batches/cancel-all`, { method: 'POST' });
   await assertOk(res, 'Cancel all active batches');
-  return res.json();
-}
-
-/**
- * Programmatic SDK Method: Fetches pairwise duplicate clusters for questions within a batch.
- * Available for administrative API operations and batch clustering audits.
- * @param {string} batchId - Target batch identifier.
- * @param {number} [threshold=0.75] - Similarity threshold.
- * @param {AbortSignal} [signal=null] - Optional fetch abort signal.
- * @returns {Promise<Object>} Cluster details and leader question metadata.
- */
-export async function fetchBatchDuplicateClusters(batchId, threshold = 0.75, signal = null) {
-  const res = await apiFetch(`${API_BASE}/batches/${batchId}/duplicate-clusters?threshold=${threshold}`, { signal });
-  await assertOk(res, `Fetch duplicate clusters for batch ${batchId}`);
-  return res.json();
-}
-
-/**
- * Programmatic SDK Method: Resolves duplicate clusters in a batch by pruning non-leader questions.
- * Available for administrative batch reconciliation.
- * @param {string} batchId - Target batch identifier.
- * @param {Object} [payload={ action: 'delete' }] - Resolution action ('delete' or 'archive').
- * @returns {Promise<Object>} Reconciliation summary.
- */
-export async function resolveBatchDuplicates(batchId, payload = { action: 'delete' }) {
-  const res = await apiFetch(`${API_BASE}/batches/${batchId}/resolve-duplicates`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  await assertOk(res, `Resolve duplicates for batch ${batchId}`);
-  return res.json();
-}
-
-/**
- * Programmatic SDK Method: Replenishes a batch up to its target count by dispatching replacement jobs.
- * Available for administrative deficit recovery.
- * @param {string} batchId - Target batch identifier.
- * @returns {Promise<Object>} Refill outcome and launched jobs.
- */
-export async function refillBatchQuestions(batchId) {
-  const res = await apiFetch(`${API_BASE}/batches/${batchId}/refill`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
-  });
-  await assertOk(res, `Refill batch ${batchId}`);
   return res.json();
 }
 

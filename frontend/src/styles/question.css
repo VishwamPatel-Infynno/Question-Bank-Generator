@@ -964,7 +964,7 @@
   bottom: 0;
   background-color: rgba(5, 8, 15, 0.88);
   backdrop-filter: blur(6px);
-  z-index: 9999;
+  z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;
   padding: 24px;

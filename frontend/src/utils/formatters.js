@@ -1,17 +1,7 @@
 /**
  * Formatting and calculation utilities for MCAT Question Studio.
  */
-
-const PACING_SECONDS = {
-  chem_phys: 96,
-  cars: 101,
-  bio_biochem: 96,
-  psych_soc: 96,
-  CP: 96,
-  CARS: 101,
-  BB: 96,
-  PS: 96
-};
+import { getSectionPacingSeconds } from '../constants/mcat';
 
 /**
  * Calculates estimated test exam duration for a set of MCAT questions.
@@ -21,7 +11,7 @@ const PACING_SECONDS = {
 export function formatExamTime(questions) {
   if (!questions || questions.length === 0) return '0 minutes';
   const totalSeconds = questions.reduce((acc, q) => {
-    const sec = PACING_SECONDS[q.section] || 96;
+    const sec = getSectionPacingSeconds(q.section);
     return acc + sec;
   }, 0);
   const minutes = Math.ceil(totalSeconds / 60);
