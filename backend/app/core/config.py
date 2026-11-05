@@ -422,6 +422,8 @@ class Settings(BaseSettings):
     # Requests per client IP per minute (0 disables) and batches allowed to run at once (0 disables).
     GENERATION_RATE_LIMIT_PER_MINUTE: int = 30
     MAX_ACTIVE_BATCHES: int = 5
+    # Largest accepted request body in megabytes (HTTP 413 above it); 0 disables
+    MAX_REQUEST_BODY_MB: int = 25
     # Run the reviewer and blind solver concurrently (saves one LLM round trip per question).
     PARALLEL_REVIEW_AND_SOLVE: bool = False
     # Mark static system prompts cacheable for providers that need an explicit marker (Anthropic).

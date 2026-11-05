@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.config import config
+from app.core.errors import sanitize_error_text
 from app.core.logging import bind_log_context
 from app.repositories import (
     batch_exists,
@@ -92,7 +93,10 @@ async def _persist_job_question(
         logger.error(f"Error saving question for job {job_id}: {q_err}", exc_info=True)
         with contextlib.suppress(Exception):
             await update_job_progress(
-                job_id, error_message=f"A generated question could not be saved: {q_err}"[:500]
+                job_id,
+                error_message=sanitize_error_text(
+                    f"A generated question could not be saved: {q_err}"
+                ),
             )
         return (None, False)
 
@@ -311,7 +315,7 @@ async def _run_single_job_impl(
                     f"Job {job.job_number}/{total_jobs} (ID: {job.id}) exhausted all {max_trials} trials: {exc}",
                     exc_info=True,
                 )
-                await update_job_progress(job.id, error_message=str(exc))
+                await update_job_progress(job.id, error_message=sanitize_error_text(exc))
             finally:
                 # An early return/raise would otherwise leave worker tasks spending tokens until GC
                 await stream.aclose()
@@ -485,7 +489,10 @@ async def _run_single_job_refill_impl(
                 exc_info=True,
             )
             await update_job_progress(
-                job.id, status="failed", error_message=str(exc), **usage_totals.fields()
+                job.id,
+                status="failed",
+                error_message=sanitize_error_text(exc),
+                **usage_totals.fields(),
             )
         finally:
             await stream.aclose()

@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.config import config
+from app.core.errors import sanitize_error_text
 from app.repositories import (
     batch_update_question_status,
     get_batch_by_id,
@@ -130,7 +131,7 @@ async def _execute_in_set_refill(
         b = await get_batch_by_id(batch_id)
         if b:
             b.status = "failed"
-            b.error_message = str(e)
+            b.error_message = sanitize_error_text(e)
             await save_batch(b)
     finally:
         unregister_batch_task(batch_id, asyncio.current_task())
@@ -232,7 +233,7 @@ async def _execute_batch_workflow(
         b = await get_batch_by_id(batch_id)
         if b:
             b.status = "failed"
-            b.error_message = str(e)
+            b.error_message = sanitize_error_text(e)
             await save_batch(b)
     finally:
         unregister_batch_task(batch_id, asyncio.current_task())

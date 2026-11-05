@@ -21,7 +21,6 @@ import WizardFooterNav from './WizardFooterNav';
 export default function GuidedWizard({
   generatorForm,
   onGenerateQuestions,
-  onLaunchGeneration,
   isLaunchingBatch = false,
   step: controlledStep,
   setStep: controlledSetStep
@@ -139,13 +138,13 @@ export default function GuidedWizard({
     if (step < totalSteps) {
       setStep(prev => prev + 1);
     } else {
-      (onGenerateQuestions || onLaunchGeneration)?.();
+      onGenerateQuestions?.();
     }
-  }, [step, totalSteps, onGenerateQuestions, onLaunchGeneration, setStep]);
+  }, [step, totalSteps, onGenerateQuestions, setStep]);
 
   const handleInstantLaunch = useCallback(() => {
-    (onGenerateQuestions || onLaunchGeneration)?.();
-  }, [onGenerateQuestions, onLaunchGeneration]);
+    onGenerateQuestions?.();
+  }, [onGenerateQuestions]);
 
   const handleBack = () => {
     if (step > 1) {
@@ -165,14 +164,14 @@ export default function GuidedWizard({
   const handleKeyDown = useCallback((e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
-      (onGenerateQuestions || onLaunchGeneration)?.();
+      onGenerateQuestions?.();
       return;
     }
     if (e.key === 'Enter' && !e.shiftKey && e.target.tagName !== 'TEXTAREA') {
       e.preventDefault();
       handleNext();
     }
-  }, [handleNext, onGenerateQuestions, onLaunchGeneration]);
+  }, [handleNext, onGenerateQuestions]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);

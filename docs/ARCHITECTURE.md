@@ -806,3 +806,10 @@ For complete UI design tokens, color scales, typography guidelines, and componen
 - `stop`/`retry`/`delete` leave a batch that is already terminal (and not running) untouched; `refill` answers 409 while the batch is running.
 - Every job path (main, refill, cancelled, single-slot failure, truncated-output retries) records the tokens and cost it spent.
 - If PostgreSQL is down at startup, the API retries schema initialization in the background (5 s backoff up to 60 s) and then runs the startup maintenance.
+
+### Operational hardening (round 2)
+- Every response carries `X-Request-ID` (a safe caller-supplied value or a generated one) and every log line produced while handling the request includes it.
+- Request bodies above `MAX_REQUEST_BODY_MB` are refused with HTTP 413 before any work; nginx enforces the same limit. Bulk id lists are capped at 1000 and bulk question saves at 500.
+- `GET /api/health/live` is a database-free liveness probe; `/api/health/ready` stays the readiness probe.
+- Error text stored on batches and jobs goes through `sanitize_error_text` (credentials, URL query strings and length removed).
+- The web image runs as a non-root nginx with a Content-Security-Policy (scripts from the same origin only; the theme/font bootstrap lives in `frontend/public/boot.js`), and the backend runs Uvicorn with `--proxy-headers` so rate limits see the real client IP.

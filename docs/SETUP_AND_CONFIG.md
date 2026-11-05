@@ -66,6 +66,7 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `API_ACCESS_KEY` | `string` | `""` | Optional shared secret for mutating API routes (`POST`/`PUT`/`PATCH`/`DELETE` need `X-API-Key`; reads and the duplicate pre-check stay open). Intended for deployments behind a gateway; a key built into the frontend via `VITE_API_ACCESS_KEY` is visible to browsers, so it is not a substitute for user authentication |
 | `GENERATION_RATE_LIMIT_PER_MINUTE` | `integer` | `30` | Per-client-IP request budget per minute for the LLM-spending routes (`POST /api/generate`, `/batches/start`, `/batches/{id}/retry`, `/batches/{id}/refill`); `0` disables. In-process, which is correct for the single-worker deployment. Behind a proxy, run Uvicorn with `--proxy-headers` so the real client IP is used |
 | `MAX_ACTIVE_BATCHES` | `integer` | `5` | Background batches allowed to run at once; further start/retry/refill requests get HTTP 429. `0` disables |
+| `MAX_REQUEST_BODY_MB` | `integer` | `25` | Largest accepted request body in megabytes; larger requests get HTTP 413 (`0` disables). The bundled `frontend/nginx.conf` enforces the same `client_max_body_size` in front of the API |
 | `LOG_FORMAT` | `string` | `text` | `text` or `json`; lines carry batch, job, run and slot ids for correlation |
 | `LLM_MAX_TOKENS_CEILING` | `integer` | `8000` | Upper bound when a truncated completion is retried with a larger token budget |
 | `BATCH_PASSING_SCORE_THRESHOLD` | `integer`| `85` | Benchmark score required for batch activity run acceptance (Tier 2) |
@@ -89,7 +90,7 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `GLOBAL_MAX_CONCURRENT_PIPELINES` | `integer` | `8` | Process-wide cap on question pipelines in flight across all live runs and batches (replaces the old per-run limiter that multiplied concurrency) |
 | `GLOBAL_MAX_CONCURRENT_JOBS` | `integer` | `4` | Global worker pool semaphore governing simultaneous batch jobs |
 | `GLOBAL_MAX_CONCURRENT_LLM_CALLS` | `integer` | `10` | Global limiter for simultaneous outward inference calls |
-| `LLM_MAX_RETRIES` | `integer` | `4` | Maximum exponential backoff retries on 429/503 errors |
+| `LLM_MAX_RETRIES` | `integer` | `3` | Maximum exponential backoff retries on 429/503 errors |
 | `LLM_BASE_BACKOFF_SECONDS` | `float` | `1.5` | Base backoff interval in seconds before retry |
 | `WORKFLOW_MAX_WORKER_RETRIES` | `integer` | `2` | Per-worker retry attempts for individual question generation jobs within a batch |
 | `DB_POOL_SIZE` | `integer` | `10` | Core persistent asyncpg database connections |
@@ -183,13 +184,13 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 229-test backend verification suite across 46 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 269-test backend verification suite across 49 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 219 deterministic unit and integration tests across 45 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 159 pure unit tests pass and 60 DB tests skip cleanly
+# 1. Run all 259 deterministic unit and integration tests across 48 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 187 pure unit tests pass and 72 DB tests skip cleanly
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
@@ -204,9 +205,9 @@ ruff format --check .
 
 #### Dual Test Execution Modes
 - **Offline Mode** (PostgreSQL offline): Executes all 55 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`55 passed, 42 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 219 deterministic tests across 45 modules in ~23-28 seconds (10 live tests deselected).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 259 deterministic tests across 48 modules in ~23-28 seconds (10 live tests deselected).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 229 tests across 46 test files.
+- **Total Backend Suite**: 269 tests across 49 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.

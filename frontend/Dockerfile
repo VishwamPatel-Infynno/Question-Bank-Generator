@@ -12,8 +12,8 @@ ARG VITE_API_ACCESS_KEY=""
 ENV VITE_API_ACCESS_KEY=$VITE_API_ACCESS_KEY
 RUN pnpm --dir frontend run build
 
-FROM nginx:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/frontend/dist /usr/share/nginx/html
-EXPOSE 80
-HEALTHCHECK --interval=15s --timeout=3s CMD wget -qO- http://127.0.0.1/ >/dev/null || exit 1
+EXPOSE 8080
+HEALTHCHECK --interval=15s --timeout=3s CMD wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1

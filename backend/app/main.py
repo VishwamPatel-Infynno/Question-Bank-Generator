@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -13,7 +15,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.api.router import api_router
 from app.core.config import config
-from app.core.logging import configure_logging
+from app.core.logging import bind_log_context, configure_logging
 from app.db.session import engine, init_db
 from app.repositories import reconcile_interrupted_batches, scrub_stored_request_secrets
 from app.services.batch_concurrency import cancel_all_background_batches
@@ -135,7 +137,54 @@ class SecurityHeadersMiddleware:
         await self._app(scope, receive, send_with_headers)
 
 
+_REQUEST_ID_OK = re.compile(r"^[A-Za-z0-9._\-]{1,64}$")
+
+
+class RequestContextMiddleware:
+    """Request id for log correlation plus a request body size limit.
+
+    - Accepts a caller-supplied ``X-Request-ID`` (when it is a short safe token) or creates one,
+      binds it to every log line produced while handling the request, and echoes it back.
+    - Rejects bodies whose declared ``Content-Length`` exceeds MAX_REQUEST_BODY_MB with HTTP 413
+      before any work happens.
+    """
+
+    def __init__(self, app: ASGIApp):
+        self._app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers") or [])
+        supplied = headers.get(b"x-request-id", b"").decode("latin-1")
+        request_id = supplied if _REQUEST_ID_OK.match(supplied) else uuid.uuid4().hex[:16]
+
+        async def send_with_id(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message).append("x-request-id", request_id)
+            await send(message)
+
+        limit = config.MAX_REQUEST_BODY_MB * 1024 * 1024
+        declared = headers.get(b"content-length", b"0")
+        if limit and declared.isdigit() and int(declared) > limit:
+            response = JSONResponse(
+                status_code=413,
+                content={
+                    "detail": f"Request body exceeds {config.MAX_REQUEST_BODY_MB} MB.",
+                    "code": "payload_too_large",
+                },
+            )
+            await response(scope, receive, send_with_id)
+            return
+
+        with bind_log_context(request_id=request_id):
+            await self._app(scope, receive, send_with_id)
+
+
 core_app.add_middleware(SecurityHeadersMiddleware)
+core_app.add_middleware(RequestContextMiddleware)
 
 
 # Enable hardened CORS - origins sourced from Settings (localhost defaults + env overrides)

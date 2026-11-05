@@ -17,7 +17,7 @@ pnpm build
 Shortcuts: `pnpm lint:backend`, `pnpm format`, `pnpm test`. Single test: `PYTHONPATH=backend pytest backend/tests/test_x.py -k name -x`.
 
 ## Reading results
-- Tests marked `requires_db` (about 60 of the 219 offline-capable tests) skip when Postgres is down. Start it (`docker compose up -d`, see mcat-dev-env) to run them; otherwise say plainly that those tests were skipped, not passed.
+- Tests marked `requires_db` (about 72 of the 259 offline-capable tests) skip when Postgres is down. Start it (`docker compose up -d`, see mcat-dev-env) to run them; otherwise say plainly that those tests were skipped, not passed.
 - `live_e2e` tests need a running backend and paid LLM credentials; excluded by default (`addopts`). Do not run them unasked.
 - pytest is async (`asyncio_mode = "auto"`, session-scoped loop), so write tests as plain `async def` with no decorator.
 - CI sets DB env vars and provider defaults; locally `.env` supplies them, and `ACTIVE_LLM_PROVIDER=deepinfra` matches CI.

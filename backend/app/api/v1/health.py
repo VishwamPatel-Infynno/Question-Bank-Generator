@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Health & Diagnostics"])
 
 
+@router.get("/health/live")
+async def liveness_check():
+    """Liveness probe: the process is up and serving. Never touches the database."""
+    return {"status": "alive"}
+
+
 @router.get("/health/ready")
 async def readiness_check():
     """Readiness probe: 503 until the database answers, so orchestrators hold traffic back."""

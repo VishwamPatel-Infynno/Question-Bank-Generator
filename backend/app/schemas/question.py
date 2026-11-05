@@ -341,12 +341,6 @@ class GenerationJob(BaseModel):
     completed_at: str | None = None
 
 
-class BatchDetailResponse(BaseModel):
-    batch: GenerationBatch
-    jobs: list[GenerationJob] = Field(default_factory=list)
-    questions: list[Question] = Field(default_factory=list)
-
-
 class ResolveDuplicatesRequest(BaseModel):
     """Payload for resolving duplicate clusters inside a batch."""
 
@@ -359,7 +353,7 @@ class ResolveDuplicatesRequest(BaseModel):
 class BatchDeleteRequest(BaseModel):
     """Request body for bulk question deletion."""
 
-    ids: list[str]
+    ids: list[str] = Field(max_length=1000)
 
 
 def _validate_question_status(v: Any) -> str:
@@ -375,7 +369,7 @@ def _validate_question_status(v: Any) -> str:
 class StatusUpdateRequest(BaseModel):
     """Request body for updating lifecycle status of questions."""
 
-    ids: list[str]
+    ids: list[str] = Field(max_length=1000)
     status: QuestionStatus | str
 
     @field_validator("status", mode="before")
@@ -401,7 +395,7 @@ class DuplicateCheckRequest(BaseModel):
     section: str = ""
     subtopic: str = ""
     question_stem: str
-    options: list[OptionChoice] | list[dict[str, Any]] = Field(default_factory=list)
+    options: list[OptionChoice] | list[dict[str, Any]] = Field(default_factory=list, max_length=10)
 
 
 def determine_question_status(
