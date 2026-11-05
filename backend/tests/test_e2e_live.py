@@ -6,7 +6,7 @@ import httpx
 import pytest
 from app.core.config import config
 from app.schemas import ReviewScore
-from app.workflow.graph import reject_node, route_after_review
+from app.workflow import reject_node, route_after_review
 
 BASE_URL = "http://127.0.0.1:8000/api"
 
@@ -327,7 +327,7 @@ async def test_e2e_manager_combination_matrix_and_stage_outcomes():
     and full multi-stage outcomes JSON recording (drafting, quality_audit, polish_refine, visual_stimulus, final_payload).
     """
     from app.schemas import Difficulty, GenerationRequest
-    from app.workflow.graph import run_workflow
+    from app.workflow import run_workflow
 
     req = GenerationRequest(
         combination_id="CMB00001",
@@ -406,7 +406,7 @@ async def test_e2e_uuid_architecture():
     import uuid
 
     from app.schemas import Difficulty, GenerationRequest
-    from app.workflow.graph import run_workflow_stream
+    from app.workflow import run_workflow_stream
 
     test_batch_id = str(uuid.uuid4())
 

@@ -40,7 +40,7 @@ graph TD
 | Document | Primary Audience | Core Focus & Description |
 | :--- | :--- | :--- |
 | **[Client System & Workflow Guide](CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md)** | Product Stakeholders, Medical Admissions Educators | End-to-end operational walkthrough: 3-step Guided Wizard, 2 calibrated generation scopes (Practice Set [5 Qs] and Full Exam [50 Qs]), Low/Medium/High challenge levels, Blind-Solver safeguard, AAMC Split-Pane reading mode, canonical Editorial Cards Question Bank, 3-card mentor explanations, and financial transparency. |
-| **[System Architecture & Workflow](ARCHITECTURE.md)** | System Architects, AI Engineers | Multi-agent LangGraph StateGraph, Fused Draft-and-Critique engine, Blind-Solver Dual Validation agent, Autonomous Remediation loop, Strict Quality Gate, Two-Tier quality threshold model, Global Concurrency Semaphores, PostgreSQL 16 ERD, and batch execution pipeline. |
+| **[System Architecture & Workflow](ARCHITECTURE.md)** | System Architects, AI Engineers | Multi-agent quality-gated workflow, Fused Draft-and-Critique engine, Blind-Solver Dual Validation agent, Autonomous Remediation loop, Strict Quality Gate, Two-Tier quality threshold model, Global Concurrency Semaphores, PostgreSQL 16 ERD, and batch execution pipeline. |
 | **[REST & SSE API Reference](API.md)** | Full-Stack & API Developers | Comprehensive reference of all 38 Z endpoint paths, duplicate check, cluster inspection, auto-resolve & refill endpoints, soft-deletion restoration (`/restore`), permanent purges (`/permanent`, `/purge-batch`), request/response models, batch controls (`/start`, `/stop`, `/retry`, `/cancel-all`), lifecycle transitions, and cURL examples. |
 | **[Testing & Quality Assurance Guide](TESTING_AND_QA.md)** | QA Engineers, DevOps, Full-Stack Developers | Full technical specification of the 197 passing deterministic unit/integration tests across 37 modules (207 total backend tests), 15 TestSprite Playwright E2E browser tests (100% pass rate), Ruff & Oxlint zero-defect policies, and CI pipeline workflows. |
 | **[Token Usage & Cost Tracking](TOKEN_TRACKING.md)** | Finance, DevOps, Developers | Dual first-class inference pricing: DeepInfra rate card ($0.098 input / $0.294 output per 1M tokens), Anthropic Claude rates ($0.10/$0.50 per 1M with prompt cache write/read rates), FLUX image pricing ($0.014/unit), exact sub-micro-cent mathematical formulas, Blind-Solver token tracking, and UI observability. |
@@ -63,7 +63,7 @@ Find the most relevant starting point based on your objective:
 - Review **[DESIGN.md](../DESIGN.md)** Section 4.5 for details on printing classroom Exam Papers and Study Packs.
 
 ### 2. Full-Stack / Backend Engineer
-- Start with **[ARCHITECTURE.md](ARCHITECTURE.md)** to understand the LangGraph state machine, dual LLM providers (DeepInfra + Anthropic Claude), Blind-Solver validation, Deduplication & Anti-Collision subsystem, and global concurrency semaphores.
+- Start with **[ARCHITECTURE.md](ARCHITECTURE.md)** to understand the workflow engine, dual LLM providers (DeepInfra + Anthropic Claude), Blind-Solver validation, Deduplication & Anti-Collision subsystem, and global concurrency semaphores.
 - Consult **[API.md](API.md)** for exact specifications of all 38 Z endpoint paths.
 - Refer to **[backend/README.md](../backend/README.md)** for local development, repositories, and testing.
 
@@ -85,7 +85,7 @@ Find the most relevant starting point based on your objective:
 | Layer | Technologies | Key Responsibilities |
 | :--- | :--- | :--- |
 | **Backend Framework** | **Python 3.11+**, **FastAPI 0.115+**, **Uvicorn** | Asynchronous REST endpoints (38 Z paths), SSE event streaming, security headers. |
-| **Workflow Engine** | **LangGraph 0.2+**, **LiteLLM 1.50+** | Multi-agent state graph, fused draft & self-critique, Blind-Solver dual-validation, autonomous remediation loop. |
+| **Workflow Engine** | **Custom async engine**, **LiteLLM 1.50+** | Multi-agent workflow, fused draft & self-critique, Blind-Solver dual-validation, autonomous remediation loop. |
 | **Persistence Tier** | **PostgreSQL 16**, **SQLAlchemy 2.0 (Async)**, **asyncpg** | Normalized 4-entity model (Passages, Batches, Jobs, Questions), connection pooling (`pool_size=20`), JSONB storage, hybrid FTS. |
 | **Frontend Framework**| **React 19**, **Vite 8** | Modern reactive workstation, single-canvas studio, AAMC Split-Pane reading mode, real-time live telemetry. |
 | **Styling & Theme** | **Vanilla CSS Tokens**, **Lucide Icons** | Linear/Vercel obsidian & alabaster design system, electric conduit animations, accessible focus trapping. |

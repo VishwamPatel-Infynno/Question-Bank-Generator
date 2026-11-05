@@ -8,12 +8,12 @@ This document details the software architecture, multi-agent design patterns, st
 
 ## 1. High-Level Architecture Overview
 
-The system is constructed as an asynchronous, event-driven multi-agent workflow orchestrated by the engine in `app/workflow/engine.py` (nodes and routing in `nodes.py` / `routes.py`; `graph.py` keeps an equivalent LangGraph StateGraph definition) and served via **FastAPI** with **Server-Sent Events (SSE)** to a high-performance **React 19** frontend featuring a streamlined **3-Step Guided Question Wizard**, a dedicated full-width **Generation & Review Workspace**, and an enterprise **Batch Execution Engine**.
+The system is constructed as an asynchronous, event-driven multi-agent workflow orchestrated by the engine in `app/workflow/engine.py` (agent nodes in `nodes.py`, review loop in `engine_helpers.py`, gate routing in `routes.py`; there is no LangGraph runtime) and served via **FastAPI** with **Server-Sent Events (SSE)** to a high-performance **React 19** frontend featuring a streamlined **3-Step Guided Question Wizard**, a dedicated full-width **Generation & Review Workspace**, and an enterprise **Batch Execution Engine**.
 
 ```mermaid
 graph TD
     User([User / Web Client]) -->|POST /api/generate| API[FastAPI Orchestrator]
-    API -->|Initialize State| Graph[LangGraph Fused Engine]
+    API -->|Initialize State| Graph[Async Workflow Engine]
     
     subgraph "Quality-Gated Generation Workflow"
         Graph --> NodeFused[Fused Draft & Self-Critique Engine]
@@ -61,15 +61,15 @@ The multi-agent workflow is architected with a decoupled, provider-agnostic infe
    - **Official Rate Card (Claude Haiku 5.5)**: $0.10 input / $0.50 output per 1M tokens ($\le$ 100K prompt); $0.50 input / $2.50 output (> 100K prompt).
    - **Prompt Caching Accounting**: First-class tracking for Anthropic ephemeral cache read ($0.01 / 1M tokens) and cache creation ($0.125 / 1M tokens) with automatic mathematical price calculations.
 
-Both engines strictly enforce model parameter constraints (`GENERATOR_TEMPERATURE = 0.5` for drafting variety, `PASSAGE_TEMPERATURE = 0.7`, `REGENERATOR_TEMPERATURE = 0.2`, `REVIEWER_TEMPERATURE = 0.1`, `BLIND_SOLVER_TEMPERATURE = 0.1`) and feed identical Pydantic transfer schemas into the LangGraph state machine.
+Both engines strictly enforce model parameter constraints (`GENERATOR_TEMPERATURE = 0.5` for drafting variety, `PASSAGE_TEMPERATURE = 0.7`, `REGENERATOR_TEMPERATURE = 0.2`, `REVIEWER_TEMPERATURE = 0.1`, `BLIND_SOLVER_TEMPERATURE = 0.1`) and feed identical Pydantic transfer schemas into the workflow state.
 
 ---
 
-## 2. Multi-Agent StateGraph Workflow
+## 2. Multi-Agent Quality-Gated Workflow
 
 The workflow enforces a strict psychometric quality contract. A question **must score higher than 90 out of 100** on the psychometric rubric and pass **Blind-Solver independent validation** to be approved for publication.
 
-### 2.1 StateGraph Workflow Diagram
+### 2.1 Workflow State Diagram
 
 ```mermaid
 stateDiagram-v2
@@ -147,7 +147,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
   - A draft that fails the Deterministic Validator never reaches an LLM reviewer: it is regenerated with the exact findings, or rejected once attempts are exhausted.
 - **Custom Authoring Instructions Priority**:
   - Accepts educator-specified pedagogical directives (`additional_instructions`) from `GenerationRequest` via Guided Wizard Step 3.
-  - Bound directly to the LangGraph `WorkflowState` and injected with high-priority mandate into prompt builders (`app/agents/prompt_builder.py`, `app/agents/generator.py`, and `app/agents/regenerator.py`).
+  - Bound directly to the `AgentWorkflowState` and injected with high-priority mandate into prompt builders (`app/agents/prompt_builder.py`, `app/agents/generator.py`, and `app/agents/regenerator.py`).
   - Governs scientific constraints, clinical scenarios, calculation traps, and reasoning boundaries across passage generation, question generation, and all remediation critique cycles.
 - **Modular Prompt Construction (`prompt_builder.py`)**: User-turn prompt assembly, section instructions, cognitive trap specifications, and cross-item diversity calibration strings are decoupled into [`backend/app/agents/prompt_builder.py`](../backend/app/agents/prompt_builder.py) (`_build_generator_user_prompt`), ensuring pure deterministic string assembly without external LLM side effects.
 - **Inference Gateway & Fast Model Cascade**: High-throughput enterprise reasoning model (~110-140 tok/s, Temperature: `0.5` for drafting variety, with schema and rule adherence enforced by the validator and one repair retry). Powered by `DEFAULT_TEXT_MODEL` with fallback to `FAST_MODEL_CASCADE` identifiers parsed via `parse_fast_model_cascade`.
@@ -340,11 +340,11 @@ graph TD
         BackgroundTask --> JobDots[...]
         BackgroundTask --> Job10[Job 10: 5 Qs]
         
-        Job1 --> Workflow1[Multi-Agent LangGraph]
-        Job2 --> Workflow2[Multi-Agent LangGraph]
-        Job3 --> Workflow3[Multi-Agent LangGraph]
-        Job4 --> Workflow4[Multi-Agent LangGraph]
-        Job10 --> Workflow10[Multi-Agent LangGraph]
+        Job1 --> Workflow1[Multi-Agent Workflow]
+        Job2 --> Workflow2[Multi-Agent Workflow]
+        Job3 --> Workflow3[Multi-Agent Workflow]
+        Job4 --> Workflow4[Multi-Agent Workflow]
+        Job10 --> Workflow10[Multi-Agent Workflow]
     end
 
     Workflow1 --> PersistQ[(Save Questions to DB with status=ai_validated)]

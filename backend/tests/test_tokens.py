@@ -7,8 +7,8 @@ from app.schemas import (
     GenerationRequest,
     MCATSection,
 )
-from app.workflow.graph import (
-    generator_node,
+from app.workflow import (
+    fused_generator_node,
     reviewer_node,
 )
 
@@ -72,8 +72,8 @@ async def test_workflow_token_accumulation(monkeypatch):
         "total_cost_usd": 0.0,
         "agent_usage_breakdown": [],
     }
-    # Test generator_node returns token usage
-    gen_res = await generator_node(init_state)
+    # The drafting node returns token usage
+    gen_res = await fused_generator_node(init_state)
     assert "total_tokens" in gen_res
     assert gen_res["total_tokens"] > 0
     assert gen_res["total_cost_usd"] > 0.0

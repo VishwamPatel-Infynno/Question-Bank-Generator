@@ -3,7 +3,7 @@
 > **An Infynno Solutions LLP Product • [Infinite Innovations](https://infynno.com/)**  
 > High-throughput asynchronous backend service powering the AAMC MCAT Question Studio v2.0.
 
-Built with **Python 3.11+**, **FastAPI**, **LangGraph**, **LiteLLM**, **SQLAlchemy 2.0 (Async)**, and **PostgreSQL 16**.
+Built with **Python 3.11+**, **FastAPI**, **LiteLLM**, **SQLAlchemy 2.0 (Async)**, and **PostgreSQL 16**.
 
 ---
 
@@ -24,12 +24,11 @@ backend/
 │   │       ├── taxonomy.py   # AAMC syllabus hierarchy & dependent taxonomy tree endpoints
 │   │       ├── config.py     # Runtime engine configuration, dual-provider settings & pricing (28 fields)
 │   │       └── health.py     # Database connectivity & system health checks
-│   ├── workflow/            # Orchestration Layer (LangGraph Engine)
+│   ├── workflow/            # Orchestration Layer (async workflow engine)
 │   │   ├── engine.py        # Core streaming execution engine & event emitters
 │   │   ├── engine_helpers.py # Review loop, passage preparation & live persistence helpers
 │   │   ├── nodes.py         # Discrete agent worker nodes (Generator, Reviewer, etc.)
-│   │   ├── routes.py        # Deterministic conditional routing logic (Quality Gate)
-│   │   ├── graph.py         # StateGraph builder and compilation pipeline
+│   │   ├── routes.py        # route_after_review: Quality Gate routing used by the review loop
 │   │   └── state.py         # AgentWorkflowState typed dictionary
 │   ├── agents/              # Cognitive Reasoning & Synthesis Layer
 │   │   ├── generator.py     # Fused clinical question synthesis & self-critique agent
@@ -95,7 +94,7 @@ backend/
     ├── test_taxonomy_sync.py # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
     ├── test_tokens.py       # Mathematical token cost accumulation tests across providers
     ├── test_visuals.py      # SVG & neural image generation tests
-    └── test_workflow.py     # LangGraph StateGraph execution tests
+    └── test_workflow.py     # Streaming workflow execution tests
 ```
 
 ---

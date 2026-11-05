@@ -21,7 +21,7 @@ from app.schemas import (
     OptionChoice,
     Question,
 )
-from app.workflow.graph import (
+from app.workflow import (
     finalize_node,
     run_workflow_stream,
 )

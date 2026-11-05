@@ -24,28 +24,6 @@ def _is_image_required(req: GenerationRequest, draft: dict) -> bool:
     return bool(draft.get("image_needed", False))
 
 
-def route_after_fused_generation(state: AgentWorkflowState) -> str:
-    """Routes to finalize (or image_generator) if fused self-score > 90; else to reviewer."""
-    fused_passed = state.get("fused_self_passed", False)
-    if not fused_passed:
-        logger.info(
-            "Fused self-critique <= threshold or unverified. Routing to Reviewer for standard audit."
-        )
-        return "reviewer"
-
-    req_raw = state["request"]
-    req = req_raw if isinstance(req_raw, GenerationRequest) else GenerationRequest(**req_raw)
-    current_draft = state.get("current_draft") or {}
-    requires_image = _is_image_required(req, current_draft)
-
-    if requires_image:
-        logger.info("Fused draft passed (> 90). Routing to Image Generator.")
-        return "image_generator"
-
-    logger.info("Fused draft passed (> 90). Routing directly to Finalize.")
-    return "finalize"
-
-
 def route_after_review(state: AgentWorkflowState) -> str:
     review = state.get("current_review")
     iteration = state.get("iteration_count", 1)

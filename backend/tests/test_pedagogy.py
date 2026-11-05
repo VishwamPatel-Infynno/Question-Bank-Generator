@@ -139,7 +139,7 @@ async def test_smart_ai_trap_and_explanation_breakdown(monkeypatch):
     import app.agents.generator as gen_mod
     from app.agents.base import LLMNotConfiguredError
     from app.agents.mock_fixtures import get_mock_draft
-    from app.workflow.graph import run_workflow
+    from app.workflow import run_workflow
 
     async def mock_fail_call_llm(*_args, **_kwargs):
         # Offline mode: no credentials configured, so agents use their heuristic fixtures.

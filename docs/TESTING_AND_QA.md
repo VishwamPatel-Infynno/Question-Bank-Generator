@@ -44,7 +44,7 @@ graph TD
 | **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **97 passing tests across 37 modules** (~23-28s) |
 | **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (207 total backend tests across 38 modules) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | **15/15 passed (100.0%)** |
-| **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **LangGraph StateGraph** | Threshold $> 90$ points |
+| **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 90$ points |
 
 ---
 
@@ -92,7 +92,7 @@ backend/tests/
 ├── test_tokens.py                    # Sub-micro-cent token cost math ($0.098 in / $0.294 out) and config cascade
 ├── test_validators.py                # Deterministic question validators and dash repair
 ├── test_visuals.py                   # SVG vector generation and FLUX image cost formulas
-├── test_workflow.py                  # LangGraph streaming, event serialization, and routing
+├── test_workflow.py                  # Workflow streaming, event serialization, and routing
 └── test_e2e_live.py                  # Live LLM inference suite (marked as live_e2e)
 ```
 

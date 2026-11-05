@@ -142,35 +142,6 @@ async def fused_generator_node(state: AgentWorkflowState) -> dict[str, Any]:
     }
 
 
-async def generator_node(state: AgentWorkflowState) -> dict[str, Any]:
-    req = GenerationRequest(**state["request"])
-    logger.info("Executing Question Generator Agent...")
-    diversity_context = state.get("diversity_context")
-    draft, usage = await generate_question(req, diversity_context=diversity_context)
-
-    t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
-        state, "Question Generator", usage, iteration=1
-    )
-
-    outcomes = dict(state.get("stage_outcomes", {}))
-    outcomes["drafting"] = draft.model_dump()
-    outcomes["option_symmetry"] = calculate_option_symmetry(draft.options, draft.correct_answer_ids)
-
-    return {
-        "current_draft": draft.model_dump(),
-        "active_agent": "Question Generator",
-        "status": "generated_draft",
-        "iteration_count": 1,
-        "total_tokens": t_tokens,
-        "total_prompt_tokens": p_tokens,
-        "total_completion_tokens": c_tokens,
-        "total_cost_usd": t_cost,
-        "agent_usage_breakdown": breakdown,
-        "latest_usage": usage.model_dump(),
-        "stage_outcomes": outcomes,
-    }
-
-
 def build_review_update(
     state: AgentWorkflowState, review: ReviewScore, usage: TokenUsage
 ) -> dict[str, Any]:

@@ -1,6 +1,6 @@
 ---
 name: mcat-ai-pipeline
-description: Work on the multi-agent question-generation pipeline of the Question Bank Generator: LangGraph workflow (nodes, routes, state, engine), agents (generator, reviewer, regenerator, blind solver, image generator, option balancer), prompts, prompt builder, scoring thresholds, LLM provider wiring, token and cost tracking, mock fixtures. Use whenever changing how questions are generated, scored, validated, regenerated or priced, editing any prompt, or debugging why questions are rejected, low quality, or mis-costed.
+description: Work on the multi-agent question-generation pipeline of the Question Bank Generator: workflow engine (nodes, routes, state, engine), agents (generator, reviewer, regenerator, blind solver, image generator, option balancer), prompts, prompt builder, scoring thresholds, LLM provider wiring, token and cost tracking, mock fixtures. Use whenever changing how questions are generated, scored, validated, regenerated or priced, editing any prompt, or debugging why questions are rejected, low quality, or mis-costed.
 ---
 
 # AI pipeline
@@ -8,7 +8,7 @@ description: Work on the multi-agent question-generation pipeline of the Questio
 ## Flow (production path: workflow/engine.py + engine_helpers.py)
 `fused_generator` (draft + honest 100-point self-critique) -> dedup/anti-collision loop -> `_run_question_review_loop`: deterministic validator (`agents/validators.py`, free; auto-repairs dashes; blocking defects regenerate or reject without any review call) -> reviewer and blind solver run **concurrently** (`run_review_and_solve`; both billed) -> `route_after_review`: score > threshold and solver verified goes to `image_generator` (only if a diagram is needed) then `finalize`; otherwise `regenerator` and back to the validator; attempts exhausted goes to `reject`.
 
-`workflow/graph.py` and `routes.py` hold an equivalent LangGraph definition and routing helpers that tests still import; the live engine does not execute the compiled graph, so change `engine_helpers.py` first and keep `routes.py` in sync.
+There is no LangGraph runtime: the flow is the hand-written loop in `engine.py`/`engine_helpers.py`; `routes.py` only provides `route_after_review` (used by the loop). Change the loop and keep `route_after_review` consistent with it.
 
 Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_update`, `build_usage_only_update`, `run_review_and_solve`), `routes.py`, `state.py` (`AgentWorkflowState`), `engine.py` + `engine_helpers.py`, `agents/*` (LLM calls), `agents/validators.py`, `agents/prompts.py`, `agents/prompt_builder.py`.
 

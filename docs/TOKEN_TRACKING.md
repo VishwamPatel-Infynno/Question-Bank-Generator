@@ -140,7 +140,7 @@ The engine automatically routes to official OpenAI Image endpoints with token-me
 
 ## 4. Multi-Agent Accumulation Architecture
 
-Tokens are tracked per-request at the lowest LLM abstraction layer and bubbled up through the LangGraph state graph.
+Tokens are tracked per-request at the lowest LLM abstraction layer and bubbled up through the workflow state.
 
 ```mermaid
 graph TD

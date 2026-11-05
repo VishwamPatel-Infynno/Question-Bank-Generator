@@ -11,7 +11,7 @@ from app.schemas import (
 @pytest.mark.asyncio
 async def test_per_question_stage_metadata_in_events(monkeypatch):
     from app.core.config import config
-    from app.workflow.graph import run_workflow_stream
+    from app.workflow import run_workflow_stream
 
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
     monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
@@ -62,44 +62,6 @@ async def test_per_question_stage_metadata_in_events(monkeypatch):
         assert e["data"]["total"] == 5
         assert e["data"]["stage"] == "completed"
         assert e["data"]["question"]["index"] in (1, 2, 3, 4, 5)
-
-
-@pytest.mark.asyncio
-async def test_fused_generator_node_passing_and_routing():
-    """Verifies that fused_generator_node and route_after_fused_generation route properly."""
-    from app.workflow.graph import route_after_fused_generation
-
-    # 1. Failing/unverified self-critique (score <= 90) -> routes to reviewer
-    req = GenerationRequest(
-        section=MCATSection.CARS, difficulty=Difficulty.MEDIUM, passage_required="Yes"
-    )
-    failing_state = {
-        "request": req.model_dump(),
-        "fused_self_passed": False,
-        "current_review": {"total_score": 88},
-    }
-    assert route_after_fused_generation(failing_state) == "reviewer"
-
-    # 2. Passing self-critique (score > 90) for CARS (textual, no image) -> routes to finalize
-    passing_vr_state = {
-        "request": req.model_dump(),
-        "fused_self_passed": True,
-        "current_review": {"total_score": 96},
-        "current_draft": {"image_needed": False},
-    }
-    assert route_after_fused_generation(passing_vr_state) == "finalize"
-
-    # 3. Passing self-critique for Chem/Phys with image -> routes to image_generator
-    req_ar = GenerationRequest(
-        section=MCATSection.CHEM_PHYS, difficulty=Difficulty.HARD, require_image=True
-    )
-    passing_ar_state = {
-        "request": req_ar.model_dump(),
-        "fused_self_passed": True,
-        "current_review": {"total_score": 94},
-        "current_draft": {"image_needed": True},
-    }
-    assert route_after_fused_generation(passing_ar_state) == "image_generator"
 
 
 @pytest.mark.asyncio

@@ -9,7 +9,7 @@ from app.schemas import (
     GenerationRequest,
     MCATSection,
 )
-from app.workflow.graph import (
+from app.workflow import (
     finalize_node,
     image_node,
     run_workflow_stream,
@@ -258,22 +258,8 @@ async def test_autonomous_ai_determined_image_workflow(monkeypatch):
     assert len(img_evts) == 1
     assert len(images_generated) == 1
 
-    # 4. Verify route_after_fused_generation and route_after_review with autonomous discretion
-    from app.workflow.routes import route_after_fused_generation, route_after_review
-
-    state_needed = {
-        "request": req_enabled.model_dump(),
-        "fused_self_passed": True,
-        "current_draft": {"image_needed": True},
-    }
-    assert route_after_fused_generation(state_needed) == "image_generator"
-
-    state_not_needed = {
-        "request": req_enabled.model_dump(),
-        "fused_self_passed": True,
-        "current_draft": {"image_needed": False},
-    }
-    assert route_after_fused_generation(state_not_needed) == "finalize"
+    # 4. route_after_review honours the model's autonomous image discretion
+    from app.workflow.routes import route_after_review
 
     state_review_needed = {
         "request": req_enabled.model_dump(),

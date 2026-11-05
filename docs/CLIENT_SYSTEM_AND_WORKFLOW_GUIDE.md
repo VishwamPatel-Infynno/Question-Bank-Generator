@@ -88,7 +88,7 @@ graph TD
     Engine --> Worker4[Worker Question 4]
     Engine --> Worker5[Worker Question 5]
 
-    subgraph "Per-Item Autonomous StateGraph"
+    subgraph "Per-Item Autonomous Quality Workflow"
         Worker1 --> Fused[Fused Draft & Self-Critique]
         Fused -->|Score > 90| ImageGen[Vector/SVG Engine]
         Fused -->|Score <= 90| Remediation[Remediation Loop]

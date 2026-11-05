@@ -8,7 +8,7 @@ from app.schemas import (
     ReviewScore,
     TokenUsage,
 )
-from app.workflow.graph import route_after_review
+from app.workflow import route_after_review
 
 
 def _base_module():
@@ -72,7 +72,7 @@ async def test_reviewer_heuristic_and_loop_routing():
 @pytest.mark.asyncio
 async def test_strict_rejection_routing_when_score_le_90():
     from app.core.config import config
-    from app.workflow.graph import reject_node
+    from app.workflow import reject_node
 
     req = GenerationRequest(
         section=MCATSection.CARS, difficulty=Difficulty.HARD, passage_required="Yes"
