@@ -14,15 +14,16 @@ The backend is engineered with clear separation of concerns across presentation,
 ```
 backend/
 ├── app/
-│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 38 Z paths)
-│   │   ├── router.py        # Central API v1 router aggregator
+│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 38 operations across 32 paths)
+│   │   ├── router.py        # Central API v1 router aggregator (applies the optional API_ACCESS_KEY gate)
+│   │   ├── security.py      # Optional X-API-Key dependency for mutating routes
 │   │   └── v1/
 │   │       ├── generation.py # SSE streaming multi-agent orchestrator endpoint
 │   │       ├── questions.py  # Question Bank CRUD, review approval, duplicate check & override, restoration, permanent purge & exports
 │   │       ├── passages.py   # Shared clinical stimulus passages endpoints (list, retrieve, save, soft-delete)
 │   │       ├── batches.py    # Multi-question batch execution run endpoints, clustering & refill
 │   │       ├── taxonomy.py   # AAMC syllabus hierarchy & dependent taxonomy tree endpoints
-│   │       ├── config.py     # Runtime engine configuration, dual-provider settings & pricing (28 fields)
+│   │       ├── config.py     # Runtime engine configuration, dual-provider settings & pricing (runtime parameters)
 │   │       └── health.py     # Database connectivity & system health checks
 │   ├── workflow/            # Orchestration Layer (async workflow engine)
 │   │   ├── engine.py        # Core streaming execution engine & event emitters
@@ -47,6 +48,7 @@ backend/
 │   │   ├── batch_runner.py  # Background pool managing Practice Sets (1-job, 5 Qs) and Full Exams (10-job, 50 Qs)
 │   │   └── deduplication.py # Multi-metric similarity scoring & anti-collision service
 │   ├── repositories/        # Data Access Layer (DAL)
+│   │   ├── _filters.py            # Shared soft-delete clauses (active_question_clause, active_passage_clause)
 │   │   ├── question_repository.py # Clean CRUD, soft-deletion, restoration, duplicate overrides, reference queries, hybrid FTS & token analytics
 │   │   ├── batch_repository.py    # Staged batch run queries & persistence
 │   │   ├── job_repository.py      # Background worker job state tracking
@@ -62,11 +64,13 @@ backend/
 │   │   ├── question.py      # QuestionOption, QuestionDraft, Question, determine_question_status helper
 │   │   └── workflow.py      # GenerationRequest, ReviewScore, WorkflowEvent
 │   ├── core/                # Configuration & Settings
-│   │   ├── config.py        # Pydantic SettingsConfigDict, dual-provider defaults, cache rates & pricing (39 model fields)
+│   │   ├── config.py        # Pydantic SettingsConfigDict, dual-provider defaults & settings (61 fields)
+│   │   ├── pricing.py       # Model price fallback tables and LiteLLM registry lookup
+│   │   ├── concurrency.py   # Process-wide pipeline semaphore shared by all runs
 │   │   └── logging.py       # Centralized console logging handler & formatter
 │   ├── db/                  # Database Lifecycle
 │   │   ├── base.py          # Declarative Base
-│   │   ├── init_db.py       # Schema verification, column backfills, FTS & FK constraints
+│   │   ├── init_db.py       # Ordered idempotent migration steps (columns, indexes, backfills, FKs, status reconcile); skips DDL that already exists
 │   │   └── session.py       # Async engine, connection pool & startup migrations
 │   └── data/                # Static Taxonomy & Curricula
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills

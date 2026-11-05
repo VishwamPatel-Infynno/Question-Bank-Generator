@@ -14,6 +14,11 @@ Stack: React 19 (JSX, no TypeScript), Vite 8, oxlint, lucide-react icons, plain 
 - `services/api.js` is the only place that calls `fetch` (base `/api`). Add one function per endpoint, build queries with `buildQuery`, and surface errors through `assertOk`. Keep JSDoc on exports.
 - `utils/` pure helpers; `constants/` shared constants, including a copy of the MCAT taxonomy JSON (it must stay in sync with `backend/app/data/mcat_dependent_taxonomy.json`; `tests/test_taxonomy_sync.py` checks this).
 
+## Sections and layers
+- Section labels, codes, badge classes, colors and pacing come from the single `SECTIONS` table in `constants/mcat.js` (use `normalizeSectionId`, `getSectionColor`, `getSectionBadgeClass`, `getSectionPacingSeconds`); never add another per-section map.
+- Stacking uses the `--z-sticky/dropdown/modal/toast/overlay` tokens in `styles/tokens.css`, not literal z-index values.
+- Export code lives in `utils/export/` (`csv.js`, `json.js`, `htmlDoc.js`, `printPaperCss.js`) behind the `exportUtils.js` shim. `react/exhaustive-deps` is enforced by oxlint.
+
 ## Styling
 - Source of truth: `DESIGN.md` and `src/styles/tokens.css`. Use CSS custom properties (`var(--bg-surface)`, `var(--border-light)`, `--infynno-gradient`), never raw hex values, so both `[data-theme="light"]` and `[data-theme="dark"]` work with no extra code.
 - Put styles in the matching feature file (`wizard.css`, `batch.css`, `question.css`, ...), aggregated by `index.css`. Reuse an existing selector before adding a near-duplicate.

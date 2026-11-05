@@ -123,21 +123,24 @@ frontend/src/
 │   └── useTheme.js               # Dark/light mode persistence
 ├── services/
 │   ├── index.js                  # Services barrel export
-│   └── api.js                    # FastAPI client & SSE stream reader (28 methods including question restoration, pagination & duplicate override)
+│   └── api.js                    # FastAPI client & SSE stream reader (question CRUD/restore, batches, passages; sends the optional X-API-Key header)
 ├── utils/
 │   ├── index.js                  # Utilities barrel export
 │   ├── explanationHelpers.js     # Pure JS distractor line & trap parser
-│   ├── exportUtils.js            # CSV, JSON, and print-ready HTML doc generators
+│   ├── exportUtils.js            # Re-export shim for the export/ modules
+│   ├── export/                   # csv.js, json.js, htmlDoc.js (print builder), printPaperCss.js
 │   ├── formatters.js             # Currency, pacing, and token formatting
 │   ├── optionHelpers.js          # Option length parity & calculateOptionSymmetry engine
 │   └── trapHelpers.js            # Cognitive trap detection & resolution
 ├── styles/
-│   ├── tokens.css                # Authoritative design tokens (Light/Dark obsidian themes)
+│   ├── tokens.css                # Authoritative design tokens (colors, z-index layers --z-*) (Light/Dark obsidian themes)
 │   ├── base.css                  # Global reset, scrollbars, buttons, primitives
 │   ├── layout.css                # App shell, Navbar, Footer, Toast, Pagination
 │   ├── wizard.css                # Hero landing & 3-step authoring wizard
 │   ├── question.css              # Master Question Card, Mentor explanation, Stimulus, Scorecard
-│   ├── batch.css                 # Batch Activity Monitor, concurrency gauge, progress pills
+│   ├── batch.css                 # Batch base: concurrency gauge, progress pills
+│   ├── batch-activity.css        # Batch Activity Monitor styles
+│   ├── batch-card-summary.css    # Batch card summary styles
 │   ├── bank.css                  # Canonical Question Bank & AI-Validated Review Queue
 │   ├── passage.css               # Passage Bank & Editorial Desk workspace
 │   ├── modals.css                # Standardized modal dialogs, Confirmation, Audit modal

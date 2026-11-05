@@ -84,7 +84,7 @@ Find the most relevant starting point based on your objective:
 
 | Layer | Technologies | Key Responsibilities |
 | :--- | :--- | :--- |
-| **Backend Framework** | **Python 3.11+**, **FastAPI 0.115+**, **Uvicorn** | Asynchronous REST endpoints (38 Z paths), SSE event streaming, security headers. |
+| **Backend Framework** | **Python 3.11+**, **FastAPI 0.115+**, **Uvicorn** | Asynchronous REST endpoints (38 operations across 32 paths), SSE event streaming, security headers. |
 | **Workflow Engine** | **Custom async engine**, **LiteLLM 1.50+** | Multi-agent workflow, fused draft & self-critique, Blind-Solver dual-validation, autonomous remediation loop. |
 | **Persistence Tier** | **PostgreSQL 16**, **SQLAlchemy 2.0 (Async)**, **asyncpg** | Normalized 4-entity model (Passages, Batches, Jobs, Questions), connection pooling (`pool_size=20`), JSONB storage, hybrid FTS. |
 | **Frontend Framework**| **React 19**, **Vite 8** | Modern reactive workstation, single-canvas studio, AAMC Split-Pane reading mode, real-time live telemetry. |

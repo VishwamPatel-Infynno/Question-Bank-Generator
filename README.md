@@ -246,7 +246,9 @@ Question Bank Generator/
 │   └── app/
 │       ├── main.py              # FastAPI app with modern lifespan context & security headers
 │       ├── core/                # Core configurations & Pydantic V2 settings
-│       │   ├── config.py        # Settings, model configuration & token pricing constants
+│       │   ├── config.py        # Settings and model configuration
+│       │   ├── pricing.py       # Price fallback tables & LiteLLM registry lookup
+│       │   ├── concurrency.py   # Process-wide pipeline semaphore
 │       │   ├── logging.py       # Structured logging configuration
 │       │   └── __init__.py
 │       ├── data/                # Static taxonomy data
@@ -263,6 +265,7 @@ Question Bank Generator/
 │       │   ├── question.py      # QuestionModel with JSONB columns & B-tree indexes
 │       │   └── __init__.py
 │       ├── repositories/        # Data Access Layer (DAL)
+│       │   ├── _filters.py            # Shared soft-delete clauses
 │       │   ├── batch_repository.py    # Staged batch run queries & persistence
 │       │   ├── job_repository.py      # Background worker job state tracking
 │       │   ├── passage_repository.py  # Shared stimulus reading passage queries
@@ -412,7 +415,8 @@ Question Bank Generator/
         │   └── index.js
         └── utils/               # Pure utility helpers
             ├── explanationHelpers.js # Distractor line & cognitive trap parser
-            ├── exportUtils.js   # A4 HTML print document builder, CSV & JSON serializers
+            ├── exportUtils.js   # Re-export shim for the export/ modules
+            ├── export/          # csv.js, json.js, htmlDoc.js (A4 print builder), printPaperCss.js
             ├── formatters.js    # Time, word count, token & currency formatters
             ├── optionHelpers.js # Option length parity & calculateOptionSymmetry engine
             ├── trapHelpers.js   # Cognitive trap resolution & text detectors

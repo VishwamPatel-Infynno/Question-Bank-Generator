@@ -9,7 +9,7 @@ Monorepo: `backend/` (FastAPI, Python 3.11+, async SQLAlchemy + asyncpg), `front
 
 ## Start everything
 ```bash
-docker compose up -d     # Postgres on :5432 (mcat_user / mcat_password / mcat_db)
+docker compose up -d     # Postgres on 127.0.0.1:5432, loopback only (POSTGRES_USER/PASSWORD/DB override the mcat_* defaults)
 pnpm dev                 # predev frees :8000 and :5173, then runs backend + frontend together
 ```
 `pnpm dev:backend` / `pnpm dev:frontend` run each side alone. The backend command is `PYTHONPATH=backend ./.venv/bin/uvicorn app.main:app --port 8000 --reload`; `PYTHONPATH=backend` is required because imports are `from app...`.

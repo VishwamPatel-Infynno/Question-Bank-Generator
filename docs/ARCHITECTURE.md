@@ -765,7 +765,7 @@ frontend/src/
 │   ├── useQuestionBank.js        # Debounced search, sorting, and bank fetching
 │   └── useTheme.js               # Dual-theme engine (dark / light with localStorage)
 ├── services/
-│   ├── api.js                    # FastAPI client & SSE stream reader (28 methods)
+│   ├── api.js                    # FastAPI client (question, batch and passage functions; optional X-API-Key header)
 │   └── index.js                  # Services barrel export
 ├── utils/                        # Pure utility helpers
 │   ├── explanationHelpers.js     # Structured explanation parser
