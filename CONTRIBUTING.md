@@ -52,7 +52,7 @@ ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 ruff check backend/
 ruff format --check .
 
-# 3. Frontend Oxlint linter (0 errors, 0 warnings policy across 90 files)
+# 3. Frontend Oxlint linter (0 errors, 0 warnings policy across all frontend sources)
 pnpm --dir frontend lint
 
 # 4. Frontend production build (compiles cleanly via Vite 8)

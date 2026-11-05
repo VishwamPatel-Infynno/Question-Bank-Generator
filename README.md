@@ -153,7 +153,7 @@ ruff format --check .
 Verify frontend code hygiene and production bundle:
 
 ```bash
-# Run frontend linter (oxlint: 0 warnings, 0 errors across 90 files)
+# Run frontend linter (oxlint: 0 warnings, 0 errors)
 pnpm --dir frontend lint
 
 # Verify optimized production build (compiles cleanly via Vite 8)

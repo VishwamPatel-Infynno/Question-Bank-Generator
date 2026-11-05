@@ -1,5 +1,7 @@
 # Executive Product QA & Comprehensive Verification Report
 
+> **Historical snapshot (November 2, 2026).** The figures below describe the release as it was verified on that date and are not updated. Later engine, security and test-suite changes are documented in `docs/ARCHITECTURE.md` and `docs/TESTING_AND_QA.md`; current test counts live there.
+
 **Prepared for:** Engineering Leadership & Product Management  
 **Project:** Infynno MCAT Question Bank Generator  
 **Release Target:** v2.0 Production  

@@ -4,15 +4,17 @@ services:
     container_name: mcat_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: mcat_db
-      POSTGRES_USER: mcat_user
-      POSTGRES_PASSWORD: mcat_password
+      POSTGRES_DB: ${POSTGRES_DB:-mcat_db}
+      POSTGRES_USER: ${POSTGRES_USER:-mcat_user}
+      # Local-development default; set POSTGRES_PASSWORD (and DATABASE_URL) for anything shared
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mcat_password}
     ports:
-      - "5432:5432"
+      # Loopback only: the database must not be reachable from other machines by default
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mcat_user -d mcat_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-mcat_user} -d $${POSTGRES_DB:-mcat_db}"]
       interval: 5s
       timeout: 5s
       retries: 5

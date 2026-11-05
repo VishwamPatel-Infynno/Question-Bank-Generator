@@ -49,7 +49,7 @@ graph TD
 | **[UI/UX Design System (DESIGN.md)](../DESIGN.md)** | Frontend Designers, UI Engineers | Authoritative design tokens (dark obsidian / alabaster light), streamlined 3-step wizard specs with decomposed summary/advanced drawers, QuestionCard subcomponents, Duplicate Comparison Modal, AAMC Dual Split-Pane reading mode, accessible modal focus-trapping contracts (`Modal`, `ConfirmationModal`, `DeletePassageModal`), live batch retry telemetry (`AUTO-RETRYING X/3`), Active Multi-Batch Concurrency monitor, typography stacks, and micro-animations. |
 | **[Backend Developer Guide](../backend/README.md)** | Python & Backend Engineers | Modular layer separation (`api/`, `workflow/`, `agents/`, `repositories/`, `models/`, `schemas/`), dual LLM providers (DeepInfra + Anthropic), Blind-Solver agent, Deduplication service, soft-deletion DAL, async database sessions, global worker semaphores, 3-trial batch retry engine, and 97-test automated suite execution. |
 | **[Frontend Workstation Guide](../frontend/README.md)** | React & Frontend Engineers | React 19 architecture, Vite 8 build pipeline, top-level views (`views/`), decomposed feature components (`wizard/`, `passage/`, `question/`, `bank/`, `batch/`, `validated/`, `modals/`, `common/`), accessible modal focus-trapping, predev port cleaner, and custom hooks. |
-| **[Contributing Guidelines](../CONTRIBUTING.md)** | Contributors & Developers | Zero-defect testing policy (197 deterministic tests across 37 modules required + TestSprite E2E validation), Oxlint (90 files) & Ruff formatting, MCAT 4-choice purity standards, anti-AI hyphenation, and Git PR conventions. |
+| **[Contributing Guidelines](../CONTRIBUTING.md)** | Contributors & Developers | Zero-defect testing policy (197 deterministic tests across 37 modules required + TestSprite E2E validation), Oxlint & Ruff formatting, MCAT 4-choice purity standards, anti-AI hyphenation, and Git PR conventions. |
 
 ---
 
@@ -74,9 +74,9 @@ Find the most relevant starting point based on your objective:
 
 ### 4. DevOps & QA Engineer
 - Follow **[SETUP_AND_CONFIG.md](SETUP_AND_CONFIG.md)** to configure PostgreSQL 16 via Docker, set `.env` secrets, database duplicate cleanup utility (`pnpm run db:clean-duplicates`), predev port cleaners, and deploy Gunicorn/Uvicorn.
-- Consult **[TESTING_AND_QA.md](TESTING_AND_QA.md)** for detailed coverage of the 97 pytest cases across 37 modules and 15 TestSprite Playwright E2E tests.
+- Consult **[TESTING_AND_QA.md](TESTING_AND_QA.md)** for detailed coverage of the 197 deterministic pytest cases across 37 modules (plus 10 live tests) and the Playwright E2E scenarios in `e2e/`.
 - Review **[TOKEN_TRACKING.md](TOKEN_TRACKING.md)** for multi-provider inference rate cards and budget monitoring.
-- Execute automated quality checks as detailed in **[CONTRIBUTING.md](../CONTRIBUTING.md)** (97 pytest cases across 37 modules + Oxlint on 90 files + Ruff).
+- Execute automated quality checks as detailed in **[CONTRIBUTING.md](../CONTRIBUTING.md)** (the deterministic pytest suite + Oxlint on all frontend sources + Ruff).
 
 ---
 
@@ -104,4 +104,4 @@ Find the most relevant starting point based on your objective:
 7. **Custom Authoring Instructions Enforcement**: Educator directives (`additional_instructions`) in Guided Wizard Step 3 are injected into prompt builders with high-priority mandate across all generation and critique cycles.
 8. **Sub-Micro-Cent Cost Precision & Anti-AI Formatting**: Every token is mathematically accounted for, rounded to 7 decimal places, and persisted alongside question records in PostgreSQL. Strictly forbids em dashes (`—`) or en dashes (`–`).
 9. **Autonomous 3-Trials Retry Policy**: Background batch sets automatically execute in-flight replenishment retries up to 3 trials with live telemetry badges (`AUTO-RETRYING X/3`, `3/3 TRIALS EXHAUSTED`), while manual retry options are restricted strictly to "Resume Sets" for manually paused runs under 3 trials (rejecting exhausted sets with HTTP 400).
-10. **Zero-Defect Code Hygiene**: Full test suite with 197 passing deterministic unit and integration tests across 37 modules (207 total backend tests), 15 TestSprite Playwright E2E tests (100% pass rate), 0 Ruff errors, and 0 Oxlint warnings across 90 files.
+10. **Zero-Defect Code Hygiene**: Full test suite with 197 passing deterministic unit and integration tests across 37 modules (207 total backend tests), 15 TestSprite Playwright E2E tests (100% pass rate), 0 Ruff errors, and 0 Oxlint warnings.

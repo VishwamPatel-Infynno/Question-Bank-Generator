@@ -26,7 +26,7 @@ jobs:
           cache: "pip"
 
       - name: Install Ruff
-        run: pip install "ruff>=0.9.0"
+        run: pip install "ruff==0.17.0"
 
       - name: Run Backend Linting (Ruff)
         run: ruff check backend/
@@ -88,10 +88,6 @@ jobs:
       - name: Run Pytest Test Suite
         env:
           DATABASE_URL: postgresql+asyncpg://mcat_user:mcat_password@localhost:5432/mcat_db
-          DEFAULT_TEXT_MODEL: deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017
-          DEFAULT_IMAGE_MODEL: black-forest-labs/FLUX-2-klein-4b
-          COST_PER_MILLION_INPUT_TOKENS: 0.098
-          COST_PER_MILLION_OUTPUT_TOKENS: 0.294
           PASSING_SCORE_THRESHOLD: 90
         run: |
           PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e" --tb=short

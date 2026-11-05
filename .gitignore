@@ -5,6 +5,7 @@
 *.pem
 *.key
 *.cert
+*.crt
 
 # Python & Virtual Environments
 .venv/
@@ -29,7 +30,6 @@ eggs/
 # Node.js & Frontend Build Outputs
 node_modules/
 frontend/node_modules/
-dist/
 frontend/dist/
 npm-debug.log*
 yarn-debug.log*
@@ -64,4 +64,3 @@ Thumbs.db
 .playwright-mcp/
 skill-creator/
 testsprite_tests/tmp/
-testsprite_tests/tmp/config.json

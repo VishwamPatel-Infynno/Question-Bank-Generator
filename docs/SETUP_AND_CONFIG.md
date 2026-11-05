@@ -43,7 +43,15 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS` | `float` | `0.098` | Input token price for DeepInfra ($0.098 / 1M) |
 | `DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS` | `float` | `0.294` | Output token price for DeepInfra ($0.294 / 1M) |
 | `DATABASE_URL` | `string` | `postgresql+asyncpg://mcat_user:mcat_password@localhost:5432/mcat_db` | Async SQLAlchemy PostgreSQL connection string |
-| `DEFAULT_IMAGE_MODEL` | `string` | `black-forest-labs/FLUX-2-klein-4b` | Image model for visual stimuli |
+| `ACTIVE_IMAGE_PROVIDER` | `string` | `openai` | Image engine: `openai` or `deepinfra`. Note: the code default is `openai` while `.env.example` ships `deepinfra`; set it explicitly |
+| `DEEPINFRA_IMAGE_MODEL` | `string` | `black-forest-labs/FLUX-2-klein-4b` | DeepInfra image model for visual stimuli |
+| `DEEPINFRA_IMAGE_COST_PER_UNIT` | `float` | `0.014` | DeepInfra image price per 1024x1024 base unit |
+| `OPENAI_API_KEY` | `string` | `""` | OpenAI API authorization key |
+| `OPENAI_MODEL` | `string` | `gpt-4o-mini` | OpenAI text model |
+| `OPENAI_COST_PER_MILLION_INPUT_TOKENS` | `float` | `0.15` | OpenAI input price per 1M tokens |
+| `OPENAI_COST_PER_MILLION_OUTPUT_TOKENS` | `float` | `0.60` | OpenAI output price per 1M tokens |
+| `OPENAI_IMAGE_MODEL` | `string` | `gpt-image-2.5-flare` | OpenAI image model |
+| `OPENAI_IMAGE_COST_PER_UNIT` | `float` | `0.02` | OpenAI image price per 1024x1024 base unit |
 | `DEEPINFRA_API_KEY` | `string` | `""` | DeepInfra API authorization key |
 | `MAX_REGENERATION_ATTEMPTS`| `integer`| `3` | Maximum remediation loops before Quality Gate reject |
 | `PASSING_SCORE_THRESHOLD` | `integer`| `90` | Minimum score required to pass individual psychometric gate (Tier 1) |
@@ -179,8 +187,9 @@ source .venv/bin/activate
 
 # 1. Run all 197 deterministic unit and integration tests across 37 modules
 # Smart auto-skip: If PostgreSQL is offline on localhost:5432, 55 pure unit tests pass and 42 DB tests skip cleanly
-# Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
-ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
+# The test suite is offline by default: tests/conftest.py strips API keys and enables
+# OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
+PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
 
 # Or run via root package.json
 pnpm run test
