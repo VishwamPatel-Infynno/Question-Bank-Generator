@@ -1,3 +1,4 @@
+import SafeSvg from '../common/SafeSvg';
 const EMPTY_QUESTIONS = [];
 
 export default function ExportPaperPreview({
@@ -71,7 +72,7 @@ export default function ExportPaperPreview({
 
               {svgDiagram ? (
                 <div className="exam-paper-diagram-box">
-                  <div dangerouslySetInnerHTML={{ __html: svgDiagram }} />
+                  <SafeSvg svg={svgDiagram} />
                   {imgDesc && (
                     <div className="exam-paper-diagram-caption">
                       {imgDesc}

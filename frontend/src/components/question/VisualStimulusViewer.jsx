@@ -6,6 +6,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import VisualStimulusLightboxModal from './VisualStimulusLightboxModal';
+import SafeSvg from '../common/SafeSvg';
 
 /**
  * VisualStimulusViewer:
@@ -79,10 +80,7 @@ export default function VisualStimulusViewer({
         </div>
         <div className="stimulus-compact-preview">
           {isSvg ? (
-            <div
-              className="stimulus-svg-wrap"
-              dangerouslySetInnerHTML={{ __html: svgContent }}
-            />
+            <SafeSvg className="stimulus-svg-wrap" svg={svgContent} />
           ) : (
             <img
               src={imageUrl}
@@ -147,10 +145,7 @@ export default function VisualStimulusViewer({
           title="Click to expand full resolution diagram"
         >
           {isSvg ? (
-            <div
-              className="stimulus-svg-wrap"
-              dangerouslySetInnerHTML={{ __html: svgContent }}
-            />
+            <SafeSvg className="stimulus-svg-wrap" svg={svgContent} />
           ) : (
             <img
               src={imageUrl}

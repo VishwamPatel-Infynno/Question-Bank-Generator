@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useCallback, memo } from 'react';
+import { useFocusTrap } from '../../hooks';
+import SafeSvg from '../common/SafeSvg';
 import {
   ZoomIn,
   ZoomOut,
@@ -36,23 +38,13 @@ function VisualStimulusLightboxModal({
   const [zoomLevel, setZoomLevel] = useState(1.0);
   const isSvg = Boolean(svgContent);
 
-  // Handle escape key to close lightbox
-  const handleKeyDown = useCallback(
-    (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-        setZoomLevel(1.0);
-      }
-    },
-    [isOpen, onClose]
-  );
+  const handleClose = useCallback(() => {
+    onClose();
+    setZoomLevel(1.0);
+  }, [onClose]);
 
-  useEffect(() => {
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, handleKeyDown]);
+  // Focus trap, Escape-to-close, and focus restore for keyboard and screen-reader users
+  const dialogRef = useFocusTrap({ isActive: Boolean(isOpen), onClose: handleClose });
 
   if (!isOpen) {
     return null;
@@ -73,14 +65,14 @@ function VisualStimulusLightboxModal({
     setZoomLevel(1.0);
   };
 
-  const handleClose = () => {
-    onClose();
-    setZoomLevel(1.0);
-  };
-
   return (
     <div
+      ref={dialogRef}
       className="lightbox-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Figure inspector, ${visualType}`}
+      tabIndex={-1}
       onClick={handleClose}
     >
       {/* Modal Header Strip */}
@@ -166,10 +158,7 @@ function VisualStimulusLightboxModal({
           style={{ transform: `scale(${zoomLevel})` }}
         >
           {isSvg ? (
-            <div
-              className="lightbox-svg-inner"
-              dangerouslySetInnerHTML={{ __html: svgContent }}
-            />
+            <SafeSvg className="lightbox-svg-inner" svg={svgContent} />
           ) : (
             <img
               src={imageUrl}

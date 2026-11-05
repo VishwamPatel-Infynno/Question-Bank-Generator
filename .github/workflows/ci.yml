@@ -118,5 +118,8 @@ jobs:
       - name: Install Frontend Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify Taxonomy Copies Are In Sync
+        run: cmp backend/app/data/mcat_dependent_taxonomy.json frontend/src/constants/mcat_dependent_taxonomy.json
+
       - name: Verify Vite Production Build
         run: pnpm build
