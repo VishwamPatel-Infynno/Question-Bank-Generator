@@ -12,6 +12,7 @@ import contextlib
 import json
 import logging
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 
@@ -149,6 +150,88 @@ async def _get_active_job_questions(batch_id: str, job_id: str) -> list[Question
     return await get_active_job_question_heads(batch_id, job_id)
 
 
+def _build_attempt_request(
+    base_req: GenerationRequest,
+    *,
+    job: GenerationJob,
+    batch_id: str,
+    is_passage_mode: bool,
+    passage_id: str | None,
+    thematic_angle: str,
+    questions_to_generate: int,
+    shared_stimulus: str | None,
+) -> GenerationRequest:
+    """The workflow request for one attempt at (part of) a job; shared by runs and refills."""
+    return base_req.model_copy(
+        update={
+            "run_id": job.id,
+            "batch_id": batch_id,
+            "job_id": job.id,
+            "passing_threshold": config.BATCH_PASSING_SCORE_THRESHOLD,
+            "questions_to_generate": questions_to_generate,
+            "passage_mode": "single_passage" if is_passage_mode else "independent",
+            "passage_required": "Yes" if is_passage_mode else "No",
+            "passage_id": passage_id,
+            "thematic_angle": thematic_angle,
+            # Grounds replacement questions in the set's existing passage
+            "shared_stimulus": shared_stimulus,
+        }
+    )
+
+
+async def _consume_job_stream(
+    stream: AsyncIterator[str],
+    *,
+    batch_id: str,
+    job_id: str,
+    passage_id: str | None,
+    existing_count: int,
+    new_questions: list[Question],
+    usage_totals: _JobUsage,
+) -> bool:
+    """Reads one workflow stream: persists each question, folds token usage into the job totals.
+
+    Returns True when the batch no longer exists (the caller must stop). Raises RuntimeError on a
+    ``workflow_error`` event, after counting the spend that event carries; other failures
+    propagate untouched so the caller can decide to retry.
+    """
+    async for raw_chunk in stream:
+        line = raw_chunk.strip()
+        if not line.startswith("data: "):
+            continue
+        try:
+            evt_data = json.loads(line[6:])
+        except json.JSONDecodeError:
+            continue
+        etype = evt_data.get("event_type")
+        data = evt_data.get("data") or {}
+
+        if etype == "question_generated" and data.get("question"):
+            saved_q, should_abort = await _persist_job_question(
+                batch_id, job_id, passage_id, data["question"], new_questions
+            )
+            if should_abort:
+                return True
+            if saved_q:
+                await update_job_progress(job_id, actual_count=existing_count + len(new_questions))
+
+        elif etype == "workflow_complete":
+            for raw_q in data.get("questions") or []:
+                _, should_abort = await _persist_job_question(
+                    batch_id, job_id, passage_id, raw_q, new_questions
+                )
+                if should_abort:
+                    return True
+            usage_totals.add(data.get("cumulative_usage"))
+
+        elif etype in ("workflow_rejected", "workflow_error"):
+            # A run that produced nothing still spent tokens: count them
+            usage_totals.add(data.get("cumulative_usage"))
+            if etype == "workflow_error":
+                raise RuntimeError(data.get("error", "Unknown workflow error"))
+    return False
+
+
 async def _run_single_job(
     batch_id: str,
     job: GenerationJob,
@@ -230,71 +313,30 @@ async def _run_single_job_impl(
                     (job.job_number - 1) % len(BATCH_THEMATIC_ANGLES)
                 ]
 
-            attempt_req = base_req.model_copy(
-                update={
-                    "run_id": job.id,
-                    "batch_id": batch_id,
-                    "job_id": job.id,
-                    "passing_threshold": config.BATCH_PASSING_SCORE_THRESHOLD,
-                    "questions_to_generate": deficit,
-                    "passage_mode": "single_passage" if is_passage_mode else "independent",
-                    "passage_required": "Yes" if is_passage_mode else "No",
-                    "passage_id": passage_id_for_job,
-                    "thematic_angle": thematic_angle,
-                    "shared_stimulus": existing_stimulus,
-                }
+            attempt_req = _build_attempt_request(
+                base_req,
+                job=job,
+                batch_id=batch_id,
+                is_passage_mode=is_passage_mode,
+                passage_id=passage_id_for_job,
+                thematic_angle=thematic_angle,
+                questions_to_generate=deficit,
+                shared_stimulus=existing_stimulus,
             )
 
             attempt_new_qs: list[Question] = []
             stream = run_workflow_stream(attempt_req)
             try:
-                async for raw_chunk in stream:
-                    line = raw_chunk.strip()
-                    if not line.startswith("data: "):
-                        continue
-                    try:
-                        evt_data = json.loads(line[6:])
-                        etype = evt_data.get("event_type")
-                        data = evt_data.get("data") or {}
-
-                        if etype == "question_generated" and data.get("question"):
-                            saved_q, should_abort = await _persist_job_question(
-                                batch_id,
-                                job.id,
-                                passage_id_for_job,
-                                data["question"],
-                                attempt_new_qs,
-                            )
-                            if should_abort:
-                                return
-                            if saved_q:
-                                total_now = len(existing_active_qs) + len(attempt_new_qs)
-                                await update_job_progress(job.id, actual_count=total_now)
-
-                        elif etype == "workflow_complete":
-                            completed_qs = data.get("questions") or []
-                            for raw_q in completed_qs:
-                                _, should_abort = await _persist_job_question(
-                                    batch_id, job.id, passage_id_for_job, raw_q, attempt_new_qs
-                                )
-                                if should_abort:
-                                    return
-
-                            usage_totals.add(data.get("cumulative_usage"))
-
-                        elif etype in ("workflow_rejected", "workflow_error") and data.get(
-                            "cumulative_usage"
-                        ):
-                            # A run that produced nothing still spent tokens: count them.
-                            usage_totals.add(data["cumulative_usage"])
-                            if etype == "workflow_error":
-                                raise RuntimeError(data.get("error", "Unknown workflow error"))
-
-                        elif etype == "workflow_error":
-                            raise RuntimeError(data.get("error", "Unknown workflow error"))
-
-                    except json.JSONDecodeError:
-                        continue
+                if await _consume_job_stream(
+                    stream,
+                    batch_id=batch_id,
+                    job_id=job.id,
+                    passage_id=passage_id_for_job,
+                    existing_count=len(existing_active_qs),
+                    new_questions=attempt_new_qs,
+                    usage_totals=usage_totals,
+                ):
+                    return
 
             except asyncio.CancelledError:
                 logger.info(f"Job {job.job_number}/{total_jobs} (ID: {job.id}) was cancelled.")
@@ -413,19 +455,15 @@ async def _run_single_job_refill_impl(
             f"In-Set Replenishment Item"
         )
 
-        refill_req = base_req.model_copy(
-            update={
-                "run_id": job.id,
-                "batch_id": batch_id,
-                "job_id": job.id,
-                "passing_threshold": config.BATCH_PASSING_SCORE_THRESHOLD,
-                "questions_to_generate": job_deficit,
-                "passage_mode": "single_passage" if is_passage_mode else "independent",
-                "passage_required": "Yes" if is_passage_mode else "No",
-                "passage_id": passage_id_for_job,
-                "thematic_angle": refill_thematic_angle,
-                "shared_stimulus": existing_stimulus,  # Ground replacement question in set's existing passage
-            }
+        refill_req = _build_attempt_request(
+            base_req,
+            job=job,
+            batch_id=batch_id,
+            is_passage_mode=is_passage_mode,
+            passage_id=passage_id_for_job,
+            thematic_angle=refill_thematic_angle,
+            questions_to_generate=job_deficit,
+            shared_stimulus=existing_stimulus,
         )
 
         refill_qs: list[Question] = []
@@ -434,43 +472,16 @@ async def _run_single_job_refill_impl(
 
         stream = run_workflow_stream(refill_req)
         try:
-            async for raw_chunk in stream:
-                line = raw_chunk.strip()
-                if not line.startswith("data: "):
-                    continue
-                try:
-                    evt_data = json.loads(line[6:])
-                    etype = evt_data.get("event_type")
-                    data = evt_data.get("data") or {}
-
-                    if etype == "question_generated" and data.get("question"):
-                        saved_q, should_abort = await _persist_job_question(
-                            batch_id, job.id, passage_id_for_job, data["question"], refill_qs
-                        )
-                        if should_abort:
-                            return
-                        if saved_q:
-                            total_active = len(job_existing_qs) + len(refill_qs)
-                            await update_job_progress(job.id, actual_count=total_active)
-
-                    elif etype == "workflow_complete":
-                        completed_qs = data.get("questions") or []
-                        for raw_q in completed_qs:
-                            _, should_abort = await _persist_job_question(
-                                batch_id, job.id, passage_id_for_job, raw_q, refill_qs
-                            )
-                            if should_abort:
-                                return
-                        usage_totals.add(data.get("cumulative_usage"))
-
-                    elif etype in ("workflow_rejected", "workflow_error"):
-                        # A run that produced nothing still spent tokens: count them
-                        usage_totals.add(data.get("cumulative_usage"))
-                        if etype == "workflow_error":
-                            raise RuntimeError(data.get("error", "Unknown workflow error"))
-
-                except json.JSONDecodeError:
-                    continue
+            if await _consume_job_stream(
+                stream,
+                batch_id=batch_id,
+                job_id=job.id,
+                passage_id=passage_id_for_job,
+                existing_count=len(job_existing_qs),
+                new_questions=refill_qs,
+                usage_totals=usage_totals,
+            ):
+                return
 
             total_active = len(job_existing_qs) + len(refill_qs)
             completed_now = datetime.now(UTC).isoformat()
