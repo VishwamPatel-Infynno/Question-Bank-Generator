@@ -21,6 +21,8 @@ Stack: React 19 (JSX, no TypeScript), Vite 8, oxlint, lucide-react icons, plain 
 - Print/export rules live in `print.css`; check them when touching exam-paper layouts.
 
 ## Behavior and UX rules
+- Never use `dangerouslySetInnerHTML` with model or backend content; render SVG through `components/common/SafeSvg` (DOMPurify).
+- Polling hooks must guard against overlapping requests and back off on errors (see `useBatchActivity.js`).
 - Modals reuse `Modal`/`ConfirmationModal` and `useFocusTrap` for accessible focus handling; do not hand-roll overlays.
 - Destructive actions go through `useConfirmModal`.
 - Copy uses plain everyday language for educators (DESIGN.md "everyday human language"). Use single hyphens only; never em dashes or en dashes in UI text.

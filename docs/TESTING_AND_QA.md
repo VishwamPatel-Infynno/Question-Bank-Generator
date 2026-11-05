@@ -67,13 +67,21 @@ backend/tests/
 ├── test_batch_review_withholding.py  # Review queue withholding during batch execution and atomic promotion
 ├── test_database_structure.py        # SQLAlchemy schema, hybrid FTS, cascade deletion, and atomic aggregations
 ├── test_deduplication.py             # Multi-metric similarity scoring, clustering, and auto-refill
+├── test_deterministic_gate.py        # Deterministic validator gate in the review loop, fail-closed reviewer/solver, parallel review and solve
+├── test_engine_cleanup.py            # No leaked worker tasks when the workflow stream is closed early
+├── test_llm_call.py                  # call_llm: prompt caching marker, truncation retry, LLM slot release during backoff
+├── test_logging_context.py           # Correlation ids on log records (batch, job, run, slot)
 ├── test_multi_batch_concurrency.py   # Global semaphores, rate limiting backoff, and metrics
+├── test_openai.py                    # OpenAI provider, pricing, image models, vendor-masked config and health
 ├── test_pedagogy.py                  # Option symmetry (±15%), distractor traps, and taxonomy parity
 ├── test_question_status_refill.py    # QuestionStatus enum, active question helpers, and refill deficit calculations
+├── test_recovery.py                  # Startup recovery of orphaned batches/jobs and explicit field clearing
 ├── test_schemas.py                   # Pydantic V2 model validation and serialization
 ├── test_soft_delete_batch_integrity.py # Soft deletion & restoration preserving batch progress integrity
+├── test_sse_keepalive.py             # SSE keepalive comments and source cleanup
 ├── test_target_count_guarantee.py    # Dynamic job allocation, slot replenishment, and target count guarantees
 ├── test_tokens.py                    # Sub-micro-cent token cost math ($0.098 in / $0.294 out) and config cascade
+├── test_validators.py                # Deterministic question validators and dash repair
 ├── test_visuals.py                   # SVG vector generation and FLUX image cost formulas
 ├── test_workflow.py                  # LangGraph streaming, event serialization, and routing
 └── test_e2e_live.py                  # Live LLM inference suite (marked as live_e2e)
@@ -146,7 +154,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
    - `test_model_normalization_for_litellm`: Tests normalization of model identifiers for LiteLLM gateway compatibility.
    - `test_mock_llm_call_anthropic`: Validates mock LLM execution and response synthesis under Anthropic provider settings.
    - `test_health_and_config_endpoints_anthropic_reporting`: Confirms `/api/health` and `/api/config` report active provider, key status, and rates.
-4. **`test_api.py` (13 tests)**:
+4. **`test_api.py` (16 tests)**:
    - `test_database_crud`: Full CRUD lifecycle verification against question repository.
    - `test_admin_approval_and_persistence_endpoints`: Verifies admin approval workflow and PostgreSQL persistence.
    - `test_multichoice_and_passage_support`: Validates 4-choice purity and shared stimulus passage handling.
@@ -168,7 +176,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 6. **`test_batch_dedup_hard_delete.py` (2 tests)**:
    - `test_hard_delete_purges_duplicate_questions`: Confirms that resolving duplicates with `action="delete"` permanently purges redundant question rows from PostgreSQL via `hard_delete_questions_batch`, preventing ghost records in batch activity views.
    - `test_refresh_batch_aggregates_completion_guard`: Verifies that batch aggregate refreshes correctly calculate active questions and guard completion status.
-7. **`test_batch_jobs_flow.py` (3 tests)**:
+7. **`test_batch_jobs_flow.py` (4 tests)**:
    - `test_batch_and_jobs_lifecycle`: End-to-end multi-job batch lifecycle (10 jobs x 5 questions = 50 total).
    - `test_mini_batch_lifecycle`: Validates single-job Practice Set lifecycle (1 job x 5 questions).
    - `test_refill_preserves_job_count_without_adding_sets`: Confirms that replenishment restores exact question deficits without creating redundant job sets.
@@ -203,7 +211,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - `test_smart_ai_trap_and_explanation_breakdown`: Tests automatic cognitive trap assignment and 3-card mentor breakdown.
     - `test_manager_dependent_taxonomy_integration`: Verifies official AAMC syllabus tree mapping.
     - `test_taxonomy_json_parity_between_backend_and_frontend`: Enforces identical taxonomy trees across client and server.
-13. **`test_question_status_refill.py` (4 tests)**:
+13. **`test_question_status_refill.py` (5 tests)**:
     - `test_question_status_enum_values`: Validates all explicit enum values in `QuestionStatus`.
     - `test_is_question_active_helper`: Confirms active status recognition (`in_bank`, `ai_validated`, `batch_only`, `approved`).
     - `test_status_update_requests_validation`: Validates Pydantic payloads for single and bulk status updates.
@@ -220,7 +228,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - `test_interactive_slot_replenishment_recovers_from_quality_rejection`: Tests automated in-place slot replenishment when quality gate drops a candidate.
 17. **`test_taxonomy_sync.py` (1 test)**:
     - `test_taxonomy_files_are_synchronized`: Guarantees that the backend taxonomy definition (`backend/app/data/mcat_dependent_taxonomy.json`) and frontend constant (`frontend/src/constants/mcat_dependent_taxonomy.json`) remain byte-for-byte synchronized, preventing drift in syllabus topics, disciplines, and foundational concepts.
-18. **`test_tokens.py` (6 tests)**:
+18. **`test_tokens.py` (8 tests)**:
     - `test_deepinfra_model_configuration`: Verifies model identifier, cascade settings, and endpoint parameters.
     - `test_token_and_cost_calculation`: Sub-micro-cent mathematical calculation verification ($0.098/$0.294 per 1M).
     - `test_workflow_token_accumulation`: Verifies cumulative token tracking across multi-agent cycles.
@@ -236,9 +244,17 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 20. **`test_workflow.py` (4 tests)**:
     - `test_per_question_stage_metadata_in_events`: Verifies SSE event payload metadata and stage tracking.
     - `test_fused_generator_node_passing_and_routing`: Validates fused single-pass drafting and fast-path routing.
-    - `test_fused_workflow_bypasses_reviewer_when_self_critique_passed`: Confirms reviewer bypass when score > 90.
+    - `test_fused_workflow_bypasses_reviewer_when_self_critique_passed`: Confirms the reviewer bypass path when self-critique passes (opt-in: the test sets `ALWAYS_INDEPENDENT_REVIEW=false`).
     - `test_safe_json_loads_and_resilient_parsing`: Ensures resilient JSON parsing of LLM outputs.
-21. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
+21. **`test_openai.py` (8 tests)**: OpenAI provider detection, pricing, image-model handling, and branded (vendor-masked) `/api/config` and `/api/health` payloads.
+22. **`test_validators.py` (11 tests)**: Deterministic validator: option ids, key validity, single-choice, forbidden dashes and their automatic repair, all/none-of-the-above, passage rules, length-parity and distractor-coverage warnings.
+23. **`test_deterministic_gate.py` (9 tests)**: The review loop runs the validator before any LLM call (invalid drafts regenerate or reject without spending a review), reviewer and blind solver fail closed on provider errors and bad scores, generators never substitute mock questions for real failures, and review and solve run concurrently with both costs accounted for.
+24. **`test_llm_call.py` (4 tests)**: `call_llm` request construction (Anthropic `cache_control`, no stacked litellm retries), truncated-completion retry with a larger budget, and LLM slot release during backoff.
+25. **`test_engine_cleanup.py` (1 test)**: Closing the workflow stream early leaves no running worker or monitor tasks.
+26. **`test_recovery.py` (2 tests, DB)**: Startup reconciliation stops orphaned batches and their running jobs; `update_job_progress(clear=...)` resets fields explicitly.
+27. **`test_logging_context.py` (2 tests)**: Correlation ids (batch, job, run, slot) appear on log records, are inherited by child tasks, and do not leak back.
+28. **`test_sse_keepalive.py` (2 tests)**: SSE keepalive comments are emitted while the source is quiet, and closing the wrapper closes the source.
+29. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
     - `test_e2e_health_and_db_connectivity`: Confirms health endpoint connectivity to live PostgreSQL and LiteLLM models.
     - `test_e2e_all_four_sections_metadata`: Verifies live metadata and taxonomy tree across all 4 AAMC sections.
     - `test_e2e_config_endpoint`: Validates live runtime model configuration and token rate parameters.

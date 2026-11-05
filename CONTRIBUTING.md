@@ -63,7 +63,9 @@ pnpm --dir frontend build
 
 ## 📐 Multi-Agent Architectural Principles
 
-1. **Strict Quality Threshold**: Questions scoring $\le 90$ must be regenerated up to 3 times by the Re-Generator agent. If still below 90, the workflow must halt and reject the question from the Question Bank.
+1. **Strict Quality Threshold**: Questions scoring $\le 90$ must be regenerated up to 3 times by the Re-Generator agent. If still below 90, the workflow must halt and reject the question from the Question Bank. Always compare through `config.passes_quality_gate()` / `config.PASSING_SCORE_THRESHOLD`; never hardcode 90.
+   - **Fail Closed**: A question is never accepted unchecked. Reviewer and Blind Solver errors raise `QualityCheckUnavailableError`; mock/heuristic fixtures are used only in offline mode (`LLMNotConfiguredError`, no credentials). Tests that simulate offline mode must raise `LLMNotConfiguredError`.
+   - **Deterministic First**: `agents/validators.py` structural checks (4 unique options, valid key, forbidden dashes, ...) run before any LLM review.
 2. **Blind-Solver Dual Validation**: Every candidate question is solved blindly without knowing the author's key or explanation. Any key discrepancy or confidence $< 88\%$ triggers automatic remediation to ensure question keys are incontrovertible.
 3. **Review Queue Withholding Guarantee**: Questions produced during background batches are held safely in `batch_only` status while the batch is in progress to prevent partial/draft questions from leaking into the reviewer queue. High-scoring items (>90) are atomically promoted to `ai_validated` upon batch completion.
 4. **Soft-Deletion & Batch Integrity**: Calling delete on questions sets `is_deleted = true` without decrementing batch progress metrics (`actual_count`), ensuring generation monitoring history remains intact. Questions and linked passages can be restored via `POST /api/questions/{id}/restore`. Soft-deleting a passage cascade-updates all associated questions.

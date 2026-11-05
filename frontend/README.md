@@ -58,6 +58,7 @@ frontend/src/
 │   │   ├── LiveStopwatch.jsx     # High-precision live stopwatch timer
 │   │   ├── Modal.jsx             # Base accessible modal wrapper with focus trap & keyboard escape
 │   │   ├── PaginationBar.jsx     # Accessible pagination bar with page range counter & controls
+│   │   ├── SafeSvg.jsx           # Renders untrusted SVG markup through DOMPurify (SVG profile); use instead of dangerouslySetInnerHTML
 │   │   └── Toast.jsx             # Floating toast notification system
 │   ├── layout/
 │   │   ├── index.js              # Layout barrel export
@@ -113,6 +114,7 @@ frontend/src/
 ├── hooks/
 │   ├── index.js                  # Barrel export for custom hooks
 │   ├── useAppState.js            # Centralized view routing & global event broker
+│   ├── useBatchActivity.js       # Batch monitor polling (in-flight guard, exponential backoff on errors, hidden-tab pause)
 │   ├── useFocusTrap.js           # Accessible WCAG AA keyboard focus-trapping hook for modals
 │   ├── useGeneratorForm.js       # Form state & validation logic
 │   ├── useKeyboardShortcuts.js   # Global hotkeys (⌘↵ to generate, A to approve, D to discard, T to toggle theme)

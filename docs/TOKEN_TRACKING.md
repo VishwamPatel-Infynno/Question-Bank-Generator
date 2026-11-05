@@ -172,6 +172,7 @@ class TokenUsage(BaseModel):
     completion_tokens: int = Field(0, description="Output tokens generated")
     total_tokens: int = Field(0, description="Sum of prompt and completion tokens")
     cost_usd: float = Field(0.0, description="Estimated total cost in USD")
+    duration_ms: int | None = Field(None, description="Wall-clock latency of the LLM call in ms, retries included")
 ```
 
 #### `agent_usage_breakdown` Item Schema
@@ -182,9 +183,18 @@ class TokenUsage(BaseModel):
   "prompt_tokens": 450,
   "completion_tokens": 320,
   "total_tokens": 770,
-  "cost_usd": 0.0001474
+  "cost_usd": 0.0001474,
+  "duration_ms": 2140
 }
 ```
+
+`duration_ms` is recorded by `call_llm` (backoff and model fallback included) and flows into the per-agent breakdown, so per-stage latency can be compared alongside cost.
+
+#### Concurrent Review and Spend Accounting
+With `PARALLEL_REVIEW_AND_SOLVE=true` the Auditor and Blind Solver run concurrently. Both calls are always billed: if the review fails first, the solver call is still recorded as a usage-only entry (`build_usage_only_update`) so cumulative cost matches real provider spend.
+
+#### Prompt Caching
+Static system prompts are sent as `cache_control: ephemeral` blocks for Anthropic models (`ENABLE_PROMPT_CACHING`). Cache reads and writes already appear in the cost math above. OpenAI and DeepInfra apply automatic prefix caching and need no marker. Prompts shorter than the provider minimum are not cached.
 
 ---
 

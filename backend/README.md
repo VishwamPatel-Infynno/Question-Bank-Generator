@@ -33,7 +33,8 @@ backend/
 │   │   └── state.py         # AgentWorkflowState typed dictionary
 │   ├── agents/              # Cognitive Reasoning & Synthesis Layer
 │   │   ├── generator.py     # Fused clinical question synthesis & self-critique agent
-│   │   ├── blind_solver.py  # Blind-solver dual-validation candidate verification agent
+│   │   ├── blind_solver.py  # Blind-solver dual-validation candidate verification agent (fail-closed)
+│   │   ├── validators.py    # Free deterministic structural validators & dash repair, run before LLM review
 │   │   ├── reviewer.py      # 100-point 4-pillar psychometric auditor agent
 │   │   ├── regenerator.py   # Autonomous remediation agent (<= 90 score trigger)
 │   │   ├── option_balancer.py # Mathematical option length balancing (±15%) & anti-guessability
@@ -124,8 +125,9 @@ graph TD
     NodeFin --> Success([Stream to Review Desk / Persist])
 ```
 
-- **Fused Draft-and-Critique Entry Point**: Drafts question and generates immediate 100-point self-critique in a single pass (`fused_generator_node`), cutting round-trip latency by 35-45% and bypassing the separate reviewer when score $> 90$.
-- **Passing Threshold**: A question candidate must score **$> 90$** out of 100 on the standardized rubric to be approved for publication.
+- **Fused Draft-and-Critique Entry Point**: Drafts question and generates immediate 100-point self-critique in a single pass (`fused_generator_node`), combining drafting and self-critique in one inference round-trip; the independent reviewer and blind solver still audit every draft by default (`ALWAYS_INDEPENDENT_REVIEW`).
+- **Passing Threshold**: A question candidate must score **$> 90$** out of 100 on the standardized rubric to be approved for publication (`config.passes_quality_gate`).
+- **Deterministic Gate & Fail-Closed Checks**: Before any LLM review, `validators.py` checks structure and repairs forbidden dashes. The Reviewer and Blind Solver run concurrently (`PARALLEL_REVIEW_AND_SOLVE`) and raise `QualityCheckUnavailableError` rather than passing an item they could not check. Mock fixtures are used only when no credentials are configured.
 - **Option Symmetry & Anti-Guessability**: Generator and Reviewer enforce $\pm 15\%$ word count parity across all 4 options ($A, B, C, D$), parallel grammar, and balanced qualifiers to eliminate test-wiseness guessing cues.
 - **Anti-AI Formatting Standard**: Strictly forbids em dashes, en dashes, or double hyphens; standard single hyphens (`-`) only.
 - **3-Part Structured Mentor Explanations**: Renders pedagogical explanations across three specialized visual cards: Core Intuition & Proof, Itemized Distractor Analysis, and Primary Cognitive Trap Spotlight.
@@ -178,7 +180,7 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 ```
 - **Service Root**: [http://localhost:8000](http://localhost:8000)
 - **Interactive OpenAPI Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Health Check**: [http://localhost:8000/api/health](http://localhost:8000/api/health)
+- **Health Check**: [http://localhost:8000/api/health](http://localhost:8000/api/health) (liveness, `degraded` without a database) and [http://localhost:8000/api/health/ready](http://localhost:8000/api/health/ready) (readiness, `503` when the database is down)
 
 ---
 

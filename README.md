@@ -44,7 +44,7 @@ graph LR
     Reviewer -->|Score > 90 & Text Only| Finalize
     ImageGen --> Finalize
 ```
-- **Fused Draft-and-Critique Cognitive Engine (`generator.py` / `fused_generator_node`)**: Merges item authoring and 100-point psychometric self-critique into a single unified inference round-trip, cutting generation latency by 35-45% and bypassing the separate reviewer when self-score $> 90$.
+- **Fused Draft-and-Critique Cognitive Engine (`generator.py` / `fused_generator_node`)**: Merges item authoring and 100-point psychometric self-critique into a single unified inference round-trip, combining drafting and self-critique in one inference round-trip; the independent reviewer and blind solver still audit every draft by default (`ALWAYS_INDEPENDENT_REVIEW`).
 - **Option Symmetry & Anti-Guessability Engine**: Mathematically balances option lengths (within $\pm 15\%$ or 2-4 words) and enforces parallel grammatical syntax so students cannot guess the answer using "longest option" cues.
 - **Anti-AI Formatting Standard**: Strictly forbids em dashes (`—`), en dashes (`–`), or double hyphens (`--`); enforces standard single hyphens (`-`) for human editorial authenticity.
 - **3-Part Structured Mentor Explanations (`MentorExplanationView.jsx`)**: Renders pedagogical explanations across three specialized visual cards:
@@ -200,7 +200,7 @@ Question Bank Generator/
 │   ├── testsprite-mcp-test-report.md # Markdown test report
 │   └── testsprite-mcp-test-report.html # HTML visual test report
 ├── backend/
-│   ├── README.md                # Dedicated backend developer guide (20 test modules)
+│   ├── README.md                # Dedicated backend developer guide (28 test modules)
 │   ├── requirements.txt         # Runtime dependencies (requirements-dev.txt adds pytest, ruff, httpx)
 │   ├── scripts/
 │   │   └── seed_questions.py    # CLI database seeding script with authentic AAMC rubrics
@@ -214,14 +214,22 @@ Question Bank Generator/
 │   │   ├── test_batch_review_withholding.py # Review queue withholding and atomic promotion
 │   │   ├── test_database_structure.py # Relational schema, cascade deletion, and constraint tests
 │   │   ├── test_deduplication.py# Multi-metric similarity, token containment & options overlap
+│   │   ├── test_deterministic_gate.py # Validator gate, fail-closed checks, parallel review/solve
+│   │   ├── test_engine_cleanup.py # No leaked workers on early stream close
+│   │   ├── test_llm_call.py     # Prompt caching, truncation retry, slot release
+│   │   ├── test_logging_context.py # Correlation-id logging
 │   │   ├── test_e2e_live.py     # Live end-to-end integration test suite (10 tests marked live_e2e)
 │   │   ├── test_multi_batch_concurrency.py # Global semaphores, rate limiting & metrics
+│   │   ├── test_openai.py       # OpenAI provider, pricing & masked config
 │   │   ├── test_pedagogy.py     # Option symmetry, AAMC traps & taxonomy parity
 │   │   ├── test_question_status_refill.py # Status enums, active question helpers & deficit calculations
+│   │   ├── test_recovery.py     # Startup orphan recovery
 │   │   ├── test_schemas.py      # Pydantic V2 schema validation & constraints
 │   │   ├── test_soft_delete_batch_integrity.py # Soft deletion & restoration preserving batch integrity
+│   │   ├── test_sse_keepalive.py # SSE keepalive
 │   │   ├── test_target_count_guarantee.py # Dynamic job allocation, slot replenishment & target guarantees
 │   │   ├── test_tokens.py       # Token counting, accumulation & DeepInfra/Anthropic rates
+│   │   ├── test_validators.py   # Deterministic question validators
 │   │   ├── test_visuals.py      # SVG & FLUX image generation and pricing
 │   │   └── test_workflow.py     # StateGraph multi-agent flow & bypass routing
 │   └── app/
@@ -262,6 +270,7 @@ Question Bank Generator/
 │       ├── agents/              # Multi-agent decision logic & prompts
 │       │   ├── base.py          # LiteLLM client & calculate_token_cost()
 │       │   ├── blind_solver.py  # Independent key validation & agreement agent
+│       │   ├── validators.py    # Deterministic structural validators & dash repair (free, pre-review)
 │       │   ├── generator.py     # Fused question generator & self-critique agent
 │       │   ├── image_generator.py # Programmatic SVG & FLUX-2-klein-4b visual generator
 │       │   ├── mock_fixtures.py # Mock fallback questions & heuristic rubrics

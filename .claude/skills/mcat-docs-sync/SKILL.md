@@ -20,7 +20,7 @@ Recent history shows docs are updated in the same commit as refactors, and they 
 
 ## Method
 1. Grep the docs for the thing you changed (`grep -rn "<name or number>" README.md DESIGN.md CONTRIBUTING.md docs backend/README.md frontend/README.md`).
-2. Recompute counts from the code rather than guessing: test count via `PYTHONPATH=backend pytest backend/tests --collect-only -q`, endpoints via the routers, frontend files via `git ls-files frontend/src | wc -l`.
+2. Recompute counts from the code rather than guessing: test count via `PYTHONPATH=backend pytest backend/tests --collect-only -q -m "not live_e2e"` (and `-m requires_db` for DB-only tests), operations/paths via `app.openapi()["paths"]` (`PYTHONPATH=backend python -c ...`), frontend files via `git ls-files frontend/src | wc -l`. Test trees appear in `README.md`, `docs/TESTING_AND_QA.md` and the numbered module list there; update all three when adding a test module.
 3. Edit every occurrence so docs do not contradict each other.
 4. Match the existing tone; keep single hyphens (no em or en dashes) per project rule.
 

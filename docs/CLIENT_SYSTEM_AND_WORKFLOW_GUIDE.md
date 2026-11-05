@@ -28,7 +28,7 @@ The **Infynno MCAT Question Bank Generator v2.0** solves these challenges with f
   - **Passage-Based Set**: 1 comprehensive scientific or rhetoric passage linked to all questions in the set; OR
   - **Independent Discretes**: Standalone scientific stems with zero stimulus text.
 - **CARS Pure Passage Standard**: For **Critical Analysis and Reasoning Skills (CARS)**, the system strictly enforces 100% passage-based sets, locking discrete mode out in accordance with AAMC regulations.
-- **Fused Draft-and-Critique Cognitive Engine**: Authors the scenario, symmetric options, and mentor explanation while simultaneously self-scoring the item across a standardized 100-point rubric in a single unified round-trip, cutting latency by 35-45%.
+- **Fused Draft-and-Critique Cognitive Engine**: Authors the scenario, symmetric options, and mentor explanation while simultaneously self-scoring the item across a standardized 100-point rubric in a single unified round-trip. Every draft is then independently audited by a separate reviewer and a blind solver.
 - **Blind-Solver Dual-Validation Safeguard**: Acts as an algorithmic test candidate, solving the drafted question completely blind without access to the author's answer key or explanation. Any discrepancy in the answer key or low confidence ($< 88\%$) instantly forces the item into remediation, eliminating false keys and ambiguous stems before human review.
 - **AAMC Dual Split-Pane Reading Mode**: Provides an authentic side-by-side split reading canvas for passage sets. The left pane anchors the dense research passage with sticky scrolling, while the right pane presents candidate stems, options, and rationales with independent vertical navigation.
 - **Autonomous Remediation & Strict Quality Gate (>90 Points)**: Items scoring $\le 90$ undergo up to three cycles of independent auditing and remediation. Unrepaired items are discarded and never committed to the database.
@@ -101,7 +101,7 @@ graph TD
 
 ### 4.1 Fused Draft-and-Critique Cognitive Engine (`fused_generator_node`)
 - Crafts high-yield clinical or scientific scenarios, 4 symmetric options ($A, B, C, D$), and 3-card mentor explanations.
-- Simultaneously generates a 100-point self-critique object in a single inference call, cutting latency by $35-45\%$ and saving ~590 tokens on passing drafts.
+- Simultaneously generates a 100-point self-critique object in a single inference call. By default the independent reviewer and blind solver still audit every draft (`ALWAYS_INDEPENDENT_REVIEW`), running concurrently to save time.
 - Strictly forbids em dashes (`—`) and enforces option word count symmetry ($\pm 15\%$).
 
 ### 4.2 Blind-Solver Dual-Validation Safeguard (`blind_solver.py`)

@@ -34,7 +34,11 @@ Routers contain no SQL and no business logic. Repositories own every query and c
 - Soft delete: delete sets `is_deleted = true` and must NOT decrement a batch's `actual_count`; restore via `POST /api/questions/{id}/restore`; soft-deleting a passage cascades to its questions.
 - Batch questions stay `batch_only` until the batch completes, then items scoring above 90 are atomically promoted to `ai_validated`. Never let in-progress questions reach the review queue.
 - Autonomous retry: at most 3 trials per set; manual retry returns HTTP 400 once exhausted.
-- Global job concurrency is bounded by semaphores in `services/batch_concurrency.py`; do not spawn unbounded LLM tasks.
+- Global job concurrency is bounded by semaphores in `services/batch_concurrency.py`; do not spawn unbounded LLM tasks. The global LLM semaphore is held only during the API call in `agents/base.py`.
+- Startup/shutdown: `main.py` lifespan stops batches gracefully and disposes the engine; `reconcile_interrupted_batches` stops orphaned batches and marks their `pending`/`running` jobs `stopped` (still retryable).
+- `update_job_progress` treats `None` as "unchanged"; pass `clear=("error_message", ...)` to reset a field to NULL.
+- Health: `/api/health` (liveness, `degraded` without DB) and `/api/health/ready` (503 without DB); `ADMIN_API_KEY` gates the full payload.
+- Logging: bind correlation ids with `bind_log_context(batch_id=..., job_id=...)` from `app.core.logging`; set `LOG_FORMAT=json` for structured output.
 - Dedup lives in `services/deduplication.py`; reuse it, do not re-implement similarity checks.
 
 Before finishing, run the mcat-verify skill.

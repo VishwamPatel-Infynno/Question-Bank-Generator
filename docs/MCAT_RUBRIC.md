@@ -91,7 +91,7 @@ Official MCAT distractors are **never trivial or obviously wrong**; they are del
 ---
 
 ### Pillar 4: Mentor Explanation & Key Rigor (0 - 25 Points)
-The correct answer must be incontrovertible. Beyond editorial evaluation, the system enforces algorithmic verification via the **Blind-Solver Dual Validation Agent**, which solves the question without access to the key. To earn full credit, the key must be incontrovertibly deduced from passage evidence, and the explanation must provide deep pedagogical value structured into:
+The correct answer must be incontrovertible. Before any model-based scoring, free deterministic validators check structure (four unique options, a valid single key, no em/en dashes, no all/none of the above) and repair forbidden punctuation automatically. Scoring is evidence-based: each pillar starts at 25 and loses points for every concrete flaw the reviewer can name, and an independent reviewer audits every draft even if the generator's own self-critique passed. Beyond editorial evaluation, the system enforces algorithmic verification via the **Blind-Solver Dual Validation Agent**, which solves the question without access to the key. To earn full credit, the key must be incontrovertibly deduced from passage evidence, and the explanation must provide deep pedagogical value structured into:
 1. Proof of why the key is correct (Core intuition + step-by-step mathematical or deductive proof).
 2. Step-by-step refutation of each incorrect distractor ($A, B, C, D$).
 3. Cognitive trap spotlight detailing psychological error mechanisms and actionable student defense strategies.

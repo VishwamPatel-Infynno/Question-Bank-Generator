@@ -8,31 +8,34 @@ This document details the software architecture, multi-agent design patterns, st
 
 ## 1. High-Level Architecture Overview
 
-The system is constructed as an asynchronous, event-driven multi-agent workflow coordinated by **LangGraph** and served via **FastAPI** with **Server-Sent Events (SSE)** to a high-performance **React 19** frontend featuring a streamlined **3-Step Guided Question Wizard**, a dedicated full-width **Generation & Review Workspace**, and an enterprise **Batch Execution Engine**.
+The system is constructed as an asynchronous, event-driven multi-agent workflow orchestrated by the engine in `app/workflow/engine.py` (nodes and routing in `nodes.py` / `routes.py`; `graph.py` keeps an equivalent LangGraph StateGraph definition) and served via **FastAPI** with **Server-Sent Events (SSE)** to a high-performance **React 19** frontend featuring a streamlined **3-Step Guided Question Wizard**, a dedicated full-width **Generation & Review Workspace**, and an enterprise **Batch Execution Engine**.
 
 ```mermaid
 graph TD
     User([User / Web Client]) -->|POST /api/generate| API[FastAPI Orchestrator]
     API -->|Initialize State| Graph[LangGraph Fused Engine]
     
-    subgraph "LangGraph StateGraph Workflow"
+    subgraph "Quality-Gated Generation Workflow"
         Graph --> NodeFused[Fused Draft & Self-Critique Engine]
-        
-        NodeFused --> NodeBlind[Blind-Solver Dual Validation Agent]
-        NodeBlind -->|Key Agreement & Confidence >= 88%| NodeBypass{Needs Visual?}
-        
-        NodeBypass -->|Yes| NodeImg[Infynno Visual & Vector Engine]
-        NodeBypass -->|No| NodeFin[Finalize & Staging Node]
-        
-        NodeBlind -->|Discrepancy OR Confidence < 88%| NodeRegen[Autonomous Remediation Engine]
-        NodeFused -->|Self-Score <= 90| NodeRegen
-        NodeRegen --> NodeRev[Independent Psychometric Auditor]
-        
+        NodeFused --> NodeVal[Deterministic Validator<br>free structural checks + dash repair]
+
+        NodeVal -->|Blocking defect & Iteration < 3| NodeRegen[Autonomous Remediation Engine]
+        NodeVal -->|Blocking defect & Iteration >= 3| NodeReject[Strict Quality Gate Reject]
+        NodeVal -->|Clean| Par[Run concurrently]
+
+        Par --> NodeRev[Independent Psychometric Auditor]
+        Par --> NodeBlind[Blind-Solver Dual Validation Agent]
+
         NodeRev -->|Audit Score <= 90 & Iteration < 3| NodeRegen
-        NodeRev -->|Score <= 90 & Iteration >= 3| NodeReject[Strict Quality Gate Reject]
-        
-        NodeRev -->|Score > 90 & Needs Visual| NodeImg
-        NodeRev -->|Score > 90 & Text Only| NodeFin
+        NodeRev -->|Score <= 90 & Iteration >= 3| NodeReject
+        NodeBlind -->|Discrepancy OR Confidence < 88% & Iteration < 3| NodeRegen
+        NodeBlind -->|Discrepancy OR Confidence < 88% & Iteration >= 3| NodeReject
+        NodeRegen --> NodeVal
+
+        NodeRev -->|Score > 90 AND Solver verified| NodeVis{Needs Visual?}
+        NodeBlind --> NodeVis
+        NodeVis -->|Yes| NodeImg[Infynno Visual & Vector Engine]
+        NodeVis -->|No| NodeFin[Finalize & Staging Node]
         NodeImg --> NodeFin
     end
 
@@ -71,44 +74,40 @@ The workflow enforces a strict psychometric quality contract. A question **must 
 ```mermaid
 stateDiagram-v2
     [*] --> FusedGenerator: Start Generation
-    
-    state "Fused Draft & Self-Critique Engine" as FusedNode {
-        FusedGenerator --> EvaluateSelfCritique: Draft Stem, Options & Score 100-pt Rubric
-    }
-    
-    state FusedRouter <<choice>>
-    EvaluateSelfCritique --> FusedRouter
-    
-    FusedRouter --> BlindSolver: Self-Score > 90
-    FusedRouter --> QuestionRegenerator: Self-Score <= 90 (Cycle 1)
-    
-    state "Blind-Solver Dual Validation" as BlindNode {
-        BlindSolver --> BlindCheck: Blind Solve Without Key & Check Agreement
-    }
-    
-    state BlindRouter <<choice>>
-    BlindCheck --> BlindRouter
-    
-    BlindRouter --> ImageGenerator: Agreement & Confidence >= 88% AND Needs Visual
-    BlindRouter --> FinalizeNode: Agreement & Confidence >= 88% AND Text Only
-    BlindRouter --> QuestionRegenerator: Key Discrepancy OR Confidence < 88%
-    
-    state "Remediation & Independent Audit Loop" as Loop {
-        QuestionRegenerator --> QuestionReviewer: Remediated Draft (Cycle + 1)
-        
-        state ReviewRouter <<choice>>
-        QuestionReviewer --> ReviewRouter: Audit 100-Point Rubric
-        ReviewRouter --> QuestionRegenerator: Score <= 90 AND Cycles < 3
-    }
 
-    ReviewRouter --> StrictQualityGate: Score <= 90 AND Cycles == 3
+    FusedGenerator --> Validator: Draft + honest self-critique
+    note right of FusedGenerator
+        Offline mode only (no credentials):
+        mock fixtures. Real provider errors
+        raise and the slot retries.
+    end note
+
+    state ValidatorRouter <<choice>>
+    Validator --> ValidatorRouter: Deterministic checks + dash repair
+    ValidatorRouter --> Regenerator: Blocking defect AND Cycles < 3
+    ValidatorRouter --> StrictQualityGate: Blocking defect AND Cycles == 3
+    ValidatorRouter --> ReviewFork: Clean
+
+    state ReviewFork <<fork>>
+    ReviewFork --> Reviewer
+    ReviewFork --> BlindSolver
+    state ReviewJoin <<join>>
+    Reviewer --> ReviewJoin: 100-pt rubric (fails closed on bad output)
+    BlindSolver --> ReviewJoin: Key agreement + confidence (fails closed)
+
+    state GateRouter <<choice>>
+    ReviewJoin --> GateRouter
+    GateRouter --> Regenerator: Score <= 90 OR solver discrepancy/confidence < 88% (Cycles < 3)
+    GateRouter --> StrictQualityGate: Same failure at Cycles == 3
+    Regenerator --> Validator: Remediated draft (Cycle + 1)
+
+    GateRouter --> ImageGenerator: Passed AND Image Required
+    GateRouter --> FinalizeNode: Passed AND Text Only
+    ImageGenerator --> FinalizeNode: Attach SVG / AI Visual
+
     StrictQualityGate --> RejectedEnd: Discard Draft & Bypass DB
     RejectedEnd --> [*]
 
-    ReviewRouter --> ImageGenerator: Score > 90 AND Image Required
-    ReviewRouter --> FinalizeNode: Score > 90 AND Text Only
-    ImageGenerator --> FinalizeNode: Attach SVG / AI Visual
-    
     FinalizeNode --> PostgreSQL: Persist Question with Token Metrics
     PostgreSQL --> CompletedEnd: Publish to Bank
     CompletedEnd --> [*]
@@ -143,9 +142,9 @@ The system coordinates specialized autonomous engines with a deterministic quali
   - **Automatic (Smart AI Choice) Cognitive Trap Engine**: When `primary_trap` is `"Automatic"`, the generator evaluates the drafted item and dynamically selects the best-fit trap from the 11 official MCAT trap types (`Scope_Shift`, `Keyword_Trap`, `Extreme_Language`, `Correlation_vs_Causation`, `Partial_Match`, `Half_Truth`, `Unwarranted_Assumption`, `Calculation_Formula_Trap`, `Out_of_Scope`, `False_Dichotomy`, `Over_generalisation`). The chosen trap is recorded in `draft.primary_trap` and persisted across the workflow.
   - **Fallback Trap Detection**: If `primary_trap` is omitted or unpopulated, `generator.py` and `nodes.py` run regex taxonomy matching against the explanation text to extract and assign the trap automatically.
   - **Immediate Self-Critique Object**: Evaluates Authenticity, Clarity, Distractor Traps, and Explanation Rigor.
-- **Routing Optimization**:
-  - If self-critique score $> 90$, the workflow sets `fused_self_passed=True` and routes directly to the Visual Engine or Finalize Node, cutting latency by $35-45\%$ and saving ~590 tokens.
-  - If self-critique score $\le 90$, the candidate draft is routed to the Remediation Engine and Independent Auditor loop.
+- **Review Routing**:
+  - The self-critique is an honest, evidence-based pre-check (points are deducted for every named flaw; scores are not scripted). With `ALWAYS_INDEPENDENT_REVIEW=true` (default) the independent Auditor and the Blind Solver audit every draft regardless of the self-score. Setting it to `false` restores the legacy shortcut where a self-score above 90 skips the Auditor.
+  - A draft that fails the Deterministic Validator never reaches an LLM reviewer: it is regenerated with the exact findings, or rejected once attempts are exhausted.
 - **Custom Authoring Instructions Priority**:
   - Accepts educator-specified pedagogical directives (`additional_instructions`) from `GenerationRequest` via Guided Wizard Step 3.
   - Bound directly to the LangGraph `WorkflowState` and injected with high-priority mandate into prompt builders (`app/agents/prompt_builder.py`, `app/agents/generator.py`, and `app/agents/regenerator.py`).
@@ -161,6 +160,8 @@ The system coordinates specialized autonomous engines with a deterministic quali
 - **Dual-Validation Contract**:
   - **Key Agreement**: The blind-solver's selected answer key must match the draft's intended `correct_answer_id`.
   - **Confidence Benchmark**: The blind-solver's confidence must satisfy $\ge 88\%$ (`BLIND_SOLVER_CONFIDENCE_THRESHOLD = 88`).
+- **Fail-Closed Behavior**: Missing or invalid solver output (bad key, missing confidence) is retried once and then raises `QualityCheckUnavailableError`; an item is never certified because the solver errored. The only bypass is offline mode (no LLM credentials configured at all).
+- **Concurrency**: With `PARALLEL_REVIEW_AND_SOLVE=true` (default) the solver runs concurrently with the Auditor, saving one LLM round trip per question. Both calls are billed even when the review fails first.
 - **Autonomous Rerouting**:
   - If the blind solver **agrees** with high confidence ($\ge 88\%$), `blind_solver_passed = True`, and the question bypasses lengthy remediation directly to the visual engine or finalize node.
   - If the blind solver **disagrees** or has low confidence ($< 88\%$), the discrepancy proves that the distractors or stem contain genuine ambiguity or misleading premises. The workflow sets `blind_solver_passed = False` and routes the draft directly to the Remediation Engine with the blind solver's dissenting proof.
@@ -176,6 +177,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
 - **Quality Benchmark**:
   - Passing Score: **$> 90$** points ($91 - 100$).
   - Failing Score: **$\le 90$** points ($0 - 90$).
+- **Strict Parsing**: Every pillar score must be present and within 0-25. Missing or out-of-range scores no longer default to a passing value; the call is retried once and then fails closed with `QualityCheckUnavailableError`.
 - **Output**: Returns numerical pillar scores, observed strengths, specific weaknesses, and actionable remediation instructions.
 - **Inference Gateway**: High-throughput enterprise reasoning model (Temperature: `0.1` for objective, deterministic evaluation).
 
@@ -243,6 +245,20 @@ The system coordinates specialized autonomous engines with a deterministic quali
   ```
 - **Batch Duplicate Cluster Resolution & Permanent Purge**:
   When clustering batch questions via `GET /api/batches/{id}/duplicate-clusters`, educators can resolve duplicate groups via `POST /api/batches/{id}/resolve-duplicates`. Under `action="delete"`, identified redundant duplicates are permanently hard-deleted from PostgreSQL via `hard_delete_questions_batch`, completely eliminating ghost records from batch monitors and ensuring clean subsequent refills. Alternatively, `action="archive"` marks duplicate items with status `discarded`.
+
+---
+
+### 3.8 Deterministic Validator (`validators.py`)
+- **Mission**: Free, pure-Python structural checks that run before any LLM review, so structural defects are caught for certain instead of depending on a model's opinion.
+- **Blocking checks**: exactly four unique options A-D; valid key present and in the options (single key for single-choice); no all/none-of-the-above; no empty stem, option or explanation.
+- **Auto-repair**: em dashes, en dashes and `--` are replaced with a single hyphen (`sanitize_draft_dashes`) before validation, enforcing the Anti-AI Punctuation Standard in code, not only in prompts.
+- **Warnings (recorded, non-blocking)**: option length ratio above 1.25, correct answer being the longest option, passage word band, unaddressed distractors. The verdict is stored in `stage_outcomes["deterministic_validation"]`.
+- **Remediation**: blocking findings are packaged as a failing review so the regenerator fixes exactly those defects.
+
+### 3.9 Fail-Closed Generation Policy
+- Reviewer, Blind Solver, Generator, Fused Generator, Passage Writer and Regenerator fall back to heuristic or mock fixtures **only** when no LLM credentials are configured (`LLMNotConfiguredError`, used for demos and offline tests).
+- Any real provider failure raises instead; the per-slot retry in `engine.py` (up to 3 attempts) absorbs it and emits `question_failed` if all attempts fail. No canned question is ever saved in place of a failed generation.
+- Truncated completions (`finish_reason == "length"`) are retried with a doubled token budget up to `LLM_MAX_TOKENS_CEILING` rather than being "repaired" from partial JSON.
 
 ---
 
@@ -761,3 +777,15 @@ frontend/src/
 ```
 
 For complete UI design tokens, color scales, typography guidelines, and component contracts, consult [`DESIGN.md`](../DESIGN.md).
+
+---
+
+## 9. Reliability, Recovery & Observability
+
+- **Graceful shutdown**: the FastAPI lifespan hook stops all running batches (progress and generated questions are preserved) and disposes the database engine.
+- **Restart recovery**: on startup, `in_progress` batches become `stopped`, their qualifying questions are promoted, and jobs left `pending`/`running` become `stopped` so the UI never shows phantom running work. Stopped jobs below target remain retryable through the standard retry flow (3-trial ceiling).
+- **No leaked workers**: `run_workflow_stream` cancels and drains all worker and monitor tasks on every exit path (completion, error, cancellation, or consumer close).
+- **LLM call hygiene**: the global LLM semaphore is held only during the API call, never during retry backoff; 500/502/503/504/529 and rate-limit errors are retried once at a single layer; request timeout scales with `max_tokens`; static system prompts are marked cacheable for Anthropic (`ENABLE_PROMPT_CACHING`).
+- **Health probes**: `GET /api/health` (liveness, reports `degraded` when PostgreSQL is unreachable) and `GET /api/health/ready` (readiness, `503` when the database is down). With `ADMIN_API_KEY` set, the full diagnostic payload requires a matching `x-admin-key` header.
+- **Correlation logging**: every log line inside a batch job or worker carries `batch_id`, `job_id`, `run_id` and `slot` (`LOG_FORMAT=json` for structured output). Each LLM call records `duration_ms` in the per-agent usage breakdown.
+- **SSE keepalive**: `/api/generate` emits a `: keepalive` comment every 15 seconds during quiet LLM stages so proxies do not drop the stream.

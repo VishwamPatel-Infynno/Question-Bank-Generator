@@ -248,7 +248,8 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Neural Visual Illustrations**: Renders FLUX-2-klein-4b neural image outputs with lazy loading and error fallback.
   - **Passage & Item Polymorphism**: Dynamically extracts stimulus from either standalone question fields or passage-level attributes (`passage_visual_stimulus`).
 - **Interactive Action Toolbar**:
-  - **Click-to-Zoom Lightbox**: Fullscreen inspection canvas triggered by clicking the figure or the `Maximize2` button.
+  - **Click-to-Zoom Lightbox**: Fullscreen inspection canvas triggered by clicking the figure or the `Maximize2` button. Exposed as `role="dialog"` with `aria-modal`, focus trapping and focus restore via `useFocusTrap`; Escape closes it.
+  - **Safe SVG Rendering**: All raw SVG markup is rendered through `SafeSvg` (DOMPurify SVG profile), never directly with `dangerouslySetInnerHTML`.
   - **Pan & Zoom Controls**: Dynamic zoom level scaling from 0.5x to 3.0x with reset control (`RotateCcw`).
   - **Copy SVG Source**: 1-click clipboard button with checkmark feedback to export raw SVG XML for external documentation or publication.
   - **Inline Description Editing**: In editorial mode, renders an editable textarea allowing educators to refine the figure's alt-text and clinical description in real time.

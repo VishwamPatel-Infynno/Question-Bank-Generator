@@ -30,7 +30,7 @@ cp .env.example .env
 
 ### Configuration Variables Reference
 
-The system defines 39 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
+The system defines 53 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
 
 | Variable | Type | Default Value | Description |
 | :--- | :--- | :--- | :--- |

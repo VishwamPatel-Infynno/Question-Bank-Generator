@@ -27,8 +27,11 @@ pnpm install
 - `ACTIVE_LLM_PROVIDER` selects `deepinfra` (default), `anthropic` or `openai`; model names and per-million-token prices resolve from it via properties on `config`. Never hardcode prices or model ids in feature code.
 - Never print or commit `.env` contents or API keys.
 
+- Useful flags: `ALWAYS_INDEPENDENT_REVIEW`, `PARALLEL_REVIEW_AND_SOLVE`, `ENABLE_PROMPT_CACHING`, `LOG_FORMAT` (text/json), `ADMIN_API_KEY`; all documented in `.env.example` and `docs/SETUP_AND_CONFIG.md`.
+
 ## Troubleshooting
 - Port busy: `pnpm run clean:ports`.
+- Is it up? `curl localhost:8000/api/health/ready` (200 ready, 503 database down).
 - DB refused or auth failure: `docker compose ps`; confirm `DATABASE_URL` is `postgresql+asyncpg://...`. DB-backed tests skip themselves when Postgres is unreachable, so a "passing" run without Docker does not exercise them.
 - Duplicate questions or passages in the DB: `pnpm run db:clean-duplicates` (script `scripts/clean_duplicate_artifacts.py`). This mutates data, so confirm with the user first.
 - Seed data: `backend/scripts/seed_questions.py`.
