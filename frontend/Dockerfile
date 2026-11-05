@@ -12,7 +12,7 @@ ARG VITE_API_ACCESS_KEY=""
 ENV VITE_API_ACCESS_KEY=$VITE_API_ACCESS_KEY
 RUN pnpm --dir frontend run build
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/frontend/dist /usr/share/nginx/html
 EXPOSE 8080
