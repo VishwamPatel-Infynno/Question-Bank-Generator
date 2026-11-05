@@ -181,13 +181,13 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 214-test backend verification suite across 41 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 229-test backend verification suite across 46 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 204 deterministic unit and integration tests across 41 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 55 pure unit tests pass and 42 DB tests skip cleanly
+# 1. Run all 219 deterministic unit and integration tests across 45 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 159 pure unit tests pass and 60 DB tests skip cleanly
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
@@ -202,9 +202,9 @@ ruff format --check .
 
 #### Dual Test Execution Modes
 - **Offline Mode** (PostgreSQL offline): Executes all 55 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`55 passed, 42 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 204 deterministic tests across 41 modules in ~23-28 seconds (10 live tests deselected).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 219 deterministic tests across 45 modules in ~23-28 seconds (10 live tests deselected).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 214 tests across 42 test files.
+- **Total Backend Suite**: 229 tests across 46 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.
@@ -270,18 +270,28 @@ python backend/scripts/seed_questions.py
 
 ## 6. Production Deployment Guidelines
 
-### 6.1 Production Backend (Gunicorn + Uvicorn)
-In production, use `gunicorn` with multiple `uvicorn.workers.UvicornWorker` workers:
+### 6.1 Production Backend (single worker)
+Run **one** Uvicorn worker. The batch task registry, in-flight draft pool, LLM semaphores and the startup reconcile of interrupted batches all live in process memory, so several workers would each run their own copy and disagree (duplicate collision checks, double-resumed batches). Scale by raising the per-process limits (`GLOBAL_MAX_CONCURRENT_LLM_CALLS`, `DB_POOL_SIZE`) rather than the worker count.
 
 ```bash
-pip install gunicorn
-PYTHONPATH=backend gunicorn app.main:app \
-  -w 4 \
-  -k uvicorn.workers.UvicornWorker \
-  --bind 0.0.0.0:8000 \
-  --access-logfile - \
-  --error-logfile -
+PYTHONPATH=backend uvicorn app.main:app \
+  --host 0.0.0.0 --port 8000 \
+  --workers 1 \
+  --timeout-graceful-shutdown 25
 ```
+Keep the graceful timeout at 20 seconds or more so running batches can checkpoint on shutdown. Multi-worker support would need DB-backed batch ownership and heartbeats; it is not implemented.
+
+### 6.1.1 Docker (backend + nginx web)
+`docker-compose.yml` defines an optional `app` profile next to the default Postgres service:
+
+```bash
+docker compose --profile app up -d --build   # postgres + backend + web
+# open http://127.0.0.1:8080
+```
+- `backend/Dockerfile`: multi-stage `python:3.11-slim`, non-root user, one Uvicorn worker, healthcheck on `/api/health/ready`. Build context is the repository root.
+- `frontend/Dockerfile` + `frontend/nginx.conf`: Vite build served by nginx with SPA fallback, gzip, immutable caching for `/assets/`, and an `/api/` proxy with `proxy_buffering off` and a 1 hour read timeout so SSE generation streams arrive live.
+- Settings come from `.env` (optional); `DATABASE_URL` is overridden to the compose `postgres` service. Postgres stays bound to loopback and the web port to `127.0.0.1:8080`; put a TLS-terminating proxy in front for anything shared.
+- `docker compose up -d` (no profile) still starts only Postgres, which is what local development and CI tests use.
 
 ### 6.2 Production Frontend Build
 Compile static production assets with Vite using pnpm:

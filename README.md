@@ -20,11 +20,11 @@ For deep-dive technical specifications, architecture diagrams, API schemas, and 
 | **[UI/UX Design System (DESIGN.md)](DESIGN.md)** | Authoritative design tokens, dual obsidian/alabaster themes, streamlined 3-step wizard with decomposed summary/advanced drawers, decomposed QuestionCard components, Duplicate Comparison Modal, AAMC Dual Split-Pane reading mode, accessible modal focus-trapping contracts (`Modal`, `ConfirmationModal`, `DeletePassageModal`), live batch retry telemetry (`AUTO-RETRYING X/3`), typography scale, component contracts, accessibility criteria (WCAG AA), and micro-animations. |
 | **[Architecture & Multi-Agent Workflow](docs/ARCHITECTURE.md)** | Complete workflow diagrams, 3-step pipeline specifications, Blind-Solver Dual Validation, Deduplication & Anti-Collision Subsystem, Strict Quality Gate, Two-Tier quality threshold model, global worker semaphores, background batch runner with 3-trial retries, SSE pipeline, and PostgreSQL 16 ERD. |
 | **[REST & SSE API Reference](docs/API.md)** | Complete FastAPI endpoint documentation (38 Z endpoint paths), deduplication, duplicate clustering, auto-resolve & refill endpoints, question restoration (`/restore`), permanent purges (`/permanent`, `/purge-batch`), batch generation schemas, 3-trial batch controls (`/stop`, `/retry`, `/cancel-all`), SSE event stream contracts, filter parameters, and cURL examples. |
-| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 204 passing deterministic unit/integration tests across 41 modules (214 total backend tests), 15 TestSprite Playwright automated E2E browser tests (100% pass rate), Ruff & Oxlint code hygiene standards, and CI pipeline. |
+| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 219 passing deterministic unit/integration tests across 45 modules (229 total backend tests), 15 TestSprite Playwright automated E2E browser tests (100% pass rate), Ruff & Oxlint code hygiene standards, and CI pipeline. |
 | **[Token Usage & Cost Tracking](docs/TOKEN_TRACKING.md)** | Dual first-class inference rate cards: DeepInfra ($0.098 in / $0.294 out per 1M tokens) and Anthropic Claude ($0.10 in / $0.50 out per 1M with prompt cache write/read rates), exact mathematical cost formulas, multi-agent accumulation, and UI observability. |
 | **[Installation, Setup & Deployment](docs/SETUP_AND_CONFIG.md)** | Step-by-step setup, Docker PostgreSQL 16 guide, environment variables reference (38 configurable parameters / 39 Settings fields), database duplicate cleanup (`pnpm run db:clean-duplicates`), predev port cleanup, production deployment, linters, and troubleshooting. |
 | **[MCAT Psychometric Rubric & Standards](docs/MCAT_RUBRIC.md)** | Official 4 AAMC sections pacing (~96s to ~101s), 100-point 4-pillar evaluation rubric, Blind-Solver algorithmic verification, $> 90$ quality benchmark, calibrated scaled score (118-132), and cognitive distractor trap engineering. |
-| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `engine_helpers.py`, `nodes.py`), Blind-Solver agent, services, repositories, 3-trial retry engine, testing (214 tests across 42 modules: 204 offline-capable, 10 live), and seeding scripts. |
+| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `engine_helpers.py`, `nodes.py`), Blind-Solver agent, services, repositories, 3-trial retry engine, testing (229 tests across 46 modules: 219 offline-capable, 10 live), and seeding scripts. |
 | **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directory (`wizard/`, `question/`, `batch/`, `modals/`, `common/`), top-level views, hooks, predev port cleaner, and local development instructions. |
 
 ---
@@ -139,8 +139,8 @@ pnpm dev
 Run the full backend test suite covering schemas, routing logic, strict quality gates, SVG & FLUX synthesis, database operations, and token calculations:
 
 ```bash
-# Run backend deterministic test suite (204 deterministic tests across 41 modules)
-# Smart auto-skip: If PostgreSQL is offline, 55 pure unit tests pass and 42 DB tests skip cleanly
+# Run backend deterministic test suite (219 deterministic tests across 45 modules)
+# Smart auto-skip: If PostgreSQL is offline, 159 pure unit tests pass and 60 DB tests skip cleanly
 # Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling external LLMs
 source .venv/bin/activate
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
@@ -176,7 +176,8 @@ Question Bank Generator/
 ├── DESIGN.md                    # Authoritative UI/UX Design System Guide (tokens, dual themes, split-pane)
 ├── CONTRIBUTING.md              # Engineering workflows, code conventions & quality policies
 ├── LICENSE                      # MIT / Corporate License
-├── docker-compose.yml           # PostgreSQL 16 container definition
+├── docker-compose.yml           # PostgreSQL 16 (default) + optional backend/web `app` profile
+├── .dockerignore                # Keeps secrets, tests and node_modules out of image builds
 ├── pyproject.toml               # Python build configuration (pytest, ruff, asyncio)
 ├── package.json                 # Monorepo pnpm orchestration scripts (with predev port cleaner)
 ├── pnpm-workspace.yaml          # Pnpm workspace definition
@@ -187,7 +188,7 @@ Question Bank Generator/
 │   ├── ARCHITECTURE.md          # Multi-agent architecture, quality gate & Blind-Solver
 │   ├── API.md                   # Complete REST & SSE API specification (38 operations / 32 paths)
 │   ├── CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md # Client system & operational workflow guide
-│   ├── TESTING_AND_QA.md        # Pytest test suite (214 tests across 42 modules: 204 offline-capable, 10 live) & TestSprite E2E specs
+│   ├── TESTING_AND_QA.md        # Pytest test suite (229 tests across 46 modules: 219 offline-capable, 10 live) & TestSprite E2E specs
 │   ├── TOKEN_TRACKING.md        # Dual-provider inference pricing & mathematical cost engine
 │   ├── SETUP_AND_CONFIG.md      # Installation, deployment (38 env params / 39 Settings fields) & FAQs
 │   └── MCAT_RUBRIC.md           # 100-point psychometric rubric & authoring standards

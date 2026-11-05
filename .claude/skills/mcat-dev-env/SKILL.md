@@ -10,6 +10,7 @@ Monorepo: `backend/` (FastAPI, Python 3.11+, async SQLAlchemy + asyncpg), `front
 ## Start everything
 ```bash
 docker compose up -d     # Postgres on 127.0.0.1:5432, loopback only (POSTGRES_USER/PASSWORD/DB override the mcat_* defaults)
+# Full stack in containers (backend + nginx web on 127.0.0.1:8080): docker compose --profile app up -d --build
 pnpm dev                 # predev frees :8000 and :5173, then runs backend + frontend together
 ```
 `pnpm dev:backend` / `pnpm dev:frontend` run each side alone. The backend command is `PYTHONPATH=backend ./.venv/bin/uvicorn app.main:app --port 8000 --reload`; `PYTHONPATH=backend` is required because imports are `from app...`.
@@ -38,3 +39,4 @@ pnpm install
 - Frontend calls `/api/...`, so check the Vite proxy rather than hardcoding a backend host.
 
 To verify a UI change in the running app, use the built-in browser against http://localhost:5173 after `pnpm dev`.
+- Production runs ONE Uvicorn worker (batch registry, in-flight drafts and semaphores are process-local). Never suggest `-w N` or gunicorn with several workers; see docs/SETUP_AND_CONFIG.md section 6.

@@ -19,5 +19,41 @@ services:
       timeout: 5s
       retries: 5
 
+  # Optional application stack: `docker compose --profile app up -d --build`
+  # (the default `docker compose up -d` still starts only Postgres for local development)
+  backend:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: mcat_backend
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Overrides any localhost DATABASE_URL from .env: inside compose the host is the service name
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-mcat_user}:${POSTGRES_PASSWORD:-mcat_password}@postgres:5432/${POSTGRES_DB:-mcat_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Single worker by design: batch tasks, in-flight drafts and semaphores live in process memory.
+    stop_grace_period: 30s
+
+  web:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_ACCESS_KEY: ${VITE_API_ACCESS_KEY:-}
+    container_name: mcat_web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   postgres_data:
