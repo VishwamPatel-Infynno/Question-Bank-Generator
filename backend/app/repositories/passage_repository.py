@@ -179,7 +179,9 @@ async def delete_passage(passage_id: str) -> tuple[bool, int]:
         await session.commit()
 
     logger.info(
-        f"Soft-deleted passage {passage_id} and {deleted_q_count} associated question(s) (preserved for batch progress)."
+        "Soft-deleted passage %s and %s associated question(s) (preserved for batch progress).",
+        passage_id,
+        deleted_q_count,
     )
     return True, deleted_q_count
 

@@ -19,7 +19,7 @@ graph TD
 
     subgraph "Tier 2: Backend Pytest Engine"
         UnitTests[97 Deterministic Unit & Integration Tests across 20 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests (283 Total Backend Tests)]
+        LiveE2E[10 Live LLM API E2E Integration Tests (289 Total Backend Tests)]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -41,8 +41,8 @@ graph TD
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (90 frontend files, 100% ruff compliance across backend) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **273 passing tests across 50 modules** (~23-28s) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (283 total backend tests across 51 modules) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **279 passing tests across 51 modules** (~23-28s) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (289 total backend tests across 52 modules) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 90$ points |
 
@@ -103,17 +103,17 @@ backend/tests/
 ### 2.2 Test Suite Execution Commands & Execution Modes
 
 #### Execution Modes Breakdown
-- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 76 database-dependent tests, executing all 197 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`197 passed, 76 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 273 deterministic unit and integration tests execute across all 50 modules in ~23-28 seconds (10 live tests deselected).
+- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 76 database-dependent tests, executing all 203 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`203 passed, 76 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 279 deterministic unit and integration tests execute across all 51 modules in ~23-28 seconds (10 live tests deselected).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 283 backend tests across 51 test files.
+- **Total Suite**: 289 backend tests across 52 test files.
 
 ```bash
 # 1. Activate backend virtual environment
 source .venv/bin/activate
 
-# 2. Run all deterministic unit and integration tests across 50 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 197 pure unit tests pass and 76 DB tests cleanly skip
+# 2. Run all deterministic unit and integration tests across 51 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 203 pure unit tests pass and 76 DB tests cleanly skip
 # Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
@@ -140,7 +140,7 @@ PYTHONPATH=backend pytest backend/tests/test_api_questions.py -v
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
-### 2.3 Detailed Test Module Coverage (273 Deterministic Tests across 50 Modules / 283 Total Backend Tests)
+### 2.3 Detailed Test Module Coverage (279 Deterministic Tests across 51 Modules / 289 Total Backend Tests)
 
 1. **`test_additional_instructions.py` (3 tests)**:
    - `test_generation_request_additional_instructions`: Validates Pydantic serialization and round-trip payload persistence of educator instructions.
@@ -304,8 +304,8 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 ```
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
-- All **197 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **273 deterministic tests across 50 modules** execute and pass automatically in ~23-28 seconds.
+- All **203 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
+- Once PostgreSQL is started (`docker compose up -d`), all **279 deterministic tests across 51 modules** execute and pass automatically in ~23-28 seconds.
 
 ---
 
@@ -386,6 +386,7 @@ pnpm lint
 - `test_api_hardening.py`: admin gate, image safety, safe defaults, write validation, rate limit and batch cap.
 - `test_ops_and_resolution.py`: request ids, body limits, error sanitising, liveness, batch-resolution helpers.
 - `test_job_stream_consumer.py`: the shared workflow-stream reader and request builder used by job runs and refills.
+- `test_image_calls.py`: image retry helper and OpenAI image call handling (HTTP mocked).
 - `test_backend_polish.py`: difficulty alias filtering/sorting, OpenAPI build, parse failures.
 - Shared builders live in `backend/tests/factories.py` (`make_draft`, `make_question`).
 

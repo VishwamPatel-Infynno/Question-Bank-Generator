@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.core.config import config
 from app.schemas import GenerationJob, JobStatus, Question
 from app.services.deduplication import cluster_questions
 
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def find_cluster_duplicates(
     active_questions: list[Question],
-    threshold: float = 0.75,
+    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """
     Identifies semantic duplicate clusters among active questions.

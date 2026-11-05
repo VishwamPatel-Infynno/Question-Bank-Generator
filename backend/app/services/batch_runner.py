@@ -127,7 +127,7 @@ async def _execute_in_set_refill(
             if final_b and final_b.status in COMPLETED_STATES:
                 await promote_completed_batch_questions(batch_id)
     except asyncio.CancelledError:
-        logger.info(f"In-set refill for batch {batch_id} was cancelled.")
+        logger.info("In-set refill for batch %s was cancelled.", batch_id)
         for t in tasks:
             if not t.done():
                 t.cancel()
@@ -135,7 +135,7 @@ async def _execute_in_set_refill(
         await refresh_batch_aggregates(batch_id)
         raise
     except Exception as e:
-        logger.error(f"Error during in-set refill for batch {batch_id}: {e}", exc_info=True)
+        logger.error("Error during in-set refill for batch %s: %s", batch_id, e, exc_info=True)
         b = await get_batch_by_id(batch_id)
         if b:
             b.status = BatchStatus.FAILED
@@ -151,7 +151,7 @@ async def _fail_stuck_jobs(batch_id: str, job_ids: list[str]) -> None:
     now_iso = datetime.now(UTC).isoformat()
     for job in await get_jobs_by_batch_id(batch_id):
         if job.id in wanted and job.status in LIVE_STATES:
-            logger.warning(f"Job {job.id} ended without a terminal status; marking it failed.")
+            logger.warning("Job %s ended without a terminal status; marking it failed.", job.id)
             await update_job_progress(
                 job.id,
                 status=JobStatus.FAILED,
@@ -172,7 +172,7 @@ async def _execute_batch_workflow(
     try:
         jobs = target_jobs or await get_jobs_by_batch_id(batch_id)
         if not jobs:
-            logger.error(f"No jobs found for batch {batch_id}")
+            logger.error("No jobs found for batch %s", batch_id)
             failed = await get_batch_by_id(batch_id)
             if failed and failed.status in LIVE_STATES:
                 failed.status = BatchStatus.FAILED
@@ -189,7 +189,7 @@ async def _execute_batch_workflow(
             else [j for j in jobs if j.status in EXECUTABLE_JOB_STATES]
         )
         if not executable_jobs:
-            logger.info(f"Batch {batch_id} has no pending jobs to execute.")
+            logger.info("Batch %s has no pending jobs to execute.", batch_id)
             await refresh_batch_aggregates(batch_id)
             return
 
@@ -202,16 +202,20 @@ async def _execute_batch_workflow(
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for job, res in zip(executable_jobs, results, strict=True):
             if isinstance(res, BaseException):
-                logger.error(f"Job {job.id} of batch {batch_id} crashed: {res!r}", exc_info=res)
+                logger.error("Job %s of batch %s crashed: %r", job.id, batch_id, res, exc_info=res)
         await _fail_stuck_jobs(batch_id, [j.id for j in executable_jobs])
 
         # Finalize batch state atomically without premature completion
         updated_batch = await refresh_batch_aggregates(batch_id, allow_complete=False)
         if updated_batch:
             logger.info(
-                f"Batch {batch_id} finished execution. Status: {updated_batch.status} "
-                f"({updated_batch.completed_jobs}/{updated_batch.total_jobs} jobs, "
-                f"{updated_batch.actual_count}/{updated_batch.target_count} questions)."
+                "Batch %s finished execution. Status: %s (%s/%s jobs, %s/%s questions).",
+                batch_id,
+                updated_batch.status,
+                updated_batch.completed_jobs,
+                updated_batch.total_jobs,
+                updated_batch.actual_count,
+                updated_batch.target_count,
             )
 
         # Autonomous duplicate resolution and refill
@@ -225,7 +229,7 @@ async def _execute_batch_workflow(
                 await promote_completed_batch_questions(batch_id)
 
     except asyncio.CancelledError:
-        logger.info(f"Batch {batch_id} execution was cancelled; terminating all sub-tasks...")
+        logger.info("Batch %s execution was cancelled; terminating all sub-tasks...", batch_id)
         for t in tasks:
             if not t.done():
                 t.cancel()
@@ -233,7 +237,7 @@ async def _execute_batch_workflow(
         await refresh_batch_aggregates(batch_id)
         raise
     except Exception as e:
-        logger.error(f"Fatal error in batch {batch_id} execution: {e}", exc_info=True)
+        logger.error("Fatal error in batch %s execution: %s", batch_id, e, exc_info=True)
         b = await get_batch_by_id(batch_id)
         if b:
             b.status = BatchStatus.FAILED
@@ -269,8 +273,10 @@ async def auto_resolve_batch_and_refill(
     if duplicate_ids_to_purge:
         await hard_delete_questions_batch(duplicate_ids_to_purge)
         logger.info(
-            f"Auto-resolved {len(clusters)} duplicate cluster(s) in batch {batch_id}; "
-            f"permanently deleted {len(duplicate_ids_to_purge)} duplicate question(s)."
+            "Auto-resolved %s duplicate cluster(s) in batch %s; permanently deleted %s duplicate question(s).",
+            len(clusters),
+            batch_id,
+            len(duplicate_ids_to_purge),
         )
 
     # Enforce exact target count per existing job (trim excess questions within each set)
@@ -289,8 +295,11 @@ async def auto_resolve_batch_and_refill(
             if excess_to_delete:
                 await hard_delete_questions_batch(excess_to_delete)
                 logger.info(
-                    f"Trimmed Set #{job.job_number} (Job {job.id}) to target count {job.target_count}: "
-                    f"permanently deleted {len(excess_to_delete)} excess question(s)."
+                    "Trimmed Set #%s (Job %s) to target count %s: permanently deleted %s excess question(s).",
+                    job.job_number,
+                    job.id,
+                    job.target_count,
+                    len(excess_to_delete),
                 )
             await update_job_progress(job.id, actual_count=job.target_count)
 
@@ -307,9 +316,13 @@ async def auto_resolve_batch_and_refill(
         buffer = 1 if deficit < QUESTIONS_PER_JOB else 2
         refill_target = min(target, deficit + buffer)
         logger.info(
-            f"Auto-refill triggered for batch {batch_id}: deficit={deficit}, "
-            f"refill_target={refill_target} (buffer={buffer}), "
-            f"cycle={current_cycle + 1}/{max_cycles}"
+            "Auto-refill triggered for batch %s: deficit=%s, refill_target=%s (buffer=%s), cycle=%s/%s",
+            batch_id,
+            deficit,
+            refill_target,
+            buffer,
+            current_cycle + 1,
+            max_cycles,
         )
         _, refill_jobs = await refill_batch_deficit(
             batch_id, refill_target, cycle=current_cycle + 1, max_cycles=max_cycles
@@ -321,7 +334,10 @@ async def auto_resolve_batch_and_refill(
         if excess_buffer_ids:
             await batch_update_question_status(excess_buffer_ids, status="discarded")
             logger.info(
-                f"Capped batch {batch_id} to exact target {target}: archived {len(excess_buffer_ids)} excess buffer question(s)."
+                "Capped batch %s to exact target %s: archived %s excess buffer question(s).",
+                batch_id,
+                target,
+                len(excess_buffer_ids),
             )
         await refresh_batch_aggregates(batch_id, allow_complete=False)
         remaining_active = target
@@ -351,7 +367,7 @@ def _resolve_effective_request(
         try:
             effective = GenerationRequest(**batch.request_payload)
         except Exception as err:
-            logger.warning(f"Could not deserialize stored batch request_payload: {err}")
+            logger.warning("Could not deserialize stored batch request_payload: %s", err)
     if not effective:
         effective = GenerationRequest(
             section=batch.section or "chem_phys",
@@ -437,7 +453,7 @@ async def refill_batch_deficit(
     jobs_to_refill = compute_jobs_with_deficits(existing_jobs, qs_by_job, total_deficit=deficit)
 
     if not jobs_to_refill:
-        logger.info(f"No existing jobs in batch {batch_id} have deficits to refill.")
+        logger.info("No existing jobs in batch %s have deficits to refill.", batch_id)
         return b, []
 
     b.status = BatchStatus.IN_PROGRESS

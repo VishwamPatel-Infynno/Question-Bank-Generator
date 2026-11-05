@@ -15,6 +15,7 @@ import re
 import zlib
 from typing import Any
 
+from app.agents.standards import DISPARITY_BALANCED, DISPARITY_IDEAL, DISPARITY_MODERATE
 from app.schemas import OptionChoice, QuestionDraft
 
 logger = logging.getLogger(__name__)
@@ -78,28 +79,30 @@ def calculate_option_symmetry(
     is_correct_longest = bool(correct_lengths and max(correct_lengths) == max_w and max_w > min_w)
 
     # Calculate 100-point symmetry score
-    if disparity_ratio <= 1.15:
+    if disparity_ratio <= DISPARITY_IDEAL:
         symmetry_score = 100
-    elif disparity_ratio <= 1.25:
+    elif disparity_ratio <= DISPARITY_BALANCED:
         # Scale smoothly from 100 to 90
-        symmetry_score = int(100 - ((disparity_ratio - 1.15) / 0.10) * 10)
-    elif disparity_ratio <= 1.40:
+        band = DISPARITY_BALANCED - DISPARITY_IDEAL
+        symmetry_score = int(100 - ((disparity_ratio - DISPARITY_IDEAL) / band) * 10)
+    elif disparity_ratio <= DISPARITY_MODERATE:
         # Scale smoothly from 90 to 75
-        symmetry_score = int(90 - ((disparity_ratio - 1.25) / 0.15) * 15)
+        band = DISPARITY_MODERATE - DISPARITY_BALANCED
+        symmetry_score = int(90 - ((disparity_ratio - DISPARITY_BALANCED) / band) * 15)
     else:
         # Penalty scaling for wide disparities
-        symmetry_score = max(30, int(75 - (disparity_ratio - 1.40) * 50))
+        symmetry_score = max(30, int(75 - (disparity_ratio - DISPARITY_MODERATE) * 50))
 
     # Apply 8-point penalty if the correct answer is the longest, exceeds 2-4 word tolerance envelope, and disparity > 1.25
     word_diff = max_w - min_w
-    if is_correct_longest and word_diff > 3 and disparity_ratio > 1.25:
+    if is_correct_longest and word_diff > 3 and disparity_ratio > DISPARITY_BALANCED:
         symmetry_score = max(20, symmetry_score - 8)
 
     # Status classification
-    if disparity_ratio <= 1.25:
+    if disparity_ratio <= DISPARITY_BALANCED:
         status = "Balanced"
         is_balanced = True
-    elif disparity_ratio <= 1.40:
+    elif disparity_ratio <= DISPARITY_MODERATE:
         status = "Moderate Disparity"
         is_balanced = False
     else:

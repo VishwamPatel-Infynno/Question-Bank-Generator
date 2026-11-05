@@ -76,7 +76,7 @@ backend/
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (50 deterministic modules / 273 tests + 1 live E2E module with 10 tests = 283 total)
+└── tests/                   # Deterministic Automated Test Suite (51 deterministic modules / 279 tests + 1 live E2E module with 10 tests = 289 total)
     ├── conftest.py          # Pytest fixtures, offline DB socket probe & async test client
     ├── test_additional_instructions.py # Educator custom instructions and prompt builder integration
     ├── test_agents.py       # Cognitive agent unit tests
@@ -194,8 +194,8 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (273 deterministic tests across 50 modules)
-# Smart auto-skip: 197 pure unit tests pass offline, 76 DB-dependent tests skip cleanly if PostgreSQL is offline
+# Run all unit and integration tests (279 deterministic tests across 51 modules)
+# Smart auto-skip: 203 pure unit tests pass offline, 76 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 

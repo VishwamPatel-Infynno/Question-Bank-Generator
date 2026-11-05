@@ -290,7 +290,7 @@ async def promote_completed_batch_questions(batch_id: str) -> int:
         await session.commit()
         if promoted > 0:
             logger.info(
-                f"Promoted {promoted} questions in completed batch {batch_id} to 'ai_validated'."
+                "Promoted %s questions in completed batch %s to 'ai_validated'.", promoted, batch_id
             )
         return promoted
 
@@ -345,6 +345,7 @@ async def reconcile_interrupted_batches() -> int:
 
         await session.commit()
         logger.info(
-            f"Startup batch reconciliation: safely marked {len(orphans)} orphan batch(es) as 'stopped'."
+            "Startup batch reconciliation: safely marked %s orphan batch(es) as 'stopped'.",
+            len(orphans),
         )
         return len(orphans)

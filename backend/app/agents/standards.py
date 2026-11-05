@@ -17,6 +17,12 @@ CARS_PASSAGE_WORDS: tuple[int, int] = (500, 600)
 # max(OPTION_SPREAD_MIN_WORDS, ceil(OPTION_SPREAD_FRACTION * mean option length)).
 OPTION_SPREAD_MIN_WORDS = 3
 OPTION_SPREAD_FRACTION = 0.20
+
+# Option-length symmetry bands (longest / shortest option word count) used by option_balancer:
+# up to IDEAL scores 100, up to BALANCED is still 'Balanced', up to MODERATE is 'Moderate Disparity'.
+DISPARITY_IDEAL = 1.15
+DISPARITY_BALANCED = 1.25
+DISPARITY_MODERATE = 1.40
 # A spread above this multiple of the limit is a blocking defect (below it, a warning).
 OPTION_SPREAD_BLOCKING_MULTIPLE = 2
 

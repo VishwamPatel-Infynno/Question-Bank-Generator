@@ -380,7 +380,7 @@ STANDARDS FOR AAMC MCAT PASSAGES:
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         logger.warning(
-            f"Passage generation LLM not configured, using offline fallback passage: {e}"
+            "Passage generation LLM not configured, using offline fallback passage: %s", e
         )
         if cars:
             fallback_passage = (
@@ -467,7 +467,7 @@ async def generate_question(
         return draft, usage
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
-        logger.warning(f"Generator LLM not configured, using offline mock draft: {e}")
+        logger.warning("Generator LLM not configured, using offline mock draft: %s", e)
         fallback_usage = mock_usage(
             QUESTION_GENERATOR_MOCK_PROMPT_TOKENS, QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS
         )
@@ -524,12 +524,12 @@ async def generate_question_with_self_critique(
                     passed=config.passes_quality_gate(total),
                 )
             except (ValueError, TypeError, KeyError, AttributeError) as parse_err:
-                logger.warning(f"Failed to parse self_critique object: {parse_err}")
+                logger.warning("Failed to parse self_critique object: %s", parse_err)
 
         return draft, self_review, usage
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
-        logger.warning(f"Fused Generator LLM not configured, using offline mock draft: {e}")
+        logger.warning("Fused Generator LLM not configured, using offline mock draft: %s", e)
         fallback_usage = mock_usage(
             QUESTION_GENERATOR_MOCK_PROMPT_TOKENS, QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS
         )

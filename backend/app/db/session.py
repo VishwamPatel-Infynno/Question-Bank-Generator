@@ -45,8 +45,8 @@ async def init_db() -> bool:
         return True
     except Exception as e:
         logger.warning(
-            f"PostgreSQL initialization deferred or unavailable ({e}). "
-            "Backend operating in offline / disconnected mode."
+            "PostgreSQL initialization deferred or unavailable (%s). Backend operating in offline / disconnected mode.",
+            e,
         )
         return False
 
@@ -58,7 +58,7 @@ async def check_db_health() -> dict[str, Any]:
             await session.execute(text("SELECT 1;"))
             return {"connected": True, "status": "ready", "engine": "postgresql"}
     except Exception as e:
-        logger.error(f"PostgreSQL connection check failed: {e}")
+        logger.error("PostgreSQL connection check failed: %s", e)
         return {
             "connected": False,
             "status": "unavailable",

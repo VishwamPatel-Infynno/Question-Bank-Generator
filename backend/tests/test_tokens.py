@@ -241,3 +241,11 @@ def test_deepinfra_deepseek_r1_costing():
     )
     # 1,000 * 0.55/1e6 = 0.00055; 1,000 * 2.19/1e6 = 0.00219; total = 0.00274
     assert cost_r1 == 0.00274
+
+
+def test_haiku_tiered_rates_switch_above_100k_prompt_tokens():
+    from app.core import pricing
+
+    assert pricing.haiku_5_5_rates(100_000) == pricing.HAIKU_5_5_SHORT_RATES
+    assert pricing.haiku_5_5_rates(100_001) == pricing.HAIKU_5_5_LONG_RATES
+    assert pricing.HAIKU_5_5_SHORT_RATES.output < pricing.HAIKU_5_5_LONG_RATES.output

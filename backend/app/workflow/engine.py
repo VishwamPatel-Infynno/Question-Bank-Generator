@@ -67,6 +67,15 @@ logger = logging.getLogger(__name__)
 # Max buffered SSE events before workers wait for the consumer to catch up
 _EVENT_QUEUE_MAX = 256
 
+# Attempts per question slot (replenishing it after a rejection or error) before moving on
+MAX_SLOT_ATTEMPTS = 3
+SLOT_REPLENISH_DELAY_SECONDS = 0.5  # pause before re-drafting a rejected slot
+SLOT_ERROR_RETRY_DELAY_SECONDS = 1.0  # pause before retrying a slot after an error
+# Workers start slightly apart so siblings can see each other's in-flight stems for dedup
+WORKER_STAGGER_SECONDS = 0.35
+WORKER_STAGGER_MAX_SECONDS = 2.0
+EVENT_POLL_SECONDS = 1.0  # how often the stream loop re-checks that the workers are still running
+
 
 async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, None]:
     """
@@ -141,7 +150,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             )
             await save_job(job_record)
         except Exception as db_err:
-            logger.warning(f"Live batch/job persistence skipped (DB offline): {db_err}")
+            logger.warning("Live batch/job persistence skipped (DB offline): %s", db_err)
 
     def make_event(
         event_type: str,
@@ -272,7 +281,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 limit=50,
             )
         except Exception as ref_err:
-            logger.warning(f"Could not load reference questions for deduplication: {ref_err}")
+            logger.warning("Could not load reference questions for deduplication: %s", ref_err)
 
         def _fold_attempt_usage(idx: int, st: AgentWorkflowState | None) -> None:
             """Adds one attempt's complete spend (tokens, split, cost, breakdown) to the slot."""
@@ -290,12 +299,14 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             return limit > 0 and outcomes_calls[idx] >= limit
 
         async def _worker(idx: int) -> None:
-            max_slot_attempts = 3  # Try up to 3 times max per slot, then move forward
+            max_slot_attempts = MAX_SLOT_ATTEMPTS
             for attempt in range(max_slot_attempts):
                 if attempt > 0 and _slot_budget_spent(idx):
                     logger.warning(
-                        f"Question {idx + 1}: LLM call budget exhausted after "
-                        f"{outcomes_calls[idx]} calls; not starting attempt {attempt + 1}."
+                        "Question %s: LLM call budget exhausted after %s calls; not starting attempt %s.",
+                        idx + 1,
+                        outcomes_calls[idx],
+                        attempt + 1,
                     )
                     return
                 # Reset per attempt so an error before the new state exists can never fold the
@@ -628,13 +639,17 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                         }
                         outcomes_rejections.append(rej_data)
                         logger.warning(
-                            f"Question {idx + 1} attempt {attempt + 1}/{max_slot_attempts} not satisfied "
-                            f"(passed={question_passed}, is_dup={is_hard_dup}). Auto-replenishing slot..."
+                            "Question %s attempt %s/%s not satisfied (passed=%s, is_dup=%s). Auto-replenishing slot...",
+                            idx + 1,
+                            attempt + 1,
+                            max_slot_attempts,
+                            question_passed,
+                            is_hard_dup,
                         )
                         _fold_attempt_usage(idx, state)
                         attempt_state = None  # already counted
                         await remove_in_flight_draft(batch_id, idx)
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(SLOT_REPLENISH_DELAY_SECONDS)
                         continue
 
                 except asyncio.CancelledError:
@@ -653,13 +668,20 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                         and not _slot_budget_spent(idx)
                     ):
                         logger.warning(
-                            f"Worker {idx + 1} encountered error (attempt {attempt + 1}/{max_slot_attempts}): {worker_err}. Auto-replenishing slot in 1.0s..."
+                            "Worker %s encountered error (attempt %s/%s): %s. Auto-replenishing slot in 1.0s...",
+                            idx + 1,
+                            attempt + 1,
+                            max_slot_attempts,
+                            worker_err,
                         )
-                        await asyncio.sleep(1.0)
+                        await asyncio.sleep(SLOT_ERROR_RETRY_DELAY_SECONDS)
                         continue
 
                     logger.error(
-                        f"Worker {idx + 1} exhausted all {max_slot_attempts} replenishment attempts: {worker_err}",
+                        "Worker %s exhausted all %s replenishment attempts: %s",
+                        idx + 1,
+                        max_slot_attempts,
+                        worker_err,
                         exc_info=worker_err,
                     )
                     if total_qty > 1:
@@ -699,7 +721,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             if w_idx > 0:
                 # Small bounded stagger so siblings can see each other's in-flight stems for dedup,
                 # without delaying the last worker of a 50-question run by ~17 seconds.
-                await asyncio.sleep(min(0.35 * w_idx, 2.0))
+                await asyncio.sleep(min(WORKER_STAGGER_SECONDS * w_idx, WORKER_STAGGER_MAX_SECONDS))
             with bind_log_context(batch_id=batch_id, run_id=req.run_id, slot=w_idx + 1):
                 await _worker(w_idx)
 
@@ -711,7 +733,9 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 for idx_t, res in enumerate(results):
                     if isinstance(res, Exception):
                         logger.error(
-                            f"Worker task {idx_t + 1} raised unhandled exception: {res}",
+                            "Worker task %s raised unhandled exception: %s",
+                            idx_t + 1,
+                            res,
                             exc_info=res,
                         )
             finally:
@@ -725,7 +749,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
         while True:
             try:
-                evt = await asyncio.wait_for(event_queue.get(), timeout=1.0)
+                evt = await asyncio.wait_for(event_queue.get(), timeout=EVENT_POLL_SECONDS)
             except TimeoutError:
                 if monitor_done.is_set() and event_queue.empty():
                     break
@@ -873,7 +897,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             )
         raise
     except Exception as e:
-        logger.error(f"Workflow stream error: {e}")
+        logger.error("Workflow stream error: %s", e)
         if is_standalone_live_run:
             await _handle_live_job_failure(
                 job_id=job_id,

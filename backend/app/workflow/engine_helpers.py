@@ -64,6 +64,9 @@ from app.workflow.state import AgentWorkflowState
 
 logger = logging.getLogger(__name__)
 
+# Regeneration attempts after a hard duplicate is found, before the draft goes on regardless
+DEDUP_REGEN_MAX_RETRIES = 3
+
 
 @dataclass
 class SharedPassageState:
@@ -777,7 +780,10 @@ async def _persist_live_question(
         await update_job_progress(job_id, actual_count=completed_so_far)
     except (SQLAlchemyError, OSError) as q_save_err:
         logger.warning(
-            f"Could not auto-persist question {idx + 1} for live batch {batch_id}: {q_save_err}",
+            "Could not auto-persist question %s for live batch %s: %s",
+            idx + 1,
+            batch_id,
+            q_save_err,
             exc_info=True,
         )
 
@@ -812,7 +818,7 @@ async def _finalize_live_job_progress(
         if job_status == JobStatus.COMPLETED:
             await promote_completed_batch_questions(batch_id)
     except (SQLAlchemyError, OSError) as db_err:
-        logger.warning(f"Could not finalize live job progress (DB offline): {db_err}")
+        logger.warning("Could not finalize live job progress (DB offline): %s", db_err)
 
 
 async def _handle_live_job_cancellation(
@@ -832,7 +838,7 @@ async def _handle_live_job_cancellation(
         # A live (streamed) run has no background task to finish the batch later, so resolve it now
         await refresh_batch_aggregates(batch_id, allow_complete=True)
     except (SQLAlchemyError, OSError) as clean_err:
-        logger.warning(f"Error updating cancelled live batch {batch_id}: {clean_err}")
+        logger.warning("Error updating cancelled live batch %s: %s", batch_id, clean_err)
 
 
 async def _handle_live_job_failure(
@@ -851,7 +857,7 @@ async def _handle_live_job_failure(
         )
         await refresh_batch_aggregates(batch_id, allow_complete=True)
     except (SQLAlchemyError, OSError) as clean_err:
-        logger.warning(f"Error updating failed live batch {batch_id}: {clean_err}")
+        logger.warning("Error updating failed live batch %s: %s", batch_id, clean_err)
 
 
 # Pools at least this large are scored in a worker thread so the event loop (SSE, polling, other
@@ -960,7 +966,7 @@ async def _run_deduplication_anti_collision_loop(
     outcomes_questions: list[dict[str, Any] | None],
     event_queue: asyncio.Queue[WorkflowEvent | None],
     make_event: Callable[..., WorkflowEvent],
-    max_retries: int = 3,
+    max_retries: int = DEDUP_REGEN_MAX_RETRIES,
     threshold: float = config.DUPLICATE_HARD_THRESHOLD,
     soft_threshold: float = config.DUPLICATE_SOFT_THRESHOLD,
     batch_key: str | None = None,
@@ -992,8 +998,12 @@ async def _run_deduplication_anti_collision_loop(
         dedup_retry += 1
         alt_trap = ALT_TRAP_ROTATION[(idx + dedup_retry) % len(ALT_TRAP_ROTATION)]
         logger.warning(
-            f"Worker {idx + 1} generated duplicate question ({int(dup_result.similarity_score * 100)}% match). "
-            f"Triggering anti-collision regeneration with trap '{alt_trap}' (attempt {dedup_retry}/{max_retries})..."
+            "Worker %s generated duplicate question (%s%% match). Triggering anti-collision regeneration with trap '%s' (attempt %s/%s)...",
+            idx + 1,
+            int(dup_result.similarity_score * 100),
+            alt_trap,
+            dedup_retry,
+            max_retries,
         )
         dup_evt = make_event(
             event_type="agent_action",

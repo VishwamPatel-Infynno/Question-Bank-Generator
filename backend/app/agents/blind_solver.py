@@ -190,7 +190,7 @@ async def _solve_once(
     except LLMNotConfiguredError:
         raise
     except Exception as e:
-        logger.error(f"Blind solver sample {variant} failed: {e}")
+        logger.error("Blind solver sample %s failed: %s", variant, e)
         raise QualityCheckUnavailableError(f"Blind solver failed: {e}") from e
     sample.usage = usage
     return sample
@@ -257,14 +257,14 @@ async def blind_solve_question(
             samples = list(
                 await asyncio.gather(
                     _solve_once(draft, req, 0, base_temp),
-                    *(_solve_once(draft, req, v, diversified) for v in range(1, 2)),
+                    _solve_once(draft, req, 1, diversified),
                 )
             )
             if n >= 3 and samples[0].key != samples[1].key:
                 samples.append(await _solve_once(draft, req, 2, diversified))
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
-        logger.warning(f"Blind solver LLM not configured, offline bypass: {e}")
+        logger.warning("Blind solver LLM not configured, offline bypass: %s", e)
         usage = TokenUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0, cost_usd=0.0)
         return BlindSolverResult(
             selected_key=expected_key,
@@ -279,7 +279,10 @@ async def blind_solve_question(
 
     result = aggregate_samples(samples, expected_key)
     logger.info(
-        f"Blind Solver: votes={[s.key for s in samples]}, intended='{expected_key}', "
-        f"confidence={result.confidence}%, verified={result.is_verified}"
+        "Blind Solver: votes=%s, intended='%s', confidence=%s%%, verified=%s",
+        [s.key for s in samples],
+        expected_key,
+        result.confidence,
+        result.is_verified,
     )
     return result, result.usage

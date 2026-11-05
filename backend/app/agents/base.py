@@ -12,6 +12,7 @@ from typing import Any, TypeVar
 
 import json_repair
 
+from app.core import pricing
 from app.core.config import config
 from app.schemas import TokenUsage
 from app.schemas.token import sum_usage
@@ -206,16 +207,9 @@ def calculate_token_cost(
         if (
             "haiku-5-5" in target_model.lower() or target_model == "claude-haiku-5-5"
         ) and not has_rate_override:
-            if prompt_tokens > 100_000:
-                in_rate = 0.50
-                out_rate = 2.50
-                cache_read_rate = 0.05
-                cache_creation_rate = 0.625
-            else:
-                in_rate = 0.10
-                out_rate = 0.50
-                cache_read_rate = 0.01
-                cache_creation_rate = 0.125
+            in_rate, out_rate, cache_read_rate, cache_creation_rate = pricing.haiku_5_5_rates(
+                prompt_tokens
+            )
         else:
             in_rate, out_rate = config.get_default_pricing_rates(target_model)
             cache_read_rate = in_rate * 0.10
@@ -396,8 +390,10 @@ async def call_llm(
                         truncated_usage.append(_usage_from_response(response, candidate))
                         kwargs["max_tokens"] = min(ceiling, current_max * 2)
                         logger.warning(
-                            f"Output truncated at {current_max} tokens on '{candidate}'. "
-                            f"Retrying with max_tokens={kwargs['max_tokens']}."
+                            "Output truncated at %s tokens on '%s'. Retrying with max_tokens=%s.",
+                            current_max,
+                            candidate,
+                            kwargs["max_tokens"],
                         )
                         continue
                     raise ValueError(
@@ -455,7 +451,13 @@ async def call_llm(
                 )
                 provider_label = config.get_active_provider(candidate).capitalize()
                 logger.info(
-                    f"LLM Call Succeeded [{candidate} via {provider_label}]: {prompt_tokens} in + {completion_tokens} out = {total_tokens} tokens (${cost_usd:.5f})"
+                    "LLM Call Succeeded [%s via %s]: %s in + %s out = %s tokens ($%.5f)",
+                    candidate,
+                    provider_label,
+                    prompt_tokens,
+                    completion_tokens,
+                    total_tokens,
+                    cost_usd,
                 )
                 if truncated_usage:
                     usage = sum_usage([*truncated_usage, usage])
@@ -484,23 +486,32 @@ async def call_llm(
                     base_backoff = config.LLM_BASE_BACKOFF_SECONDS
                     backoff_secs = base_backoff * (2**attempt) + random.uniform(0.1, 0.5)
                     logger.warning(
-                        f"Transient LLM error ({err}) on candidate '{candidate}'. "
-                        f"Backing off for {backoff_secs:.2f}s (attempt {attempt + 1}/{max_retries + 1})..."
+                        "Transient LLM error (%s) on candidate '%s'. Backing off for %.2fs (attempt %s/%s)...",
+                        err,
+                        candidate,
+                        backoff_secs,
+                        attempt + 1,
+                        max_retries + 1,
                     )
                     await asyncio.sleep(backoff_secs)
                     continue
                 if attempt < max_retries and "connection" in err_str:
                     backoff_secs = 1.0 + random.uniform(0.1, 0.4)
                     logger.warning(
-                        f"Connection error ({err}) on '{candidate}'. Retrying in {backoff_secs:.2f}s..."
+                        "Connection error (%s) on '%s'. Retrying in %.2fs...",
+                        err,
+                        candidate,
+                        backoff_secs,
                     )
                     await asyncio.sleep(backoff_secs)
                     continue
 
-                logger.warning(f"LLM error on model '{candidate}' attempt {attempt + 1}: {err}")
+                logger.warning(
+                    "LLM error on model '%s' attempt %s: %s", candidate, attempt + 1, err
+                )
                 break
 
-    logger.error(f"LLM call failed for prompt. Last error: {last_error}")
+    logger.error("LLM call failed for prompt. Last error: %s", last_error)
     if isinstance(last_error, ValueError):
         raise last_error
     raise RuntimeError(
@@ -529,7 +540,7 @@ async def call_llm_validated(
     try:
         return parse(raw), usage
     except _PARSE_ERRORS as first_error:
-        logger.warning(f"LLM output failed validation ({first_error}); requesting one repair.")
+        logger.warning("LLM output failed validation (%s); requesting one repair.", first_error)
         repair_prompt = (
             f"{prompt}\n\n--- YOUR PREVIOUS REPLY WAS INVALID ---\n"
             f"Problem: {first_error}\n"

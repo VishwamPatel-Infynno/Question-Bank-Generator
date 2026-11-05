@@ -184,13 +184,13 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 283-test backend verification suite across 51 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 289-test backend verification suite across 52 modules using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 273 deterministic unit and integration tests across 50 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 197 pure unit tests pass and 76 DB tests skip cleanly
+# 1. Run all 279 deterministic unit and integration tests across 51 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 203 pure unit tests pass and 76 DB tests skip cleanly
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
@@ -204,10 +204,10 @@ ruff format --check .
 ```
 
 #### Dual Test Execution Modes
-- **Offline Mode** (PostgreSQL offline): Executes all 197 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`197 passed, 76 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 273 deterministic tests across 50 modules in ~23-28 seconds (10 live tests deselected).
+- **Offline Mode** (PostgreSQL offline): Executes all 203 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`203 passed, 76 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 279 deterministic tests across 51 modules in ~23-28 seconds (10 live tests deselected).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 283 tests across 51 test files.
+- **Total Backend Suite**: 289 tests across 52 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.

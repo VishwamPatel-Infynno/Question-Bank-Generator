@@ -131,10 +131,10 @@ Evaluate this question thoroughly and return your 100-point rubric breakdown as 
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         # No credentials at all: offline demo/test mode keeps using the heuristic reviewer.
-        logger.warning(f"Reviewer LLM not configured, using heuristic review: {e}")
+        logger.warning("Reviewer LLM not configured, using heuristic review: %s", e)
         fallback_usage = mock_usage(REVIEWER_MOCK_PROMPT_TOKENS, REVIEWER_MOCK_COMPLETION_TOKENS)
         return evaluate_heuristically(draft, req, iteration), fallback_usage
     except Exception as e:
         # Fail closed: an item must never pass because its reviewer broke.
-        logger.error(f"Quality reviewer failed: {e}")
+        logger.error("Quality reviewer failed: %s", e)
         raise QualityCheckUnavailableError(f"Quality reviewer failed: {e}") from e

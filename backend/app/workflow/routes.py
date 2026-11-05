@@ -37,11 +37,18 @@ def route_after_review(state: AgentWorkflowState) -> str:
     if score <= threshold:
         if iteration < max_attempts:
             logger.info(
-                f"Score {score} <= {threshold} and iteration {iteration} < {max_attempts}. Routing to Re-Generator."
+                "Score %s <= %s and iteration %s < %s. Routing to Re-Generator.",
+                score,
+                threshold,
+                iteration,
+                max_attempts,
             )
             return "regenerator"
         logger.warning(
-            f"Score {score} <= {threshold} after max attempts ({max_attempts}). Strict Quality Gate: Halting workflow."
+            "Score %s <= %s after max attempts (%s). Strict Quality Gate: Halting workflow.",
+            score,
+            threshold,
+            max_attempts,
         )
         return "reject"
 
@@ -52,8 +59,8 @@ def route_after_review(state: AgentWorkflowState) -> str:
     requires_image = _is_image_required(req, current_draft)
 
     if requires_image:
-        logger.info(f"Score {score} > {threshold}. Routing to Image Generator.")
+        logger.info("Score %s > %s. Routing to Image Generator.", score, threshold)
         return "image_generator"
 
-    logger.info(f"Score {score} > {threshold}. Routing to Finalize.")
+    logger.info("Score %s > %s. Routing to Finalize.", score, threshold)
     return "finalize"

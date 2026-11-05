@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
@@ -63,6 +64,43 @@ def calculate_image_cost(
     )
 
 
+_IMAGE_MAX_RETRIES = 2
+
+
+async def _retry_image_call(
+    label: str,
+    timeout: float,
+    attempt_once: Callable[[httpx.AsyncClient], Awaitable[tuple[str | None, float | None]]],
+) -> tuple[str | None, float | None]:
+    """Runs ``attempt_once`` with a fresh HTTP client, retrying with linear backoff.
+
+    An attempt succeeds when it returns image data; an empty result or an exception is logged and
+    retried up to _IMAGE_MAX_RETRIES more times. Returns ``(None, None)`` when all attempts fail.
+    """
+    for attempt in range(_IMAGE_MAX_RETRIES + 1):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                img_data, cost = await attempt_once(client)
+                if img_data:
+                    return (img_data, cost)
+        except Exception as err:
+            logger.warning(
+                "HTTP client error in %s call (attempt %d/%d): %s",
+                label,
+                attempt + 1,
+                _IMAGE_MAX_RETRIES + 1,
+                err,
+            )
+
+        if attempt < _IMAGE_MAX_RETRIES:
+            backoff_secs = 1.0 * (attempt + 1)
+            logger.info("Retrying %s generation in %ss...", label, backoff_secs)
+            await asyncio.sleep(backoff_secs)
+
+    logger.error("%s generation failed after %d attempts.", label, _IMAGE_MAX_RETRIES + 1)
+    return (None, None)
+
+
 async def call_openai_image_api(
     prompt: str,
     width: int,
@@ -96,58 +134,40 @@ async def call_openai_image_api(
     if "dall-e-3" in model_id:
         payload["quality"] = quality
 
-    max_retries = 2
-    for attempt in range(max_retries + 1):
-        try:
-            async with httpx.AsyncClient(timeout=45.0) as client:
-                res = await client.post(url, json=payload, headers=headers)
-                if res.status_code == 200:
-                    data = res.json()
-                    calculated_cost = None
-                    usage = data.get("usage")
-                    if usage and isinstance(usage, dict):
-                        in_tok = usage.get("prompt_tokens") or usage.get("input_tokens") or 0
-                        out_tok = usage.get("completion_tokens") or usage.get("output_tokens") or 0
-                        if in_tok or out_tok:
-                            calculated_cost = round(
-                                (in_tok / 1_000_000.0) * 5.00 + (out_tok / 1_000_000.0) * 30.00, 7
-                            )
-
-                    if calculated_cost is None:
-                        calculated_cost = config.calculate_image_cost(
-                            width=width, height=height, model=model_id, quality=quality
-                        )
-
-                    if "data" in data and len(data["data"]) > 0:
-                        item = data["data"][0]
-                        b64 = item.get("b64_json")
-                        if b64:
-                            img_data = (
-                                f"data:image/png;base64,{b64}"
-                                if not b64.startswith("data:")
-                                else b64
-                            )
-                            return (img_data, calculated_cost)
-                        if item.get("url"):
-                            return (item.get("url"), calculated_cost)
-                else:
-                    logger.warning(
-                        f"OpenAI image generation error (status {res.status_code}): {res.text[:200]}"
-                    )
-        except Exception as e:
+    async def attempt_once(client: httpx.AsyncClient) -> tuple[str | None, float | None]:
+        res = await client.post(url, json=payload, headers=headers)
+        if res.status_code != 200:
             logger.warning(
-                f"HTTP client error in OpenAI image call (attempt {attempt + 1}/{max_retries + 1}): {e}"
+                "OpenAI image generation error (status %s): %s", res.status_code, res.text[:200]
+            )
+            return (None, None)
+        data = res.json()
+        calculated_cost = None
+        usage = data.get("usage")
+        if usage and isinstance(usage, dict):
+            in_tok = usage.get("prompt_tokens") or usage.get("input_tokens") or 0
+            out_tok = usage.get("completion_tokens") or usage.get("output_tokens") or 0
+            if in_tok or out_tok:
+                calculated_cost = round(
+                    (in_tok / 1_000_000.0) * 5.00 + (out_tok / 1_000_000.0) * 30.00, 7
+                )
+
+        if calculated_cost is None:
+            calculated_cost = config.calculate_image_cost(
+                width=width, height=height, model=model_id, quality=quality
             )
 
-        if attempt < max_retries:
-            backoff_secs = 1.0 * (attempt + 1)
-            logger.info(f"Retrying OpenAI image generation in {backoff_secs}s...")
-            await asyncio.sleep(backoff_secs)
+        if "data" in data and len(data["data"]) > 0:
+            item = data["data"][0]
+            b64 = item.get("b64_json")
+            if b64:
+                img_data = f"data:image/png;base64,{b64}" if not b64.startswith("data:") else b64
+                return (img_data, calculated_cost)
+            if item.get("url"):
+                return (item.get("url"), calculated_cost)
+        return (None, None)
 
-    logger.error(
-        f"OpenAI image model ({model_id}) generation failed after {max_retries + 1} attempts."
-    )
-    return (None, None)
+    return await _retry_image_call(f"OpenAI image model ({model_id})", 45.0, attempt_once)
 
 
 async def _call_native_flux_endpoint(
@@ -184,10 +204,10 @@ async def _call_native_flux_endpoint(
                 return (data["output"][0], cost)
         else:
             logger.warning(
-                f"DeepInfra native FLUX inference status {res.status_code}: {res.text[:200]}"
+                "DeepInfra native FLUX inference status %s: %s", res.status_code, res.text[:200]
             )
     except Exception as e:
-        logger.warning(f"DeepInfra native FLUX inference error: {e}")
+        logger.warning("DeepInfra native FLUX inference error: %s", e)
     return (None, None)
 
 
@@ -224,10 +244,10 @@ async def _call_openai_flux_endpoint(
                     return (img, None)
         else:
             logger.warning(
-                f"DeepInfra OpenAI-compatible FLUX status {res.status_code}: {res.text[:200]}"
+                "DeepInfra OpenAI-compatible FLUX status %s: %s", res.status_code, res.text[:200]
             )
     except Exception as e:
-        logger.warning(f"DeepInfra OpenAI-compatible FLUX endpoint error: {e}")
+        logger.warning("DeepInfra OpenAI-compatible FLUX endpoint error: %s", e)
     return (None, None)
 
 
@@ -248,34 +268,15 @@ async def call_deepinfra_flux(
     if not model_id:
         model_id = "black-forest-labs/FLUX-2-klein-4b"
 
-    max_retries = 2
-    for attempt in range(max_retries + 1):
-        try:
-            async with httpx.AsyncClient(timeout=35.0) as client:
-                img_data, cost = await _call_native_flux_endpoint(
-                    client, model_id, prompt, width, height, iters, api_key
-                )
-                if img_data:
-                    return (img_data, cost)
+    async def attempt_once(client: httpx.AsyncClient) -> tuple[str | None, float | None]:
+        img_data, cost = await _call_native_flux_endpoint(
+            client, model_id, prompt, width, height, iters, api_key
+        )
+        if img_data:
+            return (img_data, cost)
+        return await _call_openai_flux_endpoint(client, model_id, prompt, width, height, api_key)
 
-                img_data, cost = await _call_openai_flux_endpoint(
-                    client, model_id, prompt, width, height, api_key
-                )
-                if img_data:
-                    return (img_data, cost)
-
-        except Exception as client_err:
-            logger.warning(
-                f"HTTP client error in FLUX call (attempt {attempt + 1}/{max_retries + 1}): {client_err}"
-            )
-
-        if attempt < max_retries:
-            backoff_secs = 1.0 * (attempt + 1)
-            logger.info(f"Retrying AI image model generation in {backoff_secs}s...")
-            await asyncio.sleep(backoff_secs)
-
-    logger.error(f"AI image model ({model_id}) generation failed after {max_retries + 1} attempts.")
-    return (None, None)
+    return await _retry_image_call(f"AI image model ({model_id})", 35.0, attempt_once)
 
 
 async def generate_image_stimulus(
@@ -323,7 +324,7 @@ async def generate_image_stimulus(
             f"High-quality educational test figure, scientific illustration, or medical diagram on clean white background, high contrast, "
             f"clear professional labeling for AAMC MCAT exam: {prompt_for_image}"
         )
-        logger.info(f"Generating OpenAI image with {model_id} ({width}x{height})...")
+        logger.info("Generating OpenAI image with %s (%sx%s)...", model_id, width, height)
 
         res = await call_openai_image_api(
             prompt=openai_prompt,
@@ -364,7 +365,8 @@ async def generate_image_stimulus(
             return (img_data, None, prompt_for_image, usage_dict)
 
         logger.error(
-            f"OpenAI Image Model ({model_id}) failed to generate an image. Strictly returning failure without SVG mock fallback."
+            "OpenAI Image Model (%s) failed to generate an image. Strictly returning failure without SVG mock fallback.",
+            model_id,
         )
         failure_usage = {
             "agent_name": "Image Generator",
@@ -414,7 +416,7 @@ async def generate_image_stimulus(
         f"clear professional labeling for AAMC MCAT exam: {prompt_for_image}"
     )
     logger.info(
-        f"Generating DeepInfra AI image with {model_id} ({width}x{height}, {iters} iters)..."
+        "Generating DeepInfra AI image with %s (%sx%s, %s iters)...", model_id, width, height, iters
     )
 
     res = await call_deepinfra_flux(
@@ -463,7 +465,8 @@ async def generate_image_stimulus(
 
     # If call_deepinfra_flux returns None after all retries:
     logger.error(
-        f"AI Image Model ({model_id}) failed to generate an image. Strictly returning failure without SVG mock fallback."
+        "AI Image Model (%s) failed to generate an image. Strictly returning failure without SVG mock fallback.",
+        model_id,
     )
     failure_usage = {
         "agent_name": "Image Generator",

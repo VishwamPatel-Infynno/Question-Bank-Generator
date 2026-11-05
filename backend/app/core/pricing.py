@@ -7,6 +7,7 @@ LiteLLM registry lookup so the pricing logic is data, not a long if-chain inside
 from __future__ import annotations
 
 import logging
+from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,28 @@ OPENAI_FAMILY_RATES: tuple[tuple[str, Rate], ...] = (
 )
 
 DEEPSEEK_REASONER_RATE: Rate = (0.55, 2.19)
+
+
+class CachedRates(NamedTuple):
+    """USD per 1M tokens including the prompt-cache read and write rates."""
+
+    input: float
+    output: float
+    cache_read: float
+    cache_write: float
+
+
+# Claude Haiku 5.5 is billed in two tiers by prompt size (official Anthropic pricing).
+HAIKU_5_5_LONG_PROMPT_TOKENS = 100_000
+HAIKU_5_5_SHORT_RATES = CachedRates(0.10, 0.50, 0.01, 0.125)
+HAIKU_5_5_LONG_RATES = CachedRates(0.50, 2.50, 0.05, 0.625)
+
+
+def haiku_5_5_rates(prompt_tokens: int) -> CachedRates:
+    """Tiered rates for Claude Haiku 5.5: prompts above 100K tokens cost more per token."""
+    if prompt_tokens > HAIKU_5_5_LONG_PROMPT_TOKENS:
+        return HAIKU_5_5_LONG_RATES
+    return HAIKU_5_5_SHORT_RATES
 
 
 def family_rate(target: str, table: tuple[tuple[str, Rate], ...]) -> Rate | None:

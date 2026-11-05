@@ -166,7 +166,9 @@ Please re-generate and refine this question to resolve all weaknesses and produc
         return re_draft, usage
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
-        logger.warning(f"Re-Generator LLM not configured, using offline heuristic remediation: {e}")
+        logger.warning(
+            "Re-Generator LLM not configured, using offline heuristic remediation: %s", e
+        )
         fallback_usage = mock_usage(
             REGENERATOR_MOCK_PROMPT_TOKENS, REGENERATOR_MOCK_COMPLETION_TOKENS
         )

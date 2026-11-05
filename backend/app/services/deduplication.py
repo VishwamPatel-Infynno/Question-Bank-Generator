@@ -17,6 +17,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.core.config import config
+
 logger = logging.getLogger(__name__)
 
 # Common English stop words to exclude during token normalization
@@ -181,6 +183,15 @@ _STEM_PRUNE_BELOW = 0.40
 
 # Two answer options count as the same when their text similarity exceeds this
 _OPTION_MATCH_RATIO = 0.85
+# Options whose lengths differ by more than this ratio cannot reach _OPTION_MATCH_RATIO
+_OPTION_LENGTH_RATIO_FLOOR = 0.60
+
+# How the stem and option similarities combine into one verdict (compute_question_similarity)
+_STEM_NEAR_DUPLICATE = 0.80  # the stem alone drives the collision
+_STEM_SUBSTANTIAL = 0.60
+_STEM_MODERATE = 0.50
+_OPTIONS_NEAR_IDENTICAL = 0.75
+_OPTIONS_SUBSTANTIAL = 0.50
 
 
 def compute_stem_similarity(stem1: str, stem2: str, *, prune: bool = False) -> float:
@@ -253,9 +264,10 @@ def compute_options_overlap(
             if t1 == t2:
                 matches += 1
                 break
-            # Length ratio heuristic before SequenceMatcher: if ratio < 0.6, sequence ratio cannot exceed 0.85
+            # Length ratio heuristic before SequenceMatcher: below the floor the sequence ratio
+            # cannot exceed _OPTION_MATCH_RATIO
             l1, l2 = len(t1), len(t2)
-            if max(l1, l2) > 0 and (min(l1, l2) / max(l1, l2)) < 0.60:
+            if max(l1, l2) > 0 and (min(l1, l2) / max(l1, l2)) < _OPTION_LENGTH_RATIO_FLOOR:
                 continue
             if compute_sequence_ratio(t1, t2) > _OPTION_MATCH_RATIO:
                 matches += 1
@@ -287,8 +299,8 @@ def compute_question_similarity(
     )
     stem_sim = compute_stem_similarity(stem1, stem2, prune=prune)
 
-    # Early-exit prune: if stem similarity is below 0.40, composite similarity can NEVER reach 0.80
-    if stem_sim < 0.40:
+    # Early-exit prune: below _STEM_PRUNE_BELOW the composite can never reach a duplicate verdict
+    if stem_sim < _STEM_PRUNE_BELOW:
         overall = round(0.70 * stem_sim, 4)
         return overall, f"Distinct question stem ({int(stem_sim * 100)}%)"
 
@@ -305,16 +317,16 @@ def compute_question_similarity(
 
     opts_sim = compute_options_overlap(opts1, opts2)
 
-    # If stems are nearly identical (>0.80), that alone drives the collision
-    if stem_sim >= 0.80:
+    # If stems are nearly identical, that alone drives the collision
+    if stem_sim >= _STEM_NEAR_DUPLICATE:
         overall = stem_sim
         reason = f"High question stem textual overlap ({int(stem_sim * 100)}%)"
-    # If options are identical or near-identical (>= 0.75) and stem has moderate-to-high overlap
-    elif opts_sim >= 0.75 and stem_sim >= 0.50:
+    # If options are identical or near-identical and the stem has moderate-to-high overlap
+    elif opts_sim >= _OPTIONS_NEAR_IDENTICAL and stem_sim >= _STEM_MODERATE:
         overall = round((0.50 * stem_sim) + (0.50 * opts_sim), 4)
         reason = f"Identical answer choices ({int(opts_sim * 100)}%) and conceptual stem match ({int(stem_sim * 100)}%)"
     # If both stem and options have substantial overlap
-    elif stem_sim >= 0.60 and opts_sim >= 0.50:
+    elif stem_sim >= _STEM_SUBSTANTIAL and opts_sim >= _OPTIONS_SUBSTANTIAL:
         overall = round((0.60 * stem_sim) + (0.40 * opts_sim), 4)
         reason = f"Question stem ({int(stem_sim * 100)}%) and answer choice ({int(opts_sim * 100)}%) collision"
     else:
@@ -327,8 +339,8 @@ def compute_question_similarity(
 def evaluate_duplicate(
     candidate: dict[str, Any] | Any,
     reference_pool: list[dict[str, Any] | Any],
-    threshold: float = 0.75,
-    soft_threshold: float = 0.60,
+    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
+    soft_threshold: float = config.DUPLICATE_SOFT_THRESHOLD,
 ) -> DuplicateCheckResult:
     """
     Evaluates a candidate question against a pool of reference questions (from DB or batch siblings).
@@ -417,7 +429,7 @@ def evaluate_duplicate(
 
 def cluster_questions(
     questions: list[dict[str, Any] | Any],
-    threshold: float = 0.75,
+    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
 ) -> list[dict[str, Any]]:
     """
     Groups questions into duplicate clusters using graph connected components.

@@ -97,7 +97,7 @@ async def ensure_db_initialized():
         except Exception as e:
             import logging
 
-            logging.getLogger(__name__).warning(f"Failed to auto-init DB in test session: {e}")
+            logging.getLogger(__name__).warning("Failed to auto-init DB in test session: %s", e)
 
 
 @pytest.fixture(scope="session")

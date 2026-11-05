@@ -25,6 +25,7 @@ select = [
     "C4",  # flake8-comprehensions
     "SIM", # flake8-simplify
     "RET", # flake8-return
+    "G004", # logging: lazy %-formatting instead of f-strings
 ]
 ignore = [
     "E501",    # line length handled by ruff format

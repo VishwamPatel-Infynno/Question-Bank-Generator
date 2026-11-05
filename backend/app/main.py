@@ -28,13 +28,13 @@ async def _post_init_maintenance() -> None:
     try:
         scrubbed = await scrub_stored_request_secrets()
         if scrubbed:
-            logger.info(f"Removed stored API keys from {scrubbed} batch request payload(s).")
+            logger.info("Removed stored API keys from %s batch request payload(s).", scrubbed)
     except Exception as exc:
-        logger.warning(f"Request payload scrub skipped: {exc}")
+        logger.warning("Request payload scrub skipped: %s", exc)
     try:
         await reconcile_interrupted_batches()
     except Exception as exc:
-        logger.warning(f"Batch startup reconciliation skipped or deferred: {exc}")
+        logger.warning("Batch startup reconciliation skipped or deferred: %s", exc)
 
 
 async def _retry_db_init(first_delay: float = 5.0, max_delay: float = 60.0) -> None:
@@ -76,13 +76,13 @@ async def lifespan(_app: FastAPI):
         try:
             stopped = await asyncio.wait_for(cancel_all_background_batches(), timeout=15)
             if stopped:
-                logger.info(f"Gracefully stopped {stopped} running batch(es) before shutdown.")
+                logger.info("Gracefully stopped %s running batch(es) before shutdown.", stopped)
         except Exception as exc:
-            logger.warning(f"Batch shutdown drain incomplete: {exc}")
+            logger.warning("Batch shutdown drain incomplete: %s", exc)
         try:
             await engine.dispose()
         except Exception as exc:
-            logger.warning(f"Database engine disposal failed: {exc}")
+            logger.warning("Database engine disposal failed: %s", exc)
 
 
 core_app = FastAPI(
@@ -96,7 +96,9 @@ core_app = FastAPI(
 @core_app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Consistent error body for unexpected failures; details stay in the server log only."""
-    logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=exc)
+    logger.error(
+        "Unhandled error on %s %s: %s", request.method, request.url.path, exc, exc_info=exc
+    )
     return JSONResponse(
         status_code=500, content={"detail": "Internal server error.", "code": "internal_error"}
     )

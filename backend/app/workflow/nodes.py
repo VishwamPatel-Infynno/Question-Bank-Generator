@@ -187,7 +187,7 @@ async def reviewer_node(state: AgentWorkflowState) -> dict[str, Any]:
     draft = QuestionDraft(**state["current_draft"])
     iteration = state.get("iteration_count", 1)
 
-    logger.info(f"Executing Question Reviewer Agent (Iteration {iteration})...")
+    logger.info("Executing Question Reviewer Agent (Iteration %s)...", iteration)
     review, usage = await review_question(draft, req, iteration)
     return build_review_update(state, review, usage)
 
@@ -213,7 +213,7 @@ async def run_review_and_solve(state: AgentWorkflowState) -> ReviewAndSolveOutco
     req = GenerationRequest(**state["request"])
     draft = QuestionDraft(**state["current_draft"])
     iteration = state.get("iteration_count", 1)
-    logger.info(f"Executing Reviewer and Blind-Solver concurrently (Iteration {iteration})...")
+    logger.info("Executing Reviewer and Blind-Solver concurrently (Iteration %s)...", iteration)
 
     review_out, solve_out = await asyncio.gather(
         review_question(draft, req, iteration),
@@ -309,7 +309,7 @@ async def blind_solver_node(state: AgentWorkflowState) -> dict[str, Any]:
     draft = QuestionDraft(**state["current_draft"])
     iteration = state.get("iteration_count", 1)
 
-    logger.info(f"Executing Blind-Solver Dual Validation Agent (Iteration {iteration})...")
+    logger.info("Executing Blind-Solver Dual Validation Agent (Iteration %s)...", iteration)
     result, usage = await blind_solve_question(draft, req)
     return build_solver_update(state, result, usage)
 
@@ -321,7 +321,9 @@ async def regenerator_node(state: AgentWorkflowState) -> dict[str, Any]:
     next_iteration = state.get("iteration_count", 1) + 1
 
     logger.info(
-        f"Executing Question Re-Generator Agent (Score {review.total_score} <= 90 -> Iteration {next_iteration})..."
+        "Executing Question Re-Generator Agent (Score %s <= 90 -> Iteration %s)...",
+        review.total_score,
+        next_iteration,
     )
     new_draft, usage = await regenerate_question(draft, review, req, next_iteration)
     new_draft, _ = balance_and_shuffle_options(new_draft)
@@ -369,7 +371,10 @@ async def reject_node(state: AgentWorkflowState) -> dict[str, Any]:
     passing_threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
 
     logger.warning(
-        f"Strict Quality Gate: Question rejected. Score: {final_score}/100 <= {passing_threshold} after {iteration} attempts. NOT saving to Question Bank repository."
+        "Strict Quality Gate: Question rejected. Score: %s/100 <= %s after %s attempts. NOT saving to Question Bank repository.",
+        final_score,
+        passing_threshold,
+        iteration,
     )
 
     rejection_payload = {
@@ -550,11 +555,16 @@ async def finalize_node(state: AgentWorkflowState) -> dict[str, Any]:
     if getattr(req, "auto_save", False):
         await save_question(final_q)
         logger.info(
-            f"Question auto-saved to Question Bank repository: {final_q.id} (Score: {final_q.final_score}, Cost: ${final_q.cost_usd:.5f})"
+            "Question auto-saved to Question Bank repository: %s (Score: %s, Cost: $%.5f)",
+            final_q.id,
+            final_q.final_score,
+            final_q.cost_usd,
         )
     else:
         logger.info(
-            f"Question candidate verified ({final_q.id}, Score: {final_q.final_score}). Staged for Admin Review & Approval."
+            "Question candidate verified (%s, Score: %s). Staged for Admin Review & Approval.",
+            final_q.id,
+            final_q.final_score,
         )
 
     return {

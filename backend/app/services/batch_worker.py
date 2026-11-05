@@ -82,7 +82,7 @@ async def _persist_job_question(
         q_obj.status = determine_question_status(score, is_in_progress_batch=True)
 
         if not await batch_exists(batch_id):
-            logger.info(f"Batch {batch_id} no longer exists; aborting job {job_id}.")
+            logger.info("Batch %s no longer exists; aborting job %s.", batch_id, job_id)
             return (None, True)
 
         if passage_id and not q_obj.passage_id:
@@ -96,7 +96,7 @@ async def _persist_job_question(
     except Exception as q_err:
         # A generated (and paid for) question could not be stored: keep the traceback, and let the
         # job's error message say so, instead of a one-line log that nobody sees.
-        logger.error(f"Error saving question for job {job_id}: {q_err}", exc_info=True)
+        logger.error("Error saving question for job %s: %s", job_id, q_err, exc_info=True)
         with contextlib.suppress(Exception):
             await update_job_progress(
                 job_id,
@@ -277,13 +277,22 @@ async def _run_single_job_impl(
             deficit = max(0, (job.target_count or QUESTIONS_PER_JOB) - len(existing_active_qs))
             if deficit <= 0 and len(existing_active_qs) >= (job.target_count or QUESTIONS_PER_JOB):
                 logger.info(
-                    f"Job {job.job_number}/{total_jobs} (ID: {job.id}) already fulfilled target count."
+                    "Job %s/%s (ID: %s) already fulfilled target count.",
+                    job.job_number,
+                    total_jobs,
+                    job.id,
                 )
                 break
 
             logger.info(
-                f"Executing Job {job.job_number}/{total_jobs} (ID: {job.id}) for Batch {batch_id} "
-                f"[Trial {trial}/{max_trials}, deficit={deficit}]..."
+                "Executing Job %s/%s (ID: %s) for Batch %s [Trial %s/%s, deficit=%s]...",
+                job.job_number,
+                total_jobs,
+                job.id,
+                batch_id,
+                trial,
+                max_trials,
+                deficit,
             )
             await update_job_progress(
                 job.id,
@@ -339,7 +348,7 @@ async def _run_single_job_impl(
                     return
 
             except asyncio.CancelledError:
-                logger.info(f"Job {job.job_number}/{total_jobs} (ID: {job.id}) was cancelled.")
+                logger.info("Job %s/%s (ID: %s) was cancelled.", job.job_number, total_jobs, job.id)
                 current_qs = await _get_active_job_questions(batch_id, job.id)
                 await update_job_progress(
                     job.id,
@@ -353,13 +362,24 @@ async def _run_single_job_impl(
                 raise
             except Exception as exc:
                 logger.warning(
-                    f"Job {job.job_number}/{total_jobs} (ID: {job.id}) trial {trial}/{max_trials} encountered error: {exc}"
+                    "Job %s/%s (ID: %s) trial %s/%s encountered error: %s",
+                    job.job_number,
+                    total_jobs,
+                    job.id,
+                    trial,
+                    max_trials,
+                    exc,
                 )
                 if trial < max_trials:
                     await asyncio.sleep(1.0)
                     continue
                 logger.error(
-                    f"Job {job.job_number}/{total_jobs} (ID: {job.id}) exhausted all {max_trials} trials: {exc}",
+                    "Job %s/%s (ID: %s) exhausted all %s trials: %s",
+                    job.job_number,
+                    total_jobs,
+                    job.id,
+                    max_trials,
+                    exc,
                     exc_info=True,
                 )
                 await update_job_progress(job.id, error_message=sanitize_error_text(exc))
@@ -371,8 +391,13 @@ async def _run_single_job_impl(
             updated_active_qs = await _get_active_job_questions(batch_id, job.id)
             if len(updated_active_qs) >= (job.target_count or QUESTIONS_PER_JOB):
                 logger.info(
-                    f"Job {job.job_number}/{total_jobs} (ID: {job.id}) successfully reached target "
-                    f"{job.target_count} on Trial {trial}/{max_trials}."
+                    "Job %s/%s (ID: %s) successfully reached target %s on Trial %s/%s.",
+                    job.job_number,
+                    total_jobs,
+                    job.id,
+                    job.target_count,
+                    trial,
+                    max_trials,
                 )
                 break
 
@@ -394,8 +419,14 @@ async def _run_single_job_impl(
 
         await refresh_batch_aggregates(batch_id, allow_complete=False)
         logger.info(
-            f"Job {job.job_number}/{total_jobs} (ID: {job.id}) finished: generated {final_count}/"
-            f"{job.target_count or QUESTIONS_PER_JOB} questions across {trial}/{max_trials} trial(s)."
+            "Job %s/%s (ID: %s) finished: generated %s/%s questions across %s/%s trial(s).",
+            job.job_number,
+            total_jobs,
+            job.id,
+            final_count,
+            job.target_count or QUESTIONS_PER_JOB,
+            trial,
+            max_trials,
         )
 
 
@@ -426,8 +457,13 @@ async def _run_single_job_refill_impl(
         now_iso = datetime.now(UTC).isoformat()
         new_trial = min(MAX_JOB_TRIALS, (job.trial_count or 1) + 1)
         logger.info(
-            f"Replenishing Set #{job.job_number} (Job ID: {job.id}) in Batch {batch_id} "
-            f"with {job_deficit} replacement question(s) [Trial {new_trial}/{MAX_JOB_TRIALS}]..."
+            "Replenishing Set #%s (Job ID: %s) in Batch %s with %s replacement question(s) [Trial %s/%s]...",
+            job.job_number,
+            job.id,
+            batch_id,
+            job_deficit,
+            new_trial,
+            MAX_JOB_TRIALS,
         )
         await update_job_progress(
             job.id, status=JobStatus.RUNNING, trial_count=new_trial, started_at=now_iso
@@ -496,12 +532,18 @@ async def _run_single_job_refill_impl(
             )
             await refresh_batch_aggregates(batch_id)
             logger.info(
-                f"Set #{job.job_number} (Job ID: {job.id}) replenished successfully: "
-                f"total count is now {total_active}/{job.target_count}."
+                "Set #%s (Job ID: %s) replenished successfully: total count is now %s/%s.",
+                job.job_number,
+                job.id,
+                total_active,
+                job.target_count,
             )
         except Exception as exc:
             logger.error(
-                f"Error replenishing Set #{job.job_number} (Job ID: {job.id}): {exc}",
+                "Error replenishing Set #%s (Job ID: %s): %s",
+                job.job_number,
+                job.id,
+                exc,
                 exc_info=True,
             )
             await update_job_progress(

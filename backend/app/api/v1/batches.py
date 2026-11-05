@@ -64,7 +64,7 @@ async def start_batch_generation(req: GenerationRequest) -> dict[str, Any]:
             "jobs": [j.model_dump() for j in jobs],
         }
     except Exception as e:
-        logger.error(f"Failed to start background batch: {e}", exc_info=True)
+        logger.error("Failed to start background batch: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to initialize background batch.") from e
 
 

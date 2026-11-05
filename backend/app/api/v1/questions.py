@@ -156,7 +156,7 @@ async def get_question_image(question_id: str):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to decode base64 image: {e}")
+            logger.error("Failed to decode base64 image: %s", e)
             raise HTTPException(status_code=500, detail="Invalid base64 image encoding") from e
 
     if not img_url.startswith(("https://", "http://")):
@@ -182,7 +182,9 @@ async def approve_and_save_question(question: Question) -> dict[str, Any]:
     _require_valid_status(question)
     saved = await save_question(question)
     logger.info(
-        f"Question approved by Admin and saved to Question Bank: {saved.id} ({saved.section_label})"
+        "Question approved by Admin and saved to Question Bank: %s (%s)",
+        saved.id,
+        saved.section_label,
     )
     return {"success": True, "question": saved.model_dump()}
 
@@ -199,7 +201,7 @@ async def batch_approve_and_save_questions(questions: list[Question]) -> dict[st
     for q in questions:
         _require_valid_status(q)
     saved_list = await save_questions_batch(questions)
-    logger.info(f"Atomic batch approved {len(saved_list)} questions into Question Bank.")
+    logger.info("Atomic batch approved %s questions into Question Bank.", len(saved_list))
     return {"success": True, "saved_count": len(saved_list), "ids": saved_list}
 
 
@@ -216,7 +218,7 @@ async def remove_question(question_id: str) -> dict[str, Any]:
 async def remove_questions_batch(payload: BatchDeleteRequest) -> dict[str, Any]:
     """Bulk Admin deletion endpoint: removes multiple questions in a single atomic SQL transaction."""
     deleted_count = await delete_questions_batch(payload.ids)
-    logger.info(f"Bulk deleted {deleted_count} questions from Question Bank.")
+    logger.info("Bulk deleted %s questions from Question Bank.", deleted_count)
     return {"success": True, "deleted_count": deleted_count}
 
 
@@ -226,7 +228,7 @@ async def purge_single_question(question_id: str) -> dict[str, Any]:
     success = await hard_delete_question(question_id)
     if not success:
         raise HTTPException(status_code=404, detail="Question not found")
-    logger.info(f"Permanently purged question {question_id} from database.")
+    logger.info("Permanently purged question %s from database.", question_id)
     return {"success": True}
 
 
@@ -234,7 +236,7 @@ async def purge_single_question(question_id: str) -> dict[str, Any]:
 async def purge_questions_batch_endpoint(payload: BatchDeleteRequest) -> dict[str, Any]:
     """Permanently deletes multiple questions from database."""
     purged_count = await hard_delete_questions_batch(payload.ids)
-    logger.info(f"Permanently purged {purged_count} questions from database.")
+    logger.info("Permanently purged %s questions from database.", purged_count)
     return {"success": True, "purged_count": purged_count}
 
 
@@ -244,7 +246,7 @@ async def restore_single_question(question_id: str) -> dict[str, Any]:
     restored = await restore_question(question_id)
     if not restored:
         raise HTTPException(status_code=404, detail="Question not found")
-    logger.info(f"Restored question {question_id} to active status.")
+    logger.info("Restored question %s to active status.", question_id)
     return {"success": True, "question": restored.model_dump()}
 
 
@@ -253,7 +255,7 @@ async def batch_update_status(payload: StatusUpdateRequest) -> dict[str, Any]:
     """Bulk update question lifecycle status."""
     status_val = payload.status.value if hasattr(payload.status, "value") else str(payload.status)
     updated_count = await batch_update_question_status(payload.ids, status_val)
-    logger.info(f"Bulk updated {updated_count} questions to status '{status_val}'.")
+    logger.info("Bulk updated %s questions to status '%s'.", updated_count, status_val)
     return {"success": True, "updated_count": updated_count, "status": status_val}
 
 
@@ -278,7 +280,7 @@ async def override_question_duplicate_endpoint(question_id: str) -> dict[str, An
     updated_q = await override_question_duplicate(question_id)
     if not updated_q:
         raise HTTPException(status_code=404, detail="Question not found")
-    logger.info(f"Duplicate alert manually overridden for Question {question_id} by reviewer.")
+    logger.info("Duplicate alert manually overridden for Question %s by reviewer.", question_id)
     return {"success": True, "question": updated_q.model_dump()}
 
 
