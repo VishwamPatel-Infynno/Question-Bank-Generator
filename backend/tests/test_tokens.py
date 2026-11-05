@@ -114,10 +114,12 @@ async def test_max_tokens_settings_and_config_endpoint():
     settings_data = await get_runtime_settings()
     assert settings_data["default_max_tokens"] == 3000
     assert settings_data["reviewer_max_tokens"] == 1800
-    assert settings_data["default_temperature"] == 0.2
-    assert settings_data["generator_temperature"] == 0.2
-    assert settings_data["reviewer_temperature"] == 0.1
-    assert settings_data["blind_solver_temperature"] == 0.1
+    # The endpoint must reflect whatever the settings are (a developer's .env may override the
+    # defaults, CI has no .env), so compare with the live config instead of literals
+    assert settings_data["default_temperature"] == config.DEFAULT_TEMPERATURE
+    assert settings_data["generator_temperature"] == config.GENERATOR_TEMPERATURE
+    assert settings_data["reviewer_temperature"] == config.REVIEWER_TEMPERATURE
+    assert settings_data["blind_solver_temperature"] == config.BLIND_SOLVER_TEMPERATURE
     assert "fast_model_cascade" in settings_data
     assert isinstance(settings_data["fast_model_cascade"], list)
     assert len(settings_data["fast_model_cascade"]) >= 1
