@@ -17,7 +17,7 @@ from app.agents._mock_tokens import (
     REGENERATOR_MOCK_COMPLETION_TOKENS,
     REGENERATOR_MOCK_PROMPT_TOKENS,
 )
-from app.agents.base import calculate_token_cost, call_llm, safe_json_loads
+from app.agents.base import LLMNotConfiguredError, calculate_token_cost, call_llm, safe_json_loads
 from app.agents.generator import _parse_correct_keys, _parse_option_choices
 from app.agents.mock_fixtures import improve_draft_heuristically
 from app.agents.prompts import REGENERATOR_SYSTEM_PROMPT
@@ -144,10 +144,8 @@ Please re-generate and refine this question to resolve all weaknesses and produc
             image_prompt_or_type=data.get("image_prompt_or_type", draft.image_prompt_or_type),
         )
         return re_draft, usage
-    except Exception as e:
-        logger.warning(
-            f"Re-Generator LLM failed or not configured, using heuristic remediation: {e}"
-        )
+    except LLMNotConfiguredError as e:
+        logger.warning(f"Re-Generator LLM not configured, using offline heuristic remediation: {e}")
         mock_usage = TokenUsage(
             prompt_tokens=REGENERATOR_MOCK_PROMPT_TOKENS,
             completion_tokens=REGENERATOR_MOCK_COMPLETION_TOKENS,

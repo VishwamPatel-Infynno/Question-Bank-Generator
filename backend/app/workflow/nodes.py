@@ -90,7 +90,11 @@ async def fused_generator_node(state: AgentWorkflowState) -> dict[str, Any]:
         outcomes["quality_audit"] = self_review.model_dump()
 
     passing_threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
-    fused_self_passed = self_review is not None and self_review.total_score > passing_threshold
+    fused_self_passed = (
+        not config.ALWAYS_INDEPENDENT_REVIEW
+        and self_review is not None
+        and self_review.total_score > passing_threshold
+    )
     logger.info(
         "FUSED EVAL: fused_self_passed=%s, self_review_score=%s, threshold=%s",
         fused_self_passed,

@@ -792,6 +792,36 @@ async def remove_in_flight_draft(batch_id: str | None, worker_idx: int) -> None:
             _IN_FLIGHT_BATCH_STEMS.pop(batch_id, None)
 
 
+async def _refresh_duplicate_info_after_review(
+    state: AgentWorkflowState,
+    idx: int,
+    req: GenerationRequest,
+    db_reference_pool: list[Question],
+    outcomes_questions: list[dict[str, Any] | None],
+    threshold: float = 0.75,
+    soft_threshold: float = 0.60,
+) -> None:
+    """Re-checks duplicates for a draft that the review loop rewrote.
+
+    The first dedup pass ran on the original draft; regeneration can change the stem, so the
+    stored duplicate verdict would otherwise describe a question that no longer exists.
+    """
+    if state.get("iteration_count", 1) <= 1:
+        return
+    cur_draft = state.get("current_draft") or {}
+    batch_key = req.batch_id or req.run_id
+    await register_in_flight_draft(batch_key, cur_draft, idx)
+    in_flight = await get_in_flight_drafts(batch_key, idx)
+    ref_pool = (
+        list(db_reference_pool) + [q for q in outcomes_questions if q is not None] + in_flight
+    )
+    result = evaluate_duplicate(
+        cur_draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
+    )
+    state["duplicate_info"] = result.model_dump()
+    state.setdefault("stage_outcomes", {})["duplicate_check"] = result.model_dump()
+
+
 async def _run_deduplication_anti_collision_loop(
     state: AgentWorkflowState,
     idx: int,

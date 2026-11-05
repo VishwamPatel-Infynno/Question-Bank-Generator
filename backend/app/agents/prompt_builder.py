@@ -197,11 +197,11 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
 
     if fused:
         user_prompt += (
-            "\nCRITICAL SELF-CRITIQUE CERTIFICATION INSTRUCTION:\n"
-            "After composing the question, options, and explanation, perform an objective psychometric self-critique.\n"
-            "Verify option lengths: when all 4 choices are balanced within 1-3 words of each other and follow parallel syntax, "
-            "Option Symmetry is 100% satisfied. When your draft fulfills publication standards, certify your completed draft "
-            "at passing standard (authenticity_score: 24, clarity_score: 24, distractor_score: 23, explanation_score: 24, total: 95/100).\n"
+            "\nSELF-CRITIQUE INSTRUCTION:\n"
+            "After composing the question, options, and explanation, audit your own draft as a skeptical independent reviewer.\n"
+            "Check option lengths (all 4 choices within 1-3 words of each other, parallel syntax). Score each pillar from 0-25 "
+            "by deducting points for every concrete flaw you can name, and list each flaw under weaknesses. "
+            "Do not inflate scores: an independent reviewer and a blind solver will re-check this item.\n"
             "Output ONLY valid JSON matching the specified fused schema."
         )
     else:

@@ -19,6 +19,12 @@ Files: `workflow/nodes.py` (node fns), `routes.py` (conditional edges), `state.p
 - `additional_instructions` from the educator must be injected with high priority into passage drafting, question drafting and remediation prompts (covered by `test_additional_instructions.py`).
 - Explanations follow the mentor style with per-option trap breakdowns (trap names live in `frontend/src/constants/mcatTraps.js` and the prompts; keep them aligned).
 
+## Quality-gate behavior (fail closed)
+- `agents/validators.py` runs free structural checks (and repairs forbidden dashes) before any LLM review; blocking findings go to the regenerator or reject.
+- Reviewer and blind solver raise `QualityCheckUnavailableError` after two failed attempts instead of passing an item. Only `LLMNotConfiguredError` (no credentials, offline demo/tests) uses heuristic fixtures. Tests that simulate offline mode must raise `LLMNotConfiguredError`, not a generic error.
+- Generator and regenerator no longer substitute mock questions for real provider failures; the engine's slot retry handles the exception.
+- `ALWAYS_INDEPENDENT_REVIEW=true` forces the reviewer even if the self-critique passed. Truncated completions (`finish_reason == "length"`) are retried with a larger budget up to `LLM_MAX_TOKENS_CEILING`.
+
 ## Editing prompts
 Prompts are long and heavily tuned. Make surgical edits, keep section numbering, and run `test_agents.py`, `test_pedagogy.py`, `test_additional_instructions.py`. If a rubric or threshold changes, update `docs/MCAT_RUBRIC.md` and `docs/ARCHITECTURE.md` too.
 

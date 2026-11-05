@@ -112,6 +112,8 @@ async def test_fused_workflow_bypasses_reviewer_when_self_critique_passed(monkey
 
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
     monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
+    # Opt out of the default independent audit to exercise the self-critique bypass path
+    monkeypatch.setattr(config, "ALWAYS_INDEPENDENT_REVIEW", False)
 
     passing_review = ReviewScore(
         authenticity_score=24,

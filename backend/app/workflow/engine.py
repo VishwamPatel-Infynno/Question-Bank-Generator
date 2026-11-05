@@ -42,6 +42,7 @@ from app.workflow.engine_helpers import (
     _handle_live_job_failure,
     _persist_live_question,
     _prepare_shared_passage_and_visual,
+    _refresh_duplicate_info_after_review,
     _run_deduplication_anti_collision_loop,
     _run_question_review_loop,
     remove_in_flight_draft,
@@ -412,6 +413,11 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             make_event=make_event,
                         )
 
+                        if question_passed:
+                            await _refresh_duplicate_info_after_review(
+                                state, idx, req, db_reference_pool, outcomes_questions
+                            )
+
                         dup_info = state.get("duplicate_info") or {}
                         is_hard_dup = bool(dup_info.get("is_duplicate", False))
                         matched_id = str(dup_info.get("matched_question_id") or "")
@@ -637,7 +643,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
         if not all_staged_questions:
             if outcomes_rejections:
-                rej_msg = f"All {total_qty} questions in the run were rejected by the Quality Gate (score <= {config.PASSING_SCORE_THRESHOLD})."
+                rej_msg = f"All {total_qty} questions in the run were rejected by the Quality Gate (score <= {req.passing_threshold or config.PASSING_SCORE_THRESHOLD})."
                 rej_evt = make_event(
                     event_type="workflow_rejected",
                     agent_name="Quality Gate",

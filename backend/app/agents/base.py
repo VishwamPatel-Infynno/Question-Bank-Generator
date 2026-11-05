@@ -338,6 +338,22 @@ async def call_llm(
                             f"Model {candidate} returned empty content (finish_reason: {finish_reason})"
                         )
 
+                    # A cut-off completion is never trustworthy: json_repair would silently
+                    # "complete" a truncated explanation. Retry with a larger budget instead.
+                    if getattr(response.choices[0], "finish_reason", None) == "length":
+                        current_max = int(kwargs["max_tokens"])
+                        ceiling = config.LLM_MAX_TOKENS_CEILING
+                        if current_max < ceiling:
+                            kwargs["max_tokens"] = min(ceiling, current_max * 2)
+                            logger.warning(
+                                f"Output truncated at {current_max} tokens on '{candidate}'. "
+                                f"Retrying with max_tokens={kwargs['max_tokens']}."
+                            )
+                            continue
+                        raise ValueError(
+                            f"Model {candidate} output was truncated at {current_max} tokens"
+                        )
+
                     usage_obj = getattr(response, "usage", None)
                     prompt_tokens = int(getattr(usage_obj, "prompt_tokens", 0) or 0)
                     completion_tokens = int(getattr(usage_obj, "completion_tokens", 0) or 0)

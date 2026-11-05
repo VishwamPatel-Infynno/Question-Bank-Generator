@@ -148,3 +148,16 @@ def test_reviewer_rejects_missing_or_out_of_range_scores():
         }
     )
     assert ok.total_score == 96 and ok.passed is True
+
+
+@pytest.mark.asyncio
+async def test_generator_does_not_substitute_mock_questions_for_real_failures(monkeypatch):
+    import app.agents.generator as gen_mod
+
+    async def broken(*_a, **_k):
+        raise RuntimeError("provider exploded")
+
+    monkeypatch.setattr(gen_mod, "call_llm", broken)
+    req = GenerationRequest(section="CP", subtopic="Kinetics", difficulty="Medium")
+    with pytest.raises(RuntimeError):
+        await gen_mod.generate_question_with_self_critique(req)

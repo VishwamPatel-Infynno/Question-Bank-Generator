@@ -47,6 +47,8 @@ The system defines 39 configuration fields in `backend/app/core/config.py` (`Set
 | `DEEPINFRA_API_KEY` | `string` | `""` | DeepInfra API authorization key |
 | `MAX_REGENERATION_ATTEMPTS`| `integer`| `3` | Maximum remediation loops before Quality Gate reject |
 | `PASSING_SCORE_THRESHOLD` | `integer`| `90` | Minimum score required to pass individual psychometric gate (Tier 1) |
+| `ALWAYS_INDEPENDENT_REVIEW` | `boolean` | `true` | Always run the independent Reviewer, even when the generator's own self-critique passes |
+| `LLM_MAX_TOKENS_CEILING` | `integer` | `8000` | Upper bound when a truncated completion is retried with a larger token budget |
 | `BATCH_PASSING_SCORE_THRESHOLD` | `integer`| `85` | Benchmark score required for batch activity run acceptance (Tier 2) |
 | `DEFAULT_MAX_TOKENS` | `integer`| `3000` | Default maximum completion token budget for generator nodes |
 | `REVIEWER_MAX_TOKENS` | `integer`| `1800` | Maximum completion token budget for 100-point psychometric reviewer |

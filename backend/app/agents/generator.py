@@ -23,7 +23,7 @@ from app.agents._mock_tokens import (
     QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
     QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
 )
-from app.agents.base import calculate_token_cost, call_llm, safe_json_loads
+from app.agents.base import LLMNotConfiguredError, calculate_token_cost, call_llm, safe_json_loads
 from app.agents.mock_fixtures import evaluate_heuristically, get_mock_draft
 from app.agents.option_balancer import balance_and_shuffle_options
 from app.agents.prompt_builder import _build_generator_user_prompt
@@ -353,9 +353,9 @@ STANDARDS FOR AAMC MCAT PASSAGES:
                 image_prompt = f"Official AAMC MCAT scientific experimental diagram and data figure for {section_name} study on {topic}: {passage_text[:180]}"
 
         return passage_text, usage, image_needed, image_prompt
-    except Exception as e:
+    except LLMNotConfiguredError as e:
         logger.warning(
-            f"Passage generation LLM failed or not configured, using authentic fallback passage: {e}"
+            f"Passage generation LLM not configured, using offline fallback passage: {e}"
         )
         if is_cars:
             fallback_passage = (
@@ -438,8 +438,8 @@ async def generate_question(
         draft = _parse_question_draft_data(data, req)
         draft, _ = balance_and_shuffle_options(draft)
         return draft, usage
-    except Exception as e:
-        logger.warning(f"Generator LLM failed or not configured, using authentic mock draft: {e}")
+    except LLMNotConfiguredError as e:
+        logger.warning(f"Generator LLM not configured, using offline mock draft: {e}")
         mock_usage = TokenUsage(
             prompt_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
             completion_tokens=QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
@@ -507,10 +507,8 @@ async def generate_question_with_self_critique(
                 logger.warning(f"Failed to parse self_critique object: {parse_err}")
 
         return draft, self_review, usage
-    except Exception as e:
-        logger.warning(
-            f"Fused Generator LLM failed or not configured, using authentic mock draft: {e}"
-        )
+    except LLMNotConfiguredError as e:
+        logger.warning(f"Fused Generator LLM not configured, using offline mock draft: {e}")
         mock_usage = TokenUsage(
             prompt_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
             completion_tokens=QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,

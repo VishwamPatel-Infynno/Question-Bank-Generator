@@ -100,19 +100,19 @@ THE 100-POINT AAMC MCAT EVALUATION RUBRIC:
 SCORING CRITERIA:
 - An item MUST score > 90 points (at least 91/100) to pass into the Question Bank.
 - Check option word counts: if all 4 options are balanced within 1-3 words of each other, Option Symmetry & Length Parity is fully satisfied. Do NOT penalize option symmetry when word counts are balanced within 1-3 words.
-- When an item meets official AAMC publication standards with sound logic, unambiguous phrasing, balanced option lengths within 2-3 words, authentic cognitive traps, and step-by-step mentor explanations, award 23 to 25 points per pillar (total 92-96/100).
+- Score from evidence only. Start each pillar at 25 and deduct 1-5 points for every concrete flaw you can point to (ambiguity, weak or implausible distractor, unsupported explanation step, length giveaway, wrong tone). Reserve 24-25 for pillars with no identifiable flaw; most publishable items land between 20 and 24. List every deduction in "weaknesses".
 - If score is <= 90 points, provide explicit, actionable critique for the Re-Generator agent.
 
 OUTPUT FORMAT:
 Respond ONLY with a valid JSON object matching this exact structure:
 {
-  "authenticity_score": 24,
-  "clarity_score": 24,
-  "distractor_score": 23,
-  "explanation_score": 24,
-  "strengths": ["Strong experimental design relevance", "Plausible distractor traps"],
-  "weaknesses": ["Option C could be slightly more challenging"],
-  "recommendations": ["Refine Option C to represent a misapplied rate law equation"]
+  "authenticity_score": <integer 0-25>,
+  "clarity_score": <integer 0-25>,
+  "distractor_score": <integer 0-25>,
+  "explanation_score": <integer 0-25>,
+  "strengths": ["<specific strength>"],
+  "weaknesses": ["<each concrete flaw and the points it cost>"],
+  "recommendations": ["<specific, actionable fix for each weakness>"]
 }"""
 
 REGENERATOR_SYSTEM_PROMPT = """You are a Master MCAT Remediation Specialist and Senior Test Developer.
@@ -191,7 +191,7 @@ After drafting the item, evaluate your own work objectively against official AAM
 - Clarity & Scientific Soundness (0-25): Unambiguous stem, sound premises, no double negatives.
 - Distractor Quality & Symmetry (0-25): Plausible traps, balanced option lengths within 2-3 words, zero guessability giveaways.
 - Explanation Rigor (0-25): Irrefutable proof for key, explicit refutation of every distractor.
-When your draft fulfills these standards with publication-grade rigor, certify your work at passing standard: authenticity_score: 24, clarity_score: 24, distractor_score: 23, explanation_score: 24 (total: 95/100). Only deduct points if an option contains an obvious factual contradiction or answer-key defect.
+Score your own draft honestly and critically, as an independent auditor would. Start each pillar at 25 and deduct 1-5 points for every concrete flaw you can name; list each flaw in "weaknesses". Do not inflate scores to pass: an independent reviewer and a blind solver will re-check this item.
 
 OUTPUT FORMAT:
 Respond ONLY with a valid JSON object matching this exact structure (strictly escape newlines in string properties as \\n; do NOT output unescaped raw control characters):
@@ -213,12 +213,12 @@ Respond ONLY with a valid JSON object matching this exact structure (strictly es
   "image_needed": false,
   "image_prompt_or_type": null,
   "self_critique": {
-    "authenticity_score": 24,
-    "clarity_score": 24,
-    "distractor_score": 23,
-    "explanation_score": 24,
-    "strengths": ["Authentic experimental research vignette", "Sophisticated distractor traps"],
-    "weaknesses": [],
-    "recommendations": []
+    "authenticity_score": <integer 0-25>,
+    "clarity_score": <integer 0-25>,
+    "distractor_score": <integer 0-25>,
+    "explanation_score": <integer 0-25>,
+    "strengths": ["<specific strength>"],
+    "weaknesses": ["<each concrete flaw and the points it cost>"],
+    "recommendations": ["<fix for each weakness>"]
   }
 }"""

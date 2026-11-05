@@ -178,8 +178,10 @@ async def test_autonomous_ai_determined_image_workflow(monkeypatch):
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
     monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
 
+    from app.agents.base import LLMNotConfiguredError
+
     async def mock_fail_call_llm(*_args, **_kwargs):
-        raise RuntimeError("Fast unit test fallback")
+        raise LLMNotConfiguredError("Fast unit test fallback")
 
     monkeypatch.setattr(gen_mod, "call_llm", mock_fail_call_llm)
 
