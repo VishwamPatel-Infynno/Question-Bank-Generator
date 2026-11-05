@@ -23,7 +23,9 @@ def test_every_setting_is_in_env_example_and_nothing_extra():
     fields = set(Settings.model_fields) - INTERNAL_FIELDS
     keys = _env_example_keys()
     assert fields - keys == set(), f"Missing from .env.example: {sorted(fields - keys)}"
-    assert keys - set(Settings.model_fields) == set(), "Unknown keys in .env.example"
+    # VITE_* variables are read by the frontend dev server, not by the backend Settings
+    unknown = {k for k in keys - set(Settings.model_fields) if not k.startswith("VITE_")}
+    assert unknown == set(), f"Unknown keys in .env.example: {sorted(unknown)}"
 
 
 def test_every_setting_is_documented_in_the_setup_guide():

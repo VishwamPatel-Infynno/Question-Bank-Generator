@@ -10,6 +10,7 @@ import {
   restoreQuestion
 } from '../services/api';
 import { SECTION_CODE_MAP } from '../constants/mcat';
+import { reuseUnchangedBatches } from '../utils/batchHelpers';
 import { useConfirmModal } from './useConfirmModal';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 
@@ -61,6 +62,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const pollTimerRef = useRef(null);
   const fetchInFlightRef = useRef(false);
+  const abortRef = useRef(null);
   const failureCountRef = useRef(0);
   const nextPollAllowedRef = useRef(0);
   const expandedBatchIdsRef = useRef(expandedBatchIds);
@@ -80,8 +82,11 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
     if (fetchInFlightRef.current && isSilent) return;
     fetchInFlightRef.current = true;
     try {
-      const data = await fetchBatches();
-      setBatches(data.batches || []);
+      const controller = new AbortController();
+      abortRef.current?.abort();
+      abortRef.current = controller;
+      const data = await fetchBatches({}, controller.signal);
+      setBatches((prev) => reuseUnchangedBatches(prev, data.batches || []));
       setActiveCount(data.active_running_batches || 0);
 
       // Re-fetch details for any expanded batches that are in progress atomically
@@ -93,7 +98,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
 
       if (inProgressIds.length > 0) {
         const results = await Promise.allSettled(
-          inProgressIds.map((bId) => fetchBatchDetail(bId))
+          inProgressIds.map((bId) => fetchBatchDetail(bId, controller.signal))
         );
         const nextDetails = {};
         results.forEach((res, idx) => {
@@ -108,6 +113,8 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
       failureCountRef.current = 0;
       nextPollAllowedRef.current = 0;
     } catch (err) {
+      // A newer request superseded this one (or the view unmounted): not a failure
+      if (err?.name === 'AbortError') return;
       // Exponential backoff (2.5s doubling, capped at 30s) while the backend is unreachable.
       failureCountRef.current += 1;
       nextPollAllowedRef.current =
@@ -143,6 +150,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
     init();
     return () => {
       ignore = true;
+      abortRef.current?.abort();
     };
   }, [performFetchBatches]);
 

@@ -80,3 +80,41 @@ export function getBatchStageInfo(batch, detail) {
   };
 }
 
+const BATCH_SIGNATURE_FIELDS = [
+  'status',
+  'updated_at',
+  'actual_count',
+  'completed_jobs',
+  'failed_jobs',
+  'total_tokens',
+  'cost_usd',
+  'error_message'
+];
+
+function sameBatch(a, b) {
+  return a.id === b.id && BATCH_SIGNATURE_FIELDS.every((field) => a[field] === b[field]);
+}
+
+/**
+ * Structural sharing for poll results: keeps the previous object for every batch that did not
+ * change, and returns the previous array itself when nothing changed at all. Memoized cards then
+ * see identical props and skip rendering instead of re-rendering on every poll tick.
+ * @param {Array<object>} prev - Batches currently in state
+ * @param {Array<object>} next - Batches just fetched
+ * @returns {Array<object>}
+ */
+export function reuseUnchangedBatches(prev, next) {
+  if (!Array.isArray(prev) || prev.length === 0) return next;
+  const previousById = new Map(prev.map((b) => [b.id, b]));
+  let allSame = prev.length === next.length;
+  const merged = next.map((batch, idx) => {
+    const old = previousById.get(batch.id);
+    if (old && sameBatch(old, batch)) {
+      if (prev[idx] !== old) allSame = false;
+      return old;
+    }
+    allSame = false;
+    return batch;
+  });
+  return allSame ? prev : merged;
+}

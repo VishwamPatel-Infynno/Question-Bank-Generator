@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+import path from 'node:path'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const gracefulShutdownPlugin = () => ({
@@ -17,16 +18,17 @@ const gracefulShutdownPlugin = () => ({
 })
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+// Extra dev-server hosts (e.g. a tunnel hostname) come from VITE_ALLOWED_HOSTS in the repo-root
+// .env, comma-separated, instead of a hostname committed to the repo.
+const env = loadEnv(mode, path.resolve(process.cwd(), '..'), 'VITE_')
+const allowedHosts = (env.VITE_ALLOWED_HOSTS || '').split(',').map((h) => h.trim()).filter(Boolean)
+
+return {
   plugins: [react(), gracefulShutdownPlugin()],
   server: {
     port: 5173,
-    allowedHosts: [
-      'cubistic-faceless-danika.ngrok-free.dev',
-      '.ngrok-free.dev',
-      '.ngrok.app',
-      '.ngrok-free.app',
-    ],
+    allowedHosts,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
@@ -53,11 +55,13 @@ export default defineConfig({
           if (id.includes('node_modules/lucide-react')) {
             return 'vendor-icons';
           }
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+          // Exact package paths: a bare 'node_modules/react' prefix also matches react-* packages
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) {
             return 'vendor-react';
           }
         }
       }
     }
   }
+}
 })

@@ -10,12 +10,8 @@ import time
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+import json_repair
 import litellm
-
-try:
-    import json_repair
-except ImportError:
-    json_repair = None
 
 from app.core.config import config
 from app.schemas import TokenUsage
@@ -97,21 +93,14 @@ def safe_json_loads(text: str) -> Any:
         return json.loads(cleaned, strict=False)
     except Exception as e1:
         logger.debug("Primary json.loads failed: %s. Attempting resilient fallbacks...", e1)
-        # 2. Resilient fallback: json_repair
-        if json_repair is not None:
+        # 2. Resilient fallback: json_repair (on the cleaned text, then on the raw text)
+        for candidate_text, label in ((cleaned, "cleaned"), (text, "raw")):
             try:
-                res = json_repair.loads(cleaned)
+                res = json_repair.loads(candidate_text)
                 if isinstance(res, (dict, list)) and res:
                     return res
             except Exception as repair_err:
-                logger.debug("json_repair on cleaned text failed: %s", repair_err)
-
-            try:
-                res = json_repair.loads(text)
-                if isinstance(res, (dict, list)) and res:
-                    return res
-            except Exception as repair_raw_err:
-                logger.debug("json_repair on raw text failed: %s", repair_raw_err)
+                logger.debug("json_repair on %s text failed: %s", label, repair_err)
 
         # 3. Clean low ASCII control characters (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F) and retry
         try:

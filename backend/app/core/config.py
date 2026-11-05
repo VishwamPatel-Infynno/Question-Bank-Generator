@@ -463,8 +463,8 @@ class Settings(BaseSettings):
     WORKFLOW_MAX_WORKER_RETRIES: int = 2
 
     # Production Database Connection Pool Settings
-    DB_POOL_SIZE: int = 20
-    DB_MAX_OVERFLOW: int = 30
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 60
     DB_POOL_RECYCLE: int = 1800
 

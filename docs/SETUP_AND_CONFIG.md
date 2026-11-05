@@ -89,8 +89,8 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `LLM_MAX_RETRIES` | `integer` | `4` | Maximum exponential backoff retries on 429/503 errors |
 | `LLM_BASE_BACKOFF_SECONDS` | `float` | `1.5` | Base backoff interval in seconds before retry |
 | `WORKFLOW_MAX_WORKER_RETRIES` | `integer` | `2` | Per-worker retry attempts for individual question generation jobs within a batch |
-| `DB_POOL_SIZE` | `integer` | `20` | Core persistent asyncpg database connections |
-| `DB_MAX_OVERFLOW` | `integer` | `30` | Burst connection capacity beyond pool size |
+| `DB_POOL_SIZE` | `integer` | `10` | Core persistent asyncpg database connections |
+| `DB_MAX_OVERFLOW` | `integer` | `10` | Burst connection capacity beyond pool size. Keep `workers x (DB_POOL_SIZE + DB_MAX_OVERFLOW)` below Postgres `max_connections` (default 100) minus about 10 |
 | `DB_POOL_TIMEOUT` | `integer` | `60` | Connection checkout timeout in seconds |
 | `DB_POOL_RECYCLE` | `integer` | `1800` | Connection lifetime recycle in seconds (30 mins) |
 | `ALLOWED_ORIGINS` | `list[str]` | `[]` | Additional CORS trusted origins (comma-separated in `.env`) |

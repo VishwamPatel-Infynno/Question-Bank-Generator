@@ -75,3 +75,12 @@ async def test_unhandled_errors_return_a_consistent_body_without_internals(monke
         res = await ac.get("/api/batches")
     assert res.status_code == 500
     assert res.json() == {"detail": "Internal server error.", "code": "internal_error"}
+
+
+@pytest.mark.asyncio
+async def test_security_headers_are_present_on_normal_and_error_responses(client):
+    for path in ("/api/health", "/api/does-not-exist"):
+        res = await client.get(path)
+        assert res.headers["x-content-type-options"] == "nosniff"
+        assert res.headers["x-frame-options"] == "DENY"
+        assert res.headers["referrer-policy"] == "strict-origin-when-cross-origin"

@@ -135,14 +135,29 @@ export function useAppState() {
     activeBatchCountRef.current = activeBatchCount;
   }, [activeBatchCount]);
 
-  const refreshGlobalCounts = useCallback(() => {
-    fetchBatches(1, 1)
+  const countsAbortRef = useRef(null);
+
+  // Optionally takes counts the caller already fetched so they are not requested a second time.
+  const refreshGlobalCounts = useCallback((prefetchedCounts) => {
+    countsAbortRef.current?.abort();
+    const controller = new AbortController();
+    countsAbortRef.current = controller;
+    const { signal } = controller;
+
+    // limit: 1 keeps the payload tiny; active_running_batches is counted over the whole table
+    fetchBatches({ limit: 1 }, signal)
       .then((data) => {
         setActiveBatchCount(data.active_running_batches || 0);
       })
       .catch(() => {});
 
-    fetchQuestionCounts()
+    if (prefetchedCounts && typeof prefetchedCounts === 'object' && 'ai_validated' in prefetchedCounts) {
+      Promise.resolve(prefetchedCounts).then((counts) => {
+        setValidatedCount(counts.ai_validated || 0);
+      });
+      return;
+    }
+    fetchQuestionCounts(signal)
       .then((counts) => {
         setValidatedCount(counts.ai_validated || 0);
       })
@@ -178,6 +193,7 @@ export function useAppState() {
     return () => {
       isCancelled = true;
       if (timer) clearTimeout(timer);
+      countsAbortRef.current?.abort();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [refreshGlobalCounts]);

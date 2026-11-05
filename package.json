@@ -4,8 +4,8 @@
   "scripts": {
     "predev": "pnpm run clean:ports",
     "dev": "concurrently --kill-others-on-fail -p '[{name}]' -n 'backend,frontend' -c 'magenta.bold,cyan.bold' 'pnpm --silent run dev:backend' 'pnpm --silent run dev:frontend'",
-    "clean:ports": "lsof -ti :8000 -ti :5173 | xargs kill -9 2>/dev/null || true",
-    "dev:backend": "PYTHONPATH=backend ./.venv/bin/uvicorn app.main:app --port 8000 --reload",
+    "clean:ports": "lsof -ti :8000 -ti :5173 | xargs kill 2>/dev/null || true",
+    "dev:backend": "PYTHONPATH=backend ./.venv/bin/uvicorn app.main:app --port 8000 --reload --reload-dir backend/app",
     "dev:frontend": "pnpm --silent --dir frontend exec vite",
     "build": "pnpm --dir frontend run build",
     "lint": "pnpm --dir frontend run lint",

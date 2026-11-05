@@ -73,7 +73,8 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
         const loadedQs = qsRes.questions || [];
         setQuestions(loadedQs);
         setCounts(countsRes || {});
-        if (onRefreshCounts) onRefreshCounts();
+        // Hand over the counts we just loaded so the parent does not fetch them again
+        if (onRefreshCounts) onRefreshCounts(countsRes);
       } catch (err) {
         console.error('Failed to load AI validated questions:', err);
         if (!isSilent && onShowToast) {
