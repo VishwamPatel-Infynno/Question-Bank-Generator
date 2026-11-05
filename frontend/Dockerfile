@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Build context is the repository root:  docker build -f frontend/Dockerfile .
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 # Pin pnpm to the version CI and local development use. An unpinned corepack fetches the newest
 # major, whose default supply-chain policy rejects packages published in the last day and fails
 # `--frozen-lockfile` installs on a lockfile that is fine for pnpm 10.
