@@ -51,6 +51,7 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `PARALLEL_REVIEW_AND_SOLVE` | `boolean` | `true` | Run the Reviewer and Blind Solver concurrently, saving one LLM round trip per question |
 | `ENABLE_PROMPT_CACHING` | `boolean` | `true` | Mark static system prompts cacheable for providers that need an explicit marker (Anthropic) |
 | `ADMIN_API_KEY` | `string` | `""` | Optional secret for the full `/api/health` diagnostic payload; when set, the `x-admin-key` header must match it |
+| `API_ACCESS_KEY` | `string` | `""` | Optional shared secret for mutating API routes (`POST`/`PUT`/`PATCH`/`DELETE` need `X-API-Key`; reads and the duplicate pre-check stay open). Intended for deployments behind a gateway; a key built into the frontend via `VITE_API_ACCESS_KEY` is visible to browsers, so it is not a substitute for user authentication |
 | `LOG_FORMAT` | `string` | `text` | `text` or `json`; lines carry batch, job, run and slot ids for correlation |
 | `LLM_MAX_TOKENS_CEILING` | `integer` | `8000` | Upper bound when a truncated completion is retried with a larger token budget |
 | `BATCH_PASSING_SCORE_THRESHOLD` | `integer`| `85` | Benchmark score required for batch activity run acceptance (Tier 2) |

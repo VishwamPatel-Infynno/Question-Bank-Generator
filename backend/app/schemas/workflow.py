@@ -18,7 +18,7 @@ KNOWN_VISUAL_TYPES: tuple[str, ...] = (
 
 class GenerationRequest(BaseModel):
     section: MCATSection
-    subtopic: str | None = None
+    subtopic: str | None = Field(default=None, max_length=300)
     difficulty: Difficulty = Difficulty.MEDIUM
     aamc_skill: str | None = Field(
         default=None,
@@ -33,13 +33,14 @@ class GenerationRequest(BaseModel):
         default=False,
         description="Whether the shared reading passage stimulus requires an image diagram",
     )
-    custom_prompt: str | None = None
+    custom_prompt: str | None = Field(default=None, max_length=4000)
     additional_instructions: str | None = Field(
         default=None,
+        max_length=4000,
         description="Educator instructions specifying constraints, scenarios, or pedagogical rules to strictly enforce",
     )
-    model_name: str | None = None
-    api_key: str | None = None
+    model_name: str | None = Field(default=None, max_length=200)
+    api_key: str | None = Field(default=None, max_length=500, repr=False)
 
     # Execution & Batch UUID Identifiers
     run_id: str = Field(
@@ -78,7 +79,9 @@ class GenerationRequest(BaseModel):
     passage_id: str | None = Field(
         None, description="Shared UUID for questions linked to the same passage"
     )
-    shared_stimulus: str | None = Field(None, description="Pre-generated shared passage text")
+    shared_stimulus: str | None = Field(
+        None, max_length=20000, description="Pre-generated shared passage text"
+    )
     passage_questions: int | None = Field(None, description="Number of passage questions e.g. 5")
     image_required: str | bool | None = Field(None, description="Yes or No")
     visual_type: str | None = Field("None", description="e.g. None, SVG_Diagram, AI_FLUX_Image")

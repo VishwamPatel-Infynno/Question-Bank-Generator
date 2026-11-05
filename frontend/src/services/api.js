@@ -7,6 +7,20 @@
 // API Service for communicating with backend API
 const API_BASE = '/api';
 
+// Optional shared secret (backend API_ACCESS_KEY). Unset by default, so local use is unchanged.
+const API_ACCESS_KEY = import.meta.env.VITE_API_ACCESS_KEY || '';
+
+/**
+ * fetch wrapper that adds the optional X-API-Key header to every API call.
+ * @param {string} url
+ * @param {RequestInit} [init]
+ * @returns {Promise<Response>}
+ */
+function apiFetch(url, init = {}) {
+  if (!API_ACCESS_KEY) return fetch(url, init);
+  return fetch(url, { ...init, headers: { ...(init.headers || {}), 'X-API-Key': API_ACCESS_KEY } });
+}
+
 /**
  * Serializes an object into URLSearchParams, omitting undefined, null, and empty values.
  * @param {Record<string, any>} params
@@ -45,13 +59,13 @@ async function assertOk(res, context = 'API call') {
 }
 
 export async function fetchHealth() {
-  const res = await fetch(`${API_BASE}/health`);
+  const res = await apiFetch(`${API_BASE}/health`);
   await assertOk(res, 'Health check');
   return res.json();
 }
 
 export async function fetchSections() {
-  const res = await fetch(`${API_BASE}/sections`);
+  const res = await apiFetch(`${API_BASE}/sections`);
   await assertOk(res, 'Fetch sections');
   return res.json();
 }
@@ -61,26 +75,26 @@ export async function fetchSections() {
  * Used for dynamic outline updates and synchronizing runtime taxonomy state.
  */
 export async function fetchTaxonomy() {
-  const res = await fetch(`${API_BASE}/taxonomy`);
+  const res = await apiFetch(`${API_BASE}/taxonomy`);
   await assertOk(res, 'Fetch taxonomy');
   return res.json();
 }
 
 export async function fetchQuestions(params = {}, signal = null) {
   const query = buildQuery(params);
-  const res = await fetch(`${API_BASE}/questions?${query.toString()}`, { signal });
+  const res = await apiFetch(`${API_BASE}/questions?${query.toString()}`, { signal });
   await assertOk(res, 'Fetch questions');
   return res.json();
 }
 
 export async function fetchQuestionCounts(signal = null) {
-  const res = await fetch(`${API_BASE}/questions/counts`, { signal });
+  const res = await apiFetch(`${API_BASE}/questions/counts`, { signal });
   await assertOk(res, 'Fetch question counts');
   return res.json();
 }
 
 export async function updateQuestionStatus(id, status) {
-  const res = await fetch(`${API_BASE}/questions/${id}/status`, {
+  const res = await apiFetch(`${API_BASE}/questions/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status })
@@ -90,7 +104,7 @@ export async function updateQuestionStatus(id, status) {
 }
 
 export async function batchUpdateQuestionStatus(ids, status) {
-  const res = await fetch(`${API_BASE}/questions/update-status`, {
+  const res = await apiFetch(`${API_BASE}/questions/update-status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids, status })
@@ -100,19 +114,19 @@ export async function batchUpdateQuestionStatus(ids, status) {
 }
 
 export async function fetchQuestionById(id) {
-  const res = await fetch(`${API_BASE}/questions/${id}`);
+  const res = await apiFetch(`${API_BASE}/questions/${id}`);
   await assertOk(res, `Fetch question ${id}`);
   return res.json();
 }
 
 export async function deleteQuestion(id) {
-  const res = await fetch(`${API_BASE}/questions/${id}`, { method: 'DELETE' });
+  const res = await apiFetch(`${API_BASE}/questions/${id}`, { method: 'DELETE' });
   await assertOk(res, `Delete question ${id}`);
   return res.json();
 }
 
 export async function batchDeleteQuestions(ids) {
-  const res = await fetch(`${API_BASE}/questions/delete-batch`, {
+  const res = await apiFetch(`${API_BASE}/questions/delete-batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids })
@@ -122,7 +136,7 @@ export async function batchDeleteQuestions(ids) {
 }
 
 export async function purgeQuestion(id) {
-  const res = await fetch(`${API_BASE}/questions/${id}/permanent`, {
+  const res = await apiFetch(`${API_BASE}/questions/${id}/permanent`, {
     method: 'DELETE'
   });
   await assertOk(res, `Purge question ${id}`);
@@ -130,7 +144,7 @@ export async function purgeQuestion(id) {
 }
 
 export async function purgeQuestionsBatch(ids) {
-  const res = await fetch(`${API_BASE}/questions/purge-batch`, {
+  const res = await apiFetch(`${API_BASE}/questions/purge-batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids })
@@ -140,7 +154,7 @@ export async function purgeQuestionsBatch(ids) {
 }
 
 export async function restoreQuestion(id) {
-  const res = await fetch(`${API_BASE}/questions/${id}/restore`, {
+  const res = await apiFetch(`${API_BASE}/questions/${id}/restore`, {
     method: 'POST'
   });
   await assertOk(res, `Restore question ${id}`);
@@ -158,7 +172,7 @@ export async function restoreQuestion(id) {
  * @throws {Error} If the HTTP response is not 2xx.
  */
 export async function approveQuestion(question) {
-  const res = await fetch(`${API_BASE}/questions`, {
+  const res = await apiFetch(`${API_BASE}/questions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(question)
@@ -174,7 +188,7 @@ export async function approveQuestion(question) {
  * @returns {Promise<Object>} The updated question record.
  */
 export async function overrideQuestionDuplicate(id) {
-  const res = await fetch(`${API_BASE}/questions/${id}/override-duplicate`, {
+  const res = await apiFetch(`${API_BASE}/questions/${id}/override-duplicate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
   });
@@ -189,7 +203,7 @@ export async function overrideQuestionDuplicate(id) {
  * @returns {Promise<Object>} Duplicate check result with similarity score and matched question.
  */
 export async function checkQuestionDuplicate(payload) {
-  const res = await fetch(`${API_BASE}/questions/check-duplicate`, {
+  const res = await apiFetch(`${API_BASE}/questions/check-duplicate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -199,7 +213,7 @@ export async function checkQuestionDuplicate(payload) {
 }
 
 export async function startBackgroundBatch(payload) {
-  const res = await fetch(`${API_BASE}/batches/start`, {
+  const res = await apiFetch(`${API_BASE}/batches/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -210,31 +224,31 @@ export async function startBackgroundBatch(payload) {
 
 export async function fetchBatches(params = {}, signal = null) {
   const query = buildQuery(params);
-  const res = await fetch(`${API_BASE}/batches?${query.toString()}`, { signal });
+  const res = await apiFetch(`${API_BASE}/batches?${query.toString()}`, { signal });
   await assertOk(res, 'Fetch batches');
   return res.json();
 }
 
 export async function fetchBatchDetail(batchId, signal = null) {
-  const res = await fetch(`${API_BASE}/batches/${batchId}`, { signal });
+  const res = await apiFetch(`${API_BASE}/batches/${batchId}`, { signal });
   await assertOk(res, `Fetch batch ${batchId}`);
   return res.json();
 }
 
 export async function deleteBatch(batchId) {
-  const res = await fetch(`${API_BASE}/batches/${batchId}`, { method: 'DELETE' });
+  const res = await apiFetch(`${API_BASE}/batches/${batchId}`, { method: 'DELETE' });
   await assertOk(res, `Delete batch ${batchId}`);
   return res.json();
 }
 
 export async function stopBatch(batchId) {
-  const res = await fetch(`${API_BASE}/batches/${batchId}/stop`, { method: 'POST' });
+  const res = await apiFetch(`${API_BASE}/batches/${batchId}/stop`, { method: 'POST' });
   await assertOk(res, `Stop batch ${batchId}`);
   return res.json();
 }
 
 export async function retryBatchJobs(batchId, payload = null) {
-  const res = await fetch(`${API_BASE}/batches/${batchId}/retry`, {
+  const res = await apiFetch(`${API_BASE}/batches/${batchId}/retry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: payload ? JSON.stringify(payload) : undefined
@@ -244,7 +258,7 @@ export async function retryBatchJobs(batchId, payload = null) {
 }
 
 export async function cancelAllBatches() {
-  const res = await fetch(`${API_BASE}/batches/cancel-all`, { method: 'POST' });
+  const res = await apiFetch(`${API_BASE}/batches/cancel-all`, { method: 'POST' });
   await assertOk(res, 'Cancel all active batches');
   return res.json();
 }
@@ -258,7 +272,7 @@ export async function cancelAllBatches() {
  * @returns {Promise<Object>} Cluster details and leader question metadata.
  */
 export async function fetchBatchDuplicateClusters(batchId, threshold = 0.75, signal = null) {
-  const res = await fetch(`${API_BASE}/batches/${batchId}/duplicate-clusters?threshold=${threshold}`, { signal });
+  const res = await apiFetch(`${API_BASE}/batches/${batchId}/duplicate-clusters?threshold=${threshold}`, { signal });
   await assertOk(res, `Fetch duplicate clusters for batch ${batchId}`);
   return res.json();
 }
@@ -271,7 +285,7 @@ export async function fetchBatchDuplicateClusters(batchId, threshold = 0.75, sig
  * @returns {Promise<Object>} Reconciliation summary.
  */
 export async function resolveBatchDuplicates(batchId, payload = { action: 'delete' }) {
-  const res = await fetch(`${API_BASE}/batches/${batchId}/resolve-duplicates`, {
+  const res = await apiFetch(`${API_BASE}/batches/${batchId}/resolve-duplicates`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -287,7 +301,7 @@ export async function resolveBatchDuplicates(batchId, payload = { action: 'delet
  * @returns {Promise<Object>} Refill outcome and launched jobs.
  */
 export async function refillBatchQuestions(batchId) {
-  const res = await fetch(`${API_BASE}/batches/${batchId}/refill`, {
+  const res = await apiFetch(`${API_BASE}/batches/${batchId}/refill`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
   });
@@ -299,19 +313,19 @@ export async function refillBatchQuestions(batchId) {
 
 export async function fetchPassages(params = {}, signal = null) {
   const query = buildQuery(params);
-  const res = await fetch(`${API_BASE}/passages?${query.toString()}`, { signal });
+  const res = await apiFetch(`${API_BASE}/passages?${query.toString()}`, { signal });
   await assertOk(res, 'Fetch passages');
   return res.json();
 }
 
 export async function fetchSinglePassage(passageId, signal = null) {
-  const res = await fetch(`${API_BASE}/passages/${passageId}`, { signal });
+  const res = await apiFetch(`${API_BASE}/passages/${passageId}`, { signal });
   await assertOk(res, `Fetch passage ${passageId}`);
   return res.json();
 }
 
 export async function savePassage(passageData) {
-  const res = await fetch(`${API_BASE}/passages`, {
+  const res = await apiFetch(`${API_BASE}/passages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(passageData)
@@ -321,7 +335,7 @@ export async function savePassage(passageData) {
 }
 
 export async function deletePassage(passageId) {
-  const res = await fetch(`${API_BASE}/passages/${passageId}`, { method: 'DELETE' });
+  const res = await apiFetch(`${API_BASE}/passages/${passageId}`, { method: 'DELETE' });
   await assertOk(res, `Delete passage ${passageId}`);
   return res.json();
 }

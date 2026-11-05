@@ -56,19 +56,23 @@ async def start_batch_generation(req: GenerationRequest):
         }
     except Exception as e:
         logger.error(f"Failed to start background batch: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to initialize background batch: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail="Failed to initialize background batch.") from e
 
 
 @router.get("/batches")
 async def list_batches(
     section: Annotated[str | None, Query()] = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    """Lists generation batches in the question bank with job progress counts and concurrency metrics."""
-    batches = await get_batches(section=section, status=status_filter)
-    active_count = sum(1 for b in batches if b.status == "in_progress")
+    """Lists generation batches (newest first, paginated) with progress counts and concurrency metrics.
+
+    Rows omit ``request_payload``; fetch a single batch to read it.
+    """
+    batches = await get_batches(section=section, status=status_filter, limit=limit, offset=offset)
+    # Count running batches over the whole table so pagination never hides them from the monitor
+    active_count = len(await get_batches(section=section, status="in_progress"))
     metrics = get_active_batch_metrics()
     return {
         "batches": [b.model_dump() for b in batches],

@@ -6,6 +6,7 @@ from app.repositories.batch_repository import (
     reconcile_interrupted_batches,
     refresh_batch_aggregates,
     save_batch,
+    scrub_stored_request_secrets,
 )
 from app.repositories.job_repository import (
     get_job_by_id,
@@ -63,6 +64,7 @@ __all__ = [
     "override_question_duplicate",
     "promote_completed_batch_questions",
     "reconcile_interrupted_batches",
+    "scrub_stored_request_secrets",
     "refresh_batch_aggregates",
     "restore_passage",
     "restore_question",

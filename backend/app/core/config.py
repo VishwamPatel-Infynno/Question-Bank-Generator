@@ -473,6 +473,8 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "text"  # 'text' or 'json' (one JSON object per line)
     # Optional secret for the full /health diagnostic payload (header x-admin-key).
     ADMIN_API_KEY: str = ""
+    # Optional shared secret: when set, mutating API calls must send it as X-API-Key.
+    API_ACCESS_KEY: str = ""
     # Run the reviewer and blind solver concurrently (saves one LLM round trip per question).
     PARALLEL_REVIEW_AND_SOLVE: bool = True
     # Mark static system prompts cacheable for providers that need an explicit marker (Anthropic).

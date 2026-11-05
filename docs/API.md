@@ -41,7 +41,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `POST` | `/api/passages` | Admin endpoint to create or update a shared reading passage record |
 | `DELETE` | `/api/passages/{passage_id}` | Admin endpoint to soft-delete a passage and its linked questions, preserving batch progress history |
 | `POST` | `/api/passages/{passage_id}/restore` | Admin endpoint to restore a soft-deleted passage record (404 if not found) |
-| `GET` | `/api/batches` | Lists generation batches with active running counts and global concurrency metrics |
+| `GET` | `/api/batches` | Lists generation batches (newest first; `limit` 1-500 default 100, `offset`) with active running counts and global concurrency metrics. Rows omit `request_payload`; client API keys are never stored or returned |
 | `GET` | `/api/batches/{batch_id}` | Retrieves a generation batch with all jobs and grouped questions |
 | `POST` | `/api/batches/start` | Launches an asynchronous background batch generation (dynamically allocated, e.g., 50 Qs = 10 jobs) |
 | `POST` | `/api/batches/{batch_id}/stop` | **Batch Control**: Gracefully halts active background jobs for a batch without deleting questions |

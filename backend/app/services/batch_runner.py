@@ -484,7 +484,8 @@ async def launch_background_batch(
         completed_jobs=0,
         failed_jobs=0,
         status="in_progress",
-        request_payload=req.model_dump(),
+        # Never persist credentials; retries fall back to the server-configured key.
+        request_payload=req.model_dump(exclude={"api_key"}),
         created_at=now_iso,
     )
     await save_batch(batch)

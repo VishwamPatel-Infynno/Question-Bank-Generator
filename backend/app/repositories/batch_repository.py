@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +18,19 @@ from app.schemas import GenerationBatch
 logger = logging.getLogger(__name__)
 
 
-def _batch_model_to_schema(m: GenerationBatchModel) -> GenerationBatch:
+_SECRET_REQUEST_FIELDS = ("api_key",)
+
+
+def _scrub_request_payload(payload: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Drops credentials from a stored/returned request payload (never persist or echo keys)."""
+    if not payload:
+        return payload
+    return {k: v for k, v in payload.items() if k not in _SECRET_REQUEST_FIELDS}
+
+
+def _batch_model_to_schema(
+    m: GenerationBatchModel, include_payload: bool = True
+) -> GenerationBatch:
     """Converts a SQLAlchemy GenerationBatchModel to a Pydantic GenerationBatch schema."""
     return GenerationBatch(
         id=m.id,
@@ -34,7 +47,9 @@ def _batch_model_to_schema(m: GenerationBatchModel) -> GenerationBatch:
         total_tokens=m.total_tokens or 0,
         cost_usd=float(m.cost_usd) if m.cost_usd is not None else 0.0,
         status=m.status or "completed",
-        request_payload=getattr(m, "request_payload", None),
+        request_payload=(
+            _scrub_request_payload(getattr(m, "request_payload", None)) if include_payload else None
+        ),
         created_at=to_iso_str(m.created_at),
         updated_at=to_iso_str(m.updated_at) if m.updated_at else None,
     )
@@ -57,7 +72,7 @@ def _batch_schema_to_model(b: GenerationBatch) -> GenerationBatchModel:
         total_tokens=b.total_tokens,
         cost_usd=b.cost_usd,
         status=b.status,
-        request_payload=b.request_payload,
+        request_payload=_scrub_request_payload(b.request_payload),
         created_at=to_datetime(b.created_at),
         updated_at=to_datetime(b.updated_at) if b.updated_at else datetime.now(UTC),
     )
@@ -66,6 +81,8 @@ def _batch_schema_to_model(b: GenerationBatch) -> GenerationBatchModel:
 async def get_batches(
     section: str | None = None,
     status: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[GenerationBatch]:
     """Retrieves generation batch logs with optional section and status filtering."""
     async with async_session_factory() as session:
@@ -76,9 +93,12 @@ async def get_batches(
             stmt = stmt.where(GenerationBatchModel.status == status)
 
         stmt = stmt.order_by(GenerationBatchModel.created_at.desc())
+        if limit is not None:
+            stmt = stmt.limit(limit).offset(offset)
         result = await session.execute(stmt)
         models = result.scalars().all()
-        return [_batch_model_to_schema(m) for m in models]
+        # List rows omit request_payload: it can be large and only the single-batch view needs it.
+        return [_batch_model_to_schema(m, include_payload=False) for m in models]
 
 
 async def get_batch_by_id(batch_id: str) -> GenerationBatch | None:
@@ -234,6 +254,18 @@ async def promote_completed_batch_questions(batch_id: str) -> int:
                 f"Promoted {promoted} questions in completed batch {batch_id} to 'ai_validated'."
             )
         return promoted
+
+
+async def scrub_stored_request_secrets() -> int:
+    """One-time cleanup: removes API keys that earlier versions persisted in request payloads."""
+    async with async_session_factory() as session:
+        res = await session.execute(
+            update(GenerationBatchModel)
+            .where(func.jsonb_exists(GenerationBatchModel.request_payload, "api_key"))
+            .values(request_payload=GenerationBatchModel.request_payload.op("-")("api_key"))
+        )
+        await session.commit()
+        return res.rowcount or 0
 
 
 async def reconcile_interrupted_batches() -> int:

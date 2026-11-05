@@ -4,15 +4,16 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.types import Receive, Scope, Send
 
 from app.api.router import api_router
 from app.core.config import config
 from app.core.logging import configure_logging
 from app.db.session import engine, init_db
-from app.repositories import reconcile_interrupted_batches
+from app.repositories import reconcile_interrupted_batches, scrub_stored_request_secrets
 from app.services.batch_concurrency import cancel_all_background_batches
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,12 @@ async def lifespan(_app: FastAPI):
     configure_logging()
     logger.info("Initializing Infynno MCAT Question Bank Generator backend...")
     await init_db()
+    try:
+        scrubbed = await scrub_stored_request_secrets()
+        if scrubbed:
+            logger.info(f"Removed stored API keys from {scrubbed} batch request payload(s).")
+    except Exception as exc:
+        logger.warning(f"Request payload scrub skipped: {exc}")
     try:
         await reconcile_interrupted_batches()
     except Exception as exc:
@@ -53,6 +60,15 @@ core_app = FastAPI(
     version="2.0.0",
     lifespan=lifespan,
 )
+
+
+@core_app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Consistent error body for unexpected failures; details stay in the server log only."""
+    logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=exc)
+    return JSONResponse(
+        status_code=500, content={"detail": "Internal server error.", "code": "internal_error"}
+    )
 
 
 # Security Headers Middleware
