@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.core.config import config
 from app.db.base import to_datetime, to_iso_str
 from app.db.session import async_session_factory
 from app.models.batch import GenerationBatchModel
@@ -384,7 +385,7 @@ def _build_question_filters(
     if status and status != "all":
         conditions.append(QuestionModel.status == status)
         if status == "ai_validated":
-            conditions.append(QuestionModel.final_score > 90)
+            conditions.append(QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD)
             in_progress_batches = select(GenerationBatchModel.id).where(
                 GenerationBatchModel.status == "in_progress"
             )
@@ -662,7 +663,7 @@ async def get_question_status_counts() -> dict[str, int]:
                     QuestionModel.status != "ai_validated",
                     and_(
                         QuestionModel.status == "ai_validated",
-                        QuestionModel.final_score > 90,
+                        QuestionModel.final_score > config.PASSING_SCORE_THRESHOLD,
                         or_(
                             QuestionModel.batch_id.is_(None),
                             QuestionModel.batch_id.notin_(in_progress_batches),

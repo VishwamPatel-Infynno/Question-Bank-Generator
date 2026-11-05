@@ -479,6 +479,10 @@ class Settings(BaseSettings):
     REVIEWER_TEMPERATURE: float = 0.1
     BLIND_SOLVER_TEMPERATURE: float = 0.1
 
+    def passes_quality_gate(self, score: float | int | None) -> bool:
+        """Single source of truth for the Tier-1 quality gate: score must be strictly above threshold."""
+        return score is not None and score > self.PASSING_SCORE_THRESHOLD
+
     def get_effective_cascade(self, primary_model: str | None = None) -> list[str]:
         """Returns candidate models for fallback, aware of the active provider."""
         p_model = primary_model or self.DEFAULT_TEXT_MODEL

@@ -89,7 +89,7 @@ Evaluate this question thoroughly and return your 100-point rubric breakdown as 
         explanation = int(float(data.get("explanation_score", 23)))
         total = auth + clarity + distractor + explanation
 
-        passed = total > 90
+        passed = config.passes_quality_gate(total)
 
         review = ReviewScore(
             authenticity_score=auth,

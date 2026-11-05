@@ -500,7 +500,7 @@ async def generate_question_with_self_critique(
                     strengths=critique.get("strengths", []),
                     weaknesses=critique.get("weaknesses", []),
                     recommendations=critique.get("recommendations", []),
-                    passed=total > 90,
+                    passed=config.passes_quality_gate(total),
                 )
             except Exception as parse_err:
                 logger.warning(f"Failed to parse self_critique object: {parse_err}")
