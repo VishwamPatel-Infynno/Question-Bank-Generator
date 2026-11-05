@@ -13,6 +13,7 @@ class TokenUsage(BaseModel):
     duration_ms: int | None = Field(
         None, description="Wall-clock latency of the LLM call in milliseconds, retries included"
     )
+    calls: int = Field(0, description="Number of LLM calls this usage covers (0 for mock results)")
 
 
 def sum_usage(usages: list[TokenUsage], parallel: bool = False) -> TokenUsage:
@@ -29,4 +30,5 @@ def sum_usage(usages: list[TokenUsage], parallel: bool = False) -> TokenUsage:
         total_tokens=sum(u.total_tokens for u in usages),
         cost_usd=round(sum(u.cost_usd for u in usages), 7),
         duration_ms=duration,
+        calls=sum(u.calls for u in usages),
     )

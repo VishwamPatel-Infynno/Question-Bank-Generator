@@ -193,7 +193,7 @@ class TokenUsage(BaseModel):
 `duration_ms` is recorded by `call_llm` (backoff and model fallback included) and flows into the per-agent breakdown, so per-stage latency can be compared alongside cost.
 
 #### Concurrent Review and Spend Accounting
-With `PARALLEL_REVIEW_AND_SOLVE=true` the Auditor and Blind Solver run concurrently. Both calls are always billed: if the review fails first, the solver call is still recorded as a usage-only entry (`build_usage_only_update`) so cumulative cost matches real provider spend.
+Each usage entry records `calls` (LLM calls it covers; the blind solver's samples add up), which feeds the `MAX_LLM_CALLS_PER_SLOT` budget. With `PARALLEL_REVIEW_AND_SOLVE=true` (default is `false`: the solver runs only after a passing review) the Auditor and Blind Solver run concurrently. Both calls are always billed: if the review fails first, the solver call is still recorded as a usage-only entry (`build_usage_only_update`) so cumulative cost matches real provider spend.
 
 #### Prompt Caching
 Static system prompts are sent as `cache_control: ephemeral` blocks for Anthropic models (`ENABLE_PROMPT_CACHING`). Cache reads and writes already appear in the cost math above. OpenAI and DeepInfra apply automatic prefix caching and need no marker. Prompts shorter than the provider minimum are not cached.

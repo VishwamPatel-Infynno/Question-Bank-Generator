@@ -415,6 +415,7 @@ async def call_llm(
                     total_tokens=total_tokens,
                     cost_usd=cost_usd,
                     duration_ms=int((time.perf_counter() - call_started) * 1000),
+                    calls=1,
                 )
                 provider_label = config.get_active_provider(candidate).capitalize()
                 logger.info(

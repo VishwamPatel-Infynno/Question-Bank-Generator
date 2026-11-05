@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -203,6 +203,41 @@ def _determine_item_diagram_requirement(
     return bool(state.get("current_draft", {}).get("image_needed", False))
 
 
+def count_llm_calls(state: AgentWorkflowState) -> int:
+    """LLM calls recorded so far in this attempt (mock/heuristic results count as zero)."""
+    return sum(int(e.get("calls", 0) or 0) for e in state.get("agent_usage_breakdown", []))
+
+
+def llm_budget_exhausted(state: AgentWorkflowState) -> bool:
+    """True once this slot (earlier attempts plus the current one) has spent its call budget."""
+    limit = config.MAX_LLM_CALLS_PER_SLOT
+    if limit <= 0:
+        return False
+    return state.get("slot_prior_calls", 0) + count_llm_calls(state) >= limit
+
+
+async def _regenerate(state: AgentWorkflowState) -> dict[str, Any]:
+    """Regenerates the draft and marks it for a free duplicate re-check before the next review."""
+    result = await regenerator_node(state)
+    state["regenerated_pending_dedup"] = True
+    return result
+
+
+def _duplicate_blockers(state: AgentWorkflowState) -> list[Violation]:
+    """A hard duplicate of an existing question is a defect to fix before any paid review."""
+    info = state.get("duplicate_info") or {}
+    if not info.get("is_duplicate"):
+        return []
+    pct = int(float(info.get("similarity_score", 0.0)) * 100)
+    matched = (info.get("matched_question_stem") or "an existing question")[:240]
+    return [
+        Violation(
+            "duplicate_question",
+            f"Too similar ({pct}%) to: {matched}. Rewrite it to test a clearly different scenario.",
+        )
+    ]
+
+
 def _apply_deterministic_gate(state: AgentWorkflowState) -> list[Violation]:
     """Auto-repairs forbidden dashes, then runs the free structural validators on the draft.
 
@@ -249,6 +284,7 @@ async def _run_question_review_loop(
     item_run_id: str,
     event_queue: asyncio.Queue[WorkflowEvent | None],
     make_event: Callable[..., WorkflowEvent],
+    recheck_duplicate: Callable[[AgentWorkflowState], Awaitable[None]] | None = None,
 ) -> bool:
     """
     Executes the quality review, critique, remediation (regeneration), and quality gate routing
@@ -262,8 +298,38 @@ async def _run_question_review_loop(
 
         prefetched_solver = None
 
-        # Step 0: Free deterministic validation, before any LLM review is spent
+        # Hard call budget: stop before paying for another review, solve or rewrite
+        if llm_budget_exhausted(state):
+            state.update(await reject_node(state))
+            rej_data = state.get("rejection_data") or {}
+            if isinstance(rej_data, dict):
+                rej_data["index"] = idx + 1
+                rej_data["stage"] = "rejected"
+                rej_data["reason"] = (
+                    f"LLM call budget ({config.MAX_LLM_CALLS_PER_SLOT}) exhausted for this question slot."
+                )
+            await event_queue.put(
+                make_event(
+                    event_type="question_rejected",
+                    agent_name="Quality Gate",
+                    message=f"Question {idx + 1} stopped: LLM call budget exhausted.",
+                    data=rej_data,
+                    run_id=item_run_id,
+                )
+            )
+            return False
+
+        # Step 0: Free checks before any LLM review is spent: structure, then (after a rewrite)
+        # duplicate similarity, so a duplicate is rewritten without being reviewed or solved first
         blockers = blocking(_apply_deterministic_gate(state))
+        if (
+            not blockers
+            and recheck_duplicate is not None
+            and state.get("regenerated_pending_dedup")
+        ):
+            state["regenerated_pending_dedup"] = False
+            await recheck_duplicate(state)
+            blockers = _duplicate_blockers(state)
         if blockers:
             state["current_review"] = _validator_review(blockers)
             state["fused_self_passed"] = False
@@ -284,7 +350,7 @@ async def _run_question_review_loop(
                 )
             )
             if iteration < config.MAX_REGENERATION_ATTEMPTS:
-                state.update(await regenerator_node(state))
+                state.update(await _regenerate(state))
                 continue
             state.update(await reject_node(state))
             rej_data = state.get("rejection_data") or {}
@@ -374,7 +440,7 @@ async def _run_question_review_loop(
                 )
                 await event_queue.put(regen_start_evt)
 
-                regen_res = await regenerator_node(state)
+                regen_res = await _regenerate(state)
                 state.update(regen_res)
 
                 regen_usage = state.get("latest_usage", {})
@@ -493,7 +559,7 @@ async def _run_question_review_loop(
                 )
                 await event_queue.put(regen_start_evt)
 
-                regen_res = await regenerator_node(state)
+                regen_res = await _regenerate(state)
                 state.update(regen_res)
 
                 regen_usage = state.get("latest_usage", {})
@@ -897,7 +963,7 @@ async def _run_deduplication_anti_collision_loop(
     )
 
     dedup_retry = 0
-    while dup_result.is_duplicate and dedup_retry < max_retries:
+    while dup_result.is_duplicate and dedup_retry < max_retries and not llm_budget_exhausted(state):
         dedup_retry += 1
         alt_trap = ALT_TRAP_ROTATION[(idx + dedup_retry) % len(ALT_TRAP_ROTATION)]
         logger.warning(

@@ -407,6 +407,9 @@ class Settings(BaseSettings):
     DUPLICATE_API_THRESHOLD: float = 0.80
     # When True the independent reviewer always audits a draft, even if its own self-critique passed.
     ALWAYS_INDEPENDENT_REVIEW: bool = True
+    # Hard cap on LLM calls spent on one question slot (drafts, dedup retries, regenerations,
+    # review and solve samples, across slot replenishments). 0 disables the cap.
+    MAX_LLM_CALLS_PER_SLOT: int = 16
     # Allow mock/heuristic fixtures when no LLM credentials exist (demos, tests). Off by default:
     # a missing key in production must fail loudly instead of shipping fake 'verified' questions.
     OFFLINE_MODE: bool = False
@@ -416,7 +419,7 @@ class Settings(BaseSettings):
     # Optional shared secret: when set, mutating API calls must send it as X-API-Key.
     API_ACCESS_KEY: str = ""
     # Run the reviewer and blind solver concurrently (saves one LLM round trip per question).
-    PARALLEL_REVIEW_AND_SOLVE: bool = True
+    PARALLEL_REVIEW_AND_SOLVE: bool = False
     # Mark static system prompts cacheable for providers that need an explicit marker (Anthropic).
     ENABLE_PROMPT_CACHING: bool = True
     BATCH_PASSING_SCORE_THRESHOLD: int = 85

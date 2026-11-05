@@ -245,14 +245,16 @@ async def test_interactive_slot_replenishment_recovers_from_quality_rejection(mo
     original_review_loop = engine_mod._run_question_review_loop
     attempt_tracker = {"slot_0_calls": 0}
 
-    async def flaky_review_loop(state, idx, total_qty, item_run_id, event_queue, make_event):
+    async def flaky_review_loop(
+        state, idx, total_qty, item_run_id, event_queue, make_event, **kwargs
+    ):
         if idx == 0:
             attempt_tracker["slot_0_calls"] += 1
             if attempt_tracker["slot_0_calls"] == 1:
                 # First attempt fails review
                 return False
         return await original_review_loop(
-            state, idx, total_qty, item_run_id, event_queue, make_event
+            state, idx, total_qty, item_run_id, event_queue, make_event, **kwargs
         )
 
     monkeypatch.setattr(engine_mod, "_run_question_review_loop", flaky_review_loop)

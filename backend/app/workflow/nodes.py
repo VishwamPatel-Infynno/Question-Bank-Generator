@@ -55,6 +55,7 @@ def _record_agent_usage(
     }
     if usage.duration_ms is not None:
         agent_entry["duration_ms"] = usage.duration_ms
+    agent_entry["calls"] = usage.calls
 
     breakdown = list(state.get("agent_usage_breakdown", []))
     breakdown.append(agent_entry)

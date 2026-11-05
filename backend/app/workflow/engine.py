@@ -48,6 +48,7 @@ from app.workflow.engine_helpers import (
     _refresh_duplicate_info_after_review,
     _run_deduplication_anti_collision_loop,
     _run_question_review_loop,
+    count_llm_calls,
     remove_in_flight_draft,
 )
 from app.workflow.nodes import (
@@ -246,6 +247,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         outcomes_completion_tokens: list[int] = [0] * total_qty
         outcomes_costs: list[float] = [0.0] * total_qty
         outcomes_usage: list[list[dict[str, Any]]] = [[] for _ in range(total_qty)]
+        # LLM calls spent per slot across all of its attempts (feeds MAX_LLM_CALLS_PER_SLOT)
+        outcomes_calls: list[int] = [0] * total_qty
         shared_used_traps: list[str] = []
         shared_used_mistakes: list[str] = []
 
@@ -270,10 +273,21 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             outcomes_completion_tokens[idx] += st.get("total_completion_tokens", 0)
             outcomes_costs[idx] += st.get("total_cost_usd", 0.0)
             outcomes_usage[idx].extend(st.get("agent_usage_breakdown", []))
+            outcomes_calls[idx] += count_llm_calls(st)
+
+        def _slot_budget_spent(idx: int) -> bool:
+            limit = config.MAX_LLM_CALLS_PER_SLOT
+            return limit > 0 and outcomes_calls[idx] >= limit
 
         async def _worker(idx: int) -> None:
             max_slot_attempts = 3  # Try up to 3 times max per slot, then move forward
             for attempt in range(max_slot_attempts):
+                if attempt > 0 and _slot_budget_spent(idx):
+                    logger.warning(
+                        f"Question {idx + 1}: LLM call budget exhausted after "
+                        f"{outcomes_calls[idx]} calls; not starting attempt {attempt + 1}."
+                    )
+                    return
                 # Reset per attempt so an error before the new state exists can never fold the
                 # previous attempt's (already counted) usage a second time.
                 attempt_state: AgentWorkflowState | None = None
@@ -364,6 +378,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             "stage_outcomes": {"offline_mode": True} if config.OFFLINE_MODE else {},
                             "diversity_context": diversity_context,
                             "passing_threshold": effective_threshold,
+                            "slot_prior_calls": outcomes_calls[idx],
                         }
                         attempt_state = state
 
@@ -439,6 +454,18 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                         await event_queue.put(gen_done_evt)
 
                         # Step 2: Quality Review / Remediation Loop
+                        async def _recheck_duplicate(
+                            st: AgentWorkflowState, _idx: int = idx
+                        ) -> None:
+                            await _refresh_duplicate_info_after_review(
+                                st,
+                                _idx,
+                                req,
+                                db_reference_pool,
+                                outcomes_questions,
+                                batch_key=batch_id,
+                            )
+
                         question_passed = await _run_question_review_loop(
                             state=state,
                             idx=idx,
@@ -446,6 +473,9 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             item_run_id=item_run_id,
                             event_queue=event_queue,
                             make_event=make_event,
+                            # Offline mock fixtures cannot change their stem when told to, so the
+                            # duplicate-rewrite loop only applies to real generations
+                            recheck_duplicate=None if config.OFFLINE_MODE else _recheck_duplicate,
                         )
 
                         if question_passed:
@@ -607,8 +637,10 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     outcomes_questions[idx] = None
                     await remove_in_flight_draft(batch_id, idx)
                     # A missing-credentials error cannot succeed on retry: fail fast with the message
-                    if attempt < max_slot_attempts - 1 and not isinstance(
-                        worker_err, LLMNotConfiguredError
+                    if (
+                        attempt < max_slot_attempts - 1
+                        and not isinstance(worker_err, LLMNotConfiguredError)
+                        and not _slot_budget_spent(idx)
                     ):
                         logger.warning(
                             f"Worker {idx + 1} encountered error (attempt {attempt + 1}/{max_slot_attempts}): {worker_err}. Auto-replenishing slot in 1.0s..."

@@ -33,6 +33,10 @@ Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_u
 - The blind solver samples two option layouts (`BLIND_SOLVER_SAMPLES`), requires a strict majority on the author's key, and never receives the client's `api_key` when `BLIND_SOLVER_MODEL` is set.
 - Mocks need `OFFLINE_MODE=true` (set by `tests/conftest.py`); without it a missing key raises and the run fails fast.
 
+## Cost controls
+- `MAX_LLM_CALLS_PER_SLOT` caps calls per question slot (counted from the `calls` field of usage entries; mock results count zero). Any new loop that can spend LLM calls must check `llm_budget_exhausted(state)` first.
+- Default flow is sequential: the solver runs only after the reviewer passes (`PARALLEL_REVIEW_AND_SOLVE=false`). A regenerated draft is duplicate-checked for free before the next review.
+
 ## Editing prompts
 Prompts are long and heavily tuned. Make surgical edits, keep section numbering, and run `test_agents.py`, `test_pedagogy.py`, `test_additional_instructions.py`. If a rubric or threshold changes, update `docs/MCAT_RUBRIC.md` and `docs/ARCHITECTURE.md` too.
 
