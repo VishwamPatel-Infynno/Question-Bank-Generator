@@ -23,7 +23,7 @@ Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_u
 
 ## Quality-gate behavior (fail closed)
 - `agents/validators.py` runs free structural checks (and repairs forbidden dashes) before any LLM review; blocking findings go to the regenerator or reject.
-- Reviewer and blind solver raise `QualityCheckUnavailableError` after two failed attempts instead of passing an item. Only `LLMNotConfiguredError` (no credentials, offline demo/tests) uses heuristic fixtures. Tests that simulate offline mode must raise `LLMNotConfiguredError`, not a generic error.
+- Reviewer and blind solver raise `QualityCheckUnavailableError` after two failed attempts instead of passing an item. Only `LLMNotConfiguredError` (no credentials) combined with `OFFLINE_MODE=true` uses heuristic fixtures; `tests/conftest.py` enables it for offline tests. Tests that simulate offline mode must raise `LLMNotConfiguredError`, not a generic error.
 - Generator and regenerator no longer substitute mock questions for real provider failures; the engine's slot retry handles the exception.
 - `ALWAYS_INDEPENDENT_REVIEW=true` forces the reviewer even if the self-critique passed. Truncated completions (`finish_reason == "length"`) are retried with a larger budget up to `LLM_MAX_TOKENS_CEILING`.
 

@@ -470,6 +470,9 @@ class Settings(BaseSettings):
     PASSING_SCORE_THRESHOLD: int = 90
     # When True the independent reviewer always audits a draft, even if its own self-critique passed.
     ALWAYS_INDEPENDENT_REVIEW: bool = True
+    # Allow mock/heuristic fixtures when no LLM credentials exist (demos, tests). Off by default:
+    # a missing key in production must fail loudly instead of shipping fake 'verified' questions.
+    OFFLINE_MODE: bool = False
     LOG_FORMAT: str = "text"  # 'text' or 'json' (one JSON object per line)
     # Optional secret for the full /health diagnostic payload (header x-admin-key).
     ADMIN_API_KEY: str = ""

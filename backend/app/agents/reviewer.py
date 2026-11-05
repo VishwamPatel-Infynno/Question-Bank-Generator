@@ -19,6 +19,7 @@ from app.agents.base import (
     QualityCheckUnavailableError,
     calculate_token_cost,
     call_llm,
+    require_offline_mode,
     safe_json_loads,
 )
 from app.agents.mock_fixtures import evaluate_heuristically
@@ -121,6 +122,7 @@ Evaluate this question thoroughly and return your 100-point rubric breakdown as 
             review = _parse_review(safe_json_loads(raw_output))
             return review, usage
         except LLMNotConfiguredError as e:
+            require_offline_mode(e)
             # No credentials at all: offline demo/test mode keeps using the heuristic reviewer.
             logger.warning(f"Reviewer LLM not configured, using heuristic review: {e}")
             mock_usage = TokenUsage(

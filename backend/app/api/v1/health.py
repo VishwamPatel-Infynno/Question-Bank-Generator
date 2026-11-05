@@ -70,6 +70,7 @@ async def health_check(request: Request = None):
             "ai_engine_ready": bool(
                 config.DEEPINFRA_API_KEY or config.OPENAI_API_KEY or config.ANTHROPIC_API_KEY
             ),
+            "offline_mode": config.OFFLINE_MODE,
             "max_regenerations": config.MAX_REGENERATION_ATTEMPTS,
             "passing_threshold": config.PASSING_SCORE_THRESHOLD,
             "cost_per_million_input": in_rate,

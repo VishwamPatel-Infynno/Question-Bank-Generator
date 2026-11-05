@@ -16,6 +16,7 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
 
+from app.agents.base import LLMNotConfiguredError
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
 from app.core.concurrency import get_global_pipeline_semaphore
@@ -359,7 +360,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             "total_completion_tokens": 0,
                             "total_cost_usd": 0.0,
                             "agent_usage_breakdown": [],
-                            "stage_outcomes": {},
+                            # Marks results produced from mock fixtures so they are never mistaken for real
+                            "stage_outcomes": {"offline_mode": True} if config.OFFLINE_MODE else {},
                             "diversity_context": diversity_context,
                             "passing_threshold": effective_threshold,
                         }
@@ -593,7 +595,10 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     # A question staged in this failed attempt must not linger beside the retry
                     outcomes_questions[idx] = None
                     await remove_in_flight_draft(batch_id, idx)
-                    if attempt < max_slot_attempts - 1:
+                    # A missing-credentials error cannot succeed on retry: fail fast with the message
+                    if attempt < max_slot_attempts - 1 and not isinstance(
+                        worker_err, LLMNotConfiguredError
+                    ):
                         logger.warning(
                             f"Worker {idx + 1} encountered error (attempt {attempt + 1}/{max_slot_attempts}): {worker_err}. Auto-replenishing slot in 1.0s..."
                         )

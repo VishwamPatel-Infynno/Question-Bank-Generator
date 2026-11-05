@@ -16,6 +16,7 @@ from app.agents.base import (
     LLMNotConfiguredError,
     QualityCheckUnavailableError,
     call_llm,
+    require_offline_mode,
     safe_json_loads,
 )
 from app.core.config import config
@@ -128,6 +129,7 @@ async def blind_solve_question(
             )
             return result, usage
         except LLMNotConfiguredError as e:
+            require_offline_mode(e)
             logger.warning(f"Blind solver LLM not configured, offline bypass: {e}")
             usage = TokenUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0, cost_usd=0.0)
             return BlindSolverResult(

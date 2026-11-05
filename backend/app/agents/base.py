@@ -226,6 +226,12 @@ class LLMNotConfiguredError(ValueError):
     """No API credentials are configured, so the agents may fall back to offline heuristics."""
 
 
+def require_offline_mode(err: LLMNotConfiguredError) -> None:
+    """Call inside ``except LLMNotConfiguredError``: re-raises unless OFFLINE_MODE allows fixtures."""
+    if not config.OFFLINE_MODE:
+        raise err
+
+
 class QualityCheckUnavailableError(RuntimeError):
     """A quality-control agent (reviewer or blind solver) could not produce a trustworthy result.
 

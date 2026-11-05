@@ -79,6 +79,8 @@ def neutralize_llm_credentials(request, monkeypatch):
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
     monkeypatch.setattr(config, "OPENAI_API_KEY", "")
+    # Offline tests rely on mock fixtures, which require the explicit opt-in
+    monkeypatch.setattr(config, "OFFLINE_MODE", True)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)

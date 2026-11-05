@@ -23,7 +23,13 @@ from app.agents._mock_tokens import (
     QUESTION_GENERATOR_MOCK_COMPLETION_TOKENS,
     QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
 )
-from app.agents.base import LLMNotConfiguredError, calculate_token_cost, call_llm, safe_json_loads
+from app.agents.base import (
+    LLMNotConfiguredError,
+    calculate_token_cost,
+    call_llm,
+    require_offline_mode,
+    safe_json_loads,
+)
 from app.agents.mock_fixtures import evaluate_heuristically, get_mock_draft
 from app.agents.option_balancer import balance_and_shuffle_options
 from app.agents.prompt_builder import _build_generator_user_prompt
@@ -354,6 +360,7 @@ STANDARDS FOR AAMC MCAT PASSAGES:
 
         return passage_text, usage, image_needed, image_prompt
     except LLMNotConfiguredError as e:
+        require_offline_mode(e)
         logger.warning(
             f"Passage generation LLM not configured, using offline fallback passage: {e}"
         )
@@ -439,6 +446,7 @@ async def generate_question(
         draft, _ = balance_and_shuffle_options(draft)
         return draft, usage
     except LLMNotConfiguredError as e:
+        require_offline_mode(e)
         logger.warning(f"Generator LLM not configured, using offline mock draft: {e}")
         mock_usage = TokenUsage(
             prompt_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
@@ -508,6 +516,7 @@ async def generate_question_with_self_critique(
 
         return draft, self_review, usage
     except LLMNotConfiguredError as e:
+        require_offline_mode(e)
         logger.warning(f"Fused Generator LLM not configured, using offline mock draft: {e}")
         mock_usage = TokenUsage(
             prompt_tokens=QUESTION_GENERATOR_MOCK_PROMPT_TOKENS,
