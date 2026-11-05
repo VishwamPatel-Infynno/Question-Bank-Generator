@@ -199,7 +199,7 @@ PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
 pnpm run test
 
 # 2. Run Python linting and code quality checks (enforces SIM, RET, B, C4, E, W, F, I, UP)
-ruff check backend/
+ruff check .
 ruff format --check .
 ```
 

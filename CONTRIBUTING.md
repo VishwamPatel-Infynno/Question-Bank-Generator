@@ -49,7 +49,7 @@ Before submitting any code changes, ensure all verification suites pass with zer
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
 # 2. Backend Python linter and formatting checks (enforcing SIM, RET, B, C4, E, W, F, I, UP)
-ruff check backend/
+ruff check .
 ruff format --check .
 
 # 3. Frontend Oxlint linter (0 errors, 0 warnings policy across all frontend sources)
@@ -58,6 +58,8 @@ pnpm --dir frontend lint
 # 4. Frontend production build (compiles cleanly via Vite 8)
 pnpm --dir frontend build
 pnpm --dir frontend run test        # Vitest unit tests for the pure helpers
+pnpm run lint:all                   # ruff (backend) + oxlint (frontend)
+pnpm run test:all                   # pytest (backend) + Vitest (frontend)
 pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
 ```
 

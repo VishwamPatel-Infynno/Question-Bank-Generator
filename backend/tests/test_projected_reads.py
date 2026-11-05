@@ -27,7 +27,6 @@ def _question(batch_id, job_id, status, stimulus="Passage text"):
     )
 
 
-@pytest.mark.asyncio
 async def test_heads_return_only_active_questions_with_the_columns_the_worker_needs():
     batch_id, job_id = str(uuid.uuid4()), str(uuid.uuid4())
     await save_batch(
@@ -48,7 +47,6 @@ async def test_heads_return_only_active_questions_with_the_columns_the_worker_ne
     assert heads[0].stimulus_text == "First passage" and heads[0].status == "batch_only"
 
 
-@pytest.mark.asyncio
 async def test_batch_exists_is_a_cheap_boolean_check():
     batch_id = str(uuid.uuid4())
     assert await batch_exists(batch_id) is False
@@ -60,7 +58,6 @@ async def test_batch_exists_is_a_cheap_boolean_check():
     assert await batch_exists(batch_id) is True
 
 
-@pytest.mark.asyncio
 async def test_slim_reads_do_not_touch_the_deferred_json_blobs():
     from app.repositories import get_questions
 
@@ -83,7 +80,6 @@ async def test_slim_reads_do_not_touch_the_deferred_json_blobs():
     assert full[0].stage_outcomes == {"drafting": {"x": 1}}
 
 
-@pytest.mark.asyncio
 async def test_save_questions_batch_select_count_does_not_grow_with_the_batch():
     from app.db.session import engine
     from app.repositories import get_question_by_id, save_questions_batch

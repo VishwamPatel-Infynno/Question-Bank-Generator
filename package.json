@@ -10,7 +10,7 @@
     "dev:frontend": "pnpm --silent --dir frontend exec vite",
     "build": "pnpm --dir frontend run build",
     "lint": "pnpm --dir frontend run lint",
-    "lint:backend": "ruff check backend/",
+    "lint:backend": "ruff check .",
     "format": "ruff format .",
     "format:check": "ruff format --check .",
     "test": "pnpm run test:backend",
@@ -19,7 +19,9 @@
     "preview": "pnpm --dir frontend run preview",
     "test:frontend": "pnpm --dir frontend run test",
     "sync:taxonomy": "cp backend/app/data/mcat_dependent_taxonomy.json frontend/src/constants/mcat_dependent_taxonomy.json",
-    "db:seed": "PYTHONPATH=backend ./.venv/bin/python backend/scripts/seed_questions.py"
+    "db:seed": "PYTHONPATH=backend ./.venv/bin/python backend/scripts/seed_questions.py",
+    "lint:all": "pnpm run lint:backend && pnpm run lint",
+    "test:all": "pnpm run test:backend && pnpm run test:frontend"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"

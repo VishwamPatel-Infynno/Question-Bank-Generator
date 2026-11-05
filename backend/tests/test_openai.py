@@ -66,7 +66,6 @@ def test_openai_image_pricing_matrix():
     assert config.calculate_image_cost(256, 256, model="dall-e-2") == 0.016
 
 
-@pytest.mark.asyncio
 async def test_call_openai_image_api_token_metered_costing(monkeypatch):
     """Verifies that call_openai_image_api extracts usage tokens ($5/1M in, $30/1M out) when reported."""
     import httpx
@@ -105,7 +104,6 @@ async def test_call_openai_image_api_token_metered_costing(monkeypatch):
     assert cost == 0.0301
 
 
-@pytest.mark.asyncio
 async def test_openai_image_generator_missing_key(monkeypatch):
     """Verifies strict error reporting when ACTIVE_IMAGE_PROVIDER is 'openai' and key is missing."""
     monkeypatch.setattr(config, "ACTIVE_IMAGE_PROVIDER", "openai")
@@ -127,7 +125,6 @@ async def test_openai_image_generator_missing_key(monkeypatch):
     assert "Visual Studio" in usage["details"]["error"]
 
 
-@pytest.mark.asyncio
 async def test_openai_image_generator_success(monkeypatch):
     """Verifies successful OpenAI GPT Image 2.5 generation and cost accumulation with proprietary masking."""
     monkeypatch.setattr(config, "ACTIVE_IMAGE_PROVIDER", "openai")
@@ -156,7 +153,6 @@ async def test_openai_image_generator_success(monkeypatch):
     assert usage["cost_usd"] == 0.020
 
 
-@pytest.mark.asyncio
 async def test_call_openai_image_api_network_mock(monkeypatch):
     """Verifies call_openai_image_api correctly posts to OpenAI endpoint and parses b64_json."""
     import httpx
@@ -195,7 +191,6 @@ async def test_call_openai_image_api_network_mock(monkeypatch):
     assert img_data.startswith("data:image/png;base64,")
 
 
-@pytest.mark.asyncio
 async def test_api_config_and_health_branded_masking(monkeypatch):
     """Verifies that /api/config and /api/health endpoints report proprietary branding without leaking model/provider identities."""
     monkeypatch.setattr(config, "ACTIVE_IMAGE_PROVIDER", "openai")

@@ -2,7 +2,6 @@
 
 import uuid
 
-import pytest
 from app.core.config import config
 from app.core.errors import sanitize_error_text
 from app.schemas import GenerationJob
@@ -20,7 +19,6 @@ def _q(job_id, score, qid=None):
     )
 
 
-@pytest.mark.asyncio
 async def test_liveness_never_touches_the_database(client, monkeypatch):
     import app.api.v1.health as health
 
@@ -33,7 +31,6 @@ async def test_liveness_never_touches_the_database(client, monkeypatch):
     assert res.json() == {"status": "alive"}
 
 
-@pytest.mark.asyncio
 async def test_request_id_is_generated_and_echoed(client):
     generated = (await client.get("/api/health/live")).headers["x-request-id"]
     assert len(generated) == 16
@@ -43,7 +40,6 @@ async def test_request_id_is_generated_and_echoed(client):
     assert unsafe.headers["x-request-id"] != "bad id\twith space"
 
 
-@pytest.mark.asyncio
 async def test_oversized_bodies_are_rejected_before_any_work(client, monkeypatch):
     monkeypatch.setattr(config, "MAX_REQUEST_BODY_MB", 1)
     res = await client.post("/api/questions/check-duplicate", content=b"x" * (1024 * 1024 + 1))
@@ -52,14 +48,12 @@ async def test_oversized_bodies_are_rejected_before_any_work(client, monkeypatch
     assert "x-request-id" in res.headers
 
 
-@pytest.mark.asyncio
 async def test_body_limit_can_be_disabled(client, monkeypatch):
     monkeypatch.setattr(config, "MAX_REQUEST_BODY_MB", 0)
     res = await client.post("/api/questions/check-duplicate", content=b"x" * 2048)
     assert res.status_code == 422  # reached validation, not the size guard
 
 
-@pytest.mark.asyncio
 async def test_bulk_id_lists_are_bounded(client):
     res = await client.post("/api/questions/delete-batch", json={"ids": ["x"] * 1001})
     assert res.status_code == 422

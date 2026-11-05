@@ -25,7 +25,6 @@ from app.services import (
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.mark.asyncio
 async def test_dynamic_job_allocation_in_batch_runner():
     """Verifies that launch_background_batch dynamically scales jobs and target quotas."""
     # Test 5 questions -> 1 job of 5
@@ -64,7 +63,6 @@ async def test_dynamic_job_allocation_in_batch_runner():
     assert jobs12[2].target_count == 2
 
 
-@pytest.mark.asyncio
 async def test_auto_resolve_caps_excess_to_exact_target():
     """
     Verifies that when a buffered refill generates more questions than target_count,
@@ -153,7 +151,6 @@ async def test_auto_resolve_caps_excess_to_exact_target():
     assert discarded_scores == {82, 78}
 
 
-@pytest.mark.asyncio
 async def test_refresh_batch_aggregates_reflects_active_questions():
     """Verifies that refresh_batch_aggregates counts active questions correctly."""
     batch_id = str(uuid.uuid4())
@@ -226,7 +223,6 @@ async def test_refresh_batch_aggregates_reflects_active_questions():
     assert refreshed.actual_count == 4
 
 
-@pytest.mark.asyncio
 async def test_interactive_slot_replenishment_recovers_from_quality_rejection(monkeypatch):
     """
     Verifies that when a question fails quality audit on initial attempt,

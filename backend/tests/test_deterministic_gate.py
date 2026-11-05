@@ -4,14 +4,14 @@ import asyncio
 
 import pytest
 from app.core.config import config
-from app.schemas import GenerationRequest, QuestionDraft, ReviewScore
+from app.schemas import QuestionDraft, ReviewScore
 from app.workflow import engine_helpers
 from app.workflow.engine_helpers import (
     _apply_deterministic_gate,
     _run_question_review_loop,
     _validator_review,
 )
-from factories import make_draft
+from factories import make_draft, make_request, make_usage
 
 
 def _draft(key="A", stem="Which statement best explains the observed rate change?"):
@@ -19,7 +19,7 @@ def _draft(key="A", stem="Which statement best explains the observed rate change
 
 
 def _state(draft: QuestionDraft) -> dict:
-    req = GenerationRequest(section="CP", subtopic="Kinetics", difficulty="Medium")
+    req = make_request()
     return {
         "request": req.model_dump(),
         "current_draft": draft.model_dump(),
@@ -49,7 +49,6 @@ def test_validator_review_is_failing_and_carries_findings():
     assert any("invalid_key" in r for r in review.recommendations)
 
 
-@pytest.mark.asyncio
 async def test_loop_regenerates_invalid_draft_before_any_review(monkeypatch):
     calls: list[str] = []
     state = _state(_draft(key="Z"))
@@ -80,7 +79,6 @@ async def test_loop_regenerates_invalid_draft_before_any_review(monkeypatch):
     assert calls == ["regen", "review"]
 
 
-@pytest.mark.asyncio
 async def test_loop_rejects_when_structural_defect_persists(monkeypatch):
     state = _state(_draft(key="Z"))
     state["iteration_count"] = config.MAX_REGENERATION_ATTEMPTS
@@ -97,7 +95,6 @@ async def test_loop_rejects_when_structural_defect_persists(monkeypatch):
     assert state["status"] == "rejected_below_threshold"
 
 
-@pytest.mark.asyncio
 async def test_reviewer_and_solver_fail_closed_on_provider_errors(monkeypatch, patch_llm):
     import app.agents.blind_solver as solver_mod
     import app.agents.reviewer as reviewer_mod
@@ -108,7 +105,7 @@ async def test_reviewer_and_solver_fail_closed_on_provider_errors(monkeypatch, p
 
     patch_llm(broken)
     patch_llm(broken)
-    req = GenerationRequest(section="CP", subtopic="Kinetics", difficulty="Medium")
+    req = make_request()
 
     with pytest.raises(QualityCheckUnavailableError):
         await reviewer_mod.review_question(_draft(), req)
@@ -119,9 +116,9 @@ async def test_reviewer_and_solver_fail_closed_on_provider_errors(monkeypatch, p
 def test_reviewer_rejects_missing_or_out_of_range_scores():
     from app.agents.reviewer import _parse_review
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="missing"):
         _parse_review({"authenticity_score": 24, "clarity_score": 24})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="outside 0-25"):
         _parse_review(
             {
                 "authenticity_score": 30,
@@ -141,7 +138,6 @@ def test_reviewer_rejects_missing_or_out_of_range_scores():
     assert ok.total_score == 96 and ok.passed is True
 
 
-@pytest.mark.asyncio
 async def test_generator_does_not_substitute_mock_questions_for_real_failures(monkeypatch):
     import app.agents.generator as gen_mod
 
@@ -152,15 +148,9 @@ async def test_generator_does_not_substitute_mock_questions_for_real_failures(mo
 
     monkeypatch.setattr(gen_mod, "call_llm", broken)
     monkeypatch.setattr(base_mod, "call_llm", broken)
-    req = GenerationRequest(section="CP", subtopic="Kinetics", difficulty="Medium")
+    req = make_request()
     with pytest.raises(RuntimeError):
         await gen_mod.generate_question_with_self_critique(req)
-
-
-def _usage(tokens: int, cost: float):
-    from app.schemas import TokenUsage
-
-    return TokenUsage(prompt_tokens=tokens, completion_tokens=0, total_tokens=tokens, cost_usd=cost)
 
 
 def _solver_result(agrees: bool = True):
@@ -174,7 +164,7 @@ def _solver_result(agrees: bool = True):
         solver_rationale="ok",
         agrees_with_key=agrees,
         is_verified=agrees,
-        usage=_usage(0, 0.0),
+        usage=make_usage(0, 0.0),
     )
 
 
@@ -190,7 +180,6 @@ def _review(total: int) -> ReviewScore:
     )
 
 
-@pytest.mark.asyncio
 async def test_review_and_solver_run_concurrently_and_both_costs_are_counted(monkeypatch):
     import app.workflow.nodes as nodes_mod
 
@@ -202,14 +191,14 @@ async def test_review_and_solver_run_concurrently_and_both_costs_are_counted(mon
         if len(started) == 2:
             both_started.set()
         await asyncio.wait_for(both_started.wait(), timeout=1)  # fails if run serially
-        return _review(96), _usage(100, 0.01)
+        return _review(96), make_usage(100, 0.01)
 
     async def fake_solve(*_a, **_k):
         started.append("solve")
         if len(started) == 2:
             both_started.set()
         await asyncio.wait_for(both_started.wait(), timeout=1)
-        return _solver_result(), _usage(50, 0.005)
+        return _solver_result(), make_usage(50, 0.005)
 
     monkeypatch.setattr(nodes_mod, "review_question", fake_review)
     monkeypatch.setattr(nodes_mod, "blind_solve_question", fake_solve)
@@ -228,12 +217,11 @@ async def test_review_and_solver_run_concurrently_and_both_costs_are_counted(mon
     assert agents == ["Question Reviewer", "Blind-Solver Dual Validation"]
 
 
-@pytest.mark.asyncio
 async def test_failing_review_still_accounts_solver_spend_and_ignores_solver_error(monkeypatch):
     import app.workflow.nodes as nodes_mod
 
     async def fake_review(*_a, **_k):
-        return _review(60), _usage(100, 0.01)
+        return _review(60), make_usage(100, 0.01)
 
     async def broken_solve(*_a, **_k):
         raise RuntimeError("solver down")

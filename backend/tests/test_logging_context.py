@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 
-import pytest
 from app.core.logging import JsonFormatter, _install_record_factory, bind_log_context
 
 
@@ -22,7 +21,6 @@ def test_ids_are_attached_and_removed_with_scope():
     assert _record().ctx == {}
 
 
-@pytest.mark.asyncio
 async def test_child_tasks_inherit_ids_without_leaking_back():
     seen = {}
 

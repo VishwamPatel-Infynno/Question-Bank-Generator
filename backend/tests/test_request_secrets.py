@@ -27,7 +27,6 @@ def _batch(batch_id: str, payload: dict) -> GenerationBatch:
     )
 
 
-@pytest.mark.asyncio
 async def test_saved_and_returned_payloads_never_contain_api_key():
     bid = str(uuid.uuid4())
     await save_batch(_batch(bid, {"api_key": "sk-secret", "subtopic": "Kinetics"}))
@@ -39,7 +38,6 @@ async def test_saved_and_returned_payloads_never_contain_api_key():
     assert listed.request_payload is None  # list rows omit the payload entirely
 
 
-@pytest.mark.asyncio
 async def test_startup_scrub_removes_keys_stored_by_older_versions():
     bid = str(uuid.uuid4())
     async with async_session_factory() as session:  # bypass save_batch to simulate legacy data

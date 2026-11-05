@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from app.schemas import OptionChoice, Question, QuestionDraft
+from app.schemas import GenerationRequest, OptionChoice, Question, QuestionDraft, TokenUsage
 
 _DEFAULT_OPTIONS = (
     "The catalyst lowers activation energy",
@@ -54,3 +54,15 @@ def make_question(**overrides: Any) -> Question:
     }
     fields.update(overrides)
     return Question(**fields)
+
+
+def make_request(**overrides: Any) -> GenerationRequest:
+    """A minimal valid generation request (Chem/Phys, medium); keyword arguments override."""
+    fields: dict[str, Any] = {"section": "CP", "subtopic": "Kinetics", "difficulty": "Medium"}
+    fields.update(overrides)
+    return GenerationRequest(**fields)
+
+
+def make_usage(tokens: int = 15, cost: float = 0.001) -> TokenUsage:
+    """Token usage with ``tokens`` prompt tokens and no completion tokens."""
+    return TokenUsage(prompt_tokens=tokens, completion_tokens=0, total_tokens=tokens, cost_usd=cost)

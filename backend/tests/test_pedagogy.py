@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import pytest
 from app.schemas import (
     CONTENT_DOMAINS,
     PRIMARY_TRAPS,
@@ -127,7 +126,6 @@ def test_option_symmetry_and_anti_guessability_engine():
     assert "Option A is correct: £12.00 is the final total." in balanced_qr.explanation
 
 
-@pytest.mark.asyncio
 async def test_smart_ai_trap_and_explanation_breakdown(monkeypatch, patch_llm):
     import app.agents.generator as gen_mod
     from app.agents.base import LLMNotConfiguredError
@@ -176,7 +174,6 @@ async def test_smart_ai_trap_and_explanation_breakdown(monkeypatch, patch_llm):
     assert res_explicit.question.primary_trap == "Calculation_Formula_Trap"
 
 
-@pytest.mark.asyncio
 async def test_manager_dependent_taxonomy_integration():
     """Validates the official manager-provided MCAT Dependent Taxonomy integration."""
     from app.main import app

@@ -60,7 +60,6 @@ async def _consume(stream, usage, existing=2, new=None):
     return aborted, new
 
 
-@pytest.mark.asyncio
 async def test_generated_questions_are_persisted_and_progress_counts_existing_ones(persist):
     usage = _usage_totals()
     aborted, new = await _consume(
@@ -78,7 +77,6 @@ async def test_generated_questions_are_persisted_and_progress_counts_existing_on
     assert all(call[:3] == ("b", "j", "p") for call in persist["calls"])
 
 
-@pytest.mark.asyncio
 async def test_workflow_complete_persists_remaining_and_counts_usage(persist):
     usage = _usage_totals()
     _, new = await _consume(
@@ -95,7 +93,6 @@ async def test_workflow_complete_persists_remaining_and_counts_usage(persist):
     assert usage.tokens == 9 and usage.cost == 0.5
 
 
-@pytest.mark.asyncio
 async def test_a_vanished_batch_stops_the_reader(persist):
     persist["abort_on"] = 1
     usage = _usage_totals()
@@ -110,7 +107,6 @@ async def test_a_vanished_batch_stops_the_reader(persist):
     assert len(persist["calls"]) == 1
 
 
-@pytest.mark.asyncio
 async def test_rejected_run_counts_its_spend_without_failing(persist):
     usage = _usage_totals()
     aborted, _ = await _consume(
@@ -119,7 +115,6 @@ async def test_rejected_run_counts_its_spend_without_failing(persist):
     assert aborted is False and usage.tokens == 7
 
 
-@pytest.mark.asyncio
 async def test_error_event_raises_after_counting_spend(persist):
     usage = _usage_totals()
     with pytest.raises(RuntimeError, match="provider down"):
@@ -132,7 +127,6 @@ async def test_error_event_raises_after_counting_spend(persist):
     assert usage.tokens == 5
 
 
-@pytest.mark.asyncio
 async def test_error_event_without_usage_still_raises(persist):
     with pytest.raises(RuntimeError, match="Unknown workflow error"):
         await _consume(_stream(_evt("workflow_error")), _usage_totals())

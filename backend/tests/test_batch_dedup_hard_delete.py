@@ -17,7 +17,6 @@ from httpx import ASGITransport, AsyncClient
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.mark.asyncio
 async def test_hard_delete_purges_duplicate_questions():
     """Verifies that hard_delete_questions_batch permanently removes records from PostgreSQL."""
     await init_db()
@@ -104,7 +103,6 @@ async def test_hard_delete_purges_duplicate_questions():
         assert data["jobs"][0]["questions"][0]["id"] == q_id_keep
 
 
-@pytest.mark.asyncio
 async def test_refresh_batch_aggregates_completion_guard():
     """Verifies that refresh_batch_aggregates keeps in_progress status when allow_complete=False."""
     await init_db()

@@ -44,13 +44,14 @@ from app.repositories.question_repository import (
 )
 
 __all__ = [
+    "batch_exists",
     "batch_update_question_status",
     "count_questions",
     "delete_batch",
     "delete_passage",
     "delete_question",
     "delete_questions_batch",
-    "batch_exists",
+    "get_active_job_question_heads",
     "get_batch_by_id",
     "get_batches",
     "get_job_by_id",
@@ -59,7 +60,6 @@ __all__ = [
     "get_passages",
     "get_question_by_id",
     "get_question_status_counts",
-    "get_active_job_question_heads",
     "get_questions",
     "get_repository_metrics",
     "get_subtopic_reference_questions",
@@ -68,7 +68,6 @@ __all__ = [
     "override_question_duplicate",
     "promote_completed_batch_questions",
     "reconcile_interrupted_batches",
-    "scrub_stored_request_secrets",
     "refresh_batch_aggregates",
     "restore_passage",
     "restore_question",
@@ -78,6 +77,7 @@ __all__ = [
     "save_passage",
     "save_question",
     "save_questions_batch",
+    "scrub_stored_request_secrets",
     "update_job_progress",
     "update_question_status",
 ]

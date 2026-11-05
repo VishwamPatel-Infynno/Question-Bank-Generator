@@ -1,20 +1,10 @@
 import pytest
-from app.db.session import init_db
 from app.main import app
-from app.services import cancel_all_background_batches
 from httpx import ASGITransport, AsyncClient
 
-pytestmark = pytest.mark.requires_db
+pytestmark = [pytest.mark.requires_db, pytest.mark.usefixtures("clean_background_batches")]
 
 
-@pytest.fixture(autouse=True)
-async def ensure_db():
-    await init_db()
-    yield
-    await cancel_all_background_batches()
-
-
-@pytest.mark.asyncio
 async def test_batch_and_jobs_lifecycle(monkeypatch):
     # Mock background execution to test REST/DB lifecycle without spawning live generation workers
     async def mock_execute(b_id, req):
@@ -77,7 +67,6 @@ async def test_batch_and_jobs_lifecycle(monkeypatch):
         assert get_again.status_code == 404
 
 
-@pytest.mark.asyncio
 async def test_mini_batch_lifecycle(monkeypatch):
     """Verifies that launching a 5-question batch creates exactly 1 job (5 questions target) in background pool."""
 
@@ -136,7 +125,6 @@ async def test_mini_batch_lifecycle(monkeypatch):
         assert del_resp.status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_refill_preserves_job_count_without_adding_sets(monkeypatch):
     """
     Verifies that when a batch has a deficit (e.g. from duplicate resolution),
@@ -227,7 +215,6 @@ async def test_refill_preserves_job_count_without_adding_sets(monkeypatch):
     assert 11 not in job_nums
 
 
-@pytest.mark.asyncio
 async def test_reconcile_interrupted_batches_on_startup():
     from app.repositories import (
         get_batch_by_id,

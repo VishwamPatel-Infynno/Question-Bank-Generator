@@ -5,7 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 from app.services import deduplication as dd
 from app.workflow import engine_helpers as eh
 
@@ -92,7 +91,6 @@ def test_prune_default_is_exact():
     assert dd.compute_stem_similarity(a, b, prune=True) >= dd.compute_stem_similarity(a, b) - 1e-4
 
 
-@pytest.mark.asyncio
 async def test_large_pool_scored_in_thread(monkeypatch):
     rng = random.Random(7)
     pool = [_question(rng, i) for i in range(eh._DEDUP_THREAD_POOL_MIN + 5)]
@@ -111,7 +109,6 @@ async def test_large_pool_scored_in_thread(monkeypatch):
     assert small.is_duplicate is False
 
 
-@pytest.mark.asyncio
 async def test_clear_in_flight_batch():
     await eh.register_in_flight_draft("b-x", {"question_stem": "s"}, 0)
     await eh.register_in_flight_draft("b-x", {"question_stem": "t"}, 1)

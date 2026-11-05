@@ -18,7 +18,6 @@ from app.schemas import (
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.mark.asyncio
 async def test_deduplication_and_override_api():
     from app.api.v1.questions import (
         check_question_duplicate_endpoint,
@@ -109,7 +108,6 @@ async def test_deduplication_and_override_api():
     await delete_question(cand_id)
 
 
-@pytest.mark.asyncio
 async def test_batch_duplicate_clusters_and_resolve_endpoints():
     from app.api.v1.batches import (
         ResolveDuplicatesRequest,
@@ -199,7 +197,6 @@ async def test_batch_duplicate_clusters_and_resolve_endpoints():
     await delete_batch(b_id)
 
 
-@pytest.mark.asyncio
 async def test_passage_lifecycle_and_restore_api(client):
     """Verify passage creation, retrieval, soft-deletion, and restoration via REST API endpoints."""
     from app.repositories import get_passage_by_id
@@ -251,7 +248,6 @@ async def test_passage_lifecycle_and_restore_api(client):
     assert non_existent.status_code == 404
 
 
-@pytest.mark.asyncio
 async def test_cors_patch_allowed(client):
     """Verify that CORS preflight permits PATCH requests in Access-Control-Allow-Methods."""
     headers = {
@@ -265,7 +261,6 @@ async def test_cors_patch_allowed(client):
     assert "PATCH" in allow_methods
 
 
-@pytest.mark.asyncio
 async def test_health_admin_key_is_validated_when_configured(client, monkeypatch):
 
     monkeypatch.setattr(config, "ADMIN_API_KEY", "s3cret")
@@ -275,7 +270,6 @@ async def test_health_admin_key_is_validated_when_configured(client, monkeypatch
     assert "default_text_model" in full
 
 
-@pytest.mark.asyncio
 async def test_readiness_probe_reflects_database_state(client, monkeypatch):
     import app.api.v1.health as health_mod
 

@@ -1,6 +1,5 @@
 import json
 
-import pytest
 from app.agents.generator import get_mock_draft
 from app.agents.image_generator import calculate_flux_image_cost, generate_image_stimulus
 from app.core.config import config
@@ -16,7 +15,6 @@ from app.workflow import (
 )
 
 
-@pytest.mark.asyncio
 async def test_strict_ai_image_generator(monkeypatch):
     """
     Verifies strict AI image model policy:
@@ -89,7 +87,6 @@ def test_flux_image_cost_formula():
     )
 
 
-@pytest.mark.asyncio
 async def test_image_node_workflow_accumulation(monkeypatch):
     """Verifies that image_node accurately accumulates usage into workflow state with AI image model."""
 
@@ -132,7 +129,6 @@ async def test_image_node_workflow_accumulation(monkeypatch):
     assert "latest_usage" in res
 
 
-@pytest.mark.asyncio
 async def test_visual_stimulus_persistence_in_finalize_node():
     """Verifies that finalize_node preserves image_svg, image_url, and image_description in final_question and stage_outcomes."""
     req = GenerationRequest(
@@ -170,7 +166,6 @@ async def test_visual_stimulus_persistence_in_finalize_node():
     assert final_payload["image_description"] == mock_desc
 
 
-@pytest.mark.asyncio
 async def test_autonomous_ai_determined_image_workflow(monkeypatch):
     """Verifies that image generation strictly follows autonomous AI determination when enabled, and is bypassed when disabled or in CARS."""
     import app.agents.generator as gen_mod

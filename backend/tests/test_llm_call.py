@@ -3,7 +3,6 @@
 import asyncio
 from types import SimpleNamespace
 
-import pytest
 from app.agents import base
 from app.core.config import config
 
@@ -17,7 +16,6 @@ def _response(content="{}", finish_reason="stop"):
     )
 
 
-@pytest.mark.asyncio
 async def test_anthropic_system_prompt_is_marked_cacheable(monkeypatch):
     captured = {}
 
@@ -34,7 +32,6 @@ async def test_anthropic_system_prompt_is_marked_cacheable(monkeypatch):
     assert system[0]["cache_control"] == {"type": "ephemeral"}
 
 
-@pytest.mark.asyncio
 async def test_non_anthropic_system_prompt_stays_plain_text(monkeypatch):
     captured = {}
 
@@ -48,7 +45,6 @@ async def test_non_anthropic_system_prompt_stays_plain_text(monkeypatch):
     assert captured["num_retries"] == 0
 
 
-@pytest.mark.asyncio
 async def test_truncated_completion_is_retried_with_larger_budget(monkeypatch):
     budgets = []
 
@@ -64,7 +60,6 @@ async def test_truncated_completion_is_retried_with_larger_budget(monkeypatch):
     assert budgets == [1000, 2000]
 
 
-@pytest.mark.asyncio
 async def test_llm_slot_is_released_while_backing_off(monkeypatch):
     sem_free_during_sleep = []
     calls = {"n": 0}

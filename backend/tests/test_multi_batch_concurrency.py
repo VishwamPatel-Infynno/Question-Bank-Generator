@@ -3,7 +3,6 @@ import asyncio
 import pytest
 from app.agents.base import call_llm, get_global_llm_semaphore
 from app.core.config import config
-from app.db.session import init_db
 from app.main import app
 from app.repositories import (
     refresh_batch_aggregates,
@@ -12,20 +11,12 @@ from app.repositories import (
     update_job_progress,
 )
 from app.schemas import GenerationBatch, GenerationJob
-from app.services import cancel_all_background_batches, get_global_job_semaphore
+from app.services import get_global_job_semaphore
 from httpx import ASGITransport, AsyncClient
 
-pytestmark = pytest.mark.requires_db
+pytestmark = [pytest.mark.requires_db, pytest.mark.usefixtures("clean_background_batches")]
 
 
-@pytest.fixture(autouse=True)
-async def setup_test_db():
-    await init_db()
-    yield
-    await cancel_all_background_batches()
-
-
-@pytest.mark.asyncio
 async def test_global_concurrency_semaphores():
     """Verifies that global job and LLM semaphores are bound to config limits."""
     job_sem = get_global_job_semaphore()
@@ -39,7 +30,6 @@ async def test_global_concurrency_semaphores():
     assert config.GLOBAL_MAX_CONCURRENT_LLM_CALLS == 10
 
 
-@pytest.mark.asyncio
 async def test_call_llm_rate_limit_backoff(monkeypatch):
     """Verifies that call_llm intercepts HTTP 429 rate limits and retries with backoff."""
     attempt_count = 0
@@ -82,7 +72,6 @@ async def test_call_llm_rate_limit_backoff(monkeypatch):
     assert usage.total_tokens == 200
 
 
-@pytest.mark.asyncio
 async def test_refresh_batch_aggregates_atomic():
     """
     Verifies that refresh_batch_aggregates recalculates batch stats directly
@@ -152,7 +141,6 @@ async def test_refresh_batch_aggregates_atomic():
     assert refreshed_complete.status == "partially_completed"
 
 
-@pytest.mark.asyncio
 async def test_simultaneous_multi_batch_launch_and_metrics(monkeypatch):
     """
     Simulates launching 4 batches simultaneously, verifying that the global pool

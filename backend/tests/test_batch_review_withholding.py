@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-from app.db.session import init_db
 from app.repositories import (
     get_batch_by_id,
     get_question_by_id,
@@ -17,12 +16,6 @@ from app.schemas import GenerationBatch, GenerationJob, OptionChoice, Question
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.fixture(autouse=True)
-async def ensure_db():
-    await init_db()
-
-
-@pytest.mark.asyncio
 async def test_withhold_questions_until_batch_completed():
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())
@@ -110,7 +103,6 @@ async def test_withhold_questions_until_batch_completed():
     assert counts_after.get("ai_validated", 0) >= 1
 
 
-@pytest.mark.asyncio
 async def test_cancelled_batch_does_not_promote_questions():
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())

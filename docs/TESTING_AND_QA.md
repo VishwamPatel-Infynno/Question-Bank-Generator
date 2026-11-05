@@ -311,7 +311,7 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 
 ## 3. TestSprite AI Playwright E2E Suite (TC001–TC015)
 
-The application includes an automated End-to-End browser test suite executed with Playwright under the TestSprite AI testing harness, with 15 generated scripts in `e2e/` (`TC001`-`TC015`). They target `http://localhost:5173/` with the backend running, are run by hand, and are not part of the CI pipeline; the last recorded manual run passed 15/15.
+The application includes an automated End-to-End browser test suite executed with Playwright under the TestSprite AI testing harness, with 15 generated scripts in `e2e/` (`TC001`-`TC015`). They target `http://localhost:5173/` (override with the `E2E_BASE_URL` environment variable) with the backend running, are run by hand, and are not part of the CI pipeline; the last recorded manual run passed 15/15.
 
 ### 3.1 Test Case Matrix
 
@@ -356,7 +356,7 @@ Both backend and frontend enforce strict zero-defect policies in local developme
 
 ```bash
 # Check Python code style
-ruff check backend
+ruff check .
 
 # Automatically fix linting issues
 ruff check --fix backend

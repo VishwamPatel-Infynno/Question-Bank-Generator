@@ -2,7 +2,6 @@
 
 import re
 
-import pytest
 from app.agents import prompt_builder, prompts, regenerator, standards
 from app.db.init_db import _IdempotentConnection
 from app.schemas import GenerationRequest
@@ -58,7 +57,6 @@ class _FakeConn:
         self.executed.append(stmt.text)
 
 
-@pytest.mark.asyncio
 async def test_existing_columns_and_indexes_are_not_re_issued():
     fake = _FakeConn()
     conn = _IdempotentConnection(fake, {("questions", "total_tokens")}, {"ix_questions_status"})

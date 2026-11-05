@@ -2,7 +2,6 @@
 
 from unittest.mock import AsyncMock
 
-import pytest
 from app.schemas import GenerationJob, GenerationRequest
 from app.services import batch_runner
 
@@ -18,7 +17,6 @@ def _job(status: str, actual: int = 2) -> GenerationJob:
     )
 
 
-@pytest.mark.asyncio
 async def test_explicit_target_jobs_run_even_when_their_in_memory_status_is_stale(monkeypatch):
     ran: list[str] = []
 
@@ -41,7 +39,6 @@ async def test_explicit_target_jobs_run_even_when_their_in_memory_status_is_stal
     assert ran == ["job-completed"]
 
 
-@pytest.mark.asyncio
 async def test_stopped_jobs_are_executable_on_a_normal_run(monkeypatch):
     ran: list[str] = []
 
@@ -66,7 +63,6 @@ async def test_stopped_jobs_are_executable_on_a_normal_run(monkeypatch):
     assert ran == ["job-stopped"]
 
 
-@pytest.mark.asyncio
 async def test_jobs_left_running_by_a_finished_runner_are_failed(monkeypatch):
     updates: list[tuple] = []
 

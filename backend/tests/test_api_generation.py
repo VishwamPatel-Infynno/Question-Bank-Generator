@@ -24,7 +24,6 @@ from app.workflow import (
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.mark.asyncio
 async def test_multichoice_and_passage_support():
     from app.repositories import get_question_by_id
 
@@ -88,7 +87,6 @@ async def test_multichoice_and_passage_support():
     await delete_question(multi_q.id)
 
 
-@pytest.mark.asyncio
 async def test_batch_generation_and_staging_flow(monkeypatch):
     from app.repositories import get_question_by_id
 
@@ -151,7 +149,6 @@ async def test_batch_generation_and_staging_flow(monkeypatch):
         await delete_question(q_data["id"])
 
 
-@pytest.mark.asyncio
 async def test_single_passage_multi_question_set(monkeypatch):
     """Verifies that 1 shared reading passage is generated for multiple linked questions (Single & Multi-choice)."""
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
@@ -210,7 +207,6 @@ async def test_single_passage_multi_question_set(monkeypatch):
     assert single_count == 5
 
 
-@pytest.mark.asyncio
 async def test_binary_passage_and_independent_batches(monkeypatch):
     """Verifies clean binary passage mode: either all 5 linked to 1 passage or all 5 independent discretes."""
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
@@ -267,7 +263,6 @@ async def test_binary_passage_and_independent_batches(monkeypatch):
         assert q["stimulus_text"] == ""
 
 
-@pytest.mark.asyncio
 async def test_independent_question_direct_no_stimulus(monkeypatch):
     """Verifies that independent questions (passage_required='No') enforce empty stimulus_text and direct question stems."""
     from app.agents.generator import _build_generator_user_prompt, _parse_question_draft_data
@@ -368,7 +363,6 @@ async def test_independent_question_direct_no_stimulus(monkeypatch):
         assert q["stimulus_text"] == ""
 
 
-@pytest.mark.asyncio
 async def test_passage_set_with_passage_level_visual_stimulus(monkeypatch):
     """Verifies that in passage-type sets, visual stimulus is generated once for the passage and not duplicated question-wise."""
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")

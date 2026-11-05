@@ -41,7 +41,6 @@ async def _make_batch_with_job(job_status: str, error: str | None = None):
     return batch_id, job_id
 
 
-@pytest.mark.asyncio
 async def test_reconcile_stops_orphaned_batches_and_their_running_jobs():
     batch_id, running_id = await _make_batch_with_job("running")
     _, done_id = await _make_batch_with_job("completed")
@@ -54,7 +53,6 @@ async def test_reconcile_stops_orphaned_batches_and_their_running_jobs():
     assert (await get_job_by_id(done_id)).status == "completed"
 
 
-@pytest.mark.asyncio
 async def test_update_job_progress_can_clear_fields_explicitly():
     _, job_id = await _make_batch_with_job("failed", error="boom")
 

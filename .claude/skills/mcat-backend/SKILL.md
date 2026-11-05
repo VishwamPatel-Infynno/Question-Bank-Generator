@@ -13,7 +13,7 @@ Routers contain no SQL and no business logic. Repositories own every query and c
 
 ## Style rules (enforced by ruff, config in pyproject.toml)
 - Every module starts with `from __future__ import annotations`.
-- Python 3.11 idioms (`UTC`, `X | None`), double quotes, line length 100, ruff rules E W F I UP B C4 SIM RET. Run `ruff check backend/` and `ruff format .`.
+- Python 3.11 idioms (`UTC`, `X | None`), double quotes, line length 100, ruff rules E W F I UP B C4 SIM RET G004 ASYNC PT RUF (log with lazy `%s` arguments, never f-strings; `match=` on `pytest.raises`). Run `ruff check .` and `ruff format .`.
 - Async everywhere for DB/LLM; use `async_session_factory` from `app.db.session`.
 - Keep `(str, Enum)` style for pydantic-serialized enums (UP042 is intentionally ignored).
 - Docstrings on public functions; use `logging.getLogger(__name__)`, not print.

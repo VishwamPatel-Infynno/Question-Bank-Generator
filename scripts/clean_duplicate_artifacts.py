@@ -26,7 +26,9 @@ async def cleanup_discarded_duplicates() -> int:
         await session.commit()
         count = res_del.rowcount or 0
         logger.info(
-            f"Successfully purged {count} discarded duplicate question(s) from database: {ids_to_delete}"
+            "Successfully purged %s discarded duplicate question(s) from database: %s",
+            count,
+            ids_to_delete,
         )
         return count
 

@@ -1,4 +1,3 @@
-import pytest
 from app.services.deduplication import (
     DuplicateCheckResult,
     cluster_questions,
@@ -152,7 +151,6 @@ def test_cluster_questions_groups_duplicates_correctly():
     assert c2["duplicates"][0]["question"]["id"] == "q4"
 
 
-@pytest.mark.asyncio
 async def test_auto_resolve_batch_and_refill(monkeypatch):
     from unittest.mock import AsyncMock
 
@@ -264,7 +262,6 @@ async def test_auto_resolve_batch_and_refill(monkeypatch):
     mock_refill.assert_awaited_once_with(batch_id, 4, cycle=2, max_cycles=2)
 
 
-@pytest.mark.asyncio
 async def test_auto_resolve_does_not_claim_refill_when_no_job_was_launched(monkeypatch):
     from unittest.mock import AsyncMock
 

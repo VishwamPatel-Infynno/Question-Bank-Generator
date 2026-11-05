@@ -28,7 +28,6 @@ from app.workflow import (
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.mark.asyncio
 async def test_database_crud():
     await init_db()
     opts = [
@@ -61,7 +60,6 @@ async def test_database_crud():
     assert deleted is True
 
 
-@pytest.mark.asyncio
 async def test_admin_approval_and_persistence_endpoints():
     from app.api.v1.questions import (
         BatchDeleteRequest,
@@ -230,7 +228,6 @@ async def test_admin_approval_and_persistence_endpoints():
     assert await get_question_by_id(purge_b1) is None
 
 
-@pytest.mark.asyncio
 async def test_question_status_lifecycle_and_counts():
     """Verifies question status filtering, counts aggregation, and status transitions."""
     from app.repositories import (
@@ -397,7 +394,6 @@ async def test_question_status_lifecycle_and_counts():
     await delete_question(uid4)
 
 
-@pytest.mark.asyncio
 async def test_questions_pagination_and_slim_projection(client):
     """Verify that GET /questions supports limit, offset, and slim projection flags with total_count."""
     opts = [OptionChoice(id="A", text="Opt A"), OptionChoice(id="B", text="Opt B")]

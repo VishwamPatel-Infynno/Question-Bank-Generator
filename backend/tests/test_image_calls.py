@@ -25,7 +25,6 @@ def _mock_http(monkeypatch, handler):
     )
 
 
-@pytest.mark.asyncio
 async def test_empty_attempts_are_retried_with_growing_backoff(no_sleep):
     calls = []
 
@@ -38,7 +37,6 @@ async def test_empty_attempts_are_retried_with_growing_backoff(no_sleep):
     assert no_sleep == [1.0, 2.0]
 
 
-@pytest.mark.asyncio
 async def test_exceptions_are_retried_then_give_up(no_sleep):
     calls = []
 
@@ -50,7 +48,6 @@ async def test_exceptions_are_retried_then_give_up(no_sleep):
     assert len(calls) == ig._IMAGE_MAX_RETRIES + 1
 
 
-@pytest.mark.asyncio
 async def test_openai_image_returns_a_data_uri_and_reported_cost(monkeypatch, no_sleep):
     seen = {}
 
@@ -73,7 +70,6 @@ async def test_openai_image_returns_a_data_uri_and_reported_cost(monkeypatch, no
     assert '"model":"gpt-image-x"' in seen["body"].replace(" ", "")
 
 
-@pytest.mark.asyncio
 async def test_openai_image_falls_back_to_the_calculated_cost_and_url_payloads(
     monkeypatch, no_sleep
 ):
@@ -86,7 +82,6 @@ async def test_openai_image_falls_back_to_the_calculated_cost_and_url_payloads(
     assert cost and cost > 0
 
 
-@pytest.mark.asyncio
 async def test_openai_error_status_is_retried_and_fails_cleanly(monkeypatch, no_sleep):
     attempts = []
 

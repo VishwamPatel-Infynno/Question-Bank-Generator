@@ -208,7 +208,7 @@ Enforce Python code hygiene using **Ruff** (enforces SIM, RET, B, C4, E, W, F, I
 
 ```bash
 # Check code style and rules (0 errors policy)
-ruff check backend/
+ruff check .
 
 # Verify formatting without modification across repository
 ruff format --check .

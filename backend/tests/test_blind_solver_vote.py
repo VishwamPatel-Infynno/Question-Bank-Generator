@@ -3,8 +3,7 @@
 import pytest
 from app.agents import blind_solver as bs
 from app.core.config import config
-from app.schemas import GenerationRequest, TokenUsage
-from factories import make_draft
+from factories import make_draft, make_request, make_usage
 
 
 def _draft(texts=None, key="A"):
@@ -17,12 +16,8 @@ def _draft(texts=None, key="A"):
     )
 
 
-def _req():
-    return GenerationRequest(section="CP", subtopic="Kinetics", difficulty="Medium")
-
-
 def _usage():
-    return TokenUsage(prompt_tokens=10, completion_tokens=5, total_tokens=15, cost_usd=0.001)
+    return make_usage(15, 0.001)
 
 
 @pytest.mark.parametrize(
@@ -34,7 +29,7 @@ def test_key_extraction_handles_prose_answers(raw, expected):
 
 
 def test_key_extraction_rejects_garbage():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="invalid key"):
         bs._extract_key("none of these")
 
 
@@ -63,23 +58,20 @@ def _solver_that_answers(correct_text_for_key, patch_llm, confidence=95, ambiguo
     patch_llm(fake)
 
 
-@pytest.mark.asyncio
 async def test_correct_key_verified_even_though_layouts_differ(patch_llm):
     _solver_that_answers("Alpha result", patch_llm)
-    result, usage = await bs.blind_solve_question(_draft(), _req())
+    result, usage = await bs.blind_solve_question(_draft(), make_request())
     assert result.is_verified and result.selected_key == "A"
     assert usage.total_tokens == 30  # both samples are billed
 
 
-@pytest.mark.asyncio
 async def test_wrong_key_is_rejected_by_majority(patch_llm):
     _solver_that_answers("Gamma result", patch_llm)  # solver believes C; author said A
-    result, _ = await bs.blind_solve_question(_draft(), _req())
+    result, _ = await bs.blind_solve_question(_draft(), make_request())
     assert not result.is_verified and result.selected_key == "C"
     assert result.agrees_with_key is False
 
 
-@pytest.mark.asyncio
 async def test_split_vote_is_never_verified(monkeypatch, patch_llm):
     monkeypatch.setattr(config, "BLIND_SOLVER_SAMPLES", 3)
     # Displayed letters chosen per layout so the ORIGINAL keys come out as A, C and D
@@ -94,22 +86,20 @@ async def test_split_vote_is_never_verified(monkeypatch, patch_llm):
         return body, _usage()
 
     patch_llm(fake)
-    result, _ = await bs.blind_solve_question(_draft(), _req())
+    result, _ = await bs.blind_solve_question(_draft(), make_request())
     assert not result.is_verified and result.is_ambiguous
 
 
-@pytest.mark.asyncio
 async def test_low_confidence_or_ambiguity_blocks_verification(patch_llm):
     _solver_that_answers("Alpha result", patch_llm, confidence=70)
-    low, _ = await bs.blind_solve_question(_draft(), _req())
+    low, _ = await bs.blind_solve_question(_draft(), make_request())
     assert not low.is_verified
 
     _solver_that_answers("Alpha result", patch_llm, ambiguous=True)
-    amb, _ = await bs.blind_solve_question(_draft(), _req())
+    amb, _ = await bs.blind_solve_question(_draft(), make_request())
     assert not amb.is_verified
 
 
-@pytest.mark.asyncio
 async def test_dedicated_solver_model_does_not_receive_the_clients_key(monkeypatch, patch_llm):
     seen = {}
 
@@ -124,6 +114,6 @@ async def test_dedicated_solver_model_does_not_receive_the_clients_key(monkeypat
     patch_llm(fake)
     monkeypatch.setattr(config, "BLIND_SOLVER_MODEL", "solver-model")
     monkeypatch.setattr(config, "BLIND_SOLVER_SAMPLES", 1)
-    req = _req().model_copy(update={"api_key": "client-key", "model_name": "gen-model"})
+    req = make_request().model_copy(update={"api_key": "client-key", "model_name": "gen-model"})
     await bs.blind_solve_question(_draft(), req)
     assert seen == {"model": "solver-model", "api_key": None}

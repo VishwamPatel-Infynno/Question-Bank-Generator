@@ -17,13 +17,39 @@ from app.schemas import OptionChoice, Question
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.mark.asyncio
 async def test_database_schema_initialization():
-    """Verify that init_db() successfully runs without errors, creates tables, foreign keys, and indexes."""
+    """init_db() is idempotent and leaves the expected tables, status constraints and indexes."""
+    from app.db.session import engine
+    from sqlalchemy import text
+
     await init_db()
+    await init_db()  # a second run must not fail or duplicate anything
+    async with engine.connect() as conn:
+        tables = {
+            r[0]
+            for r in await conn.execute(
+                text(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()"
+                )
+            )
+        }
+        assert {"questions", "passages", "generation_batches", "generation_jobs"} <= tables
+        constraints = {
+            r[0]
+            for r in await conn.execute(
+                text("SELECT conname FROM pg_constraint WHERE contype = 'c'")
+            )
+        }
+        assert {"ck_questions_status", "ck_generation_batches_status"} <= constraints
+        indexes = {
+            r[0]
+            for r in await conn.execute(
+                text("SELECT indexname FROM pg_indexes WHERE tablename = 'questions'")
+            )
+        }
+        assert {"ix_questions_status_created", "ix_questions_batch_job"} <= indexes
 
 
-@pytest.mark.asyncio
 async def test_passage_auto_sync_and_retrieval():
     """Verify that saving a question with passage_id auto-creates and updates the passage in the passages table."""
     passage_uuid = f"test-passage-{uuid.uuid4()}"
@@ -70,7 +96,6 @@ async def test_passage_auto_sync_and_retrieval():
     await delete_question(q.id)
 
 
-@pytest.mark.asyncio
 async def test_batch_auto_sync_and_atomic_aggregation():
     """Verify saving questions via save_questions_batch aggregates count, tokens, and cost on GenerationBatchModel."""
     batch_uuid = f"test-batch-{uuid.uuid4()}"
@@ -128,7 +153,6 @@ async def test_batch_auto_sync_and_atomic_aggregation():
     await delete_question(q2.id)
 
 
-@pytest.mark.asyncio
 async def test_hybrid_full_text_search():
     """Verify full-text search correctly indexes and retrieves questions by distinctive keywords."""
     unique_keyword = f"quasarastrophysics{uuid.uuid4().hex[:6]}"
@@ -162,7 +186,6 @@ async def test_hybrid_full_text_search():
     await delete_question(q.id)
 
 
-@pytest.mark.asyncio
 async def test_api_passages_and_batches():
     """Verify HTTP API endpoints for /api/passages and /api/batches."""
     passage_id = f"api-p-{uuid.uuid4()}"
@@ -254,7 +277,6 @@ async def test_api_passages_and_batches():
         assert resp_q_deleted.status_code == 404
 
 
-@pytest.mark.asyncio
 async def test_centralized_repository_package_exports():
     """Verify that all job, batch, question, and passage functions are correctly exported by app.repositories."""
     import app.repositories as repos
@@ -288,7 +310,6 @@ async def test_centralized_repository_package_exports():
         )
 
 
-@pytest.mark.asyncio
 async def test_model_to_schema_none_options_safety():
     """Verify that _model_to_schema gracefully handles None or empty options without exception."""
     from app.models.question import QuestionModel
@@ -311,7 +332,6 @@ async def test_model_to_schema_none_options_safety():
     assert schema_item.options == []
 
 
-@pytest.mark.asyncio
 async def test_cascade_passage_deletion_multi_status_and_metrics():
     """Verify that deleting a passage cascade-deletes all linked questions across all statuses and recalculates job/batch actual counts."""
     from app.repositories import (

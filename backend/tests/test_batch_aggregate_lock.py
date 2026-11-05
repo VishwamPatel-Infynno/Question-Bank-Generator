@@ -15,7 +15,6 @@ from app.schemas import GenerationBatch, GenerationJob
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.mark.asyncio
 async def test_concurrent_refreshes_converge_on_job_totals():
     batch_id = str(uuid.uuid4())
     await save_batch(

@@ -48,9 +48,8 @@ async def _batch_with_job(job_status, job_actual=0, batch_status="in_progress", 
 
 
 @requires_db
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "job_status, actual, expected",
+    ("job_status", "actual", "expected"),
     [
         ("cancelled", 0, "cancelled"),
         ("cancelled", 2, "partially_completed"),
@@ -64,7 +63,6 @@ async def test_idle_batch_is_resolved_to_a_terminal_status(job_status, actual, e
 
 
 @requires_db
-@pytest.mark.asyncio
 async def test_batch_with_a_running_job_is_never_finalized():
     batch_id, _ = await _batch_with_job("running", 1)
     batch = await refresh_batch_aggregates(batch_id, allow_complete=True)
@@ -72,7 +70,6 @@ async def test_batch_with_a_running_job_is_never_finalized():
 
 
 @requires_db
-@pytest.mark.asyncio
 async def test_without_allow_complete_the_status_is_left_alone():
     batch_id, _ = await _batch_with_job("cancelled", 0)
     batch = await refresh_batch_aggregates(batch_id, allow_complete=False)
@@ -80,7 +77,6 @@ async def test_without_allow_complete_the_status_is_left_alone():
 
 
 @requires_db
-@pytest.mark.asyncio
 async def test_stopping_a_finished_batch_does_not_rewrite_it():
     batch_id, _ = await _batch_with_job("completed", 5, batch_status="completed")
     assert await batch_concurrency.stop_background_batch(batch_id) is False
@@ -88,13 +84,11 @@ async def test_stopping_a_finished_batch_does_not_rewrite_it():
 
 
 @requires_db
-@pytest.mark.asyncio
 async def test_stopping_an_unknown_batch_is_a_noop():
     assert await batch_concurrency.stop_background_batch(str(uuid.uuid4())) is False
 
 
 @requires_db
-@pytest.mark.asyncio
 async def test_stopping_a_stale_in_progress_batch_still_works():
     batch_id, job_id = await _batch_with_job("running", 0)
     assert await batch_concurrency.stop_background_batch(batch_id) is True
@@ -103,7 +97,6 @@ async def test_stopping_a_stale_in_progress_batch_still_works():
 
 
 @requires_db
-@pytest.mark.asyncio
 async def test_refill_is_refused_while_the_batch_is_running(client, monkeypatch):
     batch_id, _ = await _batch_with_job("running", 0)
     pending = asyncio.get_running_loop().create_future()
@@ -126,7 +119,6 @@ def test_job_usage_accumulates_all_trials_and_starts_from_stored_totals():
     }
 
 
-@pytest.mark.asyncio
 async def test_truncated_retry_usage_is_billed_in_the_final_result(monkeypatch):
     def resp(content, finish):
         return SimpleNamespace(
@@ -151,7 +143,6 @@ async def test_truncated_retry_usage_is_billed_in_the_final_result(monkeypatch):
     assert usage.prompt_tokens == 20
 
 
-@pytest.mark.asyncio
 async def test_db_init_retries_until_the_database_is_available(monkeypatch):
     import app.main as main_mod
 
@@ -178,7 +169,6 @@ def _passage_question(passage_id, status="in_bank"):
 
 
 @requires_db
-@pytest.mark.asyncio
 async def test_restoring_a_passage_restores_only_questions_deleted_with_it():
     from app.repositories import (
         delete_passage,
@@ -201,7 +191,6 @@ async def test_restoring_a_passage_restores_only_questions_deleted_with_it():
 
 
 @requires_db
-@pytest.mark.asyncio
 async def test_duplicate_override_keeps_batch_only_questions_out_of_the_bank():
     from app.repositories import override_question_duplicate, save_question
 
@@ -212,7 +201,6 @@ async def test_duplicate_override_keeps_batch_only_questions_out_of_the_bank():
 
 
 @requires_db
-@pytest.mark.asyncio
 async def test_deleting_an_unknown_question_is_a_404(client):
     res = await client.delete(f"/api/questions/{uuid.uuid4()}")
     assert res.status_code == 404

@@ -21,7 +21,6 @@ from httpx import ASGITransport, AsyncClient
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.mark.asyncio
 async def test_job_trial_count_persistence():
     """Verifies that trial_count is properly stored and updated in PostgreSQL."""
     await init_db()
@@ -59,7 +58,6 @@ async def test_job_trial_count_persistence():
     assert jobs[0].status == "running"
 
 
-@pytest.mark.asyncio
 async def test_resume_stopped_jobs_under_3_trials():
     """Verifies that stopped/cancelled jobs with trial_count < 3 can be resumed."""
     await init_db()
@@ -129,7 +127,6 @@ async def test_resume_stopped_jobs_under_3_trials():
     assert job_full_id not in retried_pending_ids
 
 
-@pytest.mark.asyncio
 async def test_retry_strictly_blocked_after_3_trials():
     """
     Verifies that jobs with trial_count >= 3 cannot be retried,
@@ -176,7 +173,6 @@ async def test_retry_strictly_blocked_after_3_trials():
         assert "maximum 3-trial limit" in data["detail"]
 
 
-@pytest.mark.asyncio
 async def test_run_single_job_autonomous_in_flight_retry():
     """
     Verifies that _run_single_job automatically executes up to 3 trials in-flight

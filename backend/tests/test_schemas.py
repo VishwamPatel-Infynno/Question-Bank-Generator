@@ -8,7 +8,6 @@ from app.schemas import (
 from pydantic import ValidationError
 
 
-@pytest.mark.asyncio
 async def test_schemas_validation():
     # Test valid options
     opts = [

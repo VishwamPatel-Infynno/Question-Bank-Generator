@@ -146,7 +146,7 @@ source .venv/bin/activate
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
 # Run backend linter and formatter check
-ruff check backend/
+ruff check .
 ruff format --check .
 ```
 

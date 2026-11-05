@@ -25,7 +25,6 @@ from httpx import ASGITransport, AsyncClient
 pytestmark = pytest.mark.requires_db
 
 
-@pytest.mark.asyncio
 async def test_soft_delete_passage_and_batch_integrity():
     await init_db()
 
@@ -130,7 +129,6 @@ async def test_soft_delete_passage_and_batch_integrity():
         assert job_questions[0]["id"] == q_id
 
 
-@pytest.mark.asyncio
 async def test_soft_delete_question_and_restore():
     await init_db()
 

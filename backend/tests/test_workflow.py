@@ -1,6 +1,5 @@
 import json
 
-import pytest
 from app.schemas import (
     Difficulty,
     GenerationRequest,
@@ -8,7 +7,6 @@ from app.schemas import (
 )
 
 
-@pytest.mark.asyncio
 async def test_per_question_stage_metadata_in_events(monkeypatch):
     from app.core.config import config
     from app.workflow import run_workflow_stream
@@ -64,7 +62,6 @@ async def test_per_question_stage_metadata_in_events(monkeypatch):
         assert e["data"]["question"]["index"] in (1, 2, 3, 4, 5)
 
 
-@pytest.mark.asyncio
 async def test_fused_workflow_bypasses_reviewer_when_self_critique_passed(monkeypatch):
     """Verifies that if the fused generator self-scores > 90, the separate Reviewer agent node is bypassed."""
     import app.workflow.nodes as nodes_mod

@@ -6,14 +6,12 @@ from app.schemas import GenerationRequest
 from pydantic import ValidationError
 
 
-@pytest.mark.asyncio
 async def test_mutating_routes_open_when_no_access_key_is_configured(client, monkeypatch):
     monkeypatch.setattr(config, "API_ACCESS_KEY", "")
     res = await client.post("/api/batches/cancel-all")
     assert res.status_code != 401
 
 
-@pytest.mark.asyncio
 async def test_mutating_routes_require_the_key_when_configured(client, monkeypatch):
     monkeypatch.setattr(config, "API_ACCESS_KEY", "gate-secret")
 
@@ -50,7 +48,6 @@ def test_api_key_is_not_shown_in_repr():
     assert "sk-secret" not in repr(req)
 
 
-@pytest.mark.asyncio
 async def test_batch_list_is_paginated_and_omits_payloads(client):
     res = await client.get("/api/batches?limit=2&offset=0")
     assert res.status_code == 200
@@ -60,7 +57,6 @@ async def test_batch_list_is_paginated_and_omits_payloads(client):
     assert (await client.get("/api/batches?limit=0")).status_code == 422
 
 
-@pytest.mark.asyncio
 async def test_unhandled_errors_return_a_consistent_body_without_internals(monkeypatch):
     import app.api.v1.batches as batches_mod
     from app.main import core_app
@@ -77,7 +73,6 @@ async def test_unhandled_errors_return_a_consistent_body_without_internals(monke
     assert res.json() == {"detail": "Internal server error.", "code": "internal_error"}
 
 
-@pytest.mark.asyncio
 async def test_security_headers_are_present_on_normal_and_error_responses(client):
     for path in ("/api/health", "/api/does-not-exist"):
         res = await client.get(path)

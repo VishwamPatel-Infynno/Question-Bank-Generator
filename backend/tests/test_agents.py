@@ -1,4 +1,3 @@
-import pytest
 from app.agents.generator import get_mock_draft
 from app.agents.reviewer import evaluate_heuristically
 from app.schemas import (
@@ -11,7 +10,6 @@ from app.schemas import (
 from app.workflow import route_after_review
 
 
-@pytest.mark.asyncio
 async def test_all_mcat_sections_mock():
     for sec in MCATSection:
         req = GenerationRequest(
@@ -27,7 +25,6 @@ async def test_all_mcat_sections_mock():
         assert len(draft.explanation) > 20
 
 
-@pytest.mark.asyncio
 async def test_reviewer_heuristic_and_loop_routing():
     req = GenerationRequest(section=MCATSection.CHEM_PHYS, difficulty=Difficulty.MEDIUM)
     draft = get_mock_draft(req)
@@ -62,7 +59,6 @@ async def test_reviewer_heuristic_and_loop_routing():
     assert next_node2 in ["image_generator", "finalize"]
 
 
-@pytest.mark.asyncio
 async def test_strict_rejection_routing_when_score_le_90():
     from app.core.config import config
     from app.workflow import reject_node
@@ -103,7 +99,6 @@ async def test_strict_rejection_routing_when_score_le_90():
     assert "reason" in reject_res["rejection_data"]
 
 
-@pytest.mark.asyncio
 async def test_section_image_guard_routing():
     # 1. CARS: score 95 > 90, image_needed=True in draft, require_image=False
     # Should route to finalize, strictly bypassing image_generator (CARS has no images)
@@ -159,7 +154,6 @@ async def test_section_image_guard_routing():
     assert route_after_review(cp_needed_state) == "image_generator"
 
 
-@pytest.mark.asyncio
 async def test_generate_question_with_self_critique_structure(monkeypatch):
     """Verifies that generate_question_with_self_critique returns a valid draft, review score, and usage."""
     import app.agents.generator as gen_mod
@@ -230,7 +224,6 @@ async def test_generate_question_with_self_critique_structure(monkeypatch):
     assert review2.passed is True
 
 
-@pytest.mark.asyncio
 async def test_blind_solver_node_agreement(monkeypatch, patch_llm):
     from app.workflow.nodes import blind_solver_node
 
@@ -278,7 +271,6 @@ async def test_blind_solver_node_agreement(monkeypatch, patch_llm):
     assert result["blind_solver_result"]["selected_key"] == draft.correct_answer_id
 
 
-@pytest.mark.asyncio
 async def test_blind_solver_node_discrepancy_triggers_critique(monkeypatch, patch_llm):
     from app.workflow.nodes import blind_solver_node
 

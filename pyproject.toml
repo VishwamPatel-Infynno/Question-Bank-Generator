@@ -26,10 +26,14 @@ select = [
     "SIM", # flake8-simplify
     "RET", # flake8-return
     "G004", # logging: lazy %-formatting instead of f-strings
+    "ASYNC", # flake8-async
+    "PT",  # flake8-pytest-style
+    "RUF", # ruff-specific rules
 ]
 ignore = [
     "E501",    # line length handled by ruff format
     "UP042",   # preserve (str, Enum) for pydantic serialization
+    "PT018",   # composite assertions are fine in tests: the failing half is shown by pytest
     "W291",    # trailing whitespace in multiline prompts
     "W293",    # blank line whitespace in multiline SVG strings
     "RUF001",  # ambiguous unicode in scientific strings (×, α, β, etc.)

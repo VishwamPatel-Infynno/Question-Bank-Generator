@@ -4,14 +4,13 @@ import asyncio
 
 import pytest
 from app.core.config import config
-from app.schemas import GenerationRequest
 from app.workflow import engine_helpers
 from app.workflow.engine_helpers import (
     _run_question_review_loop,
     count_llm_calls,
     llm_budget_exhausted,
 )
-from factories import make_draft
+from factories import make_draft, make_request
 
 
 def _draft(stem="Which statement best explains the observed rate change?"):
@@ -19,7 +18,7 @@ def _draft(stem="Which statement best explains the observed rate change?"):
 
 
 def _state(prior=0, calls=0):
-    req = GenerationRequest(section="CP", subtopic="Kinetics", difficulty="Medium")
+    req = make_request()
     return {
         "request": req.model_dump(),
         "current_draft": _draft().model_dump(),
@@ -49,7 +48,6 @@ def test_budget_includes_earlier_attempts_and_can_be_disabled(monkeypatch):
     assert not llm_budget_exhausted(_state(prior=99, calls=99))
 
 
-@pytest.mark.asyncio
 async def test_review_loop_stops_before_paying_for_another_call_when_over_budget(monkeypatch):
     monkeypatch.setattr(config, "MAX_LLM_CALLS_PER_SLOT", 4)
 
@@ -66,7 +64,6 @@ async def test_review_loop_stops_before_paying_for_another_call_when_over_budget
     assert "budget" in state["rejection_data"]["reason"].lower()
 
 
-@pytest.mark.asyncio
 async def test_duplicate_after_a_rewrite_is_rewritten_before_any_review(monkeypatch):
     monkeypatch.setattr(config, "MAX_LLM_CALLS_PER_SLOT", 0)
     events: list[str] = []

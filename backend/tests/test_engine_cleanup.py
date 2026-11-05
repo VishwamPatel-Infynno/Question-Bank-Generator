@@ -2,7 +2,6 @@
 
 import asyncio
 
-import pytest
 from app.schemas import Difficulty, GenerationRequest, MCATSection
 from app.workflow import run_workflow_stream
 
@@ -17,7 +16,6 @@ def _leaked_engine_tasks():
     ]
 
 
-@pytest.mark.asyncio
 async def test_closing_the_stream_cancels_all_workers():
     req = GenerationRequest(
         section=MCATSection.CHEM_PHYS,

@@ -1,10 +1,8 @@
 import asyncio
 
-import pytest
 from app.api.v1.generation import with_keepalive
 
 
-@pytest.mark.asyncio
 async def test_keepalive_emitted_while_source_is_quiet_and_events_pass_through():
     closed = []
 
@@ -23,7 +21,6 @@ async def test_keepalive_emitted_while_source_is_quiet_and_events_pass_through()
     assert closed == [True]
 
 
-@pytest.mark.asyncio
 async def test_closing_the_wrapper_closes_the_source():
     closed = []
 

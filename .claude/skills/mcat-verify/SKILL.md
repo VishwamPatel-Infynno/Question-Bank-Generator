@@ -8,7 +8,7 @@ description: Run the full quality gate for the Question Bank Generator before de
 This mirrors `.github/workflows/ci.yml`. Run only what the change touches while iterating, and everything before finishing.
 
 ```bash
-ruff check backend/
+ruff check .
 ruff format --check .
 PYTHONPATH=backend pytest backend/tests -m "not live_e2e"
 pnpm lint

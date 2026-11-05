@@ -1,9 +1,7 @@
-import pytest
 from app.agents.prompt_builder import _build_generator_user_prompt
 from app.schemas import GenerationRequest, MCATSection
 
 
-@pytest.mark.asyncio
 async def test_generation_request_additional_instructions():
     req = GenerationRequest(
         section=MCATSection.BIO_BIOCHEM,
@@ -16,7 +14,6 @@ async def test_generation_request_additional_instructions():
     )
 
 
-@pytest.mark.asyncio
 async def test_prompt_builder_includes_additional_instructions():
     instruction_text = (
         "Strictly avoid numerical calculations. Emphasize Le Chatelier's principle in acidosis."
@@ -32,7 +29,6 @@ async def test_prompt_builder_includes_additional_instructions():
     assert instruction_text in prompt
 
 
-@pytest.mark.asyncio
 async def test_prompt_builder_falls_back_to_custom_prompt():
     fallback_text = "Emphasize renal bicarbonate reabsorption mechanisms."
     req = GenerationRequest(

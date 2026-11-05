@@ -13,7 +13,6 @@ from app.api.v1.health import health_check
 from app.core.config import config
 
 
-@pytest.mark.asyncio
 async def test_anthropic_model_detection_and_settings():
     """Verify that settings correctly identify Anthropic models, active providers, and rate cards."""
     assert config.is_anthropic_model("claude-haiku-5-5") is True
@@ -37,7 +36,6 @@ async def test_anthropic_model_detection_and_settings():
     assert di_out == config.COST_PER_MILLION_OUTPUT_TOKENS
 
 
-@pytest.mark.asyncio
 async def test_provider_switcher_via_settings(monkeypatch):
     """Verify switching providers via ACTIVE_LLM_PROVIDER toggle."""
     monkeypatch.setattr(config, "ACTIVE_LLM_PROVIDER", "anthropic")
@@ -47,7 +45,6 @@ async def test_provider_switcher_via_settings(monkeypatch):
     assert config.get_active_provider() == "deepinfra"
 
 
-@pytest.mark.asyncio
 async def test_anthropic_strict_api_key_enforcement():
     """Verify that calling an Anthropic model without ANTHROPIC_API_KEY raises an informative ValueError."""
     orig_anthropic = config.ANTHROPIC_API_KEY
@@ -73,7 +70,6 @@ async def test_anthropic_strict_api_key_enforcement():
             os.environ["ANTHROPIC_API_KEY"] = orig_env
 
 
-@pytest.mark.asyncio
 async def test_deepinfra_key_enforcement_preservation():
     """Verify that DeepInfra key resolution remains fully intact."""
     orig_di = config.DEEPINFRA_API_KEY
@@ -91,7 +87,6 @@ async def test_deepinfra_key_enforcement_preservation():
             os.environ["DEEPINFRA_API_KEY"] = orig_env
 
 
-@pytest.mark.asyncio
 async def test_claude_haiku_pricing_standard_tier():
     """
     Test standard prompt pricing (<= 100K tokens) for Claude Haiku 5.5:
@@ -113,7 +108,6 @@ async def test_claude_haiku_pricing_standard_tier():
     assert cost_100k == 0.015
 
 
-@pytest.mark.asyncio
 async def test_claude_haiku_pricing_extended_tier():
     """
     Test extended prompt pricing (> 100K tokens) for Claude Haiku 5.5:
@@ -128,7 +122,6 @@ async def test_claude_haiku_pricing_extended_tier():
     assert cost_extended == 0.125
 
 
-@pytest.mark.asyncio
 async def test_claude_sonnet_pricing_auto_detection():
     """Verify Claude 3.5 Sonnet auto-detects $3.00 in / $15.00 out per 1M tokens with prompt cache math."""
     cost = calculate_token_cost(
@@ -149,7 +142,6 @@ async def test_claude_sonnet_pricing_auto_detection():
     assert cost_cached == 0.01707
 
 
-@pytest.mark.asyncio
 async def test_claude_opus_pricing_auto_detection():
     """Verify Claude 3 Opus auto-detects $15.00 in / $75.00 out per 1M tokens."""
     cost = calculate_token_cost(
@@ -160,7 +152,6 @@ async def test_claude_opus_pricing_auto_detection():
     assert cost == 0.090
 
 
-@pytest.mark.asyncio
 async def test_custom_env_pricing_override(monkeypatch):
     """Verify that explicitly setting COST_PER_MILLION_* in .env overrides catalog rates."""
     monkeypatch.setattr(config, "COST_PER_MILLION_INPUT_TOKENS", 4.50)
@@ -174,7 +165,6 @@ async def test_custom_env_pricing_override(monkeypatch):
     assert cost == 0.0225
 
 
-@pytest.mark.asyncio
 async def test_model_normalization_for_litellm():
     """Verify normalize_model_for_litellm properly prefixes bare Anthropic models."""
     assert (
@@ -192,7 +182,6 @@ async def test_model_normalization_for_litellm():
     )
 
 
-@pytest.mark.asyncio
 async def test_mock_llm_call_anthropic(monkeypatch):
     """Verify call_llm correctly formats Anthropic payload with disabled thinking and computes usage."""
     import litellm
@@ -236,7 +225,6 @@ async def test_mock_llm_call_anthropic(monkeypatch):
         config.ANTHROPIC_API_KEY = orig_key
 
 
-@pytest.mark.asyncio
 async def test_health_and_config_endpoints_anthropic_reporting():
     """Verify /config and /health endpoints report has_anthropic_key, active_provider, and dynamic pricing."""
     orig_model = config.DEFAULT_TEXT_MODEL

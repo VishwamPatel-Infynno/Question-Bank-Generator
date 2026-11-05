@@ -86,6 +86,15 @@ def neutralize_llm_credentials(request, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
+@pytest.fixture
+async def clean_background_batches():
+    """Stops any background batch a test started, so tasks never outlive the test."""
+    yield
+    from app.services import cancel_all_background_batches
+
+    await cancel_all_background_batches()
+
+
 @pytest.fixture(autouse=True, scope="session")
 async def ensure_db_initialized():
     """Automatically initializes the database schema if PostgreSQL is reachable."""

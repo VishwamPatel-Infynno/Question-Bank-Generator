@@ -4,35 +4,40 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns: ["*"]
     labels:
       - "dependencies"
       - "github-actions"
     commit-message:
       prefix: "ci(deps)"
 
+  # One npm entry for the whole pnpm workspace: from "/" Dependabot also updates frontend/ and the
+  # shared lockfile, so a second "/frontend" entry only produced duplicate PRs for the same bump.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore(deps-root)"
-
-  - package-ecosystem: "npm"
-    directory: "/frontend"
-    schedule:
-      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]
     labels:
       - "dependencies"
       - "frontend"
     commit-message:
-      prefix: "chore(deps-frontend)"
+      prefix: "chore(deps-npm)"
 
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      pip-minor-and-patch:
+        update-types: ["minor", "patch"]
     labels:
       - "dependencies"
       - "backend"
@@ -40,19 +45,13 @@ updates:
       prefix: "chore(deps-backend)"
 
   - package-ecosystem: "docker"
-    directory: "/backend"
+    directories: ["/backend", "/frontend"]
     schedule:
       interval: "weekly"
-    labels:
-      - "dependencies"
-      - "docker"
-    commit-message:
-      prefix: "chore(deps-docker)"
-
-  - package-ecosystem: "docker"
-    directory: "/frontend"
-    schedule:
-      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      docker-images:
+        patterns: ["*"]
     labels:
       - "dependencies"
       - "docker"
@@ -63,6 +62,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 2
     labels:
       - "dependencies"
       - "docker"

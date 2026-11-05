@@ -24,7 +24,6 @@ def _event(chunk: str) -> dict:
     return json.loads(chunk.strip()[len("data: ") :])
 
 
-@pytest.mark.asyncio
 async def test_all_rejected_run_marks_job_failed_not_running(monkeypatch):
     async def always_reject(*_a, **_k):
         return False
@@ -48,7 +47,6 @@ async def test_all_rejected_run_marks_job_failed_not_running(monkeypatch):
     assert job.total_tokens == last["data"]["cumulative_usage"]["total_tokens"]
 
 
-@pytest.mark.asyncio
 async def test_closing_on_workflow_complete_keeps_job_completed():
     job_id = batch_id = None
     stream = run_workflow_stream(_req())
@@ -67,7 +65,6 @@ async def test_closing_on_workflow_complete_keeps_job_completed():
     assert (await get_batch_by_id(batch_id)).status == "completed"
 
 
-@pytest.mark.asyncio
 async def test_standalone_run_leaves_no_in_flight_drafts_behind():
     from app.workflow import engine_helpers
 

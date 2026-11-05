@@ -26,10 +26,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install Ruff
-        run: pip install "ruff==0.17.0"
+        run: pip install "ruff==0.17.2"
 
       - name: Run Backend Linting (Ruff)
-        run: ruff check backend/
+        run: ruff check .
 
       - name: Check Backend Formatting (Ruff)
         run: ruff format --check .
@@ -75,7 +75,7 @@ jobs:
           PASSING_SCORE_THRESHOLD: 90
         run: |
           PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e" --tb=short --durations=15 \
-            --cov=app --cov-report=term --cov-report=xml
+            --cov=app --cov-report=term --cov-report=xml --cov-fail-under=85
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
@@ -158,8 +158,23 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build Backend Image
-        run: docker build -f backend/Dockerfile -t mcat-backend .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
 
       - name: Build Web Image
-        run: docker build -f frontend/Dockerfile -t mcat-web .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max

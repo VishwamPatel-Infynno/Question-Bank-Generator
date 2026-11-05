@@ -69,7 +69,7 @@ _IMAGE_MAX_RETRIES = 2
 
 async def _retry_image_call(
     label: str,
-    timeout: float,
+    timeout: float,  # noqa: ASYNC109 - sets the HTTP client timeout, not a cancel scope
     attempt_once: Callable[[httpx.AsyncClient], Awaitable[tuple[str | None, float | None]]],
 ) -> tuple[str | None, float | None]:
     """Runs ``attempt_once`` with a fresh HTTP client, retrying with linear backoff.

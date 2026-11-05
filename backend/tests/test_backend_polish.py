@@ -13,7 +13,6 @@ def _q(difficulty, marker):
 
 
 @pytest.mark.requires_db
-@pytest.mark.asyncio
 @pytest.mark.parametrize("filter_value", ["hard", "HIGH", " High "])
 async def test_difficulty_filter_treats_every_spelling_of_a_level_alike(filter_value):
     marker = f"alias-{uuid.uuid4()}"
@@ -25,7 +24,6 @@ async def test_difficulty_filter_treats_every_spelling_of_a_level_alike(filter_v
 
 
 @pytest.mark.requires_db
-@pytest.mark.asyncio
 async def test_difficulty_sort_orders_low_then_medium_then_high():
     marker = f"sort-{uuid.uuid4()}"
     saved = [await save_question(_q(d, marker)) for d in ("Hard", "easy", "Standard")]
@@ -43,5 +41,5 @@ def test_openapi_schema_builds_with_the_annotated_routes():
 
 def test_malformed_json_still_raises_a_value_error():
     assert safe_json_loads('{"a": 1}') == {"a": 1}
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"Expecting value|Extra data|Unterminated"):
         safe_json_loads("definitely not json at all")

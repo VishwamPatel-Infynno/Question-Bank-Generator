@@ -13,7 +13,6 @@ from app.workflow import (
 )
 
 
-@pytest.mark.asyncio
 async def test_deepinfra_model_configuration(monkeypatch):
     monkeypatch.setattr(config, "ACTIVE_LLM_PROVIDER", "deepinfra")
     assert "deepinfra" in config.DEFAULT_TEXT_MODEL.lower()
@@ -22,7 +21,6 @@ async def test_deepinfra_model_configuration(monkeypatch):
     assert config.COST_PER_MILLION_OUTPUT_TOKENS == 0.294
 
 
-@pytest.mark.asyncio
 async def test_token_and_cost_calculation(monkeypatch):
     from app.agents.base import calculate_token_cost
 
@@ -57,7 +55,6 @@ async def test_token_and_cost_calculation(monkeypatch):
     assert cost_out == 0.294
 
 
-@pytest.mark.asyncio
 async def test_workflow_token_accumulation(monkeypatch):
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
     monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
@@ -87,7 +84,6 @@ async def test_workflow_token_accumulation(monkeypatch):
     assert len(rev_res["agent_usage_breakdown"]) == 2
 
 
-@pytest.mark.asyncio
 async def test_deepinfra_strict_api_key_enforcement(monkeypatch):
     from app.agents.base import call_llm
 
@@ -103,7 +99,6 @@ async def test_deepinfra_strict_api_key_enforcement(monkeypatch):
         )
 
 
-@pytest.mark.asyncio
 async def test_max_tokens_settings_and_config_endpoint():
     """Verify that DEFAULT_MAX_TOKENS and REVIEWER_MAX_TOKENS are properly set in config and returned by /config."""
     from app.api.v1.config import get_runtime_settings
@@ -125,7 +120,6 @@ async def test_max_tokens_settings_and_config_endpoint():
     assert len(settings_data["fast_model_cascade"]) >= 1
 
 
-@pytest.mark.asyncio
 async def test_call_llm_effective_max_tokens_and_temperature(monkeypatch):
     """Verify call_llm uses config.DEFAULT_MAX_TOKENS and config.DEFAULT_TEMPERATURE by default and respects explicit overrides."""
     import litellm

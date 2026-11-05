@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import os
 
 from playwright import async_api
 
@@ -35,7 +36,7 @@ async def run_test():
 
         # Interact with the page elements to simulate user flow
         # -> navigate
-        await page.goto("http://localhost:5173/")
+        await page.goto(os.environ.get("E2E_BASE_URL", "http://localhost:5173/"))
         with contextlib.suppress(Exception):
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
 

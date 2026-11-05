@@ -13,7 +13,6 @@ BASE_URL = "http://127.0.0.1:8000/api"
 pytestmark = pytest.mark.live_e2e
 
 
-@pytest.mark.asyncio
 async def test_e2e_health_and_db_connectivity():
     """
     E2E Test 1: Verify health endpoint, PostgreSQL 16 connection,
@@ -50,7 +49,6 @@ async def test_e2e_health_and_db_connectivity():
         assert data["max_regenerations"] == 3
 
 
-@pytest.mark.asyncio
 async def test_e2e_all_four_sections_metadata():
     """
     E2E Test 2: Verify all 4 official MCAT sections and curriculum subtopics.
@@ -76,7 +74,6 @@ async def test_e2e_all_four_sections_metadata():
             assert "label" in sec
 
 
-@pytest.mark.asyncio
 async def test_e2e_config_endpoint():
     """
     E2E Test 3: Verify the configuration management and status endpoint.
@@ -98,7 +95,6 @@ async def test_e2e_config_endpoint():
         assert cfg["current_image_cost_usd"] == 0.014
 
 
-@pytest.mark.asyncio
 async def test_e2e_live_generation_sse_stream():
     """
     E2E Test 4: Full Multi-Agent Pipeline Execution via Server-Sent Events (SSE).
@@ -169,7 +165,6 @@ async def test_e2e_live_generation_sse_stream():
     assert completed_question.get("cost_usd", 0.0) > 0.0
 
 
-@pytest.mark.asyncio
 async def test_e2e_question_bank_crud_and_filtering():
     """
     E2E Test 5: Verify Question Bank queries, filtering by section,
@@ -248,7 +243,6 @@ async def test_e2e_question_bank_crud_and_filtering():
         assert any(q["id"] == q_id for q in search_results)
 
 
-@pytest.mark.asyncio
 async def test_e2e_export_json_and_csv():
     """
     E2E Test 6: Verify export capabilities in both JSON and RFC 4180 CSV formats.
@@ -279,7 +273,6 @@ async def test_e2e_export_json_and_csv():
         assert "Image_Description" in header
 
 
-@pytest.mark.asyncio
 async def test_e2e_strict_threshold_rejection_boundary():
     """
     E2E Test 7: Verify rejection boundary behavior.
@@ -320,7 +313,6 @@ async def test_e2e_strict_threshold_rejection_boundary():
     assert "reason" in reject_res["rejection_data"]
 
 
-@pytest.mark.asyncio
 async def test_e2e_manager_combination_matrix_and_stage_outcomes():
     """
     E2E Test 8: Verify manager combination matrix attributes (CMB00001)
@@ -392,7 +384,6 @@ async def test_e2e_manager_combination_matrix_and_stage_outcomes():
             assert "Primary_Trap" in header
 
 
-@pytest.mark.asyncio
 async def test_e2e_uuid_architecture():
     """
     E2E Test 9: Verify end-to-end UUID architecture:
@@ -494,7 +485,6 @@ async def test_e2e_uuid_architecture():
             await client.delete(f"/questions/{final_question['id']}")
 
 
-@pytest.mark.asyncio
 async def test_e2e_question_image_endpoint():
     """
     E2E Test 10: Verify /questions/{id}/image binary image serving endpoint
