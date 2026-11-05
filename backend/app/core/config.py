@@ -7,6 +7,8 @@ from pathlib import Path
 from pydantic import PrivateAttr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core import pricing
+
 logger = logging.getLogger(__name__)
 
 
@@ -328,94 +330,35 @@ class Settings(BaseSettings):
             return self.COST_PER_MILLION_INPUT_TOKENS, self.COST_PER_MILLION_OUTPUT_TOKENS
 
         if self.is_anthropic_model(target):
-            # Claude Haiku 5.5
-            if "haiku-5-5" in target or target == "claude-haiku-5-5":
+            if "haiku-5-5" in target:  # the configured flagship model uses the configured rates
                 return (
                     self.ANTHROPIC_COST_PER_MILLION_INPUT_TOKENS,
                     self.ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS,
                 )
-
-            # Dynamic LiteLLM model_cost registry lookup
-            try:
-                import litellm
-
-                bare_target = target.replace("anthropic/", "").replace("anthropic.", "")
-                candidates = [
-                    target,
-                    bare_target,
-                    f"anthropic/{bare_target}",
-                    f"anthropic.{bare_target}",
-                ]
-                for cand in candidates:
-                    info = litellm.model_cost.get(cand)
-                    if info and "input_cost_per_token" in info and "output_cost_per_token" in info:
-                        in_rate = round(float(info["input_cost_per_token"]) * 1_000_000.0, 4)
-                        out_rate = round(float(info["output_cost_per_token"]) * 1_000_000.0, 4)
-                        return in_rate, out_rate
-            except (KeyError, ValueError, TypeError, AttributeError) as exc:
-                logger.debug("litellm pricing lookup failed for %s: %s", target, exc)
-
-            # Known Anthropic family heuristics
-            if "sonnet" in target:
-                return 3.00, 15.00
-            if "opus" in target:
-                return 15.00, 75.00
-            if "haiku" in target:
-                return 0.80, 4.00
-
-            # Default generic Claude rate
-            return 3.00, 15.00
+            return (
+                pricing.litellm_rate(target, "anthropic")
+                or pricing.family_rate(target, pricing.ANTHROPIC_FAMILY_RATES)
+                or pricing.ANTHROPIC_DEFAULT_RATE
+            )
 
         if self.is_openai_model(target):
-            if "gpt-4o-mini" in target or target == "gpt-4o-mini":
+            if "gpt-4o-mini" in target:  # the configured default model uses the configured rates
                 return (
                     self.OPENAI_COST_PER_MILLION_INPUT_TOKENS,
                     self.OPENAI_COST_PER_MILLION_OUTPUT_TOKENS,
                 )
-
-            try:
-                import litellm
-
-                bare_target = target.replace("openai/", "").replace("openai.", "")
-                candidates = [
-                    target,
-                    bare_target,
-                    f"openai/{bare_target}",
-                ]
-                for cand in candidates:
-                    info = litellm.model_cost.get(cand)
-                    if info and "input_cost_per_token" in info and "output_cost_per_token" in info:
-                        in_rate = round(float(info["input_cost_per_token"]) * 1_000_000.0, 4)
-                        out_rate = round(float(info["output_cost_per_token"]) * 1_000_000.0, 4)
-                        return in_rate, out_rate
-            except (KeyError, ValueError, TypeError, AttributeError) as exc:
-                logger.debug("litellm pricing lookup failed for %s: %s", target, exc)
-
-            if "gpt-4o" in target:
-                return 2.50, 10.00
-            if "o3-mini" in target:
-                return 1.10, 4.40
-            if "o1-mini" in target:
-                return 3.00, 12.00
-            if "o1" in target:
-                return 15.00, 60.00
-            if "gpt-4" in target:
-                return 10.00, 30.00
-            if "gpt-3.5" in target:
-                return 0.50, 1.50
-
             return (
-                self.OPENAI_COST_PER_MILLION_INPUT_TOKENS,
-                self.OPENAI_COST_PER_MILLION_OUTPUT_TOKENS,
+                pricing.litellm_rate(target, "openai")
+                or pricing.family_rate(target, pricing.OPENAI_FAMILY_RATES)
+                or (
+                    self.OPENAI_COST_PER_MILLION_INPUT_TOKENS,
+                    self.OPENAI_COST_PER_MILLION_OUTPUT_TOKENS,
+                )
             )
 
-        # DeepInfra / Custom models
-        if (
-            "deepseek-r1" in target
-            or "deepseek-reasoner" in target
-            or target.endswith("/deepseek-r1")
-        ):
-            return 0.55, 2.19
+        # DeepInfra / custom models
+        if pricing.is_deepseek_reasoner(target):
+            return pricing.DEEPSEEK_REASONER_RATE
 
         return self.COST_PER_MILLION_INPUT_TOKENS, self.COST_PER_MILLION_OUTPUT_TOKENS
 

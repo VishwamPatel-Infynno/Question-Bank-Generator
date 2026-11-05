@@ -7,6 +7,8 @@
 @import './styles/wizard.css';
 @import './styles/question.css';
 @import './styles/batch.css';
+@import './styles/batch-activity.css';
+@import './styles/batch-card-summary.css';
 @import './styles/bank.css';
 @import './styles/passage.css';
 @import './styles/modals.css';

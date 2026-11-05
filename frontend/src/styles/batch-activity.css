@@ -1,0 +1,324 @@
+/* --- BATCH ACTIVITY MONITOR STYLES (DESIGN.md) --- */
+.batch-monitor-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  position: relative;
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.batch-monitor-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.batch-monitor-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.batch-monitor-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-xs);
+  background: var(--brand-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+.batch-monitor-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.batch-monitor-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.batch-monitor-active-badge {
+  background: rgba(51, 90, 207, 0.15);
+  color: var(--brand-primary);
+  border: 1px solid rgba(51, 90, 207, 0.3);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.batch-monitor-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  animation: pulse 1.5s infinite;
+}
+
+.batch-monitor-stopwatch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--brand-primary);
+  font-weight: 700;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 2px 8px;
+}
+
+.batch-monitor-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 2px 0 0 0;
+}
+
+.batch-monitor-stop-btn {
+  background: var(--status-danger-bg, rgba(239, 68, 68, 0.08));
+  color: var(--status-danger, #ef4444);
+  border: 1px solid var(--status-danger-border, rgba(239, 68, 68, 0.25));
+  border-radius: var(--radius-sm, 6px);
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.batch-monitor-stop-btn:hover:not(:disabled) {
+  background: var(--status-danger-border, rgba(239, 68, 68, 0.25));
+}
+
+.batch-monitor-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.batch-monitor-confirm-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-monitor-confirm-text {
+  font-size: 0.75rem;
+  color: var(--status-danger);
+  font-weight: 600;
+}
+
+.batch-monitor-btn-danger {
+  background: var(--status-danger, #ef4444);
+  color: var(--text-on-brand, #ffffff);
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.batch-monitor-btn-cancel {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm, 6px);
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.batch-monitor-metric-secondary {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.batch-monitor-metric-cost {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--status-success);
+}
+
+.batch-monitor-metric-subtext {
+  font-size: 0.68rem;
+  margin-top: 1px;
+}
+
+.batch-monitor-metric-subtext.warning {
+  color: var(--status-warning);
+}
+
+.batch-monitor-metric-subtext.success {
+  color: var(--status-success);
+}
+
+.batch-monitor-stages-title {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.batch-monitor-stage-tag {
+  font-size: 0.68rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.batch-monitor-stage-tag.active {
+  background: rgba(51, 90, 207, 0.1);
+  color: var(--brand-primary);
+}
+
+.batch-monitor-stage-tag.queued {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--status-warning);
+}
+
+.batch-monitor-stage-tag.done {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--status-success);
+}
+
+.batch-monitor-stage-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  animation: pulse 1.4s infinite;
+}
+
+.batch-monitor-progress-lbl {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.batch-monitor-progress-pct {
+  font-weight: 800;
+  color: var(--brand-primary);
+}
+
+.batch-monitor-batches-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.batch-monitor-cyan-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--infynno-cyan);
+  animation: pulse 1.2s infinite;
+}
+
+.batch-monitor-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.batch-monitor-telemetry-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm, 8px);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.batch-monitor-metric-title {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.batch-monitor-metric-stat {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.batch-monitor-stages-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xs);
+  font-size: 0.72rem;
+}
+
+.batch-monitor-progress-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.batch-monitor-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-bottom: 6px;
+}
+
+.batch-monitor-progress-track {
+  height: 8px;
+  width: 100%;
+  border-radius: 4px;
+  background: var(--border-light);
+  overflow: hidden;
+}
+
+.batch-monitor-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--infynno-violet) 0%, var(--infynno-blue) 50%, var(--infynno-cyan) 100%);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 10px rgba(79, 48, 185, 0.4);
+}
+
+.batch-monitor-batches-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.batch-monitor-batch-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
