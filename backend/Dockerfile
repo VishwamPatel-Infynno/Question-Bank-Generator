@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 # Build context is the repository root:  docker build -f backend/Dockerfile .
-FROM python:3.11-slim AS wheels
+FROM python:3.15-slim AS wheels
 WORKDIR /wheels
 COPY backend/requirements.txt .
 RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-FROM python:3.11-slim
+FROM python:3.15-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
