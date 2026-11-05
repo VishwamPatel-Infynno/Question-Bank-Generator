@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+from dataclasses import dataclass
 from typing import Any
 
-from app.agents.blind_solver import blind_solve_question
+from app.agents.blind_solver import BlindSolverResult, blind_solve_question
 from app.agents.generator import (
     generate_question,
     generate_question_with_self_critique,
@@ -160,13 +162,12 @@ async def generator_node(state: AgentWorkflowState) -> dict[str, Any]:
     }
 
 
-async def reviewer_node(state: AgentWorkflowState) -> dict[str, Any]:
-    req = GenerationRequest(**state["request"])
+def build_review_update(
+    state: AgentWorkflowState, review: ReviewScore, usage: TokenUsage
+) -> dict[str, Any]:
+    """Folds a completed review (and its usage) into a state update."""
     draft = QuestionDraft(**state["current_draft"])
     iteration = state.get("iteration_count", 1)
-
-    logger.info(f"Executing Question Reviewer Agent (Iteration {iteration})...")
-    review, usage = await review_question(draft, req, iteration)
 
     t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
         state, "Question Reviewer", usage, iteration=iteration
@@ -200,18 +201,75 @@ async def reviewer_node(state: AgentWorkflowState) -> dict[str, Any]:
     }
 
 
-async def blind_solver_node(state: AgentWorkflowState) -> dict[str, Any]:
-    """
-    Blind-Solver Dual Validation Node:
-    Tests candidate question against an independent top-score solver without
-    providing the intended key or explanation. Verifies indisputability and flags ambiguities.
-    """
+async def reviewer_node(state: AgentWorkflowState) -> dict[str, Any]:
     req = GenerationRequest(**state["request"])
     draft = QuestionDraft(**state["current_draft"])
     iteration = state.get("iteration_count", 1)
 
-    logger.info(f"Executing Blind-Solver Dual Validation Agent (Iteration {iteration})...")
-    result, usage = await blind_solve_question(draft, req)
+    logger.info(f"Executing Question Reviewer Agent (Iteration {iteration})...")
+    review, usage = await review_question(draft, req, iteration)
+    return build_review_update(state, review, usage)
+
+
+@dataclass
+class ReviewAndSolveOutcome:
+    """Results of running the reviewer and blind solver concurrently on one draft."""
+
+    review: ReviewScore
+    review_usage: TokenUsage
+    solver_result: BlindSolverResult | None
+    solver_usage: TokenUsage | None
+    solver_error: BaseException | None
+
+
+async def run_review_and_solve(state: AgentWorkflowState) -> ReviewAndSolveOutcome:
+    """Runs the independent reviewer and the blind solver concurrently.
+
+    They are independent read-only checks of the same draft, so running them together saves one
+    full LLM round trip per question. A reviewer failure is raised immediately; a solver failure
+    is carried in the outcome and only matters if the review passes.
+    """
+    req = GenerationRequest(**state["request"])
+    draft = QuestionDraft(**state["current_draft"])
+    iteration = state.get("iteration_count", 1)
+    logger.info(f"Executing Reviewer and Blind-Solver concurrently (Iteration {iteration})...")
+
+    review_out, solve_out = await asyncio.gather(
+        review_question(draft, req, iteration),
+        blind_solve_question(draft, req),
+        return_exceptions=True,
+    )
+    if isinstance(review_out, BaseException):
+        raise review_out
+    review, review_usage = review_out
+    if isinstance(solve_out, BaseException):
+        return ReviewAndSolveOutcome(review, review_usage, None, None, solve_out)
+    solver_result, solver_usage = solve_out
+    return ReviewAndSolveOutcome(review, review_usage, solver_result, solver_usage, None)
+
+
+def build_usage_only_update(
+    state: AgentWorkflowState, agent_name: str, usage: TokenUsage
+) -> dict[str, Any]:
+    """Accounts for real spend (tokens and cost) of a result whose verdict is not used."""
+    t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
+        state, agent_name, usage, iteration=state.get("iteration_count", 1)
+    )
+    return {
+        "total_tokens": t_tokens,
+        "total_prompt_tokens": p_tokens,
+        "total_completion_tokens": c_tokens,
+        "total_cost_usd": t_cost,
+        "agent_usage_breakdown": breakdown,
+    }
+
+
+def build_solver_update(
+    state: AgentWorkflowState, result: BlindSolverResult, usage: TokenUsage
+) -> dict[str, Any]:
+    """Folds a completed blind-solver verdict (and its usage) into a state update."""
+    draft = QuestionDraft(**state["current_draft"])
+    iteration = state.get("iteration_count", 1)
 
     t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
         state, "Blind-Solver Dual Validation", usage, iteration=iteration
@@ -258,6 +316,21 @@ async def blind_solver_node(state: AgentWorkflowState) -> dict[str, Any]:
         "latest_usage": usage.model_dump(),
         "stage_outcomes": outcomes,
     }
+
+
+async def blind_solver_node(state: AgentWorkflowState) -> dict[str, Any]:
+    """
+    Blind-Solver Dual Validation Node:
+    Tests candidate question against an independent top-score solver without
+    providing the intended key or explanation. Verifies indisputability and flags ambiguities.
+    """
+    req = GenerationRequest(**state["request"])
+    draft = QuestionDraft(**state["current_draft"])
+    iteration = state.get("iteration_count", 1)
+
+    logger.info(f"Executing Blind-Solver Dual Validation Agent (Iteration {iteration})...")
+    result, usage = await blind_solve_question(draft, req)
+    return build_solver_update(state, result, usage)
 
 
 async def regenerator_node(state: AgentWorkflowState) -> dict[str, Any]:

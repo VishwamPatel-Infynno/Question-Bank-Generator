@@ -161,3 +161,103 @@ async def test_generator_does_not_substitute_mock_questions_for_real_failures(mo
     req = GenerationRequest(section="CP", subtopic="Kinetics", difficulty="Medium")
     with pytest.raises(RuntimeError):
         await gen_mod.generate_question_with_self_critique(req)
+
+
+def _usage(tokens: int, cost: float):
+    from app.schemas import TokenUsage
+
+    return TokenUsage(prompt_tokens=tokens, completion_tokens=0, total_tokens=tokens, cost_usd=cost)
+
+
+def _solver_result(agrees: bool = True):
+    from app.agents.blind_solver import BlindSolverResult
+
+    return BlindSolverResult(
+        selected_key="A" if agrees else "B",
+        confidence=95,
+        is_ambiguous=False,
+        ambiguity_notes="",
+        solver_rationale="ok",
+        agrees_with_key=agrees,
+        is_verified=agrees,
+        usage=_usage(0, 0.0),
+    )
+
+
+def _review(total: int) -> ReviewScore:
+    pillar = total // 4
+    return ReviewScore(
+        authenticity_score=pillar,
+        clarity_score=pillar,
+        distractor_score=pillar,
+        explanation_score=total - 3 * pillar,
+        total_score=total,
+        passed=total > config.PASSING_SCORE_THRESHOLD,
+    )
+
+
+@pytest.mark.asyncio
+async def test_review_and_solver_run_concurrently_and_both_costs_are_counted(monkeypatch):
+    import app.workflow.nodes as nodes_mod
+
+    started: list[str] = []
+    both_started = asyncio.Event()
+
+    async def fake_review(*_a, **_k):
+        started.append("review")
+        if len(started) == 2:
+            both_started.set()
+        await asyncio.wait_for(both_started.wait(), timeout=1)  # fails if run serially
+        return _review(96), _usage(100, 0.01)
+
+    async def fake_solve(*_a, **_k):
+        started.append("solve")
+        if len(started) == 2:
+            both_started.set()
+        await asyncio.wait_for(both_started.wait(), timeout=1)
+        return _solver_result(), _usage(50, 0.005)
+
+    monkeypatch.setattr(nodes_mod, "review_question", fake_review)
+    monkeypatch.setattr(nodes_mod, "blind_solve_question", fake_solve)
+    monkeypatch.setattr(config, "ENABLE_BLIND_SOLVER", True)
+    monkeypatch.setattr(config, "PARALLEL_REVIEW_AND_SOLVE", True)
+
+    state = _state(_draft())
+    state["fused_self_passed"] = False
+    queue: asyncio.Queue = asyncio.Queue()
+    ok = await _run_question_review_loop(state, 0, 1, "run-1", queue, _make_event)
+
+    assert ok is True
+    assert state["total_tokens"] == 150
+    assert round(state["total_cost_usd"], 6) == 0.015
+    agents = [e["agent"] for e in state["agent_usage_breakdown"]]
+    assert agents == ["Question Reviewer", "Blind-Solver Dual Validation"]
+
+
+@pytest.mark.asyncio
+async def test_failing_review_still_accounts_solver_spend_and_ignores_solver_error(monkeypatch):
+    import app.workflow.nodes as nodes_mod
+
+    async def fake_review(*_a, **_k):
+        return _review(60), _usage(100, 0.01)
+
+    async def broken_solve(*_a, **_k):
+        raise RuntimeError("solver down")
+
+    async def fake_regen(s):
+        return {"current_draft": _draft().model_dump(), "iteration_count": 99, "latest_usage": {}}
+
+    monkeypatch.setattr(nodes_mod, "review_question", fake_review)
+    monkeypatch.setattr(nodes_mod, "blind_solve_question", broken_solve)
+    monkeypatch.setattr(engine_helpers, "regenerator_node", fake_regen)
+    monkeypatch.setattr(config, "ENABLE_BLIND_SOLVER", True)
+    monkeypatch.setattr(config, "PARALLEL_REVIEW_AND_SOLVE", True)
+
+    state = _state(_draft())
+    state["fused_self_passed"] = False
+    state["iteration_count"] = config.MAX_REGENERATION_ATTEMPTS  # forces reject, not regen
+    queue: asyncio.Queue = asyncio.Queue()
+    ok = await _run_question_review_loop(state, 0, 1, "run-1", queue, _make_event)
+
+    assert ok is False
+    assert state["total_tokens"] == 100  # solver errored, so only the review spend exists

@@ -93,9 +93,12 @@ async def get_single_batch(batch_id: str):
     visible_questions = [q for q in linked_questions if q.status != "discarded"]
 
     # Group questions by job_id or run_id
+    # Serialize each question once; the grouped and flat views share the same dicts.
     questions_by_job: dict[str, list[dict]] = {}
+    visible_dumps: list[dict] = []
     for q in visible_questions:
         q_dump = q.model_dump()
+        visible_dumps.append(q_dump)
         j_key = q.job_id or q.run_id or "unassigned"
         questions_by_job.setdefault(j_key, []).append(q_dump)
 
@@ -109,8 +112,8 @@ async def get_single_batch(batch_id: str):
     return {
         "batch": b.model_dump(),
         "jobs": jobs_with_questions,
-        "questions": [q.model_dump() for q in visible_questions],
-        "total_questions_count": len(visible_questions),
+        "questions": visible_dumps,
+        "total_questions_count": len(visible_dumps),
     }
 
 

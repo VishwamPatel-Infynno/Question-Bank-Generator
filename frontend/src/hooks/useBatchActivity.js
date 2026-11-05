@@ -60,6 +60,9 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
   // Auto-refresh control
   const [autoRefresh, setAutoRefresh] = useState(true);
   const pollTimerRef = useRef(null);
+  const fetchInFlightRef = useRef(false);
+  const failureCountRef = useRef(0);
+  const nextPollAllowedRef = useRef(0);
   const expandedBatchIdsRef = useRef(expandedBatchIds);
   const onShowToastRef = useRef(onShowToast);
 
@@ -73,6 +76,9 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
 
   // Fetch batch list asynchronously without synchronous pre-render state mutations
   const performFetchBatches = useCallback(async (isSilent = false) => {
+    // A slow response must never overlap with the next poll tick.
+    if (fetchInFlightRef.current && isSilent) return;
+    fetchInFlightRef.current = true;
     try {
       const data = await fetchBatches();
       setBatches(data.batches || []);
@@ -99,7 +105,13 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
           setBatchDetails((prev) => ({ ...prev, ...nextDetails }));
         }
       }
+      failureCountRef.current = 0;
+      nextPollAllowedRef.current = 0;
     } catch (err) {
+      // Exponential backoff (2.5s doubling, capped at 30s) while the backend is unreachable.
+      failureCountRef.current += 1;
+      nextPollAllowedRef.current =
+        Date.now() + Math.min(30000, 2500 * 2 ** failureCountRef.current);
       console.error('Failed to load batches:', err);
       if (!isSilent && onShowToastRef.current) {
         onShowToastRef.current({
@@ -109,6 +121,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
         });
       }
     } finally {
+      fetchInFlightRef.current = false;
       setLoading(false);
       if (!isSilent) setRefreshing(false);
     }
@@ -143,6 +156,7 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
 
     pollTimerRef.current = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      if (Date.now() < nextPollAllowedRef.current) return;
       loadBatches(true);
     }, intervalMs);
 

@@ -606,7 +606,9 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
         async def _staggered_worker(w_idx: int) -> None:
             if w_idx > 0:
-                await asyncio.sleep(0.35 * w_idx)
+                # Small bounded stagger so siblings can see each other's in-flight stems for dedup,
+                # without delaying the last worker of a 50-question run by ~17 seconds.
+                await asyncio.sleep(min(0.35 * w_idx, 2.0))
             await _worker(w_idx)
 
         tasks.extend([asyncio.create_task(_staggered_worker(i)) for i in range(total_qty)])

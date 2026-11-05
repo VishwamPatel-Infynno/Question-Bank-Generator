@@ -47,10 +47,14 @@ from app.services.deduplication import evaluate_duplicate
 from app.workflow._section_utils import is_cars_section
 from app.workflow.nodes import (
     blind_solver_node,
+    build_review_update,
+    build_solver_update,
+    build_usage_only_update,
     fused_generator_node,
     regenerator_node,
     reject_node,
     reviewer_node,
+    run_review_and_solve,
 )
 from app.workflow.routes import route_after_review
 from app.workflow.state import AgentWorkflowState
@@ -250,6 +254,8 @@ async def _run_question_review_loop(
     while True:
         iteration = state.get("iteration_count", 1)
 
+        prefetched_solver = None
+
         # Step 0: Free deterministic validation, before any LLM review is spent
         blockers = blocking(_apply_deterministic_gate(state))
         if blockers:
@@ -306,8 +312,12 @@ async def _run_question_review_loop(
             )
             await event_queue.put(rev_start_evt)
 
-            rev_res = await reviewer_node(state)
-            state.update(rev_res)
+            if config.ENABLE_BLIND_SOLVER and config.PARALLEL_REVIEW_AND_SOLVE:
+                outcome = await run_review_and_solve(state)
+                state.update(build_review_update(state, outcome.review, outcome.review_usage))
+                prefetched_solver = outcome
+            else:
+                state.update(await reviewer_node(state))
 
             review = state["current_review"]
             score = review["total_score"]
@@ -331,6 +341,17 @@ async def _run_question_review_loop(
             await event_queue.put(rev_done_evt)
 
             next_step = route_after_review(state)
+            # The solver verdict is moot for a failing review, but its spend is real.
+            if (
+                prefetched_solver is not None
+                and prefetched_solver.solver_usage is not None
+                and next_step in ("regenerator", "reject")
+            ):
+                state.update(
+                    build_usage_only_update(
+                        state, "Blind-Solver Dual Validation", prefetched_solver.solver_usage
+                    )
+                )
             if next_step == "regenerator":
                 regen_start_evt = make_event(
                     event_type="agent_start",
@@ -399,8 +420,16 @@ async def _run_question_review_loop(
             )
             await event_queue.put(bs_start_evt)
 
-            bs_res = await blind_solver_node(state)
-            state.update(bs_res)
+            if prefetched_solver is not None:
+                if prefetched_solver.solver_error is not None:
+                    raise prefetched_solver.solver_error
+                state.update(
+                    build_solver_update(
+                        state, prefetched_solver.solver_result, prefetched_solver.solver_usage
+                    )
+                )
+            else:
+                state.update(await blind_solver_node(state))
 
             bs_data = state.get("blind_solver_result") or {}
             bs_passed = state.get("blind_solver_passed", True)

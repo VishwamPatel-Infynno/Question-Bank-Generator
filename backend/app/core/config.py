@@ -470,6 +470,10 @@ class Settings(BaseSettings):
     PASSING_SCORE_THRESHOLD: int = 90
     # When True the independent reviewer always audits a draft, even if its own self-critique passed.
     ALWAYS_INDEPENDENT_REVIEW: bool = True
+    # Run the reviewer and blind solver concurrently (saves one LLM round trip per question).
+    PARALLEL_REVIEW_AND_SOLVE: bool = True
+    # Mark static system prompts cacheable for providers that need an explicit marker (Anthropic).
+    ENABLE_PROMPT_CACHING: bool = True
     BATCH_PASSING_SCORE_THRESHOLD: int = 85
     DEFAULT_MAX_TOKENS: int = 3000
     LLM_MAX_TOKENS_CEILING: int = 8000  # Upper bound when retrying a truncated completion

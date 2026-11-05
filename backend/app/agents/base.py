@@ -232,6 +232,18 @@ class QualityCheckUnavailableError(RuntimeError):
     """
 
 
+def _system_content(model: str, system_prompt: str) -> str | list[dict[str, Any]]:
+    """Marks the static system prompt as cacheable for Anthropic models.
+
+    System prompts are identical across calls, so cached reads cost a fraction of normal input
+    tokens. Providers with automatic prefix caching (OpenAI, DeepInfra) need no marker. Prompts
+    below the provider's minimum cacheable size are simply not cached, which is harmless.
+    """
+    if config.ENABLE_PROMPT_CACHING and config.is_anthropic_model(model):
+        return [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+    return system_prompt
+
+
 def _resolve_api_key(model: str, explicit_key: str | None) -> str:
     """
     Resolves the API key for the requested model.
@@ -303,150 +315,149 @@ async def call_llm(
     last_error: Exception | None = None
     semaphore = get_global_llm_semaphore()
 
-    async with semaphore:
-        for candidate in candidate_models:
+    for candidate in candidate_models:
+        try:
+            resolved_key = _resolve_api_key(candidate, api_key)
+        except Exception as key_err:
+            last_error = key_err
+            continue
+
+        kwargs: dict[str, Any] = {
+            "model": normalize_model_for_litellm(candidate),
+            "messages": [
+                {"role": "system", "content": _system_content(candidate, system_prompt)},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": effective_temperature,
+            "max_tokens": effective_max_tokens,
+            "request_timeout": max(60.0, effective_max_tokens / 25),
+            "num_retries": 0,  # retries are handled once, by the loop below
+        }
+        if resolved_key:
+            kwargs["api_key"] = resolved_key
+        if config.is_anthropic_model(candidate) and "thinking" not in kwargs:
+            kwargs["thinking"] = {"type": "disabled"}
+
+        max_retries = config.LLM_MAX_RETRIES
+        for attempt in range(max_retries + 1):
             try:
-                resolved_key = _resolve_api_key(candidate, api_key)
-            except Exception as key_err:
-                last_error = key_err
-                continue
-
-            kwargs: dict[str, Any] = {
-                "model": normalize_model_for_litellm(candidate),
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": effective_temperature,
-                "max_tokens": effective_max_tokens,
-                "request_timeout": 60.0,
-                "num_retries": 1,
-            }
-            if resolved_key:
-                kwargs["api_key"] = resolved_key
-            if config.is_anthropic_model(candidate) and "thinking" not in kwargs:
-                kwargs["thinking"] = {"type": "disabled"}
-
-            max_retries = config.LLM_MAX_RETRIES
-            for attempt in range(max_retries + 1):
-                try:
+                # Hold a global LLM slot only for the call itself, never while backing off.
+                async with semaphore:
                     response = await litellm.acompletion(**kwargs)
-                    content = (response.choices[0].message.content or "").strip()
-                    if not content:
-                        finish_reason = getattr(response.choices[0], "finish_reason", "unknown")
-                        raise ValueError(
-                            f"Model {candidate} returned empty content (finish_reason: {finish_reason})"
-                        )
-
-                    # A cut-off completion is never trustworthy: json_repair would silently
-                    # "complete" a truncated explanation. Retry with a larger budget instead.
-                    if getattr(response.choices[0], "finish_reason", None) == "length":
-                        current_max = int(kwargs["max_tokens"])
-                        ceiling = config.LLM_MAX_TOKENS_CEILING
-                        if current_max < ceiling:
-                            kwargs["max_tokens"] = min(ceiling, current_max * 2)
-                            logger.warning(
-                                f"Output truncated at {current_max} tokens on '{candidate}'. "
-                                f"Retrying with max_tokens={kwargs['max_tokens']}."
-                            )
-                            continue
-                        raise ValueError(
-                            f"Model {candidate} output was truncated at {current_max} tokens"
-                        )
-
-                    usage_obj = getattr(response, "usage", None)
-                    prompt_tokens = int(getattr(usage_obj, "prompt_tokens", 0) or 0)
-                    completion_tokens = int(getattr(usage_obj, "completion_tokens", 0) or 0)
-                    total_tokens = int(
-                        getattr(usage_obj, "total_tokens", prompt_tokens + completion_tokens)
-                        or (prompt_tokens + completion_tokens)
+                content = (response.choices[0].message.content or "").strip()
+                if not content:
+                    finish_reason = getattr(response.choices[0], "finish_reason", "unknown")
+                    raise ValueError(
+                        f"Model {candidate} returned empty content (finish_reason: {finish_reason})"
                     )
 
-                    # Extract prompt caching details if provided by model
-                    cache_read_raw = getattr(usage_obj, "cache_read_input_tokens", 0)
-                    cache_read_tokens = (
-                        int(cache_read_raw)
-                        if isinstance(cache_read_raw, (int, float))
-                        and not isinstance(cache_read_raw, bool)
-                        else 0
-                    )
-
-                    details = getattr(usage_obj, "prompt_tokens_details", None)
-                    if details is not None and type(details).__name__ not in ("MagicMock", "Mock"):
-                        if isinstance(details, dict):
-                            cached_val = details.get("cached_tokens", 0)
-                        else:
-                            cached_val = getattr(details, "cached_tokens", 0)
-                        if isinstance(cached_val, (int, float)) and not isinstance(
-                            cached_val, bool
-                        ):
-                            cache_read_tokens = cache_read_tokens or int(cached_val)
-
-                    cache_create_raw = getattr(usage_obj, "cache_creation_input_tokens", 0)
-                    cache_creation_tokens = (
-                        int(cache_create_raw)
-                        if isinstance(cache_create_raw, (int, float))
-                        and not isinstance(cache_create_raw, bool)
-                        else 0
-                    )
-
-                    cost_usd = calculate_token_cost(
-                        prompt_tokens=prompt_tokens,
-                        completion_tokens=completion_tokens,
-                        model=candidate,
-                        cache_read_tokens=cache_read_tokens,
-                        cache_creation_tokens=cache_creation_tokens,
-                    )
-                    usage = TokenUsage(
-                        prompt_tokens=prompt_tokens,
-                        completion_tokens=completion_tokens,
-                        total_tokens=total_tokens,
-                        cost_usd=cost_usd,
-                    )
-                    provider_label = config.get_active_provider(candidate).capitalize()
-                    logger.info(
-                        f"LLM Call Succeeded [{candidate} via {provider_label}]: {prompt_tokens} in + {completion_tokens} out = {total_tokens} tokens (${cost_usd:.5f})"
-                    )
-                    return content, usage
-                except Exception as err:
-                    err_str = str(err).lower()
-                    is_rate_limit = (
-                        "429" in err_str
-                        or "rate limit" in err_str
-                        or "too many requests" in err_str
-                    )
-                    is_overloaded = (
-                        "503" in err_str
-                        or "service unavailable" in err_str
-                        or "overloaded" in err_str
-                    )
-                    is_timeout = (
-                        "timeout" in err_str
-                        or "timed out" in err_str
-                        or isinstance(err, (asyncio.TimeoutError, TimeoutError))
-                    )
-
-                    last_error = err
-
-                    if (is_rate_limit or is_overloaded or is_timeout) and attempt < max_retries:
-                        base_backoff = config.LLM_BASE_BACKOFF_SECONDS
-                        backoff_secs = base_backoff * (2**attempt) + random.uniform(0.1, 0.5)
+                # A cut-off completion is never trustworthy: json_repair would silently
+                # "complete" a truncated explanation. Retry with a larger budget instead.
+                if getattr(response.choices[0], "finish_reason", None) == "length":
+                    current_max = int(kwargs["max_tokens"])
+                    ceiling = config.LLM_MAX_TOKENS_CEILING
+                    if current_max < ceiling:
+                        kwargs["max_tokens"] = min(ceiling, current_max * 2)
                         logger.warning(
-                            f"Transient LLM error ({err}) on candidate '{candidate}'. "
-                            f"Backing off for {backoff_secs:.2f}s (attempt {attempt + 1}/{max_retries + 1})..."
+                            f"Output truncated at {current_max} tokens on '{candidate}'. "
+                            f"Retrying with max_tokens={kwargs['max_tokens']}."
                         )
-                        await asyncio.sleep(backoff_secs)
                         continue
-                    if attempt < max_retries and "connection" in err_str:
-                        backoff_secs = 1.0 + random.uniform(0.1, 0.4)
-                        logger.warning(
-                            f"Connection error ({err}) on '{candidate}'. Retrying in {backoff_secs:.2f}s..."
-                        )
-                        await asyncio.sleep(backoff_secs)
-                        continue
+                    raise ValueError(
+                        f"Model {candidate} output was truncated at {current_max} tokens"
+                    )
 
-                    logger.warning(f"LLM error on model '{candidate}' attempt {attempt + 1}: {err}")
-                    break
+                usage_obj = getattr(response, "usage", None)
+                prompt_tokens = int(getattr(usage_obj, "prompt_tokens", 0) or 0)
+                completion_tokens = int(getattr(usage_obj, "completion_tokens", 0) or 0)
+                total_tokens = int(
+                    getattr(usage_obj, "total_tokens", prompt_tokens + completion_tokens)
+                    or (prompt_tokens + completion_tokens)
+                )
+
+                # Extract prompt caching details if provided by model
+                cache_read_raw = getattr(usage_obj, "cache_read_input_tokens", 0)
+                cache_read_tokens = (
+                    int(cache_read_raw)
+                    if isinstance(cache_read_raw, (int, float))
+                    and not isinstance(cache_read_raw, bool)
+                    else 0
+                )
+
+                details = getattr(usage_obj, "prompt_tokens_details", None)
+                if details is not None and type(details).__name__ not in ("MagicMock", "Mock"):
+                    if isinstance(details, dict):
+                        cached_val = details.get("cached_tokens", 0)
+                    else:
+                        cached_val = getattr(details, "cached_tokens", 0)
+                    if isinstance(cached_val, (int, float)) and not isinstance(cached_val, bool):
+                        cache_read_tokens = cache_read_tokens or int(cached_val)
+
+                cache_create_raw = getattr(usage_obj, "cache_creation_input_tokens", 0)
+                cache_creation_tokens = (
+                    int(cache_create_raw)
+                    if isinstance(cache_create_raw, (int, float))
+                    and not isinstance(cache_create_raw, bool)
+                    else 0
+                )
+
+                cost_usd = calculate_token_cost(
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    model=candidate,
+                    cache_read_tokens=cache_read_tokens,
+                    cache_creation_tokens=cache_creation_tokens,
+                )
+                usage = TokenUsage(
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    cost_usd=cost_usd,
+                )
+                provider_label = config.get_active_provider(candidate).capitalize()
+                logger.info(
+                    f"LLM Call Succeeded [{candidate} via {provider_label}]: {prompt_tokens} in + {completion_tokens} out = {total_tokens} tokens (${cost_usd:.5f})"
+                )
+                return content, usage
+            except Exception as err:
+                err_str = str(err).lower()
+                is_rate_limit = (
+                    "429" in err_str or "rate limit" in err_str or "too many requests" in err_str
+                )
+                is_overloaded = (
+                    re.search(r"\b(500|502|503|504|529)\b", err_str) is not None
+                    or "service unavailable" in err_str
+                    or "bad gateway" in err_str
+                    or "internal server error" in err_str
+                    or "overloaded" in err_str
+                )
+                is_timeout = (
+                    "timeout" in err_str
+                    or "timed out" in err_str
+                    or isinstance(err, (asyncio.TimeoutError, TimeoutError))
+                )
+
+                last_error = err
+
+                if (is_rate_limit or is_overloaded or is_timeout) and attempt < max_retries:
+                    base_backoff = config.LLM_BASE_BACKOFF_SECONDS
+                    backoff_secs = base_backoff * (2**attempt) + random.uniform(0.1, 0.5)
+                    logger.warning(
+                        f"Transient LLM error ({err}) on candidate '{candidate}'. "
+                        f"Backing off for {backoff_secs:.2f}s (attempt {attempt + 1}/{max_retries + 1})..."
+                    )
+                    await asyncio.sleep(backoff_secs)
+                    continue
+                if attempt < max_retries and "connection" in err_str:
+                    backoff_secs = 1.0 + random.uniform(0.1, 0.4)
+                    logger.warning(
+                        f"Connection error ({err}) on '{candidate}'. Retrying in {backoff_secs:.2f}s..."
+                    )
+                    await asyncio.sleep(backoff_secs)
+                    continue
+
+                logger.warning(f"LLM error on model '{candidate}' attempt {attempt + 1}: {err}")
+                break
 
     logger.error(f"LLM call failed for prompt. Last error: {last_error}")
     if isinstance(last_error, ValueError):
