@@ -621,6 +621,7 @@ When multiple questions are generated as a passage set, they share a foreign key
   - `ix_questions_is_duplicate_override` (`is_duplicate_override`)
   - `ix_questions_section_difficulty` (`section`, `difficulty`)
   - `ix_questions_status_final_score` (`status`, `final_score`)
+  - Single-column `status`, `section` and `batch_id` indexes are intentionally absent: each is the leading column of a composite above (`ix_questions_status_created`, `ix_questions_section_created`/`ix_questions_section_status`, `ix_questions_batch_job`), and the `_step_drop_redundant_indexes` migration removes them from older databases only when the covering composite exists.
 
 ### 6.4 Deduplication & Override Schema Architecture
 The deduplication subsystem extends the PostgreSQL schema with two persistent fields:

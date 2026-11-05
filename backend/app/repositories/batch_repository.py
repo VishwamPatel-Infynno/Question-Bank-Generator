@@ -102,6 +102,15 @@ async def get_batches(
         return [_batch_model_to_schema(m, include_payload=False) for m in models]
 
 
+async def batch_exists(batch_id: str) -> bool:
+    """Cheap existence check (no row hydration, no JSONB payload)."""
+    async with async_session_factory() as session:
+        found = await session.execute(
+            select(GenerationBatchModel.id).where(GenerationBatchModel.id == batch_id)
+        )
+        return found.first() is not None
+
+
 async def get_batch_by_id(batch_id: str) -> GenerationBatch | None:
     """Retrieves a single generation batch by primary key ID."""
     async with async_session_factory() as session:

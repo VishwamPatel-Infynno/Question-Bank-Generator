@@ -283,9 +283,6 @@ async def _step_run_batch_columns(conn) -> None:
     await conn.execute(
         text("CREATE INDEX IF NOT EXISTS ix_questions_run_id ON questions (run_id);")
     )
-    await conn.execute(
-        text("CREATE INDEX IF NOT EXISTS ix_questions_batch_id ON questions (batch_id);")
-    )
     await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS job_id VARCHAR(64);"))
     await conn.execute(
         text("CREATE INDEX IF NOT EXISTS ix_questions_job_id ON questions (job_id);")
@@ -300,9 +297,6 @@ async def _step_retry_tracking_columns(conn) -> None:
     )
     await conn.execute(
         text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'in_bank';")
-    )
-    await conn.execute(
-        text("CREATE INDEX IF NOT EXISTS ix_questions_status ON questions (status);")
     )
     await conn.execute(text("UPDATE questions SET status = 'in_bank' WHERE status IS NULL;"))
 
@@ -593,6 +587,27 @@ async def _step_reconcile_question_status(conn) -> None:
     )
 
 
+# Single-column indexes made redundant by a composite whose leading column is the same: the
+# composite serves every query the single-column index could (and the batch_id one still backs the
+# generation_batches foreign key). Dropped only when the covering composite really exists.
+_REDUNDANT_INDEXES = (
+    ("ix_questions_status", "ix_questions_status_created"),
+    ("ix_questions_section", "ix_questions_section_status"),
+    ("ix_questions_batch_id", "ix_questions_batch_job"),
+)
+
+
+async def _step_drop_redundant_indexes(conn) -> None:
+    """Drop single-column question indexes that a composite index already covers."""
+    result = await conn.execute(
+        text("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema()")
+    )
+    existing = {row[0].lower() for row in result.fetchall()}
+    for redundant, covering in _REDUNDANT_INDEXES:
+        if redundant in existing and covering in existing:
+            await conn.execute(text(f"DROP INDEX IF EXISTS {redundant};"))
+
+
 # Ordered, idempotent migration steps. Schema steps run through the lock-avoiding connection;
 # data steps (backfills, foreign keys, status reconciliation) run in a second transaction.
 _SCHEMA_STEPS = (
@@ -607,6 +622,7 @@ _SCHEMA_STEPS = (
     _step_job_tracking_columns,
     _step_passage_batch_indexes,
     _step_fulltext_index,
+    _step_drop_redundant_indexes,
 )
 _DATA_STEPS = (
     _step_backfill_passages,

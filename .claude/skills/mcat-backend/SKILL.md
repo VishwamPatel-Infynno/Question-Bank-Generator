@@ -28,7 +28,8 @@ Routers contain no SQL and no business logic. Repositories own every query and c
 ## Recipe: add or change a DB column / status
 - Edit the model in `models/`; question `status` is guarded by a CHECK constraint `ck_questions_status` listing allowed values, so adding a status means updating that constraint and any migration path in `db/init_db.py`, plus `tests/test_database_structure.py`.
 - There is no Alembic: `db/init_db.py` runs `Base.metadata.create_all` plus idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements for existing databases. Add a matching ALTER there for every new column, or existing DBs will break.
-- Add indexes deliberately (see `ix_questions_status_*` examples).
+- Add indexes deliberately (see `ix_questions_status_*` examples). Do not add a single-column index on the leading column of an existing composite; `_step_drop_redundant_indexes` in `db/init_db.py` removes those on purpose.
+- Reads that only need a few columns should use the projected helpers (`get_active_job_question_heads`, `batch_exists`, `get_questions(slim=True)`) instead of loading full rows with their large JSONB columns.
 
 ## Behavioral invariants that tests protect
 - Soft delete: delete sets `is_deleted = true` and must NOT decrement a batch's `actual_count`; restore via `POST /api/questions/{id}/restore`; soft-deleting a passage cascades to its questions.

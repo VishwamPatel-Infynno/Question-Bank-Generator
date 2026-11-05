@@ -17,19 +17,19 @@ from typing import Any
 from app.core.config import config
 from app.core.logging import bind_log_context
 from app.repositories import (
+    batch_exists,
+    get_active_job_question_heads,
     get_batch_by_id,
-    get_jobs_by_batch_id,
-    get_questions,
     refresh_batch_aggregates,
     save_question,
     update_job_progress,
 )
+from app.repositories.question_repository import QuestionHead
 from app.schemas import (
     GenerationJob,
     GenerationRequest,
     Question,
     determine_question_status,
-    is_question_active,
 )
 from app.workflow._section_utils import is_cars_section as _is_cars_section
 
@@ -73,8 +73,7 @@ async def _persist_job_question(
         score = q_obj.final_score or 0
         q_obj.status = determine_question_status(score, is_in_progress_batch=True)
 
-        curr_b = await get_batch_by_id(batch_id)
-        if not curr_b:
+        if not await batch_exists(batch_id):
             logger.info(f"Batch {batch_id} no longer exists; aborting job {job_id}.")
             return (None, True)
 
@@ -100,13 +99,13 @@ def _is_passage_mode(req: GenerationRequest) -> bool:
     )
 
 
-async def _get_active_job_questions(batch_id: str, job_id: str) -> list[Question]:
-    """Returns the job's questions that currently count toward its target (not deleted/discarded)."""
-    return [
-        q
-        for q in await get_questions(batch_id=batch_id, job_id=job_id)
-        if is_question_active(q.status)
-    ]
+async def _get_active_job_questions(batch_id: str, job_id: str) -> list[QuestionHead]:
+    """The job's questions that currently count toward its target (not deleted/discarded).
+
+    Lightweight heads (id, status, stimulus, passage): callers only count them and read the first
+    one's stimulus/passage, so no full rows are loaded.
+    """
+    return await get_active_job_question_heads(batch_id, job_id)
 
 
 async def _run_single_job(
@@ -133,7 +132,9 @@ async def _run_single_job_impl(
     """
     max_trials = 3
     async with semaphore:
-        total_jobs = len(await get_jobs_by_batch_id(batch_id)) or 10
+        # total_jobs is only used in log lines: read it from the batch row, not by loading every job
+        batch_row = await get_batch_by_id(batch_id)
+        total_jobs = (batch_row.total_jobs if batch_row else None) or 10
         is_passage_mode = _is_passage_mode(base_req)
 
         passage_id_for_job = job.passage_id or (str(uuid.uuid4()) if is_passage_mode else None)

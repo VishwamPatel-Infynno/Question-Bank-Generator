@@ -51,7 +51,7 @@ class QuestionModel(Base):
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    section: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    section: Mapped[str] = mapped_column(String(64), nullable=False)
     section_label: Mapped[str] = mapped_column(String(128), nullable=False)
     subtopic: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     difficulty: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
@@ -79,7 +79,6 @@ class QuestionModel(Base):
         String(64),
         ForeignKey("generation_batches.id", ondelete="SET NULL"),
         nullable=True,
-        index=True,
     )
     job_id: Mapped[str | None] = mapped_column(
         String(64),
@@ -87,7 +86,7 @@ class QuestionModel(Base):
         nullable=True,
         index=True,
     )
-    status: Mapped[str] = mapped_column(String(32), default="in_bank", index=True)
+    status: Mapped[str] = mapped_column(String(32), default="in_bank")
     is_deleted: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False, index=True
     )

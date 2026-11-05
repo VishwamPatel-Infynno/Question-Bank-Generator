@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import defer
 
 from app.core.config import config
 from app.db.base import to_datetime, to_iso_str
@@ -15,6 +17,7 @@ from app.models.passage import PassageModel
 from app.models.question import QuestionModel
 from app.repositories._filters import active_question_clause
 from app.schemas import DuplicateInfo, OptionChoice, Question, ReviewScore
+from app.schemas.question import ACTIVE_QUESTION_STATUSES
 
 logger = logging.getLogger(__name__)
 
@@ -312,10 +315,20 @@ async def save_questions_batch(questions: list[Question]) -> list[str]:
             else:
                 existing_b.updated_at = now_dt
 
-        # Upsert questions
+        # Upsert questions. One query finds which ids already exist and loads them into the session,
+        # so merge() hits the identity map instead of issuing a SELECT per row; new ids are added
+        # directly (merge would otherwise SELECT each of them just to learn they are missing).
+        all_ids = [q.id for q in questions]
+        existing_rows = await session.execute(
+            select(QuestionModel).where(QuestionModel.id.in_(all_ids))
+        )
+        existing_ids = {m.id for m in existing_rows.scalars().all()}
         for q in questions:
             model = _schema_to_model(q)
-            await session.merge(model)
+            if q.id in existing_ids:
+                await session.merge(model)
+            else:
+                session.add(model)
             saved_ids.append(q.id)
 
         await session.commit()
@@ -497,6 +510,13 @@ async def get_questions(
     )
     async with async_session_factory() as session:
         stmt = select(QuestionModel)
+        if slim:
+            # The slim schema omits these blobs anyway (about 70% of a row's bytes): do not read them
+            stmt = stmt.options(
+                defer(QuestionModel.stage_outcomes),
+                defer(QuestionModel.iterations_history),
+                defer(QuestionModel.token_usage_details),
+            )
         for cond in filters:
             stmt = stmt.where(cond)
 
@@ -701,9 +721,18 @@ async def get_subtopic_reference_questions(
     to serve as the collision reference pool for deduplication.
     """
     async with async_session_factory() as session:
-        stmt = select(QuestionModel).where(
-            active_question_clause(),
-            QuestionModel.status.in_(["in_bank", "ai_validated", "approved"]),
+        # Dedup only reads stems/options: skip the large JSONB audit blobs of every reference row
+        stmt = (
+            select(QuestionModel)
+            .options(
+                defer(QuestionModel.stage_outcomes),
+                defer(QuestionModel.iterations_history),
+                defer(QuestionModel.token_usage_details),
+            )
+            .where(
+                active_question_clause(),
+                QuestionModel.status.in_(["in_bank", "ai_validated", "approved"]),
+            )
         )
         if section:
             sec_val = section.value if hasattr(section, "value") else str(section)
@@ -725,7 +754,7 @@ async def get_subtopic_reference_questions(
         stmt = stmt.order_by(QuestionModel.created_at.desc()).limit(limit)
         result = await session.execute(stmt)
         models = result.scalars().all()
-        return [_model_to_schema(m) for m in models]
+        return [_model_to_schema(m, slim=True) for m in models]
 
 
 async def override_question_duplicate(question_id: str) -> Question | None:
@@ -766,3 +795,39 @@ __all__ = [
     "save_questions_batch",
     "update_question_status",
 ]
+
+
+@dataclass(frozen=True)
+class QuestionHead:
+    """The few columns the batch worker needs about a job's questions (no JSONB payloads)."""
+
+    id: str
+    status: str
+    stimulus_text: str | None
+    passage_id: str | None
+
+
+async def get_active_job_question_heads(batch_id: str, job_id: str) -> list[QuestionHead]:
+    """Active (not deleted, not discarded) questions of a job, projected to a few columns.
+
+    The worker only counts them and reads the first one's stimulus/passage, so loading full rows
+    (about 11 KB of JSONB each) on every trial was wasted I/O.
+    """
+    async with async_session_factory() as session:
+        stmt = (
+            select(
+                QuestionModel.id,
+                QuestionModel.status,
+                QuestionModel.stimulus_text,
+                QuestionModel.passage_id,
+            )
+            .where(
+                QuestionModel.batch_id == batch_id,
+                QuestionModel.job_id == job_id,
+                active_question_clause(),
+                QuestionModel.status.in_(sorted(ACTIVE_QUESTION_STATUSES)),
+            )
+            .order_by(QuestionModel.created_at.asc())
+        )
+        rows = (await session.execute(stmt)).all()
+        return [QuestionHead(r.id, r.status, r.stimulus_text, r.passage_id) for r in rows]
