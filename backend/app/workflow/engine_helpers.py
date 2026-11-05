@@ -18,6 +18,13 @@ from typing import Any
 
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
+from app.agents.validators import (
+    Violation,
+    blocking,
+    format_violations,
+    sanitize_draft_dashes,
+    validate_question_draft,
+)
 from app.core.config import config
 from app.repositories import (
     promote_completed_batch_questions,
@@ -32,6 +39,7 @@ from app.schemas import (
     OptionChoice,
     Question,
     QuestionDraft,
+    ReviewScore,
     WorkflowEvent,
     determine_question_status,
 )
@@ -189,6 +197,41 @@ def _determine_item_diagram_requirement(
     return bool(state.get("current_draft", {}).get("image_needed", False))
 
 
+def _apply_deterministic_gate(state: AgentWorkflowState) -> list[Violation]:
+    """Auto-repairs forbidden dashes, then runs the free structural validators on the draft.
+
+    Mutates ``state`` (repaired draft, validation record in ``stage_outcomes``) and returns all
+    findings. Blocking findings must be remediated before any LLM review is spent on the draft.
+    """
+    draft = QuestionDraft(**state["current_draft"])
+    if sanitize_draft_dashes(draft):
+        state["current_draft"] = draft.model_dump()
+    # Passage text is owned by the shared-passage pipeline, so passage rules are not checked here.
+    violations = validate_question_draft(draft, check_passage=False)
+    outcomes = dict(state.get("stage_outcomes", {}))
+    outcomes["deterministic_validation"] = {
+        "iteration": state.get("iteration_count", 1),
+        "blocking": [v.code for v in blocking(violations)],
+        "warnings": [v.code for v in violations if v.severity == "warning"],
+    }
+    state["stage_outcomes"] = outcomes
+    return violations
+
+
+def _validator_review(blockers: list[Violation]) -> dict[str, Any]:
+    """Builds a failing review carrying validator findings so the regenerator can act on them."""
+    return ReviewScore(
+        authenticity_score=15,
+        clarity_score=15,
+        distractor_score=15,
+        explanation_score=15,
+        total_score=60,
+        weaknesses=[v.message for v in blockers],
+        recommendations=[f"Fix structural defect [{v.code}]: {v.message}" for v in blockers],
+        passed=False,
+    ).model_dump()
+
+
 async def _run_question_review_loop(
     state: AgentWorkflowState,
     idx: int,
@@ -206,6 +249,46 @@ async def _run_question_review_loop(
     """
     while True:
         iteration = state.get("iteration_count", 1)
+
+        # Step 0: Free deterministic validation, before any LLM review is spent
+        blockers = blocking(_apply_deterministic_gate(state))
+        if blockers:
+            state["current_review"] = _validator_review(blockers)
+            state["fused_self_passed"] = False
+            await event_queue.put(
+                make_event(
+                    event_type="agent_complete",
+                    agent_name="Quality Gate",
+                    message=f"Question {idx + 1} failed structural checks: {format_violations(blockers)}",
+                    data={
+                        "index": idx + 1,
+                        "total": total_qty,
+                        "stage": "validating",
+                        "iteration": iteration,
+                        "passed": False,
+                        "violations": [v.code for v in blockers],
+                    },
+                    run_id=item_run_id,
+                )
+            )
+            if iteration < config.MAX_REGENERATION_ATTEMPTS:
+                state.update(await regenerator_node(state))
+                continue
+            state.update(await reject_node(state))
+            rej_data = state.get("rejection_data") or {}
+            if isinstance(rej_data, dict):
+                rej_data["index"] = idx + 1
+                rej_data["stage"] = "rejected"
+            await event_queue.put(
+                make_event(
+                    event_type="workflow_rejected",
+                    agent_name="Quality Gate",
+                    message=f"Question {idx + 1} could not be repaired after {iteration} attempts: {format_violations(blockers)}",
+                    data=rej_data,
+                    run_id=item_run_id,
+                )
+            )
+            return False
 
         # Step 1: Run Reviewer if fused self-review is absent or unverified
         if not state.get("fused_self_passed"):

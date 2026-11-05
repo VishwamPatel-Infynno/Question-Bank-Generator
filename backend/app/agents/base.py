@@ -221,6 +221,17 @@ def calculate_token_cost(
     return round(in_cost + out_cost, 7)
 
 
+class LLMNotConfiguredError(ValueError):
+    """No API credentials are configured, so the agents may fall back to offline heuristics."""
+
+
+class QualityCheckUnavailableError(RuntimeError):
+    """A quality-control agent (reviewer or blind solver) could not produce a trustworthy result.
+
+    The pipeline fails closed on this error: an item must never be accepted unchecked.
+    """
+
+
 def _resolve_api_key(model: str, explicit_key: str | None) -> str:
     """
     Resolves the API key for the requested model.
@@ -237,7 +248,7 @@ def _resolve_api_key(model: str, explicit_key: str | None) -> str:
     if config.is_anthropic_model(model):
         key = config.ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY")
         if not key:
-            raise ValueError(
+            raise LLMNotConfiguredError(
                 "Anthropic API Key is required. Please set ANTHROPIC_API_KEY in your .env file."
             )
         return key
@@ -245,14 +256,14 @@ def _resolve_api_key(model: str, explicit_key: str | None) -> str:
     if config.is_openai_model(model):
         key = config.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
         if not key:
-            raise ValueError(
+            raise LLMNotConfiguredError(
                 "OpenAI API Key is required. Please set OPENAI_API_KEY in your .env file."
             )
         return key
 
     key = config.DEEPINFRA_API_KEY or os.getenv("DEEPINFRA_API_KEY")
     if not key:
-        raise ValueError(
+        raise LLMNotConfiguredError(
             "AI Gateway API Key is required. Please configure it in Settings or set the server environment key."
         )
     return key

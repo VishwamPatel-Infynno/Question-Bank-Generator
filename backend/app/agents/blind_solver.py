@@ -12,7 +12,12 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from app.agents.base import call_llm, safe_json_loads
+from app.agents.base import (
+    LLMNotConfiguredError,
+    QualityCheckUnavailableError,
+    call_llm,
+    safe_json_loads,
+)
 from app.core.config import config
 from app.schemas import GenerationRequest, QuestionDraft, TokenUsage
 
@@ -97,69 +102,81 @@ async def blind_solve_question(
     """
     Submits candidate question to an independent solver model without key or explanation.
     Evaluates key alignment, confidence, and absence of ambiguity.
+
+    Fails closed: if the solver cannot produce a valid answer after two attempts, a
+    ``QualityCheckUnavailableError`` is raised instead of certifying the key unchecked.
+    The only bypass is offline mode (no LLM credentials configured at all).
     """
     user_prompt = _format_blind_solver_prompt(draft, req)
+    expected_key = (draft.correct_answer_id or "A").strip().upper()
 
-    try:
-        raw_output, usage = await call_llm(
-            prompt=user_prompt,
-            system_prompt=BLIND_SOLVER_SYSTEM_PROMPT,
-            model=req.model_name,
-            api_key=req.api_key,
-            temperature=config.BLIND_SOLVER_TEMPERATURE,
-            max_tokens=config.BLIND_SOLVER_MAX_TOKENS,
-        )
-        data = safe_json_loads(raw_output)
-        if not isinstance(data, dict):
-            raise ValueError(f"Blind solver did not return a JSON object: {data}")
+    last_error: Exception | None = None
+    for attempt in (1, 2):
+        try:
+            raw_output, usage = await call_llm(
+                prompt=user_prompt,
+                system_prompt=BLIND_SOLVER_SYSTEM_PROMPT,
+                model=req.model_name,
+                api_key=req.api_key,
+                temperature=config.BLIND_SOLVER_TEMPERATURE,
+                max_tokens=config.BLIND_SOLVER_MAX_TOKENS,
+            )
+            result = _parse_solver_result(safe_json_loads(raw_output), expected_key, usage)
+            logger.info(
+                f"Blind Solver: selected='{result.selected_key}', intended='{expected_key}', "
+                f"confidence={result.confidence}%, verified={result.is_verified}"
+            )
+            return result, usage
+        except LLMNotConfiguredError as e:
+            logger.warning(f"Blind solver LLM not configured, offline bypass: {e}")
+            usage = TokenUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0, cost_usd=0.0)
+            return BlindSolverResult(
+                selected_key=expected_key,
+                confidence=95,
+                is_ambiguous=False,
+                ambiguity_notes="",
+                solver_rationale="Blind solver bypassed: no LLM credentials configured (offline mode).",
+                agrees_with_key=True,
+                is_verified=True,
+                usage=usage,
+            ), usage
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Blind solver attempt {attempt}/2 failed: {e}")
 
-        selected_key = str(data.get("selected_key", "")).strip().upper()
-        # Extract single letter if model returned e.g. "Option B" or "B."
-        if len(selected_key) > 1:
-            for char in selected_key:
-                if char in ("A", "B", "C", "D"):
-                    selected_key = char
-                    break
+    raise QualityCheckUnavailableError(f"Blind solver failed after 2 attempts: {last_error}")
 
-        confidence = int(float(data.get("confidence", 90)))
-        is_ambiguous = bool(data.get("is_ambiguous", False))
-        ambiguity_notes = str(data.get("ambiguity_notes", "")).strip()
-        solver_rationale = str(data.get("solver_rationale", "")).strip()
 
-        expected_key = (draft.correct_answer_id or "A").strip().upper()
-        agrees = selected_key == expected_key
-        threshold = config.BLIND_SOLVER_CONFIDENCE_THRESHOLD
+def _parse_solver_result(data: object, expected_key: str, usage: TokenUsage) -> BlindSolverResult:
+    """Strictly parses the solver JSON; missing or invalid fields raise ValueError."""
+    if not isinstance(data, dict):
+        raise ValueError(f"Blind solver did not return a JSON object: {data}")
 
-        is_verified = agrees and (confidence >= threshold) and not is_ambiguous
+    selected_key = str(data.get("selected_key", "")).strip().upper()
+    # Extract single letter if model returned e.g. "Option B" or "B."
+    if len(selected_key) > 1:
+        for char in selected_key:
+            if char in ("A", "B", "C", "D"):
+                selected_key = char
+                break
+    if selected_key not in ("A", "B", "C", "D"):
+        raise ValueError(f"Blind solver returned an invalid key: {selected_key!r}")
+    if "confidence" not in data:
+        raise ValueError("Blind solver response is missing 'confidence'")
 
-        result = BlindSolverResult(
-            selected_key=selected_key,
-            confidence=confidence,
-            is_ambiguous=is_ambiguous,
-            ambiguity_notes=ambiguity_notes,
-            solver_rationale=solver_rationale,
-            agrees_with_key=agrees,
-            is_verified=is_verified,
-            usage=usage,
-        )
-        logger.info(
-            f"Blind Solver: selected='{selected_key}', intended='{expected_key}', "
-            f"confidence={confidence}%, verified={is_verified}"
-        )
-        return result, usage
-
-    except Exception as e:
-        logger.warning(f"Blind solver LLM evaluation encountered error: {e}")
-        # Return fallback heuristic pass if solver service was unreachable
-        usage = TokenUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0, cost_usd=0.0)
-        expected_key = (draft.correct_answer_id or "A").strip().upper()
-        return BlindSolverResult(
-            selected_key=expected_key,
-            confidence=95,
-            is_ambiguous=False,
-            ambiguity_notes="",
-            solver_rationale="Blind solver bypassed due to provider connectivity.",
-            agrees_with_key=True,
-            is_verified=True,
-            usage=usage,
-        ), usage
+    confidence = int(float(data["confidence"]))
+    is_ambiguous = bool(data.get("is_ambiguous", False))
+    agrees = selected_key == expected_key
+    is_verified = (
+        agrees and confidence >= config.BLIND_SOLVER_CONFIDENCE_THRESHOLD and not is_ambiguous
+    )
+    return BlindSolverResult(
+        selected_key=selected_key,
+        confidence=confidence,
+        is_ambiguous=is_ambiguous,
+        ambiguity_notes=str(data.get("ambiguity_notes", "")).strip(),
+        solver_rationale=str(data.get("solver_rationale", "")).strip(),
+        agrees_with_key=agrees,
+        is_verified=is_verified,
+        usage=usage,
+    )

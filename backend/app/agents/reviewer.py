@@ -14,7 +14,13 @@ from app.agents._mock_tokens import (
     REVIEWER_MOCK_COMPLETION_TOKENS,
     REVIEWER_MOCK_PROMPT_TOKENS,
 )
-from app.agents.base import calculate_token_cost, call_llm, safe_json_loads
+from app.agents.base import (
+    LLMNotConfiguredError,
+    QualityCheckUnavailableError,
+    calculate_token_cost,
+    call_llm,
+    safe_json_loads,
+)
 from app.agents.mock_fixtures import evaluate_heuristically
 from app.agents.prompts import REVIEWER_SYSTEM_PROMPT
 from app.core.config import config
@@ -27,6 +33,35 @@ from app.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+_PILLARS = ("authenticity_score", "clarity_score", "distractor_score", "explanation_score")
+
+
+def _parse_review(data: object) -> ReviewScore:
+    """Strictly parses reviewer JSON: every pillar must be present and within 0-25.
+
+    Missing or out-of-range scores raise ValueError instead of defaulting to a passing value.
+    """
+    if not isinstance(data, dict):
+        raise ValueError(f"Reviewer did not return a JSON object: {type(data).__name__}")
+    scores: dict[str, int] = {}
+    for key in _PILLARS:
+        if key not in data:
+            raise ValueError(f"Reviewer response is missing '{key}'")
+        value = int(float(data[key]))
+        if not 0 <= value <= 25:
+            raise ValueError(f"Reviewer score '{key}'={value} is outside 0-25")
+        scores[key] = value
+    total = sum(scores.values())
+    return ReviewScore(
+        **scores,
+        total_score=total,
+        strengths=data.get("strengths") or [],
+        weaknesses=data.get("weaknesses") or [],
+        recommendations=data.get("recommendations") or [],
+        passed=config.passes_quality_gate(total),
+    )
 
 
 async def review_question(
@@ -72,46 +107,35 @@ Explanation:
 --------------------------
 Evaluate this question thoroughly and return your 100-point rubric breakdown as JSON."""
 
-    try:
-        raw_output, usage = await call_llm(
-            prompt=user_prompt,
-            system_prompt=REVIEWER_SYSTEM_PROMPT,
-            model=req.model_name,
-            api_key=req.api_key,
-            temperature=config.REVIEWER_TEMPERATURE,
-            max_tokens=config.REVIEWER_MAX_TOKENS,
-        )
-        data = safe_json_loads(raw_output)
+    last_error: Exception | None = None
+    for attempt in (1, 2):
+        try:
+            raw_output, usage = await call_llm(
+                prompt=user_prompt,
+                system_prompt=REVIEWER_SYSTEM_PROMPT,
+                model=req.model_name,
+                api_key=req.api_key,
+                temperature=config.REVIEWER_TEMPERATURE,
+                max_tokens=config.REVIEWER_MAX_TOKENS,
+            )
+            review = _parse_review(safe_json_loads(raw_output))
+            return review, usage
+        except LLMNotConfiguredError as e:
+            # No credentials at all: offline demo/test mode keeps using the heuristic reviewer.
+            logger.warning(f"Reviewer LLM not configured, using heuristic review: {e}")
+            mock_usage = TokenUsage(
+                prompt_tokens=REVIEWER_MOCK_PROMPT_TOKENS,
+                completion_tokens=REVIEWER_MOCK_COMPLETION_TOKENS,
+                total_tokens=REVIEWER_MOCK_PROMPT_TOKENS + REVIEWER_MOCK_COMPLETION_TOKENS,
+                cost_usd=calculate_token_cost(
+                    REVIEWER_MOCK_PROMPT_TOKENS,
+                    REVIEWER_MOCK_COMPLETION_TOKENS,
+                ),
+            )
+            return evaluate_heuristically(draft, req, iteration), mock_usage
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Reviewer attempt {attempt}/2 failed: {e}")
 
-        auth = int(float(data.get("authenticity_score", 23)))
-        clarity = int(float(data.get("clarity_score", 23)))
-        distractor = int(float(data.get("distractor_score", 23)))
-        explanation = int(float(data.get("explanation_score", 23)))
-        total = auth + clarity + distractor + explanation
-
-        passed = config.passes_quality_gate(total)
-
-        review = ReviewScore(
-            authenticity_score=auth,
-            clarity_score=clarity,
-            distractor_score=distractor,
-            explanation_score=explanation,
-            total_score=total,
-            strengths=data.get("strengths", []),
-            weaknesses=data.get("weaknesses", []),
-            recommendations=data.get("recommendations", []),
-            passed=passed,
-        )
-        return review, usage
-    except Exception as e:
-        logger.warning(f"Reviewer LLM failed or not configured, using heuristic review: {e}")
-        mock_usage = TokenUsage(
-            prompt_tokens=REVIEWER_MOCK_PROMPT_TOKENS,
-            completion_tokens=REVIEWER_MOCK_COMPLETION_TOKENS,
-            total_tokens=REVIEWER_MOCK_PROMPT_TOKENS + REVIEWER_MOCK_COMPLETION_TOKENS,
-            cost_usd=calculate_token_cost(
-                REVIEWER_MOCK_PROMPT_TOKENS,
-                REVIEWER_MOCK_COMPLETION_TOKENS,
-            ),
-        )
-        return evaluate_heuristically(draft, req, iteration), mock_usage
+    # Fail closed: an item must never pass because its reviewer broke.
+    raise QualityCheckUnavailableError(f"Quality reviewer failed after 2 attempts: {last_error}")

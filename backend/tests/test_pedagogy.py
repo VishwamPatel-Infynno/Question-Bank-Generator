@@ -132,11 +132,13 @@ async def test_smart_ai_trap_and_explanation_breakdown(monkeypatch):
     import app.agents.generator as gen_mod
     import app.agents.regenerator as regen_mod
     import app.agents.reviewer as rev_mod
+    from app.agents.base import LLMNotConfiguredError
     from app.agents.mock_fixtures import get_mock_draft
     from app.workflow.graph import run_workflow
 
     async def mock_fail_call_llm(*_args, **_kwargs):
-        raise RuntimeError("Fast fallback to mock draft in unit test")
+        # Offline mode: no credentials configured, so agents use their heuristic fixtures.
+        raise LLMNotConfiguredError("Fast fallback to mock draft in unit test")
 
     monkeypatch.setattr(gen_mod, "call_llm", mock_fail_call_llm)
     monkeypatch.setattr(rev_mod, "call_llm", mock_fail_call_llm)
