@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.api.security import limit_active_batches, limit_generation_requests
 from app.core.config import config
 from app.repositories import (
     batch_update_question_status,
@@ -39,7 +40,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Generation Batches"])
 
 
-@router.post("/batches/start", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/batches/start",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(limit_generation_requests), Depends(limit_active_batches)],
+)
 async def start_batch_generation(req: GenerationRequest):
     """
     Launches an asynchronous background batch generation.
@@ -137,7 +142,10 @@ async def stop_single_batch(batch_id: str):
     }
 
 
-@router.post("/batches/{batch_id}/retry")
+@router.post(
+    "/batches/{batch_id}/retry",
+    dependencies=[Depends(limit_generation_requests), Depends(limit_active_batches)],
+)
 async def retry_single_batch(batch_id: str, req: GenerationRequest | None = None):
     """Re-launches failed or cancelled jobs for a batch into the global worker pool."""
     b = await get_batch_by_id(batch_id)
@@ -181,9 +189,26 @@ async def delete_single_batch(batch_id: str):
     return {"success": True, "message": f"Batch {batch_id} deleted successfully."}
 
 
+# Mirrors ck_generation_batches_status; anything else would fail the CHECK with a 500
+_BATCH_STATUSES = frozenset(
+    {
+        "pending",
+        "in_progress",
+        "running",
+        "completed",
+        "partially_completed",
+        "failed",
+        "cancelled",
+        "stopped",
+    }
+)
+
+
 @router.post("/batches")
 async def create_or_update_batch(batch: GenerationBatch):
     """Admin endpoint to create or update a generation batch record."""
+    if batch.status not in _BATCH_STATUSES:
+        raise HTTPException(status_code=422, detail=f"Invalid batch status: {batch.status!r}")
     saved = await save_batch(batch)
     return {"success": True, "batch": saved.model_dump()}
 
@@ -279,6 +304,7 @@ async def resolve_batch_duplicates(
                 duplicate_ids_to_purge, status="discarded"
             )
 
+    action_word = "deleted" if req_data.action == "delete" else "archived"
     await refresh_batch_aggregates(batch_id)
     refreshed_b = await get_batch_by_id(batch_id)
     refreshed_questions = await get_questions(batch_id=batch_id)
@@ -286,7 +312,7 @@ async def resolve_batch_duplicates(
 
     return {
         "success": True,
-        "message": f"Successfully resolved {len(target_clusters)} cluster(s). {modified_count} duplicate question(s) {req_data.action}d.",
+        "message": f"Successfully resolved {len(target_clusters)} cluster(s). {modified_count} duplicate question(s) {action_word}.",
         "action": req_data.action,
         "resolved_clusters_count": len(target_clusters),
         "archived_count": modified_count,
@@ -296,7 +322,10 @@ async def resolve_batch_duplicates(
     }
 
 
-@router.post("/batches/{batch_id}/refill")
+@router.post(
+    "/batches/{batch_id}/refill",
+    dependencies=[Depends(limit_generation_requests), Depends(limit_active_batches)],
+)
 async def refill_batch_questions(batch_id: str):
     """
     Replenishes a batch up to its target_count by launching targeted jobs for

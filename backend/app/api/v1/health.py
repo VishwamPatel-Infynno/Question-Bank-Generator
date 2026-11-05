@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import hmac
 import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from app.api.admin import is_admin_request
 from app.core.config import config
 from app.db.session import check_db_health
 from app.services.batch_concurrency import get_active_batch_metrics
@@ -13,22 +13,6 @@ from app.services.batch_concurrency import get_active_batch_metrics
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Health & Diagnostics"])
-
-
-def _is_admin_request(request: Request | None) -> bool:
-    """True when the caller may see the full diagnostic payload.
-
-    With ``ADMIN_API_KEY`` configured the ``x-admin-key`` header must match it (constant-time
-    compare). Without it, the legacy behavior applies: any non-empty header unlocks the payload.
-    """
-    if request is None:
-        return True
-    supplied = request.headers.get("x-admin-key")
-    if not supplied:
-        return False
-    if config.ADMIN_API_KEY:
-        return hmac.compare_digest(supplied, config.ADMIN_API_KEY)
-    return True
 
 
 @router.get("/health/ready")
@@ -56,7 +40,7 @@ async def health_check(request: Request = None):
 
     # Masked payload for external HTTP requests (protecting competitive IP from competitors)
     status = "healthy" if db_status.get("connected") else "degraded"
-    if not _is_admin_request(request):
+    if not is_admin_request(request):
         return {
             "status": status,
             "exam": "AAMC MCAT",

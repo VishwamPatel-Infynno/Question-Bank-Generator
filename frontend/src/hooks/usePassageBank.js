@@ -4,7 +4,7 @@ import {
   fetchSinglePassage,
   savePassage,
   deletePassage,
-  approveQuestion
+  saveEditedQuestion
 } from '../services/api';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 
@@ -293,7 +293,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
   // Update a single linked question from editorial desk
   const handleUpdateQuestion = async (updatedQuestion) => {
     try {
-      await approveQuestion(updatedQuestion);
+      await saveEditedQuestion(updatedQuestion);
 
       setSelectedPassageQuestions((prev) =>
         prev.map((q) => (q.id === updatedQuestion.id ? updatedQuestion : q))

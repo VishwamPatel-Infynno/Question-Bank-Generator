@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Database, Sparkles, Eye } from 'lucide-react';
-import { batchDeleteQuestions, approveQuestion } from '../services/api';
+import { batchDeleteQuestions, saveEditedQuestion } from '../services/api';
 import { useQuestionBank, usePagination, useConfirmModal, useKeyboardShortcuts } from '../hooks';
 import { PaginationBar, Modal } from '../components/common';
 import { QuestionCard } from '../components/question';
@@ -51,7 +51,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
 
   const handleUpdateInspectedQuestion = async (updated) => {
     try {
-      await approveQuestion(updated);
+      await saveEditedQuestion(updated);
       setInspectingQuestion(updated);
       if (handleUpdate) handleUpdate(updated);
       if (onShowToast) {

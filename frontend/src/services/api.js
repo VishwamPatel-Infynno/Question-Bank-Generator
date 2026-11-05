@@ -171,6 +171,30 @@ export async function approveQuestion(question) {
   return res.json();
 }
 
+// List endpoints return slim questions (large audit columns emptied for speed). Saving such an
+// object back through POST /questions would overwrite the stored audit data with empties.
+const AUDIT_FIELDS = ['stage_outcomes', 'iterations_history', 'token_usage_details'];
+
+const isEmptyAudit = (value) =>
+  value == null ||
+  (Array.isArray(value) && value.length === 0) ||
+  (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0);
+
+/**
+ * Saves an edited question without losing its stored audit history: the full record is fetched
+ * and any audit field missing from the edited copy is restored before saving.
+ * @param {Object} edited - The edited question (possibly a slim list item).
+ * @returns {Promise<Object>} The saved question record as returned by the API.
+ */
+export async function saveEditedQuestion(edited) {
+  const full = await fetchQuestionById(edited.id);
+  const merged = { ...full, ...edited };
+  for (const field of AUDIT_FIELDS) {
+    if (isEmptyAudit(edited[field]) && !isEmptyAudit(full[field])) merged[field] = full[field];
+  }
+  return approveQuestion(merged);
+}
+
 export async function startBackgroundBatch(payload) {
   const res = await apiFetch(`${API_BASE}/batches/start`, {
     method: 'POST',

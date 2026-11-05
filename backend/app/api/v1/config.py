@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
+from app.api.admin import is_admin_request
 from app.core.config import config
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ async def get_runtime_settings(request: Request = None) -> dict[str, Any]:  # ty
     in_rate, out_rate = config.get_default_pricing_rates()
 
     # Masked payload for external HTTP requests (protecting competitive IP from competitors)
-    if request is not None and not request.headers.get("x-admin-key"):
+    if not is_admin_request(request):
         return {
             "engine": "Infynno Cognitive Architecture v2.0",
             "visual_engine": "Infynno Visual Studio v2.0",

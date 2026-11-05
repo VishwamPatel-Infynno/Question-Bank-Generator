@@ -32,6 +32,7 @@ from app.schemas import (
     BatchDeleteRequest,
     DuplicateCheckRequest,
     Question,
+    QuestionStatus,
     SingleStatusUpdateRequest,
     StatusUpdateRequest,
 )
@@ -111,6 +112,13 @@ async def get_single_question(question_id: str):
     return q.model_dump()
 
 
+_ALLOWED_IMAGE_TYPES = frozenset({"image/png", "image/jpeg", "image/webp", "image/gif"})
+_IMAGE_SAFETY_HEADERS = {
+    # nosniff already comes from the global security-headers middleware
+    "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'",
+}
+
+
 @router.get("/questions/{question_id}/image")
 async def get_question_image(question_id: str):
     """Serves the visual stimulus image (AI FLUX image or Vector SVG diagram) for a question."""
@@ -120,7 +128,12 @@ async def get_question_image(question_id: str):
 
     img_url = q.image_url
     if not img_url and q.image_svg:
-        return Response(content=q.image_svg, media_type="image/svg+xml")
+        # Sandboxed so an SVG opened directly can never run script on the API origin
+        return Response(
+            content=q.image_svg,
+            media_type="image/svg+xml",
+            headers=_IMAGE_SAFETY_HEADERS,
+        )
 
     if not img_url:
         raise HTTPException(
@@ -131,13 +144,31 @@ async def get_question_image(question_id: str):
         try:
             header, encoded = img_url.split(",", 1)
             media_type = header.split(";")[0].replace("data:", "") or "image/jpeg"
+            if media_type not in _ALLOWED_IMAGE_TYPES:
+                raise HTTPException(status_code=415, detail="Unsupported image type")
             image_bytes = base64.b64decode(encoded)
-            return Response(content=image_bytes, media_type=media_type)
+            return Response(
+                content=image_bytes, media_type=media_type, headers=_IMAGE_SAFETY_HEADERS
+            )
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to decode base64 image: {e}")
             raise HTTPException(status_code=500, detail="Invalid base64 image encoding") from e
 
+    if not img_url.startswith(("https://", "http://")):
+        raise HTTPException(status_code=415, detail="Unsupported image location")
     return RedirectResponse(url=img_url)
+
+
+MAX_BULK_QUESTIONS = 500
+_VALID_QUESTION_STATUSES = frozenset(s.value for s in QuestionStatus)
+
+
+def _require_valid_status(question: Question) -> None:
+    """Rejects statuses the database CHECK constraint would refuse (otherwise a 500)."""
+    if question.status not in _VALID_QUESTION_STATUSES:
+        raise HTTPException(status_code=422, detail=f"Invalid question status: {question.status!r}")
 
 
 @router.post("/questions")
@@ -145,6 +176,7 @@ async def approve_and_save_question(question: Question):
     """
     Admin approval endpoint: persists an approved candidate question into the Question Bank repository.
     """
+    _require_valid_status(question)
     saved = await save_question(question)
     logger.info(
         f"Question approved by Admin and saved to Question Bank: {saved.id} ({saved.section_label})"
@@ -157,6 +189,12 @@ async def batch_approve_and_save_questions(questions: list[Question]):
     """
     Bulk Admin approval endpoint: persists an array of approved candidate questions into the Question Bank repository in a single atomic transaction.
     """
+    if len(questions) > MAX_BULK_QUESTIONS:
+        raise HTTPException(
+            status_code=413, detail=f"At most {MAX_BULK_QUESTIONS} questions per request"
+        )
+    for q in questions:
+        _require_valid_status(q)
     saved_list = await save_questions_batch(questions)
     logger.info(f"Atomic batch approved {len(saved_list)} questions into Question Bank.")
     return {"success": True, "saved_count": len(saved_list), "ids": saved_list}

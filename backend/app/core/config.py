@@ -418,6 +418,10 @@ class Settings(BaseSettings):
     ADMIN_API_KEY: str = ""
     # Optional shared secret: when set, mutating API calls must send it as X-API-Key.
     API_ACCESS_KEY: str = ""
+    # Cost guards for the LLM-spending routes (POST /generate, /batches/start, retry, refill).
+    # Requests per client IP per minute (0 disables) and batches allowed to run at once (0 disables).
+    GENERATION_RATE_LIMIT_PER_MINUTE: int = 30
+    MAX_ACTIVE_BATCHES: int = 5
     # Run the reviewer and blind solver concurrently (saves one LLM round trip per question).
     PARALLEL_REVIEW_AND_SOLVE: bool = False
     # Mark static system prompts cacheable for providers that need an explicit marker (Anthropic).

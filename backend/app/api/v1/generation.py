@@ -4,9 +4,10 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from app.api.security import limit_generation_requests
 from app.schemas import GenerationRequest
 from app.workflow import run_workflow_stream
 
@@ -49,7 +50,7 @@ async def with_keepalive(
             await aclose()
 
 
-@router.post("/generate")
+@router.post("/generate", dependencies=[Depends(limit_generation_requests)])
 async def generate_mcat_question(req: GenerationRequest):
     """
     Triggers the multi-agent workflow (Generator -> Reviewer -> Re-Generator -> Image Generator)

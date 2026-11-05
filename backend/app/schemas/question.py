@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -350,7 +350,8 @@ class BatchDetailResponse(BaseModel):
 class ResolveDuplicatesRequest(BaseModel):
     """Payload for resolving duplicate clusters inside a batch."""
 
-    action: str = "delete"  # "delete" (permanently remove) or "archive" (mark status='discarded')
+    # "archive" (mark status='discarded', recoverable; the default) or "delete" (permanent)
+    action: Literal["archive", "delete"] = "archive"
     cluster_ids: list[str] | None = None  # Specific cluster IDs, or None for all
     custom_leader_ids: list[str] | None = None  # Optional custom leader question IDs
 

@@ -1,5 +1,6 @@
 import { formatExamTime } from '../formatters';
 import { PRINT_PAPER_CSS } from './printPaperCss';
+import { escapeHtml, escapeInlineMarkdown, sanitizeSvg, safeImageUrl } from './escape';
 
 /**
  * Builds a standalone, print-ready HTML document string formatted for A4 examination papers.
@@ -21,15 +22,21 @@ export function generateExamHtmlDoc(questions = [], { paperMode = 'student' } = 
 
   const questionsHtml = questions.map((q, idx) => {
     const qNum = idx + 1;
-    const svgDiagram = q.image_svg || q.stage_outcomes?.visual_stimulus?.image_svg || '';
-    const imgUrl = q.image_url || q.stage_outcomes?.visual_stimulus?.image_url || '';
-    const imgDesc = q.image_description || q.stage_outcomes?.visual_stimulus?.description || '';
+    const svgDiagram = sanitizeSvg(
+      q.image_svg || q.stage_outcomes?.visual_stimulus?.image_svg || ''
+    );
+    const imgUrl = safeImageUrl(
+      q.image_url || q.stage_outcomes?.visual_stimulus?.image_url || ''
+    );
+    const imgDesc = escapeHtml(
+      q.image_description || q.stage_outcomes?.visual_stimulus?.description || ''
+    );
 
     const optionsHtml = (q.options || []).map(opt => `
       <div class="option-row">
         <span class="option-bubble">[ &nbsp; ]</span>
-        <span class="option-letter"><strong>${opt.id}.</strong></span>
-        <span class="option-text">${opt.text || ''}</span>
+        <span class="option-letter"><strong>${escapeHtml(opt.id)}.</strong></span>
+        <span class="option-text">${escapeInlineMarkdown(opt.text)}</span>
       </div>
     `).join('');
 
@@ -37,13 +44,13 @@ export function generateExamHtmlDoc(questions = [], { paperMode = 'student' } = 
       <div class="question-block">
         <div class="question-header">
           <span class="question-number">Question ${qNum}</span>
-          <span class="question-meta">${q.section_label || q.section} &bull; ${q.subtopic || ''}</span>
+          <span class="question-meta">${escapeHtml(q.section_label || q.section)} &bull; ${escapeHtml(q.subtopic)}</span>
         </div>
 
         ${q.stimulus_text ? `
           <div class="stimulus-box">
             <div class="stimulus-title">Reading Passage</div>
-            <p class="stimulus-content">${q.stimulus_text.replace(/\n\n/g, '</p><p class="stimulus-content">')}</p>
+            <p class="stimulus-content">${escapeInlineMarkdown(q.stimulus_text).replace(/\n\n/g, '</p><p class="stimulus-content">')}</p>
           </div>
         ` : ''}
 
@@ -59,7 +66,7 @@ export function generateExamHtmlDoc(questions = [], { paperMode = 'student' } = 
           </div>
         ` : ''}
 
-        <div class="question-stem">${q.question_stem || q.stem || ''}</div>
+        <div class="question-stem">${escapeInlineMarkdown(q.question_stem || q.stem)}</div>
         <div class="options-grid">${optionsHtml}</div>
       </div>
     `;
@@ -89,12 +96,12 @@ export function generateExamHtmlDoc(questions = [], { paperMode = 'student' } = 
               <td style="text-align: center;">
                 <span class="correct-badge">${
                   Array.isArray(q.correct_answer_ids) && q.correct_answer_ids.length > 0
-                    ? q.correct_answer_ids.join(', ')
-                    : (q.correct_answer_id || 'A')
+                    ? escapeHtml(q.correct_answer_ids.join(', '))
+                    : escapeHtml(q.correct_answer_id || 'A')
                 }</span>
               </td>
-              <td style="font-size: 11px; color: #475569;">${q.primary_trap || 'None'}</td>
-              <td style="font-size: 11.5px; line-height: 1.5;">${q.explanation || 'No explanation recorded.'}</td>
+              <td style="font-size: 11px; color: #475569;">${escapeHtml(q.primary_trap || 'None')}</td>
+              <td style="font-size: 11.5px; line-height: 1.5;">${escapeInlineMarkdown(q.explanation || 'No explanation recorded.')}</td>
             </tr>
           `).join('')}
         </tbody>

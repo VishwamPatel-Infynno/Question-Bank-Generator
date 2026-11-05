@@ -44,13 +44,17 @@ class GenerationRequest(BaseModel):
 
     # Execution & Batch UUID Identifiers
     run_id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()), description="Unique execution run UUID4"
+        default_factory=lambda: str(uuid.uuid4()),
+        max_length=64,
+        description="Unique execution run UUID4",
     )
     batch_id: str | None = Field(
-        None, description="Optional batch run UUID4 binding multiple questions"
+        None, max_length=64, description="Optional batch run UUID4 binding multiple questions"
     )
     job_id: str | None = Field(
-        None, description="Optional batch job UUID4 binding questions to a specific job"
+        None,
+        max_length=64,
+        description="Optional batch job UUID4 binding questions to a specific job",
     )
     passing_threshold: int | None = Field(
         None,

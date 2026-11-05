@@ -315,7 +315,12 @@ export function useAppState() {
 
   // ─── Keyboard Shortcuts ────────────────────────────────────────────────────
   useKeyboardShortcuts({
-    onGenerate: activeTab === 'generator' ? handleGenerate : undefined,
+    // Only on the wizard's final review step: elsewhere the shortcut would silently launch a
+    // full batch with whatever defaults the form holds.
+    onGenerate:
+      activeTab === 'generator' && viewMode === 'wizard' && wizardStep === 3
+        ? handleGenerate
+        : undefined,
     onToggleTheme: toggleTheme,
     onEscape: () => { if (auditQuestion) setAuditQuestion(null); }
   });
