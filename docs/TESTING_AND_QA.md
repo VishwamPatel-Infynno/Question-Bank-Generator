@@ -19,7 +19,7 @@ graph TD
 
     subgraph "Tier 2: Backend Pytest Engine"
         UnitTests[97 Deterministic Unit & Integration Tests across 20 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests (207 Total Backend Tests)]
+        LiveE2E[10 Live LLM API E2E Integration Tests (214 Total Backend Tests)]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -41,8 +41,8 @@ graph TD
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (90 frontend files, 100% ruff compliance across backend) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **97 passing tests across 37 modules** (~23-28s) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (207 total backend tests across 38 modules) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **97 passing tests across 41 modules** (~23-28s) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (214 total backend tests across 42 modules) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | **15/15 passed (100.0%)** |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 90$ points |
 
@@ -60,7 +60,9 @@ backend/tests/
 ├── test_additional_instructions.py   # Educator custom authoring instructions and prompt builder integration
 ├── test_agents.py                    # Multi-agent worker nodes, heuristics, and blind solver
 ├── test_anthropic.py                 # Multi-provider switching, Anthropic models, prompt cache pricing & API keys
-├── test_api.py                       # REST endpoints, CRUD, batch staging, approval, pagination, and duplicate override flow
+├── test_api_questions.py             # CRUD, approval, status lifecycle, pagination and slim projection
+├── test_api_generation.py            # Batch generation, passage sets and visual stimuli through the API
+├── test_api_duplicates_passages_health.py # Duplicate detection, passage lifecycle, CORS and health endpoints
 ├── test_api_security.py              # Optional `API_ACCESS_KEY` gate on mutating routes, request length li
 ├── test_authoring_standards.py       # Shared option-spread and passage-band standards quoted consistently 
 ├── test_batch_aggregate_lock.py      # Concurrent `refresh_batch_aggregates` calls converge (row lock witho
@@ -72,6 +74,8 @@ backend/tests/
 ├── test_blind_solver_vote.py         # Key parsing, layout-varied sampling, majority vote, split votes, con
 ├── test_database_structure.py        # SQLAlchemy schema, hybrid FTS, cascade deletion, and atomic aggregations
 ├── test_deduplication.py             # Multi-metric similarity scoring, clustering, and auto-refill
+├── test_shared_helpers.py            # Shared helper semantics (usage sums, mock usage, CARS check)
+├── test_config_docs.py               # Settings vs .env.example vs setup guide drift
 ├── test_deterministic_gate.py        # Deterministic validator gate in the review loop, fail-closed reviewer/solver, parallel review and solve
 ├── test_engine_cleanup.py            # No leaked worker tasks when the workflow stream is closed early
 ├── test_live_job_finalization.py     # Standalone runs always finalize the job (all-rejected, closed on `wo
@@ -100,15 +104,15 @@ backend/tests/
 
 #### Execution Modes Breakdown
 - **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 42 database-dependent tests, executing all 55 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`55 passed, 42 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 197 deterministic unit and integration tests execute across all 37 modules in ~23-28 seconds (10 live tests deselected).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 204 deterministic unit and integration tests execute across all 41 modules in ~23-28 seconds (10 live tests deselected).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 207 backend tests across 38 test files.
+- **Total Suite**: 214 backend tests across 42 test files.
 
 ```bash
 # 1. Activate backend virtual environment
 source .venv/bin/activate
 
-# 2. Run all deterministic unit and integration tests across 37 modules
+# 2. Run all deterministic unit and integration tests across 41 modules
 # Smart auto-skip: If PostgreSQL is offline on localhost:5432, 55 pure unit tests pass and 42 DB tests cleanly skip
 # Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
@@ -130,13 +134,13 @@ PYTHONPATH=backend pytest backend/tests/test_batch_review_withholding.py -v
 PYTHONPATH=backend pytest backend/tests/test_target_count_guarantee.py -v
 PYTHONPATH=backend pytest backend/tests/test_question_status_refill.py -v
 PYTHONPATH=backend pytest backend/tests/test_deduplication.py -v
-PYTHONPATH=backend pytest backend/tests/test_api.py -v
+PYTHONPATH=backend pytest backend/tests/test_api_questions.py -v
 
 # 4. Run live LLM tests (requires DEEPINFRA_API_KEY in .env)
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
-### 2.3 Detailed Test Module Coverage (197 Deterministic Tests across 37 Modules / 207 Total Backend Tests)
+### 2.3 Detailed Test Module Coverage (204 Deterministic Tests across 41 Modules / 214 Total Backend Tests)
 
 1. **`test_additional_instructions.py` (3 tests)**:
    - `test_generation_request_additional_instructions`: Validates Pydantic serialization and round-trip payload persistence of educator instructions.
@@ -163,7 +167,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
    - `test_model_normalization_for_litellm`: Tests normalization of model identifiers for LiteLLM gateway compatibility.
    - `test_mock_llm_call_anthropic`: Validates mock LLM execution and response synthesis under Anthropic provider settings.
    - `test_health_and_config_endpoints_anthropic_reporting`: Confirms `/api/health` and `/api/config` report active provider, key status, and rates.
-4. **`test_api.py` (16 tests)**:
+4. **`test_api_questions.py`, `test_api_generation.py`, `test_api_duplicates_passages_health.py` (16 tests, formerly a single `test_api.py`)**:
    - `test_database_crud`: Full CRUD lifecycle verification against question repository.
    - `test_admin_approval_and_persistence_endpoints`: Verifies admin approval workflow and PostgreSQL persistence.
    - `test_multichoice_and_passage_support`: Validates 4-choice purity and shared stimulus passage handling.
@@ -272,7 +276,9 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 35. **`test_offline_mode.py` (3 tests)**: `OFFLINE_MODE` gating: no mocks without it, tagged runs with it, fail-fast without credentials.
 36. **`test_request_secrets.py` (3 tests)**: API keys never stored or returned; legacy payloads scrubbed on startup.
 37. **`test_structured_output.py` (12 tests)**: `call_llm_validated` repair retry and billing, strict draft/key parsing, regenerator metadata preservation and image gating.
-38. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
+38. **`test_config_docs.py` (2 tests)**: Every `Settings` field is present in `.env.example` and the setup guide, and `.env.example` has no malformed lines.
+39. **`test_shared_helpers.py` (6 tests)**: Shared helpers (`sum_usage` latency semantics, `mock_usage` pricing, single CARS helper) and a regression test that CARS and science passage prompts differ.
+40. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
     - `test_e2e_health_and_db_connectivity`: Confirms health endpoint connectivity to live PostgreSQL and LiteLLM models.
     - `test_e2e_all_four_sections_metadata`: Verifies live metadata and taxonomy tree across all 4 AAMC sections.
     - `test_e2e_config_endpoint`: Validates live runtime model configuration and token rate parameters.
@@ -299,7 +305,7 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
 - All **55 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **197 deterministic tests across 37 modules** execute and pass automatically in ~23-28 seconds.
+- Once PostgreSQL is started (`docker compose up -d`), all **204 deterministic tests across 41 modules** execute and pass automatically in ~23-28 seconds.
 
 ---
 
@@ -331,9 +337,9 @@ The application includes an automated End-to-End browser test suite executed wit
 
 ```bash
 # Run individual TestSprite Playwright test scripts
-python3 testsprite_tests/TC001_Configure_and_start_guided_question_generation.py
-python3 testsprite_tests/TC003_Complete_a_generation_run_and_review_the_results.py
-python3 testsprite_tests/TC008_Approve_a_staged_question_into_the_bank.py
+python3 e2e/TC001_Configure_and_start_guided_question_generation.py
+python3 e2e/TC003_Complete_a_generation_run_and_review_the_results.py
+python3 e2e/TC008_Approve_a_staged_question_into_the_bank.py
 ```
 
 ---

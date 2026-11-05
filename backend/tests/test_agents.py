@@ -11,13 +11,6 @@ from app.schemas import (
 from app.workflow import route_after_review
 
 
-def _base_module():
-    """call_llm_validated resolves call_llm in app.agents.base, so patch it there."""
-    import app.agents.base as base_mod
-
-    return base_mod
-
-
 @pytest.mark.asyncio
 async def test_all_mcat_sections_mock():
     for sec in MCATSection:
@@ -238,7 +231,7 @@ async def test_generate_question_with_self_critique_structure(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_blind_solver_node_agreement(monkeypatch):
+async def test_blind_solver_node_agreement(monkeypatch, patch_llm):
     from app.workflow.nodes import blind_solver_node
 
     req = GenerationRequest(section=MCATSection.BIO_BIOCHEM, difficulty=Difficulty.MEDIUM)
@@ -266,7 +259,7 @@ async def test_blind_solver_node_agreement(monkeypatch):
             prompt_tokens=100, completion_tokens=50, total_tokens=150, cost_usd=0.0001
         )
 
-    monkeypatch.setattr(_base_module(), "call_llm", mock_solver_llm)
+    patch_llm(mock_solver_llm)
 
     state = {
         "request": req.model_dump(),
@@ -286,7 +279,7 @@ async def test_blind_solver_node_agreement(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_blind_solver_node_discrepancy_triggers_critique(monkeypatch):
+async def test_blind_solver_node_discrepancy_triggers_critique(monkeypatch, patch_llm):
     from app.workflow.nodes import blind_solver_node
 
     req = GenerationRequest(section=MCATSection.BIO_BIOCHEM, difficulty=Difficulty.MEDIUM)
@@ -305,7 +298,7 @@ async def test_blind_solver_node_discrepancy_triggers_critique(monkeypatch):
             prompt_tokens=100, completion_tokens=50, total_tokens=150, cost_usd=0.0001
         )
 
-    monkeypatch.setattr(_base_module(), "call_llm", mock_solver_llm)
+    patch_llm(mock_solver_llm)
 
     state = {
         "request": req.model_dump(),

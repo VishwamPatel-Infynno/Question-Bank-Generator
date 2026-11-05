@@ -22,7 +22,7 @@ Routers contain no SQL and no business logic. Repositories own every query and c
 1. Schema in `schemas/` (request/response). Re-export in `schemas/__init__.py` if siblings do.
 2. Repository function in `repositories/` (async, takes/creates a session, returns schemas).
 3. Router in `api/v1/<area>.py`; if a new file, register it in `api/v1/__init__.py` (routes mount under `/api`).
-4. Test in `backend/tests/test_api.py` or a focused module; use the `httpx.AsyncClient` + `ASGITransport` fixtures in `conftest.py`.
+4. Test in the matching `backend/tests/test_api_*.py` module (questions, generation, duplicates/passages/health, security) or a focused one; use the `httpx.AsyncClient` + `ASGITransport` fixtures in `conftest.py`.
 5. Update `docs/API.md` (see mcat-docs-sync).
 
 ## Recipe: add or change a DB column / status

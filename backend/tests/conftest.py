@@ -122,3 +122,18 @@ async def client():
 def anyio_backend():
     """Tells anyio (used by pytest-asyncio) to use the asyncio backend."""
     return "asyncio"
+
+
+@pytest.fixture
+def patch_llm(monkeypatch):
+    """Replaces the LLM call used by every agent.
+
+    Agents call ``call_llm_validated``, which resolves ``call_llm`` in ``app.agents.base``, so
+    that is the single place to patch. Usage: ``patch_llm(fake_async_fn)``.
+    """
+    import app.agents.base as base_mod
+
+    def _patch(fake):
+        monkeypatch.setattr(base_mod, "call_llm", fake)
+
+    return _patch

@@ -25,6 +25,6 @@ Shortcuts: `pnpm lint:backend`, `pnpm format`, `pnpm test`. Single test: `PYTHON
 ## Writing tests
 Put them in `backend/tests/test_<area>.py`, reuse `conftest.py` fixtures, and prefer mocks from `agents/mock_fixtures.py` over network. Bug fixes get a regression test. Counts of tests and files quoted in docs drift; see mcat-docs-sync.
 
-Tests that simulate an offline/no-credentials run must make the patched `call_llm` raise `LLMNotConfiguredError`; a generic exception now means a real provider failure and fails closed. Install dev tools with `pip install -r backend/requirements-dev.txt` (CI does the same).
+Fake the LLM with the `patch_llm` fixture from `tests/conftest.py` (it patches `app.agents.base.call_llm`). Tests that simulate an offline/no-credentials run must make it raise `LLMNotConfiguredError`; a generic exception now means a real provider failure and fails closed. Install dev tools with `pip install -r backend/requirements-dev.txt` (CI does the same).
 
 Report failures with the actual output. Fix root causes rather than loosening assertions or adding ruff ignores.

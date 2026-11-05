@@ -63,4 +63,4 @@ Thumbs.db
 .system_generated/
 .playwright-mcp/
 skill-creator/
-testsprite_tests/tmp/
+e2e/tmp/

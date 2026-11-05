@@ -13,13 +13,6 @@ from app.workflow.engine_helpers import (
 )
 
 
-def _base_module():
-    """call_llm_validated resolves call_llm in app.agents.base, so patch it there."""
-    import app.agents.base as base_mod
-
-    return base_mod
-
-
 def _draft(key="A", stem="Which statement best explains the observed rate change?"):
     return QuestionDraft(
         question_stem=stem,
@@ -114,7 +107,7 @@ async def test_loop_rejects_when_structural_defect_persists(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_reviewer_and_solver_fail_closed_on_provider_errors(monkeypatch):
+async def test_reviewer_and_solver_fail_closed_on_provider_errors(monkeypatch, patch_llm):
     import app.agents.blind_solver as solver_mod
     import app.agents.reviewer as reviewer_mod
     from app.agents.base import QualityCheckUnavailableError
@@ -122,8 +115,8 @@ async def test_reviewer_and_solver_fail_closed_on_provider_errors(monkeypatch):
     async def broken(*_a, **_k):
         raise RuntimeError("provider exploded")
 
-    monkeypatch.setattr(_base_module(), "call_llm", broken)
-    monkeypatch.setattr(_base_module(), "call_llm", broken)
+    patch_llm(broken)
+    patch_llm(broken)
     req = GenerationRequest(section="CP", subtopic="Kinetics", difficulty="Medium")
 
     with pytest.raises(QualityCheckUnavailableError):
