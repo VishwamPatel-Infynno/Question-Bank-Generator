@@ -341,8 +341,8 @@ STANDARDS FOR AAMC MCAT PASSAGES:
     )
 
     try:
-        # Use slightly elevated temperature (0.45) for passage diversity across jobs
-        passage_temp = max(config.GENERATOR_TEMPERATURE, 0.45)
+        # Elevated temperature for passage diversity across jobs
+        passage_temp = max(config.GENERATOR_TEMPERATURE, config.PASSAGE_TEMPERATURE)
         raw_output, usage = await call_llm(
             prompt=prompt,
             system_prompt=system_prompt,

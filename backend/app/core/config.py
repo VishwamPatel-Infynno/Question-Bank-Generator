@@ -489,7 +489,10 @@ class Settings(BaseSettings):
 
     # Strict Temperature Parameters for High Instruction Fidelity
     DEFAULT_TEMPERATURE: float = 0.2
-    GENERATOR_TEMPERATURE: float = 0.2
+    # Drafting needs variety (batches on one subtopic must not converge); the reviewer, solver and
+    # regenerator stay low-temperature for consistent judgement.
+    GENERATOR_TEMPERATURE: float = 0.5
+    PASSAGE_TEMPERATURE: float = 0.7
     REGENERATOR_TEMPERATURE: float = 0.2
     REVIEWER_TEMPERATURE: float = 0.1
     BLIND_SOLVER_TEMPERATURE: float = 0.1

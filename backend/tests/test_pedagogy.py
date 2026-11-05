@@ -272,3 +272,46 @@ def test_taxonomy_json_parity_between_backend_and_frontend():
     assert backend_content == frontend_content, (
         "Taxonomy JSON in backend/app/data and frontend/src/constants must be byte-for-byte identical"
     )
+
+
+def test_explanation_key_remap_handles_lists_and_leaves_prose_alone():
+    from app.agents.option_balancer import remap_explanation_keys
+
+    mapping = {"A": "C", "B": "A", "C": "B", "D": "D"}
+    assert (
+        remap_explanation_keys("Options A and B are wrong; choice C is right.", mapping)
+        == "Options C and A are wrong; choice B is right."
+    )
+    assert remap_explanation_keys("Choices A, B, and C; answer D.", mapping) == (
+        "Choices C, A, and B; answer D."
+    )
+    # An article 'a' and an organism name are not option labels
+    assert remap_explanation_keys("a is correct. E. coli grows.", mapping) == (
+        "a is correct. E. coli grows."
+    )
+    assert remap_explanation_keys("- A: wrong\nE. coli stays", mapping) == (
+        "- C: wrong\nE. coli stays"
+    )
+
+
+def test_shuffle_is_reproducible_and_keeps_roman_numeral_sets_in_order():
+    from app.agents.option_balancer import balance_and_shuffle_options
+    from app.schemas import OptionChoice, QuestionDraft
+
+    def draft(texts, key="A"):
+        return QuestionDraft(
+            question_stem="Which are true?",
+            options=[OptionChoice(id=i, text=t) for i, t in zip("ABCD", texts, strict=True)],
+            correct_answer_id=key,
+            explanation="Option A is right.",
+        )
+
+    texts = ["Alpha reading", "Beta reading", "Gamma reading", "Delta reading"]
+    first, _ = balance_and_shuffle_options(draft(texts))
+    second, _ = balance_and_shuffle_options(draft(texts))
+    assert [o.text for o in first.options] == [o.text for o in second.options]
+
+    roman = ["I only", "II only", "I and II only", "I, II, and III"]
+    kept, _ = balance_and_shuffle_options(draft(roman, key="C"))
+    assert [o.text for o in kept.options] == roman
+    assert kept.correct_answer_id == "C"

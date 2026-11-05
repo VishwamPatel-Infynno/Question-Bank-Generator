@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import random
 import re
+import zlib
 from typing import Any
 
 from app.schemas import OptionChoice, QuestionDraft
@@ -118,6 +119,25 @@ def calculate_option_symmetry(
     }
 
 
+_ROMAN_SET_RE = re.compile(
+    r"^(?:none|neither)?\s*(?:[IV]{1,3}(?:\s*(?:,|and|or)\s*)?)+\s*(?:only)?$", re.IGNORECASE
+)
+
+
+def _are_options_ordered_set(options: list[OptionChoice]) -> bool:
+    """True for Roman-numeral combination answers ("I only", "I and II only", "I, II, and III").
+
+    Their order is meaningful (conventionally ascending), so shuffling would make them read oddly.
+    """
+    return len(options) >= 2 and all(bool(_ROMAN_SET_RE.match(o.text.strip())) for o in options)
+
+
+def _stable_seed(draft: QuestionDraft) -> int:
+    """Reproducible shuffle seed derived from the question content (same draft, same order)."""
+    basis = draft.question_stem + "|" + "|".join(o.text for o in draft.options)
+    return zlib.crc32(basis.encode("utf-8"))
+
+
 def _are_options_purely_numeric(options: list[OptionChoice]) -> bool:
     """Detects if options are purely numerical values, currency, or units (e.g. in QR)."""
     num_pattern = re.compile(
@@ -153,20 +173,23 @@ def remap_explanation_keys(explanation: str, old_to_new: dict[str, str]) -> str:
     result = explanation
 
     # 1. Regex replacements to placeholder tokens
-    # Matches patterns like:
-    # "Option B", "Choice C", "Key A", "Distractor D", "Statement E"
+    # Matches "Option B", "Choice C", "Key A", "Distractor D", and lists such as
+    # "Options A and B", "choices B, C, and D", "answers A or C". Letters must be uppercase so the
+    # article "a" in "choice a" style prose is never mistaken for an option.
     def repl_labeled(match: re.Match[str]) -> str:
         prefix = match.group(1)
-        letter = match.group(2).upper()
-        if letter in old_to_new:
-            return f"{prefix} __OPTTEMP_{letter}__"
-        return match.group(0)
+        letters = re.sub(
+            r"\b([A-E])\b",
+            lambda m: f"__OPTTEMP_{m.group(1)}__" if m.group(1) in old_to_new else m.group(1),
+            match.group(2),
+        )
+        return f"{prefix} {letters}"
 
     result = re.sub(
-        r"\b(Option|Choice|Key|Distractor|Statement)\s+([A-E])\b",
+        r"\b((?i:Options?|Choices?|Answers?|Keys?|Distractors?|Statements?))\s+"
+        r"([A-E](?:\s*(?:,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+|&\s*)[A-E])*)\b",
         repl_labeled,
         result,
-        flags=re.IGNORECASE,
     )
 
     # Matches "B is correct", "C is incorrect", "A is the valid"
@@ -178,10 +201,9 @@ def remap_explanation_keys(explanation: str, old_to_new: dict[str, str]) -> str:
         return match.group(0)
 
     result = re.sub(
-        r"\b([A-E])\s+(is\s+(?:correct|incorrect|valid|invalid|the\s+right|the\s+wrong|true|false))\b",
+        r"\b([A-E])\s+((?i:is\s+(?:correct|incorrect|valid|invalid|the\s+right|the\s+wrong|true|false)))\b",
         repl_predicate,
         result,
-        flags=re.IGNORECASE,
     )
 
     # Matches bullet item start e.g. "- B: ", "* C - ", "D) "
@@ -195,7 +217,11 @@ def remap_explanation_keys(explanation: str, old_to_new: dict[str, str]) -> str:
 
     result = re.sub(
         r"(^|\n)(\s*[-*•]?\s*)([A-E])(\s*[:\)\.-]\s+)",
-        lambda m: f"{m.group(1)}{m.group(2)}__OPTTEMP_{m.group(3).upper()}__{m.group(4)}",
+        lambda m: (
+            f"{m.group(1)}{m.group(2)}__OPTTEMP_{m.group(3)}__{m.group(4)}"
+            if m.group(3) in old_to_new
+            else m.group(0)
+        ),
         result,
     )
 
@@ -239,9 +265,12 @@ def balance_and_shuffle_options(
     if _are_options_purely_numeric(options_copy):
         # Order numerically ascending (official MCAT convention)
         options_copy.sort(key=lambda o: _extract_numeric_value(o.text))
+    elif _are_options_ordered_set(options_copy):
+        pass  # Roman-numeral combinations keep their conventional order
     else:
-        # Textual choices: shuffle to break generator letter bias
-        rng = random.Random(seed)
+        # Textual choices: shuffle to break generator letter bias. The default seed comes from
+        # the content, so a given draft always shuffles the same way (reproducible runs).
+        rng = random.Random(_stable_seed(draft) if seed is None else seed)
         rng.shuffle(options_copy)
 
     # Assign sequential labels A, B, C, D, [E]

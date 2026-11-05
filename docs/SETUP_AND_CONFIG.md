@@ -63,7 +63,8 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `COST_PER_MILLION_INPUT_TOKENS` | `float` | Dynamic | Dynamic property mapping to active provider input price ($0.098 DeepInfra / $0.10 Anthropic) |
 | `COST_PER_MILLION_OUTPUT_TOKENS`| `float` | Dynamic | Dynamic property mapping to active provider output price ($0.294 DeepInfra / $0.50 Anthropic) |
 | `DEFAULT_TEMPERATURE` | `float` | `0.2` | Global default sampling temperature for call_llm |
-| `GENERATOR_TEMPERATURE` | `float` | `0.2` | Strict instruction-following temperature for Generator |
+| `GENERATOR_TEMPERATURE` | `float` | `0.5` | Drafting temperature: enough variety that a batch on one subtopic does not converge on near-identical questions (invalid JSON is repaired once; low-temperature agents are unchanged) |
+| `PASSAGE_TEMPERATURE` | `float` | `0.7` | Temperature for reading-passage generation (diversity across sets) |
 | `REGENERATOR_TEMPERATURE` | `float` | `0.2` | Strict remediation temperature for Regenerator |
 | `REVIEWER_TEMPERATURE` | `float` | `0.1` | Deterministic temperature for 100-pt Psychometric Reviewer |
 | `BLIND_SOLVER_TEMPERATURE`| `float` | `0.1` | Ultra-deterministic temperature for Blind-Solver Agent |

@@ -61,7 +61,7 @@ The multi-agent workflow is architected with a decoupled, provider-agnostic infe
    - **Official Rate Card (Claude Haiku 5.5)**: $0.10 input / $0.50 output per 1M tokens ($\le$ 100K prompt); $0.50 input / $2.50 output (> 100K prompt).
    - **Prompt Caching Accounting**: First-class tracking for Anthropic ephemeral cache read ($0.01 / 1M tokens) and cache creation ($0.125 / 1M tokens) with automatic mathematical price calculations.
 
-Both engines strictly enforce model parameter constraints (`DEFAULT_TEMPERATURE = 0.2`, `REVIEWER_TEMPERATURE = 0.1`, `BLIND_SOLVER_TEMPERATURE = 0.1`) and feed identical Pydantic transfer schemas into the LangGraph state machine.
+Both engines strictly enforce model parameter constraints (`GENERATOR_TEMPERATURE = 0.5` for drafting variety, `PASSAGE_TEMPERATURE = 0.7`, `REGENERATOR_TEMPERATURE = 0.2`, `REVIEWER_TEMPERATURE = 0.1`, `BLIND_SOLVER_TEMPERATURE = 0.1`) and feed identical Pydantic transfer schemas into the LangGraph state machine.
 
 ---
 
@@ -150,7 +150,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
   - Bound directly to the LangGraph `WorkflowState` and injected with high-priority mandate into prompt builders (`app/agents/prompt_builder.py`, `app/agents/generator.py`, and `app/agents/regenerator.py`).
   - Governs scientific constraints, clinical scenarios, calculation traps, and reasoning boundaries across passage generation, question generation, and all remediation critique cycles.
 - **Modular Prompt Construction (`prompt_builder.py`)**: User-turn prompt assembly, section instructions, cognitive trap specifications, and cross-item diversity calibration strings are decoupled into [`backend/app/agents/prompt_builder.py`](../backend/app/agents/prompt_builder.py) (`_build_generator_user_prompt`), ensuring pure deterministic string assembly without external LLM side effects.
-- **Inference Gateway & Fast Model Cascade**: High-throughput enterprise reasoning model (~110-140 tok/s, Temperature: `0.2` for strict instruction adherence). Powered by `DEFAULT_TEXT_MODEL` with fallback to `FAST_MODEL_CASCADE` identifiers parsed via `parse_fast_model_cascade`.
+- **Inference Gateway & Fast Model Cascade**: High-throughput enterprise reasoning model (~110-140 tok/s, Temperature: `0.5` for drafting variety, with schema and rule adherence enforced by the validator and one repair retry). Powered by `DEFAULT_TEXT_MODEL` with fallback to `FAST_MODEL_CASCADE` identifiers parsed via `parse_fast_model_cascade`.
 
 ### 3.2 Blind-Solver Dual-Validation Agent (`blind_solver.py` / `blind_solver_node`)
 - **Mission**: Acts as an algorithmic test candidate, solving the drafted question completely blind without access to the author's answer key, explanation, or self-critique rubric.
