@@ -171,7 +171,7 @@ pnpm preview
 
 The frontend uses an enterprise precision design system. For exhaustive tokens, typography hierarchies, component contracts, and accessibility specifications, consult the authoritative guide:
 
-👉 **[UI/UX Design System Specification (DESIGN.md)](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/DESIGN.md)**
+👉 **[UI/UX Design System Specification (DESIGN.md)](../DESIGN.md)**
 
 - **Brand Violet**: `#4F30B9`
 - **Brand Blue**: `#335ACF`

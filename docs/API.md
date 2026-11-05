@@ -40,6 +40,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `GET` | `/api/passages/{passage_id}` | Retrieves a single reading passage along with all its linked active questions |
 | `POST` | `/api/passages` | Admin endpoint to create or update a shared reading passage record |
 | `DELETE` | `/api/passages/{passage_id}` | Admin endpoint to soft-delete a passage and its linked questions, preserving batch progress history |
+| `POST` | `/api/passages/{passage_id}/restore` | Admin endpoint to restore a soft-deleted passage record (404 if not found) |
 | `GET` | `/api/batches` | Lists generation batches with active running counts and global concurrency metrics |
 | `GET` | `/api/batches/{batch_id}` | Retrieves a generation batch with all jobs and grouped questions |
 | `POST` | `/api/batches/start` | Launches an asynchronous background batch generation (dynamically allocated, e.g., 50 Qs = 10 jobs) |
@@ -945,7 +946,7 @@ Replenishes a batch up to its target question count by launching targeted backgr
 ---
 
 ### 3.28 Passages Management Endpoints
-`GET /api/passages` | `GET /api/passages/{passage_id}` | `POST /api/passages` | `DELETE /api/passages/{passage_id}`
+`GET /api/passages` | `GET /api/passages/{passage_id}` | `POST /api/passages` | `DELETE /api/passages/{passage_id}` | `POST /api/passages/{passage_id}/restore`
 
 - **List Passages (`GET /api/passages`)**: Lists reading passages with optional `section`, `subtopic`, and `search` query parameters. Soft-deleted passages are excluded by default.
 - **Get Single Passage (`GET /api/passages/{passage_id}`)**: Retrieves a reading passage along with its complete array of linked active questions.
@@ -1053,6 +1054,8 @@ curl -X POST "http://localhost:8000/api/passages" \
   "deleted_questions_count": 5
 }
 ```
+
+- **Restore Passage (`POST /api/passages/{passage_id}/restore`)**: Admin endpoint that restores a soft-deleted passage record. Returns `{"success": true, "restored_id": "<id>"}`, or `404 Not Found` with `{"detail": "Passage not found"}` when the passage does not exist.
 
 #### Delete Passage Error Response (`404 Not Found`)
 ```json

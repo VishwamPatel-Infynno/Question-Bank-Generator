@@ -24,4 +24,4 @@ Recent history shows docs are updated in the same commit as refactors, and they 
 3. Edit every occurrence so docs do not contradict each other.
 4. Match the existing tone; keep single hyphens (no em or en dashes) per project rule.
 
-Some docs contain absolute `file:///Users/...` links; keep new links relative (`docs/API.md`) so they work on other machines.
+Always write links relative to the file they live in (e.g. `../docs/API.md`), never absolute `file:///Users/...` paths, so they work on other machines.

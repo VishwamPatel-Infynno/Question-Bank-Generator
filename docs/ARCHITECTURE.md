@@ -150,7 +150,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
   - Accepts educator-specified pedagogical directives (`additional_instructions`) from `GenerationRequest` via Guided Wizard Step 3.
   - Bound directly to the LangGraph `WorkflowState` and injected with high-priority mandate into prompt builders (`app/agents/prompt_builder.py`, `app/agents/generator.py`, and `app/agents/regenerator.py`).
   - Governs scientific constraints, clinical scenarios, calculation traps, and reasoning boundaries across passage generation, question generation, and all remediation critique cycles.
-- **Modular Prompt Construction (`prompt_builder.py`)**: User-turn prompt assembly, section instructions, cognitive trap specifications, and cross-item diversity calibration strings are decoupled into [`backend/app/agents/prompt_builder.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/agents/prompt_builder.py) (`_build_generator_user_prompt`), ensuring pure deterministic string assembly without external LLM side effects.
+- **Modular Prompt Construction (`prompt_builder.py`)**: User-turn prompt assembly, section instructions, cognitive trap specifications, and cross-item diversity calibration strings are decoupled into [`backend/app/agents/prompt_builder.py`](../backend/app/agents/prompt_builder.py) (`_build_generator_user_prompt`), ensuring pure deterministic string assembly without external LLM side effects.
 - **Inference Gateway & Fast Model Cascade**: High-throughput enterprise reasoning model (~110-140 tok/s, Temperature: `0.2` for strict instruction adherence). Powered by `DEFAULT_TEXT_MODEL` with fallback to `FAST_MODEL_CASCADE` identifiers parsed via `parse_fast_model_cascade`.
 
 ### 3.2 Blind-Solver Dual-Validation Agent (`blind_solver.py` / `blind_solver_node`)
@@ -248,7 +248,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
 
 ## 4. State Management & Lifecycle
 
-Workflow state is tracked via a typed dictionary `AgentWorkflowState` defined in [`backend/app/workflow/state.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/workflow/state.py):
+Workflow state is tracked via a typed dictionary `AgentWorkflowState` defined in [`backend/app/workflow/state.py`](../backend/app/workflow/state.py):
 
 ```python
 class AgentWorkflowState(TypedDict, total=False):
@@ -284,7 +284,7 @@ At each node execution, token consumption from the LLM response is unpacked and 
 5. `finalize_node`: Binds final accumulated totals and itemized breakdown directly into the `Question` schema for database persistence.
 
 ### 4.2 Modular Execution Architecture (`engine.py` & `engine_helpers.py`)
-The streaming execution pipeline is implemented in [`backend/app/workflow/engine.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/workflow/engine.py) via `run_workflow_stream` and `run_workflow`. High-level orchestration helpers are decoupled into [`backend/app/workflow/engine_helpers.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/workflow/engine_helpers.py):
+The streaming execution pipeline is implemented in [`backend/app/workflow/engine.py`](../backend/app/workflow/engine.py) via `run_workflow_stream` and `run_workflow`. High-level orchestration helpers are decoupled into [`backend/app/workflow/engine_helpers.py`](../backend/app/workflow/engine_helpers.py):
 - `_prepare_shared_passage_and_visual`: Asynchronously generates shared stimulus reading passages and visual diagrams.
 - `_run_review_and_repair_loop`: Coordinates iterative remediation cycles against the 100-point rubric.
 - `_persist_live_question`: Handles transactional database persistence of approved candidate items.
@@ -293,7 +293,7 @@ The streaming execution pipeline is implemented in [`backend/app/workflow/engine
 
 ## 5. Background Batch Execution Service (`batch_runner.py`)
 
-The backend utilizes an asynchronous worker pool managed by [`backend/app/services/batch_runner.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/services/batch_runner.py) supporting 2 calibrated Generation Scopes governed by the unified 5-question Job architecture:
+The backend utilizes an asynchronous worker pool managed by [`backend/app/services/batch_runner.py`](../backend/app/services/batch_runner.py) supporting 2 calibrated Generation Scopes governed by the unified 5-question Job architecture:
 
 1. **Practice Set (5 Questions, 1 Single Job)**:
    - Dispatches a single background worker job comprising 5 questions linked to a shared reading passage (or 5 discretes).
@@ -449,7 +449,7 @@ stateDiagram-v2
 ### 5.4 Canonical Status Determination, Withholding Guards & Batch Idempotency
 
 1. **Review Queue Withholding Safeguard**:
-   During active batch execution, candidate questions scoring $> 85$ are saved with `status = 'batch_only'`. All repository search and count queries ([`backend/app/repositories/question_repository.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/repositories/question_repository.py)) enforce an active subquery guard:
+   During active batch execution, candidate questions scoring $> 85$ are saved with `status = 'batch_only'`. All repository search and count queries ([`backend/app/repositories/question_repository.py`](../backend/app/repositories/question_repository.py)) enforce an active subquery guard:
    ```python
    in_progress_batches = select(GenerationBatchModel.id).where(
        GenerationBatchModel.status == "in_progress"
@@ -464,26 +464,26 @@ stateDiagram-v2
    This prevents questions from running batches from appearing in the "Ready for Review" tab or inflating repository status counts until the entire batch has cleanly completed.
 
 2. **Atomic Batch Promotion (`promote_completed_batch_questions`)**:
-   Implemented in [`backend/app/repositories/batch_repository.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/repositories/batch_repository.py), this function runs atomically when a batch concludes and transitions to `"completed"` or `"partially_completed"`:
+   Implemented in [`backend/app/repositories/batch_repository.py`](../backend/app/repositories/batch_repository.py), this function runs atomically when a batch concludes and transitions to `"completed"` or `"partially_completed"`:
    - High-scoring questions (`final_score > 90`) in `batch_only` are promoted to `ai_validated` (making them immediately available in the educator's review queue).
    - Questions scoring between 86 and 90 (`85 < final_score <= 90`) remain in `batch_only` for historical inspection.
    - If a batch is actively stopped, cancelled, or aborted mid-run, `promote_completed_batch_questions` is bypassed entirely, safely retaining questions in `batch_only` without polluting review queues.
 
 3. **Dynamic Job Allocation & Exact Target Count Guarantees**:
-   In [`backend/app/services/batch_runner.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/services/batch_runner.py), `launch_background_batch` dynamically partitions target quotas into parallel jobs capped at 5 questions per job:
+   In [`backend/app/services/batch_runner.py`](../backend/app/services/batch_runner.py), `launch_background_batch` dynamically partitions target quotas into parallel jobs capped at 5 questions per job:
    - 5 questions $\to$ 1 job of 5 items.
    - 50 questions $\to$ 10 jobs of 5 items.
    - 12 questions $\to$ 3 jobs of 5, 5, and 2 items.
    When duplicate resolution or quality gate dropouts create a deficit, `auto_resolve_batch_and_refill` and `refill_batch_deficit` launch targeted replacement jobs with diverse thematic angles, ensuring exact target count delivery.
 
 4. **Idempotent Batch Counter Synchronization**:
-   [`backend/app/repositories/question_repository.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/repositories/question_repository.py) enforces idempotent batch counter updates in `save_question`. When editing an existing question or re-saving an approved item, the repository detects the existing record and skips counter increments, preventing counter inflation across re-edits or stage-to-bank transitions.
+   [`backend/app/repositories/question_repository.py`](../backend/app/repositories/question_repository.py) enforces idempotent batch counter updates in `save_question`. When editing an existing question or re-saving an approved item, the repository detects the existing record and skips counter increments, preventing counter inflation across re-edits or stage-to-bank transitions.
 
 ---
 
 ## 6. PostgreSQL 16 Database Architecture
 
-The persistence tier runs on **PostgreSQL 16** managed through **SQLAlchemy 2.0 Async** and the **`asyncpg`** driver, featuring enterprise connection pooling and zero-downtime startup migrations (`init_db()` in [`backend/app/db/session.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/db/session.py), delegating to schema and FTS verification in [`backend/app/db/init_db.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/db/init_db.py)):
+The persistence tier runs on **PostgreSQL 16** managed through **SQLAlchemy 2.0 Async** and the **`asyncpg`** driver, featuring enterprise connection pooling and zero-downtime startup migrations (`init_db()` in [`backend/app/db/session.py`](../backend/app/db/session.py), delegating to schema and FTS verification in [`backend/app/db/init_db.py`](../backend/app/db/init_db.py)):
 
 ### 6.1 Enterprise Connection Pooling Parameters
 To prevent database connection drops and handle parallel batch worker loads, the async engine is configured with:
@@ -617,13 +617,13 @@ The deduplication subsystem extends the PostgreSQL schema with two persistent fi
    }
    ```
 2. `is_duplicate_override BOOLEAN DEFAULT FALSE`: Indexed boolean enabling lightning-fast administrative filtering of overridden questions in the Question Bank table.
-- **Database Self-Healing**: Automated migration in [`init_db.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/db/init_db.py) applies idempotent DDL statements (`ALTER TABLE questions ADD COLUMN IF NOT EXISTS duplicate_info JSONB;` and `ALTER TABLE questions ADD COLUMN IF NOT EXISTS is_duplicate_override BOOLEAN DEFAULT FALSE;`) upon application bootstrap.
+- **Database Self-Healing**: Automated migration in [`init_db.py`](../backend/app/db/init_db.py) applies idempotent DDL statements (`ALTER TABLE questions ADD COLUMN IF NOT EXISTS duplicate_info JSONB;` and `ALTER TABLE questions ADD COLUMN IF NOT EXISTS is_duplicate_override BOOLEAN DEFAULT FALSE;`) upon application bootstrap.
 
 ---
 
 ## 7. Export & Print Studio Architecture
 
-The **Export & Print Studio** ([`ExportPrintModal.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/modals/ExportPrintModal.jsx)) provides client-side document synthesis and multi-format export capabilities for educators and candidates.
+The **Export & Print Studio** ([`ExportPrintModal.jsx`](../frontend/src/components/modals/ExportPrintModal.jsx)) provides client-side document synthesis and multi-format export capabilities for educators and candidates.
 
 ```mermaid
 graph TD
@@ -760,4 +760,4 @@ frontend/src/
 └── main.jsx                      # React 19 application root
 ```
 
-For complete UI design tokens, color scales, typography guidelines, and component contracts, consult [`DESIGN.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/DESIGN.md).
+For complete UI design tokens, color scales, typography guidelines, and component contracts, consult [`DESIGN.md`](../DESIGN.md).

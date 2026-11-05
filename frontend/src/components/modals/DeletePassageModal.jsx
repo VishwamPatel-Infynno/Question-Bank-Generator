@@ -147,7 +147,7 @@ export default function DeletePassageModal({
             <p className="delete-passage-warning-p">
               {questionCount > 0 ? (
                 <>
-                  Deleting this passage will <strong>remove it from the Passage Bank and remove its {questionCount} associated question{questionCount === 1 ? '' : 's'}</strong> from your Question Bank and Review queue. Don't worry — your questions and generation records will <strong>remain safely preserved in your Batch Progress</strong> history.
+                  Deleting this passage will <strong>remove it from the Passage Bank and remove its {questionCount} associated question{questionCount === 1 ? '' : 's'}</strong> from your Question Bank and Review queue. Don't worry, your questions and generation records will <strong>remain safely preserved in your Batch Progress</strong> history.
                 </>
               ) : (
                 <>

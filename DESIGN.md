@@ -20,7 +20,7 @@ The Infynno MCAT Question Studio is built for pre-med educators, test-prep autho
 
 ## 2. Color System & Design Tokens
 
-Design tokens are defined as CSS custom properties in [`frontend/src/styles/tokens.css`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/styles/tokens.css) (aggregated via [`frontend/src/index.css`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/index.css)) and automatically respond to the `[data-theme="dark"]` and `[data-theme="light"]` attributes on the root `<html>` element.
+Design tokens are defined as CSS custom properties in [`frontend/src/styles/tokens.css`](frontend/src/styles/tokens.css) (aggregated via [`frontend/src/index.css`](frontend/src/index.css)) and automatically respond to the `[data-theme="dark"]` and `[data-theme="light"]` attributes on the root `<html>` element.
 
 ### 2.1 Infynno Corporate Brand Palette
 These core gradient tokens anchor the brand identity across buttons, active tab indicators, and progress tracks:
@@ -220,13 +220,13 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 5. **Passage Bank View (`PassageBankView.jsx`)**: Full-featured reading passage stimuli repository and editorial workspace. Provides search by passage narrative or concept, section filtering (with instant return-to-catalog reset on tab navigation), and the interactive **Passage Editorial Desk** (`PassageEditorialDesk.jsx`). Supports in-place editing of passage text and metadata, attachment or discarding of figures (`PassageVisualStimulusEditor.jsx`), inspection of all linked questions (`PassageLinkedQuestionCard.jsx`), and dedicated cascade passage deletion with linked question removal via hoisted `DeletePassageModal` (Navigation Tab: `Passage Bank`).
 
 ### 4.10 Common Primitives & Accessible Pagination (`PaginationBar.jsx`)
-- **Component**: [`frontend/src/components/common/PaginationBar.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/common/PaginationBar.jsx) provides a standardized, WCAG AA compliant pagination footer across all list-based views (`QuestionBankView.jsx`, `AiValidatedQuestionsView.jsx`, `BatchActivityView.jsx`).
+- **Component**: [`frontend/src/components/common/PaginationBar.jsx`](frontend/src/components/common/PaginationBar.jsx) provides a standardized, WCAG AA compliant pagination footer across all list-based views (`QuestionBankView.jsx`, `AiValidatedQuestionsView.jsx`, `BatchActivityView.jsx`).
 - **Features**:
   - Live page range counter displaying `"Showing X - Y of Z items"`.
   - Configurable page size selector (`10`, `25`, `50`, `100` items/page).
   - Previous (`ChevronLeft`) and Next (`ChevronRight`) navigation buttons with disabled boundary states.
   - Page number buttons with dynamic window truncation (ellipsis for $> 5$ pages) and active gradient pill indicators.
-- **Semantic CSS System Classes** defined across [`frontend/src/styles/`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/styles/) (aggregated in [`frontend/src/index.css`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/index.css)):
+- **Semantic CSS System Classes** defined across [`frontend/src/styles/`](frontend/src/styles) (aggregated in [`frontend/src/index.css`](frontend/src/index.css)):
   - `.pagination-bar`: Flexbox footer container with surface background and hairline top border.
   - `.view-loading-box`: Centered layout loading indicator container with pulse animation.
   - `.view-empty-state`: Clean empty state box with icon badge and descriptive guidance.
@@ -242,7 +242,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - `🛡️ Overridden`: Royal blue shield pill (`rgba(51, 90, 207, 0.12)`, text `#60a5fa`, border `rgba(51, 90, 207, 0.25)`).
 
 ### 4.12 Polymorphic Figure & Diagram Viewer (`VisualStimulusViewer.jsx`)
-- **Component**: [`frontend/src/components/question/VisualStimulusViewer.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/question/VisualStimulusViewer.jsx) provides a publication-grade viewer for AAMC scientific figures, reaction pathways, and experimental charts.
+- **Component**: [`frontend/src/components/question/VisualStimulusViewer.jsx`](frontend/src/components/question/VisualStimulusViewer.jsx) provides a publication-grade viewer for AAMC scientific figures, reaction pathways, and experimental charts.
 - **Polymorphic Dual-Engine Rendering**:
   - **Programmatic Vector SVG**: Inlines sanitized scalable vector graphics directly into the DOM with crisp, high-DPI rendering, zero blur, and transparent background support.
   - **Neural Visual Illustrations**: Renders FLUX-2-klein-4b neural image outputs with lazy loading and error fallback.
@@ -254,7 +254,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Inline Description Editing**: In editorial mode, renders an editable textarea allowing educators to refine the figure's alt-text and clinical description in real time.
 
 ### 4.13 Interactive Practice & Editorial Question Card (`QuestionCard.jsx`)
-- **Component**: [`frontend/src/components/question/QuestionCard.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/question/QuestionCard.jsx) serves as the primary presentation surface for reviewing, practicing, and editing candidate items.
+- **Component**: [`frontend/src/components/question/QuestionCard.jsx`](frontend/src/components/question/QuestionCard.jsx) serves as the primary presentation surface for reviewing, practicing, and editing candidate items.
 - **Decomposed Architectural Structure**:
   To maintain high maintainability, reduce re-render cycles, and enforce strict single-responsibility boundaries, `QuestionCard` is decomposed into four specialized subcomponents:
   1. **Question Card Header (`QuestionCardHeader.jsx`)**: Renders the section badge, calibrated scaled score pill (`118–132`), primary cognitive trap chip (`primary_trap`), question index counter, elapsed generation timer, and top action buttons (approve, edit, inspect, compare).
@@ -273,7 +273,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - Displays persistent `🛡️ Overridden` badge when an educator has verified and cleared the candidate for bank storage.
 
 ### 4.14 Reusable Accessible Confirmation Dialog (`ConfirmationModal.jsx`)
-- **Component**: [`frontend/src/components/modals/ConfirmationModal.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/modals/ConfirmationModal.jsx) replaces native browser `window.confirm` popups across all application views with an accessible, WCAG AA compliant confirmation dialog.
+- **Component**: [`frontend/src/components/modals/ConfirmationModal.jsx`](frontend/src/components/modals/ConfirmationModal.jsx) replaces native browser `window.confirm` popups across all application views with an accessible, WCAG AA compliant confirmation dialog.
 - **Features & Architecture**:
   - **Focus Trapping**: Integrated with `useFocusTrap` to prevent background tabbing and restore focus upon dismissal.
   - **Keyboard Accelerators**: Full keyboard dismissal on `Escape` key and confirm action triggers.
@@ -282,9 +282,9 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Contextual Telemetry**: Renders live target count badges and button loading spinners during async mutations.
 
 ### 4.15 Passage Deletion & Cascade Warning Modal (`DeletePassageModal.jsx`)
-- **Component**: [`frontend/src/components/modals/DeletePassageModal.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/modals/DeletePassageModal.jsx) provides a dedicated cascade deletion confirmation dialog when removing shared reading passages from the Passage Bank.
+- **Component**: [`frontend/src/components/modals/DeletePassageModal.jsx`](frontend/src/components/modals/DeletePassageModal.jsx) provides a dedicated cascade deletion confirmation dialog when removing shared reading passages from the Passage Bank.
 - **Hoisted Single-Instance Architecture**:
-  - Mounted as a single hoisted instance in [`PassageBankView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/views/PassageBankView.jsx), guaranteeing modal availability whether the educator is on the master passage catalog table or inside the active [`PassageEditorialDesk.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/passage/PassageEditorialDesk.jsx).
+  - Mounted as a single hoisted instance in [`PassageBankView.jsx`](frontend/src/views/PassageBankView.jsx), guaranteeing modal availability whether the educator is on the master passage catalog table or inside the active [`PassageEditorialDesk.jsx`](frontend/src/components/passage/PassageEditorialDesk.jsx).
   - Eliminates DOM unmounting, duplicate listeners, and state race conditions during passage navigation.
 - **Theme-Aware Backdrops & Containers**:
   - Backdrop: Uses `.modal-backdrop-theme` with `backgroundColor: 'rgba(8, 12, 20, 0.72)'` and `backdropFilter: 'blur(6px)'` (`WebkitBackdropFilter: 'blur(6px)'`).
@@ -296,7 +296,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Accessible Focus Management**: Implements `useFocusTrap` to contain keyboard focus, with `Escape` key cancellation and autofocus on the cancel action for safety.
 
 ### 4.16 Base Accessible Modal Primitive (`components/common/Modal.jsx`)
-- **Component**: [`frontend/src/components/common/Modal.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/common/Modal.jsx) provides the underlying accessible dialog framework for all system overlays.
+- **Component**: [`frontend/src/components/common/Modal.jsx`](frontend/src/components/common/Modal.jsx) provides the underlying accessible dialog framework for all system overlays.
 - **Core Contracts**:
   - **React Portal Mounting**: Mounts dialogs directly into `document.body` to avoid parent container CSS clipping (`overflow: hidden`) and z-index stacking conflicts.
   - **Backdrop Blur & Scrim**: Smooth animated backdrop fade with keyboard escape listener.

@@ -42,7 +42,7 @@ The system features multi-provider inference support, seamlessly switchable via 
 
 ## 2. Mathematical Cost Computation Engine
 
-The calculation is implemented in [`backend/app/agents/base.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/agents/base.py) via `calculate_token_cost`:
+The calculation is implemented in [`backend/app/agents/base.py`](../backend/app/agents/base.py) via `calculate_token_cost`:
 
 For **DeepInfra**:
 $$\text{Cost}_{\text{USD}} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times 0.098\right) + \left(\frac{\text{Completion Tokens}}{1,000,000} \times 0.294\right)$$
@@ -165,7 +165,7 @@ graph TD
 
 ### 4.1 Data Structures
 
-#### `TokenUsage` Schema ([`app/schemas/token.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/schemas/token.py#L9-L15))
+#### `TokenUsage` Schema ([`app/schemas/token.py`](../backend/app/schemas/token.py#L9-L15))
 ```python
 class TokenUsage(BaseModel):
     prompt_tokens: int = Field(0, description="Input tokens processed")
@@ -202,7 +202,7 @@ Each question persisted in PostgreSQL stores both aggregate summary metrics and 
 | `token_usage_details` | `JSONB` | Granular array of `agent_usage_breakdown` objects |
 
 ### Repository-Wide Aggregation
-When the client calls `GET /api/questions`, the backend queries repository totals via [`question_repository.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/repositories/question_repository.py):
+When the client calls `GET /api/questions`, the backend queries repository totals via [`question_repository.py`](../backend/app/repositories/question_repository.py):
 
 ```python
 total_tokens = sum(q.total_tokens or 0 for q in questions)
@@ -217,29 +217,29 @@ This delivers global repository cost and token totals directly to the Question B
 
 Token and cost data is surfaced across all active views and specialized domain components in the frontend:
 
-### 1. Active Multi-Batch Concurrency Monitor & Live Stopwatch ([`ActiveMultiBatchMonitor.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/batch/ActiveMultiBatchMonitor.jsx), [`LiveStopwatch.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/common/LiveStopwatch.jsx))
+### 1. Active Multi-Batch Concurrency Monitor & Live Stopwatch ([`ActiveMultiBatchMonitor.jsx`](../frontend/src/components/batch/ActiveMultiBatchMonitor.jsx), [`LiveStopwatch.jsx`](../frontend/src/components/common/LiveStopwatch.jsx))
 - **Live Worker Telemetry Strip**: Displays live global jobs occupancy (`Global Jobs: X / 4`) and active inference concurrency (`Active Inference: Y / 10`) alongside a high-precision live elapsed stopwatch timer during active batch runs.
 - **Micro-Dollar Live Updates**: Visualizes active batch throughput with real-time token accumulation as worker jobs complete.
 
-### 2. Formatted Question Card ([`QuestionCard.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/question/QuestionCard.jsx), [`QuestionCardFooter.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/question/QuestionCardFooter.jsx))
+### 2. Formatted Question Card ([`QuestionCard.jsx`](../frontend/src/components/question/QuestionCard.jsx), [`QuestionCardFooter.jsx`](../frontend/src/components/question/QuestionCardFooter.jsx))
 - Displays an emerald/cyan metadata chip in the decomposed question footer:
   `🪙 2,850 tokens • $0.00053`
   giving instant visibility into the generation cost and token breakdown of the displayed question.
 
-### 3. Psychometric Review & Cost Audit Modal ([`ReviewAuditView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/question/ReviewAuditView.jsx))
+### 3. Psychometric Review & Cost Audit Modal ([`ReviewAuditView.jsx`](../frontend/src/components/question/ReviewAuditView.jsx))
 - **Summary Metric Cards**: 4-card grid showing Prompt Tokens, Completion Tokens, Total Tokens, and Accumulated Cost.
 - **Granular Breakdown Table**: Itemizes every LLM request with prompt tokens, completion tokens, cache reads/writes, total tokens, and sub-micro-cent USD cost.
 
-### 4. Question Bank Repository ([`QuestionBankView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/views/QuestionBankView.jsx))
+### 4. Question Bank Repository ([`QuestionBankView.jsx`](../frontend/src/views/QuestionBankView.jsx))
 - **Repository Stat Metric**: Displays total accumulated tokens and total expenditure for the entire database:
   `14,250 ($0.0027)`
 - **Editorial Card Chips**: Each question card includes a compact chip:
   `🪙 2,850 tok • $0.00053`
 
-### 5. Batch Activity Monitor & Job Cards ([`BatchActivityView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/views/BatchActivityView.jsx), [`BatchCard.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/batch/BatchCard.jsx))
+### 5. Batch Activity Monitor & Job Cards ([`BatchActivityView.jsx`](../frontend/src/views/BatchActivityView.jsx), [`BatchCard.jsx`](../frontend/src/components/batch/BatchCard.jsx))
 - Displays cumulative batch token consumption and aggregate batch cost across all 10 worker jobs.
-- Allows educators to inspect individual jobs via [`BatchJobCard.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/components/batch/BatchJobCard.jsx) with their respective token weights, prompt/completion breakdown, and question scores.
+- Allows educators to inspect individual jobs via [`BatchJobCard.jsx`](../frontend/src/components/batch/BatchJobCard.jsx) with their respective token weights, prompt/completion breakdown, and question scores.
 
-### 6. AI Validated Quality Bank ([`AiValidatedQuestionsView.jsx`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/frontend/src/views/AiValidatedQuestionsView.jsx))
+### 6. AI Validated Quality Bank ([`AiValidatedQuestionsView.jsx`](../frontend/src/views/AiValidatedQuestionsView.jsx))
 - Header stats bar displays total AI-validated items and total cost of verified inventory.
 - Each validated card presents instant token and cost metrics before one-click approval into the canonical bank.

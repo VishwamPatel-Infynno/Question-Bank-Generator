@@ -14,7 +14,7 @@ The backend is engineered with clear separation of concerns across presentation,
 ```
 backend/
 ├── app/
-│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 36 operations across 30 paths)
+│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 37 operations across 31 paths)
 │   │   ├── router.py        # Central API v1 router aggregator
 │   │   └── v1/
 │   │       ├── generation.py # SSE streaming multi-agent orchestrator endpoint
@@ -71,7 +71,7 @@ backend/
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (20 deterministic modules / 97 tests + 1 live E2E module = 107 total)
+└── tests/                   # Deterministic Automated Test Suite (21 deterministic modules / 110 tests + 1 live E2E module = 120 total)
     ├── conftest.py          # Pytest fixtures, offline DB socket probe & async test client
     ├── test_additional_instructions.py # Educator custom instructions and prompt builder integration
     ├── test_agents.py       # Cognitive agent unit tests
@@ -136,7 +136,7 @@ graph TD
 
 ## 3. High-Throughput Pricing & Micro-Cost Engine
 
-Token costs are calculated per request at the lowest execution layer ([`backend/app/agents/base.py`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/backend/app/agents/base.py)) and accumulated across all agent cycles:
+Token costs are calculated per request at the lowest execution layer ([`backend/app/agents/base.py`](app/agents/base.py)) and accumulated across all agent cycles:
 
 - **Input Tokens**: $0.098 per 1,000,000 tokens
 - **Output Tokens**: $0.294 per 1,000,000 tokens
@@ -185,10 +185,10 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 ## 5. Automated Testing & Code Quality
 
 ### Running Tests
-Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full specs):
+Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (97 deterministic tests across 20 modules)
+# Run all unit and integration tests (110 deterministic tests across 21 modules)
 # Smart auto-skip: 55 pure unit tests pass offline, 42 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"

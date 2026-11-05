@@ -42,10 +42,10 @@ pnpm dev
 
 ## 🧪 Testing & Verification Guidelines
 
-Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/docs/TESTING_AND_QA.md) for full test specifications):
+Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (97 deterministic unit & integration tests across 20 modules; 55 pass offline, 42 DB tests skip cleanly; 107 total backend tests)
+# 1. Backend pytest suite (110 deterministic unit & integration tests across 21 modules; 66 pass offline, 44 DB tests skip cleanly without PostgreSQL; 120 total backend tests)
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
 # 2. Backend Python linter and formatting checks (enforcing SIM, RET, B, C4, E, W, F, I, UP)
@@ -74,7 +74,7 @@ pnpm --dir frontend build
    - Anthropic: Claude Haiku 5.5 ($0.10 in / $0.50 out per 1M), Claude 3.5 Sonnet, Claude 3 Opus, and prompt cache read/write rates.
    - Image: Flat baseline rate of $0.014 USD per image (scaled by $(\text{width}/1024) \times (\text{height}/1024)$).
 8. **Modular Layer Separation**:
-   - Routing: `backend/app/api/v1/` (34 operations across 28 endpoint paths)
+   - Routing: `backend/app/api/v1/` (37 operations across 31 endpoint paths)
    - Business/Agent Logic: `backend/app/agents/` (Generator, Blind Solver, Reviewer, Regenerator, Visuals)
    - Data Access Layer: `backend/app/repositories/`
    - Database Entities: `backend/app/models/`

@@ -26,10 +26,13 @@ jobs:
           cache: "pip"
 
       - name: Install Ruff
-        run: pip install ruff>=0.9.0
+        run: pip install "ruff>=0.9.0"
 
       - name: Run Backend Linting (Ruff)
         run: ruff check backend/
+
+      - name: Check Backend Formatting (Ruff)
+        run: ruff format --check .
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -91,7 +94,7 @@ jobs:
           COST_PER_MILLION_OUTPUT_TOKENS: 0.294
           PASSING_SCORE_THRESHOLD: 90
         run: |
-          PYTHONPATH=backend pytest backend/tests -v -k "not live_e2e" --tb=short
+          PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e" --tb=short
 
   frontend-build:
     name: Frontend Production Build
