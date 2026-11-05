@@ -409,11 +409,22 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             shared_used_mistakes.append(c_mistake)
 
                         gen_usage = state.get("latest_usage", {})
-                        self_score = (state.get("current_review") or {}).get("total_score", 95)
+                        self_score = (state.get("current_review") or {}).get("total_score")
+                        usage_note = (
+                            f"{gen_usage.get('total_tokens', 0)} tokens, "
+                            f"${gen_usage.get('cost_usd', 0.0):.5f}"
+                        )
+                        draft_message = (
+                            f"Draft authored and audited for Question {idx + 1} "
+                            f"(Score: {self_score}/100, {usage_note})."
+                            if self_score is not None
+                            else f"Draft authored for Question {idx + 1} "
+                            f"(independent review next, {usage_note})."
+                        )
                         gen_done_evt = make_event(
                             event_type="agent_complete",
                             agent_name="Question Writer & Reviewer",
-                            message=f"Draft authored and audited for Question {idx + 1} (Score: {self_score}/100, {gen_usage.get('total_tokens', 0)} tokens, ${gen_usage.get('cost_usd', 0.0):.5f}).",
+                            message=draft_message,
                             data={
                                 "draft": state["current_draft"],
                                 "review": state.get("current_review"),

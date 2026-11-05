@@ -95,7 +95,7 @@ Find the most relevant starting point based on your objective:
 
 ## 🛡️ Key Architectural Guarantees
 
-1. **MCAT 4-Choice Purity**: Strictly 4 options (A, B, C, D) per question, perfectly length-balanced ($\pm 15\%$) to eliminate guessing cues. Zero multi-choice or legacy 5-choice artifacts.
+1. **MCAT 4-Choice Purity**: Strictly 4 options (A, B, C, D) per question, length-balanced (within 3 words, or 20% for longer options) to eliminate guessing cues. Zero multi-choice or legacy 5-choice artifacts.
 2. **Deterministic Quality Gate (>90 Points)**: Every question is audited against an uncompromising 100-point rubric. Unrepaired questions that fail after 3 cycles are discarded immediately.
 3. **Blind-Solver Dual Validation**: Every candidate is solved blindly without answer key access. Any key discrepancy or confidence $< 88\%$ triggers automatic remediation.
 4. **Soft-Deletion & Batch Integrity**: Non-destructive deletion on questions and reading passages preserves background batch execution progress metrics intact while excluding items from active catalog views, with full restoration support (`POST /api/questions/{id}/restore`).

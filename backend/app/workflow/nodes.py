@@ -76,11 +76,18 @@ async def fused_generator_node(state: AgentWorkflowState) -> dict[str, Any]:
     to the standard Reviewer node for a full independent audit and remediation loop.
     """
     req = GenerationRequest(**state["request"])
-    logger.info("Executing Fused Question Generator & Self-Critique Agent...")
     diversity_context = state.get("diversity_context")
-    draft, self_review, usage = await generate_question_with_self_critique(
-        req, diversity_context=diversity_context
-    )
+    if config.ALWAYS_INDEPENDENT_REVIEW:
+        # The independent reviewer re-scores every draft anyway, so a self-critique would be paid
+        # for in output tokens and then discarded. Draft only.
+        logger.info("Executing Question Generator Agent (independent review follows)...")
+        draft, usage = await generate_question(req, diversity_context=diversity_context)
+        self_review = None
+    else:
+        logger.info("Executing Fused Question Generator & Self-Critique Agent...")
+        draft, self_review, usage = await generate_question_with_self_critique(
+            req, diversity_context=diversity_context
+        )
 
     t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
         state, "Question Generator", usage, iteration=1

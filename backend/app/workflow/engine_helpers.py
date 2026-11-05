@@ -211,7 +211,11 @@ def _apply_deterministic_gate(state: AgentWorkflowState) -> list[Violation]:
     if sanitize_draft_dashes(draft):
         state["current_draft"] = draft.model_dump()
     # Passage text is owned by the shared-passage pipeline, so passage rules are not checked here.
-    violations = validate_question_draft(draft, check_passage=False)
+    # Offline mock fixtures are canned and cannot be repaired, so they are exempt from the
+    # blocking length rule (real runs are not).
+    violations = validate_question_draft(
+        draft, check_passage=False, enforce_length_spread=not config.OFFLINE_MODE
+    )
     outcomes = dict(state.get("stage_outcomes", {}))
     outcomes["deterministic_validation"] = {
         "iteration": state.get("iteration_count", 1),
@@ -554,7 +558,7 @@ async def _prepare_shared_passage_and_visual(
         passage_start_evt = make_event(
             event_type="agent_start",
             agent_name="Passage Writer",
-            message=f"Writing 250-400 word shared reading passage for {effective_passage_count} linked questions ({req.section.value})...",
+            message=f"Writing shared reading passage for {effective_passage_count} linked questions ({req.section.value})...",
             data={
                 "stage": "passage_drafting",
                 "total_questions": total_qty,

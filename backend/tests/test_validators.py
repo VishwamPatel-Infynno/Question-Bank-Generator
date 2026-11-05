@@ -94,15 +94,31 @@ def test_passage_rules():
     )
     unexpected = validate_question_draft(_draft(stimulus_text="word " * 400))
     assert "unexpected_passage" in _codes(unexpected) and not blocking(unexpected)
+    # Slightly outside the band is a warning; far outside (here 50 words) is a blocking defect
+    near = validate_question_draft(_draft(stimulus_text="word " * 280), passage_required=True)
+    assert "passage_length" in _codes(near) and not blocking(near)
     short = validate_question_draft(_draft(stimulus_text="word " * 50), passage_required=True)
-    assert "passage_length" in _codes(short) and not blocking(short)
+    assert "passage_length" in _codes(blocking(short))
     ok = validate_question_draft(
         _draft(stimulus_text="word " * 600), passage_required=True, is_cars=True
     )
     assert "passage_length" not in _codes(ok)
 
 
-def test_length_parity_and_longest_key_are_warnings():
+def test_moderate_length_spread_and_longest_key_are_warnings():
+    # Spread 5 words (limit 3, blocking above 6): flagged but not blocking
+    opts = [
+        OptionChoice(id="A", text="a detailed correct answer with several extra words"),
+        OptionChoice(id="B", text="short one"),
+        OptionChoice(id="C", text="short two"),
+        OptionChoice(id="D", text="short three"),
+    ]
+    v = validate_question_draft(_draft(options=opts))
+    assert {"option_length_spread", "key_is_longest"} <= _codes(v)
+    assert not blocking(v)
+
+
+def test_large_length_spread_blocks_in_real_runs_but_not_for_offline_fixtures():
     opts = [
         OptionChoice(
             id="A", text="a very long and detailed correct answer with many extra words in it"
@@ -111,9 +127,10 @@ def test_length_parity_and_longest_key_are_warnings():
         OptionChoice(id="C", text="short two"),
         OptionChoice(id="D", text="short three"),
     ]
-    v = validate_question_draft(_draft(options=opts))
-    assert {"option_length_ratio", "key_is_longest"} <= _codes(v)
-    assert not blocking(v)
+    draft = _draft(options=opts)
+    assert "option_length_spread" in _codes(blocking(validate_question_draft(draft)))
+    relaxed = validate_question_draft(draft, enforce_length_spread=False)
+    assert "option_length_spread" in _codes(relaxed) and not blocking(relaxed)
 
 
 def test_unaddressed_distractor_warns():

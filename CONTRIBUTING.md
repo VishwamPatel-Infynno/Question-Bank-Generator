@@ -84,7 +84,7 @@ pnpm --dir frontend build
    - Frontend: Top-level views (`views/`) with feature-based component directories (`wizard/`, `question/`, `passage/`, `bank/`, `batch/`, `validated/`, `layout/`, `modals/`, `common/`) and centralized hooks/constants.
 9. **Multi-Agent Pipeline & Cognitive Fusion**: Step 01 fuses item authoring and 100-point rubric self-critique (`Drafting & Review`) into a single pass. Step 02 executes independent dual validation (`Answer Check`). Step 03 executes remediation (`Question Polish`) for drafts scoring $\le 90$ or failing verification, while Step 04 renders visual stimuli (`Figures & Diagrams`).
 10. **AAMC Dual Split-Pane Reading Mode**: Ensures dense scientific research passages and CARS essays are presented side-by-side with sticky scrolling and synchronized candidate review.
-11. **Option Symmetry & Anti-AI Standard**: Enforce $\pm 15\%$ option length parity across strictly 4 options ($A, B, C, D$) and single hyphens (`-`) only; em dashes (`—`) and en dashes (`–`) are strictly forbidden across prompts and generation output.
+11. **Option Symmetry & Anti-AI Standard**: Enforce option length parity (within 3 words, or 20% of the average for longer options; `agents/standards.py`) across strictly 4 options ($A, B, C, D$) and single hyphens (`-`) only; em dashes (`—`) and en dashes (`–`) are strictly forbidden across prompts and generation output.
 
 ---
 

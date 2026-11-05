@@ -24,6 +24,7 @@ from app.agents.base import (
 )
 from app.agents.mock_fixtures import evaluate_heuristically
 from app.agents.prompts import REVIEWER_SYSTEM_PROMPT
+from app.agents.standards import is_cars, passage_words_text
 from app.core.config import config
 from app.schemas import (
     MCAT_SECTION_LABELS,
@@ -79,6 +80,12 @@ async def review_question(
         else (draft.primary_trap or "Author Diagnosed AAMC Trap")
     )
 
+    passage_note = (
+        f"Yes ({passage_words_text(is_cars(req.section))}; judge length against this band)"
+        if req.is_passage_active
+        else "No (standalone question: no passage expected)"
+    )
+
     user_prompt = f"""Review the following candidate AAMC MCAT Multiple Choice Question:
 
 Metadata:
@@ -87,7 +94,7 @@ Metadata:
 - Target Difficulty: {req.difficulty.value}
 - Interaction Format: {req.interaction_type or "single_choice"}
 - Target Trap to Audit: {target_trap}
-- Passage Type: {"Yes (250-400 words)" if req.passage_required and str(req.passage_required).lower() in ("yes", "true") else "No"}
+- Passage Type: {passage_note}
 - Iteration Attempt: {iteration}
 
 --- CANDIDATE QUESTION ---

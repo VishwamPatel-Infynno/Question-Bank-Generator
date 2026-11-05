@@ -35,6 +35,7 @@ from app.agents.mock_fixtures import evaluate_heuristically, get_mock_draft
 from app.agents.option_balancer import balance_and_shuffle_options
 from app.agents.prompt_builder import _build_generator_user_prompt
 from app.agents.prompts import FUSED_GENERATOR_SYSTEM_PROMPT, GENERATOR_SYSTEM_PROMPT
+from app.agents.standards import passage_words_text
 from app.core.config import config
 from app.schemas import (
     KNOWN_VISUAL_TYPES,
@@ -271,7 +272,7 @@ async def generate_passage_stimulus(
     topic = req.subtopic or "Foundational Concepts & Research Design"
 
     is_cars = req.section in (MCATSection.CARS, "CARS", "cars")
-    target_length = "500 to 600 words" if is_cars else "320 to 450 words"
+    target_length = passage_words_text(is_cars)
     allow_visuals = (
         req.allow_ai_images
         or req.require_image

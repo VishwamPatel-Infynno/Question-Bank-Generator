@@ -102,7 +102,7 @@ graph TD
 ### 4.1 Fused Draft-and-Critique Cognitive Engine (`fused_generator_node`)
 - Crafts high-yield clinical or scientific scenarios, 4 symmetric options ($A, B, C, D$), and 3-card mentor explanations.
 - Simultaneously generates a 100-point self-critique object in a single inference call. By default the independent reviewer and blind solver still audit every draft (`ALWAYS_INDEPENDENT_REVIEW`), running concurrently to save time.
-- Strictly forbids em dashes (`—`) and enforces option word count symmetry ($\pm 15\%$).
+- Strictly forbids em dashes (`—`) and enforces option word count symmetry (within 3 words, or 20% for longer options).
 
 ### 4.2 Blind-Solver Dual-Validation Safeguard (`blind_solver.py`)
 - Acts as an algorithmic test candidate, solving the drafted question completely blind without knowing the author's key or explanation.

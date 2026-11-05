@@ -162,8 +162,13 @@ async def refresh_batch_aggregates(
     """
     async with async_session_factory() as session:
         # Row lock: concurrent jobs refresh the same batch; without it two refreshes compute from
-        # different snapshots and the last commit can move counts or status backwards.
-        batch_model = await session.get(GenerationBatchModel, batch_id, with_for_update=True)
+        # different snapshots and the last commit can move counts or status backwards. This is
+        # FOR NO KEY UPDATE (key_share=True): it serializes writers of the batch row but does not
+        # conflict with the FOR KEY SHARE lock that every question INSERT takes through its foreign
+        # key, which a plain FOR UPDATE does (that caused deadlocks with concurrent saves).
+        batch_model = await session.get(
+            GenerationBatchModel, batch_id, with_for_update={"key_share": True}
+        )
         if not batch_model:
             return None
 

@@ -133,7 +133,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
 - **Core Prompt Strategy**:
   - Uses section-specific rules (e.g., enzyme kinetics and thermodynamics for Chem/Phys, rhetorical thesis and authorial intent for CARS, molecular pathways and biochemical regulation for Bio/Biochem, and behavioral theories and sociological stratification for Psych/Soc).
   - Explicitly crafts 1 definitive correct key and 3 sophisticated distractors representing realistic cognitive biases, arithmetic sign inversions, or calculation traps.
-  - **Option Symmetry & Anti-Guessability Engine**: Enforces strict word count parity (all options within $\pm 15\%$ or 2-4 words of each other), parallel grammatical syntax, and balanced epistemic qualification.
+  - **Option Symmetry & Anti-Guessability Engine**: Enforces strict word count parity (all options within 3 words of each other, or 20% of the average for longer options (`agents/standards.py`) of each other), parallel grammatical syntax, and balanced epistemic qualification.
   - **Anti-AI Punctuation Standard**: Strictly forbids em dashes (`—`), en dashes (`–`), or double hyphens (`--`); enforces standard single hyphens (`-`).
   - **3-Part Structured Mentor Explanations**: Generates a rigorous 3-card explanation layout:
     1. *Why Option [Key] is Correct*: Establishes core intuition and step-by-step mathematical or deductive proof.
@@ -252,6 +252,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
 ### 3.8 Deterministic Validator (`validators.py`)
 - **Mission**: Free, pure-Python structural checks that run before any LLM review, so structural defects are caught for certain instead of depending on a model's opinion.
 - **Blocking checks**: exactly four unique options A-D; valid key present and in the options (single key for single-choice); no all/none-of-the-above; no empty stem, option or explanation.
+- **Authoring standards** live in `agents/standards.py` and are quoted by every prompt, the validator and the reviewer: option length spread within `max(3, ceil(20% of the mean))` words (a spread above twice that limit is a blocking defect; between 1x and 2x it is a warning), and passage length bands of 300-500 words (sciences) and 500-600 words (CARS; a passage more than 25% outside the band blocks, anything else outside it warns). The blocking length rule is not applied to offline mock fixtures.
 - **Auto-repair**: em dashes, en dashes and `--` are replaced with a single hyphen (`sanitize_draft_dashes`) before validation, enforcing the Anti-AI Punctuation Standard in code, not only in prompts.
 - **Warnings (recorded, non-blocking)**: option length ratio above 1.25, correct answer being the longest option, passage word band, unaddressed distractors. The verdict is stored in `stage_outcomes["deterministic_validation"]`.
 - **Remediation**: blocking findings are packaged as a failing review so the regenerator fixes exactly those defects.

@@ -14,15 +14,19 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-from app.agents.option_balancer import calculate_option_symmetry, count_words
+from app.agents.option_balancer import count_words
+from app.agents.standards import (
+    OPTION_SPREAD_BLOCKING_MULTIPLE,
+    option_spread_limit,
+    passage_band,
+)
 from app.schemas import QuestionDraft
 
 Severity = Literal["error", "warning"]
 
 VALID_OPTION_IDS = ("A", "B", "C", "D")
-MAX_OPTION_LENGTH_RATIO = 1.25
-CARS_PASSAGE_WORDS = (450, 650)
-SCIENCE_PASSAGE_WORDS = (250, 550)
+# A passage this far outside the prompt's band is a defect, not a style difference
+PASSAGE_BLOCKING_TOLERANCE = 0.25
 
 _DASH_RE = re.compile(r"[–—]|--")
 _FORBIDDEN_OPTION_RE = re.compile(r"\b(all|none) of the above\b", re.IGNORECASE)
@@ -82,6 +86,7 @@ def validate_question_draft(
     is_cars: bool = False,
     single_choice: bool = True,
     check_passage: bool = True,
+    enforce_length_spread: bool = True,
 ) -> list[Violation]:
     """Runs every deterministic check and returns all findings (empty list means clean)."""
     found: list[Violation] = []
@@ -136,31 +141,50 @@ def validate_question_draft(
     if check_passage and passage_required and not has_passage:
         found.append(Violation("missing_passage", "Passage-based item has no passage"))
     if check_passage and passage_required and has_passage:
-        lo, hi = CARS_PASSAGE_WORDS if is_cars else SCIENCE_PASSAGE_WORDS
+        lo, hi = passage_band(is_cars)
         words = count_words(draft.stimulus_text)
         if not lo <= words <= hi:
+            far = words < lo * (1 - PASSAGE_BLOCKING_TOLERANCE) or words > hi * (
+                1 + PASSAGE_BLOCKING_TOLERANCE
+            )
             found.append(
                 Violation(
                     "passage_length",
                     f"Passage has {words} words; expected {lo}-{hi}",
-                    severity="warning",
+                    severity="error" if far else "warning",
                 )
             )
 
-    if len(draft.options) == 4 and keys:
-        sym = calculate_option_symmetry(draft.options, keys)
-        if sym["disparity_ratio"] > MAX_OPTION_LENGTH_RATIO:
+    if len(draft.options) == 4:
+        counts = {o.id.strip().upper(): count_words(o.text) for o in draft.options}
+        mean = sum(counts.values()) / len(counts)
+        spread = max(counts.values()) - min(counts.values())
+        limit = option_spread_limit(mean)
+        if spread > limit:
             found.append(
                 Violation(
-                    "option_length_ratio",
-                    f"Option length ratio {sym['disparity_ratio']} exceeds {MAX_OPTION_LENGTH_RATIO}",
-                    severity="warning",
+                    "option_length_spread",
+                    f"Option lengths differ by {spread} words (limit {limit}): {counts}",
+                    severity=(
+                        "error"
+                        if enforce_length_spread
+                        and spread > limit * OPTION_SPREAD_BLOCKING_MULTIPLE
+                        else "warning"
+                    ),
                 )
             )
-        if sym["is_correct_longest"]:
+        correct = [counts[k] for k in keys if k in counts]
+        distractors = [n for k, n in counts.items() if k not in keys]
+        if (
+            correct
+            and distractors
+            and max(correct) - (sum(distractors) / len(distractors)) > (limit / 2)
+        ):
             found.append(
                 Violation(
-                    "key_is_longest", "Correct option is the longest choice", severity="warning"
+                    "key_is_longest",
+                    "Correct option is noticeably longer than the distractors",
+                    severity="warning",
                 )
             )
 

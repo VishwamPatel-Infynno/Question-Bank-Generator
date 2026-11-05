@@ -27,6 +27,7 @@ from app.agents.base import (
 from app.agents.generator import _parse_correct_keys, _parse_option_choices, _require_text
 from app.agents.mock_fixtures import improve_draft_heuristically
 from app.agents.prompts import REGENERATOR_SYSTEM_PROMPT
+from app.agents.standards import OPTION_PARITY_TEXT, is_cars
 from app.core.config import config
 from app.schemas import (
     MCAT_SECTION_LABELS,
@@ -35,7 +36,6 @@ from app.schemas import (
     ReviewScore,
     TokenUsage,
 )
-from app.workflow._section_utils import is_cars_section
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ Actionable Recommendations:
 {recommendations_text}
 ---------------------------------------
 CRITICAL REMEDIATION MANDATE:
-1. Equalize option lengths: Count the words in every option. All 4 options MUST be within 1-2 words of each other in length (e.g. 11-13 words each). Do NOT make the correct key longer or more hedged than the distractors.
+1. Equalize option lengths: Count the words in every option. All 4 options MUST be {OPTION_PARITY_TEXT}. Do NOT make the correct key longer or more hedged than the distractors.
 2. Output format: "options" MUST be a JSON list of 4 objects with "id" and "text" string fields.
 
 Please re-generate and refine this question to resolve all weaknesses and produce a publication-grade AAMC MCAT question. Output valid JSON only."""
@@ -133,9 +133,7 @@ Please re-generate and refine this question to resolve all weaknesses and produc
         )
 
         # Same visual gating as the generator: never request a figure it would not allow
-        image_allowed = not is_cars_section(req.section) and bool(
-            req.allow_ai_images or req.require_image
-        )
+        image_allowed = not is_cars(req.section) and bool(req.allow_ai_images or req.require_image)
         return QuestionDraft(
             stimulus_text=stimulus,
             question_stem=_require_text(data, "question_stem"),

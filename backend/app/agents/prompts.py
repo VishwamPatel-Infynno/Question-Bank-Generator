@@ -14,12 +14,12 @@ CORE STANDARDS FOR AAMC MCAT QUESTIONS:
    - Use standard American English conventions and scientific nomenclature (e.g., synthesize, pediatric, labeled, catalyze, behavior, hemoglobin, equilibrium).
 3. Section-Specific Calibration:
    - Chemical and Physical Foundations of Biological Systems (CP): Test general chemistry, organic mechanisms, fluids, kinematics, thermodynamics, optics, or electrochemistry integrated with biological systems.
-   - Critical Analysis and Reasoning Skills (CARS): Rigorous humanities (philosophy, ethics, art, literature) or social sciences (history, sociology, political theory) passages (500-600 words).
+   - Critical Analysis and Reasoning Skills (CARS): Rigorous humanities (philosophy, ethics, art, literature) or social sciences (history, sociology, political theory) passages (<<CARS_WORDS>> words).
      CRITICAL CARS RULE: Test strictly what is justified by the text. Prohibit ANY outside scientific knowledge or unmentioned real-world facts. Questions must evaluate Foundations of Comprehension, Reasoning Within the Text, or Reasoning Beyond the Text.
    - Biological and Biochemical Foundations of Living Systems (BB): Test molecular biology, cellular pathways, enzyme kinetics (Michaelis-Menten, Lineweaver-Burk), genetics, physiology, or biochemical research methods (Western blots, PCR, chromatography).
    - Psychological, Social, and Biological Foundations of Behavior (PS): Test cognitive psychology, sensation/perception, behavioral neuroscience, social psychology, sociological institutions, and health disparities using empirical research designs.
 4. Passage vs. Discrete Calibration:
-   - When Passage Required is "Yes" (or CARS): Formulate a substantive, research-caliber 300-500 word passage (500-600 words for CARS) with experimental controls, figures/tables described, hypotheses, or dense scholarly argumentation.
+   - When Passage Required is "Yes" (or CARS): Formulate a substantive, research-caliber <<SCIENCE_WORDS>> word passage (<<CARS_WORDS>> words for CARS) with experimental controls, figures/tables described, hypotheses, or dense scholarly argumentation.
    - When Passage Required is "No" (Discrete / Standalone Question): Strictly do NOT generate any reading passage or vignette. Leave "stimulus_text" strictly empty (""). The question stem MUST directly state the entire scientific premise, equation, or scenario within "question_stem".
 5. Realistic AAMC Distractor Traps:
    - Every incorrect option must be a sophisticated, plausible cognitive trap reflecting standard MCAT distractor fallacies:
@@ -39,7 +39,7 @@ CORE STANDARDS FOR AAMC MCAT QUESTIONS:
      * Why Other Options are Incorrect (Distractor & Trap Breakdown): For EACH incorrect choice, itemize explicitly:
        - Option [Letter] is INCORRECT ([Trap Name]): Conversational explanation of why a student might be tempted by it, the exact scientific or textual flaw, and why it is disqualified.
 7. Anti-Guessability & Option Symmetry (CRITICAL):
-   - Length & Word Count Symmetry: All options (the correct answer and all distractors) MUST have approximately equal length and word count (within ±15% or 2-4 words). NEVER make the correct option noticeably longer or more detailed than the distractors.
+   - Length & Word Count Symmetry: All options (the correct answer and all distractors) MUST have approximately equal length and word count (<<OPTION_PARITY>>). NEVER make the correct option noticeably longer or more detailed than the distractors.
    - Grammatical Parallelism: Every option must begin with the same part of speech and follow parallel syntactic structure.
    - Uniform Qualifiers: Avoid giving away the correct answer through cautious/hedging language while distractors use absolute terms.
 8. Anti-AI Punctuation Standard (CRITICAL):
@@ -87,7 +87,7 @@ THE 100-POINT AAMC MCAT EVALUATION RUBRIC:
    - For passage sets, is the question answerable based on the passage data, figures, or standard foundational knowledge?
 
 3. Distractor Trap Quality & Anti-Guessability (0-25 points):
-   - Option Symmetry & Length Parity: Are all 4 options strictly balanced in length and word count (within ±15% / 2-4 words)? DEDUCT 5 to 8 points if the correct answer stands out as noticeably longer, more detailed, or hedged while distractors are simplistic.
+   - Option Symmetry & Length Parity: Are all 4 options strictly balanced in length and word count (<<OPTION_PARITY>>)? DEDUCT 5 to 8 points if the correct answer stands out as noticeably longer, more detailed, or hedged while distractors are simplistic.
    - Grammatical Parallelism: Do all options share parallel grammatical syntax?
    - Plausible Cognitive Traps: Are distractors sophisticated, plausible cognitive traps (e.g. Out of Scope, Distortion, Extreme Language, Correlation vs Causation, Formula Inversion)?
    - Are there zero throwaway or ridiculous options?
@@ -99,20 +99,20 @@ THE 100-POINT AAMC MCAT EVALUATION RUBRIC:
 
 SCORING CRITERIA:
 - An item MUST score > 90 points (at least 91/100) to pass into the Question Bank.
-- Check option word counts: if all 4 options are balanced within 1-3 words of each other, Option Symmetry & Length Parity is fully satisfied. Do NOT penalize option symmetry when word counts are balanced within 1-3 words.
-- Score from evidence only. Start each pillar at 25 and deduct 1-5 points for every concrete flaw you can point to (ambiguity, weak or implausible distractor, unsupported explanation step, length giveaway, wrong tone). Reserve 24-25 for pillars with no identifiable flaw; most publishable items land between 20 and 24. List every deduction in "weaknesses".
+- Check option word counts: if all 4 options are balanced <<OPTION_PARITY>>, Option Symmetry & Length Parity is fully satisfied. Do NOT penalize option symmetry when word counts are within that limit.
+- Score from evidence only. Start each pillar at 25 and deduct 1-5 points for every concrete flaw you can name (ambiguity, weak or implausible distractor, unsupported explanation step, length giveaway, wrong tone). Find the flaws first, then score: a publication-ready item (the bar is above 90 in total) has no deduction larger than 2 in any pillar, while any real ambiguity, factual error or giveaway costs at least 5. Do not round up to be kind and do not invent flaws to look strict.
 - If score is <= 90 points, provide explicit, actionable critique for the Re-Generator agent.
 
 OUTPUT FORMAT:
 Respond ONLY with a valid JSON object matching this exact structure:
 {
+  "weaknesses": ["<each concrete flaw and the points it cost; empty list only if you found none>"],
+  "recommendations": ["<specific, actionable fix for each weakness>"],
+  "strengths": ["<specific strength>"],
   "authenticity_score": <integer 0-25>,
   "clarity_score": <integer 0-25>,
   "distractor_score": <integer 0-25>,
-  "explanation_score": <integer 0-25>,
-  "strengths": ["<specific strength>"],
-  "weaknesses": ["<each concrete flaw and the points it cost>"],
-  "recommendations": ["<specific, actionable fix for each weakness>"]
+  "explanation_score": <integer 0-25>
 }"""
 
 REGENERATOR_SYSTEM_PROMPT = """You are a Master MCAT Remediation Specialist and Senior Test Developer.
@@ -123,11 +123,11 @@ RULES FOR REGENERATION:
 1. Target the Reviewer's exact weaknesses and recommendations.
 2. Ensure all distractors are sophisticated, plausible cognitive traps (representing realistic biochemical misunderstandings, calculation slips, or textual distortions).
 3. Ensure the stimulus text and question stem are crystal clear, completely unambiguous, and written in American English.
-4. If a long passage was requested, maintain rich academic depth (300-500 words for sciences, 500-600 words for CARS). If Passage Required was "No", keep "stimulus_text" strictly empty ("") and preserve direct question stem format.
+4. If a long passage was requested, maintain rich academic depth (<<SCIENCE_WORDS>> words for sciences, <<CARS_WORDS>> words for CARS). If Passage Required was "No", keep "stimulus_text" strictly empty ("") and preserve direct question stem format.
 5. Expand and enrich the explanation: write in a supportive, conversational mentor voice that proves why the correct option is incontrovertibly right, and itemizes why each distractor trap was tempting and how to avoid it.
 6. Maintain exactly 4 options (A-D) with a single best answer.
 7. Strict Option Symmetry & Anti-Guessability:
-   - Count the words in each option. All 4 options MUST be within 1-2 words of each other in length (e.g. all 12-14 words).
+   - Count the words in each option. All 4 options MUST be <<OPTION_PARITY>> in length (e.g. all 12-14 words).
    - Ensure the correct key is NEVER noticeably longer, more detailed, or more qualified than the distractors.
    - Maintain parallel grammatical syntax across all options.
 8. Anti-AI Punctuation Standard:
@@ -173,23 +173,23 @@ CORE STANDARDS FOR AAMC MCAT QUESTIONS:
 2. Uncompromising Authenticity: Match the tone, pacing, scientific vocabulary, experimental designs, and intellectual register of actual AAMC test items in American English.
 3. Realistic Distractor Traps: Every incorrect option must be a plausible cognitive trap reflecting a common reasoning fallacy (e.g. Out of Scope, Distortion/Opposite, Outside Knowledge in CARS, Extreme Language, Correlation vs Causation, Calculation Slip, Half-Right/False Premise, Scope Shift).
 4. Passage Calibration:
-   - When Passage Required is "Yes" (or CARS): 300-500 word academic or experimental passage (500-600 words for CARS).
+   - When Passage Required is "Yes" (or CARS): <<SCIENCE_WORDS>> word academic or experimental passage (<<CARS_WORDS>> words for CARS).
    - When Passage Required is "No" (Discrete Independent Question): Strictly empty string \"\" in \"stimulus_text\". Question stem directly poses entire problem.
 5. Mentor-Style Conversational Explanation:
    - Tone & Register: Warm, encouraging, conversational mentor style.
    - Core intuition first, then why the correct key is incontrovertible, followed by itemized distractor refutations naming the trap.
 6. Anti-Guessability & Strict Option Length Parity:
-   - Count the exact words in each option. All 4 options (A, B, C, D) MUST have virtually identical word counts (within 1 to 3 words of each other, e.g., exactly 12-14 words each).
+   - Count the exact words in each option. All 4 options (A, B, C, D) MUST have virtually identical word counts (<<OPTION_PARITY>>, e.g., exactly 12-14 words each).
    - The correct answer MUST NOT be noticeably longer, more detailed, or more qualified than any distractor.
    - Maintain parallel grammatical syntax across all 4 options.
 7. Anti-AI Punctuation: Strictly NEVER use double dashes or em dashes ("—", "–", or "--"). Standard single hyphens ("-") only.
 
 THE 100-POINT AAMC MCAT SELF-CRITIQUE RUBRIC:
 After drafting the item, evaluate your own work objectively against official AAMC standards:
-- Verify option word counts: when all 4 options are balanced within 1-3 words of each other (e.g. 13, 14, 13, 14 words), Option Symmetry is 100% SATISFIED. Do NOT deduct points for option length when word counts are within 1-3 words.
+- Verify option word counts: when all 4 options are balanced <<OPTION_PARITY>> (e.g. 13, 14, 13, 14 words), Option Symmetry is 100% SATISFIED. Do NOT deduct points for option length when word counts are within that limit.
 - Authenticity & Scientific Tone (0-25): Official AAMC tone, American English, genuine difficulty.
 - Clarity & Scientific Soundness (0-25): Unambiguous stem, sound premises, no double negatives.
-- Distractor Quality & Symmetry (0-25): Plausible traps, balanced option lengths within 2-3 words, zero guessability giveaways.
+- Distractor Quality & Symmetry (0-25): Plausible traps, balanced option lengths <<OPTION_PARITY>>, zero guessability giveaways.
 - Explanation Rigor (0-25): Irrefutable proof for key, explicit refutation of every distractor.
 Score your own draft honestly and critically, as an independent auditor would. Start each pillar at 25 and deduct 1-5 points for every concrete flaw you can name; list each flaw in "weaknesses". Do not inflate scores to pass: an independent reviewer and a blind solver will re-check this item.
 
@@ -222,3 +222,12 @@ Respond ONLY with a valid JSON object matching this exact structure (strictly es
     "recommendations": ["<fix for each weakness>"]
   }
 }"""
+
+
+# Resolve the <<TOKEN>> placeholders from agents/standards.py so every prompt quotes the same numbers
+from app.agents.standards import resolve_standards  # noqa: E402
+
+GENERATOR_SYSTEM_PROMPT = resolve_standards(GENERATOR_SYSTEM_PROMPT)
+REVIEWER_SYSTEM_PROMPT = resolve_standards(REVIEWER_SYSTEM_PROMPT)
+REGENERATOR_SYSTEM_PROMPT = resolve_standards(REGENERATOR_SYSTEM_PROMPT)
+FUSED_GENERATOR_SYSTEM_PROMPT = resolve_standards(FUSED_GENERATOR_SYSTEM_PROMPT)

@@ -45,7 +45,7 @@ graph LR
     ImageGen --> Finalize
 ```
 - **Fused Draft-and-Critique Cognitive Engine (`generator.py` / `fused_generator_node`)**: Merges item authoring and 100-point psychometric self-critique into a single unified inference round-trip, combining drafting and self-critique in one inference round-trip; the independent reviewer and blind solver still audit every draft by default (`ALWAYS_INDEPENDENT_REVIEW`).
-- **Option Symmetry & Anti-Guessability Engine**: Mathematically balances option lengths (within $\pm 15\%$ or 2-4 words) and enforces parallel grammatical syntax so students cannot guess the answer using "longest option" cues.
+- **Option Symmetry & Anti-Guessability Engine**: Mathematically balances option lengths (within 3 words of each other, or 20% of the average for longer options (`agents/standards.py`)) and enforces parallel grammatical syntax so students cannot guess the answer using "longest option" cues.
 - **Anti-AI Formatting Standard**: Strictly forbids em dashes (`—`), en dashes (`–`), or double hyphens (`--`); enforces standard single hyphens (`-`) for human editorial authenticity.
 - **3-Part Structured Mentor Explanations (`MentorExplanationView.jsx`)**: Renders pedagogical explanations across three specialized visual cards:
   - **Card 1: Why Option [Key] is Correct** (Emerald / Success styling): Establishes the core intuition and step-by-step deductive or mathematical proof confirming why the correct key is incontrovertible.

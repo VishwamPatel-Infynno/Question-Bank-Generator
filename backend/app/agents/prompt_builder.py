@@ -8,6 +8,11 @@ external services.
 
 from __future__ import annotations
 
+from app.agents.standards import (
+    CARS_PASSAGE_WORDS,
+    OPTION_PARITY_TEXT,
+    SCIENCE_PASSAGE_WORDS,
+)
 from app.schemas import (
     MCAT_SECTION_LABELS,
     GenerationRequest,
@@ -56,7 +61,7 @@ Section: {section_name}"""
     user_prompt += "\nInteraction Format: Single Choice (4 options: A, B, C, D)"
     user_prompt += (
         "\nCRITICAL OPTION LENGTH MANDATE: All 4 options (A, B, C, D) MUST have virtually identical word counts "
-        "(within 1 to 3 words of each other, e.g., exactly 12-14 words each). The correct answer MUST NOT be "
+        f"({OPTION_PARITY_TEXT}). The correct answer MUST NOT be "
         "longer, more qualified, or more detailed than any distractor."
     )
 
@@ -136,8 +141,9 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
 ---"""
     elif req.is_passage_active:
         user_prompt += (
-            "\nPassage Required: Yes - Provide a rigorous, substantive 300-500 word experimental/biomedical study "
-            "(or 500-600 word humanities/social sciences essay for CARS) with clear paragraphing and empirical data descriptions."
+            f"\nPassage Required: Yes - Provide a rigorous, substantive {SCIENCE_PASSAGE_WORDS[0]}-{SCIENCE_PASSAGE_WORDS[1]} word "
+            f"experimental/biomedical study (or {CARS_PASSAGE_WORDS[0]}-{CARS_PASSAGE_WORDS[1]} word humanities/social sciences "
+            "essay for CARS) with clear paragraphing and empirical data descriptions."
         )
     else:
         user_prompt += (
@@ -189,7 +195,7 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
 
     user_prompt += (
         "\nANTI-GUESSABILITY & OPTION SYMMETRY MANDATE:\n"
-        "- All options MUST have roughly equal length and word count (strictly within ±15% or 2-4 words of each other).\n"
+        f"- All options MUST have roughly equal length and word count ({OPTION_PARITY_TEXT}).\n"
         "- The correct option MUST NOT be the longest choice or the most qualified/hedged statement.\n"
         "- Use parallel grammatical syntax across all choices (identical part of speech and structural format).\n"
         "- Ensure distractors represent authentic, highly plausible cognitive reasoning traps."
@@ -199,7 +205,7 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
         user_prompt += (
             "\nSELF-CRITIQUE INSTRUCTION:\n"
             "After composing the question, options, and explanation, audit your own draft as a skeptical independent reviewer.\n"
-            "Check option lengths (all 4 choices within 1-3 words of each other, parallel syntax). Score each pillar from 0-25 "
+            f"Check option lengths (all 4 choices {OPTION_PARITY_TEXT}, parallel syntax). Score each pillar from 0-25 "
             "by deducting points for every concrete flaw you can name, and list each flaw under weaknesses. "
             "Do not inflate scores: an independent reviewer and a blind solver will re-check this item.\n"
             "Output ONLY valid JSON matching the specified fused schema."

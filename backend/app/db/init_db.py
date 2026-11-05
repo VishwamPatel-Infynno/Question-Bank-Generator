@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -14,10 +15,66 @@ from app.models.question import QuestionModel  # noqa: F401 - Registered for Bas
 logger = logging.getLogger(__name__)
 
 
+_ADD_COLUMN_RE = re.compile(
+    r"ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+(\w+)", re.IGNORECASE
+)
+_CREATE_INDEX_RE = re.compile(
+    r"CREATE\s+(?:UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS\s+(\w+)", re.IGNORECASE
+)
+
+
+class _IdempotentConnection:
+    """Skips DDL whose effect already exists instead of re-running it.
+
+    ``ADD COLUMN IF NOT EXISTS`` and ``CREATE INDEX IF NOT EXISTS`` are no-ops when the object
+    exists, but PostgreSQL still takes a table lock first (ACCESS EXCLUSIVE for ALTER TABLE). Run on
+    every start or test, that lock deadlocks against queries from running batch tasks. Checking the
+    catalog first means a fully migrated database is never locked.
+    """
+
+    def __init__(self, conn, columns: set[tuple[str, str]], indexes: set[str]):
+        self._conn = conn
+        self._columns = columns
+        self._indexes = indexes
+
+    async def execute(self, statement, *args, **kwargs):
+        sql = getattr(statement, "text", None)
+        if isinstance(sql, str):
+            m = _ADD_COLUMN_RE.search(sql)
+            if m and (m.group(1).lower(), m.group(2).lower()) in self._columns:
+                return None
+            m = _CREATE_INDEX_RE.search(sql)
+            if m and m.group(1).lower() in self._indexes:
+                return None
+        return await self._conn.execute(statement, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+async def _load_existing_schema(conn) -> tuple[set[tuple[str, str]], set[str]]:
+    cols = await conn.execute(
+        text(
+            "SELECT table_name, column_name FROM information_schema.columns "
+            "WHERE table_schema = current_schema()"
+        )
+    )
+    idx = await conn.execute(
+        text("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema()")
+    )
+    return (
+        {(r[0].lower(), r[1].lower()) for r in cols.fetchall()},
+        {r[0].lower() for r in idx.fetchall()},
+    )
+
+
 async def init_db_schema(engine: AsyncEngine):
     """Initializes PostgreSQL tables, verifies schema columns, backfills passages/batches, and ensures FTS indexes."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    async with engine.begin() as raw_conn:
+        await raw_conn.run_sync(Base.metadata.create_all)
+        # Read the catalog AFTER create_all so freshly created tables are included
+        columns, indexes = await _load_existing_schema(raw_conn)
+        conn = _IdempotentConnection(raw_conn, columns, indexes)
 
         # Safe schema update for token tracking columns (PostgreSQL)
         await conn.execute(
