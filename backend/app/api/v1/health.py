@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -16,7 +17,7 @@ router = APIRouter(tags=["Health & Diagnostics"])
 
 
 @router.get("/health/live")
-async def liveness_check():
+async def liveness_check() -> dict[str, Any]:
     """Liveness probe: the process is up and serving. Never touches the database."""
     return {"status": "alive"}
 
@@ -39,7 +40,7 @@ async def readiness_check():
 
 
 @router.get("/health")
-async def health_check(request: Request = None):
+async def health_check(request: Request = None) -> dict[str, Any]:
     """Health check reporting database status, exam standard, and active pricing."""
     db_status = await check_db_health()
     in_rate, out_rate = config.get_default_pricing_rates()

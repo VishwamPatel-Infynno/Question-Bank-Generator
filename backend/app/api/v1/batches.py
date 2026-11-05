@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -48,7 +48,7 @@ router = APIRouter(tags=["Generation Batches"])
     status_code=status.HTTP_202_ACCEPTED,
     dependencies=[Depends(limit_generation_requests), Depends(limit_active_batches)],
 )
-async def start_batch_generation(req: GenerationRequest):
+async def start_batch_generation(req: GenerationRequest) -> dict[str, Any]:
     """
     Launches an asynchronous background batch generation.
     Creates 1 batch record and constituent job records (1 job producing 5 questions for a mini-batch,
@@ -74,7 +74,7 @@ async def list_batches(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
-):
+) -> dict[str, Any]:
     """Lists generation batches (newest first, paginated) with progress counts and concurrency metrics.
 
     Rows omit ``request_payload``; fetch a single batch to read it.
@@ -91,7 +91,7 @@ async def list_batches(
 
 
 @router.get("/batches/{batch_id}")
-async def get_single_batch(batch_id: str):
+async def get_single_batch(batch_id: str) -> dict[str, Any]:
     """
     Retrieves a single generation batch along with its 10 jobs and all generated questions.
     Questions are organized so the client can easily view questions per job.
@@ -131,7 +131,7 @@ async def get_single_batch(batch_id: str):
 
 
 @router.post("/batches/{batch_id}/stop")
-async def stop_single_batch(batch_id: str):
+async def stop_single_batch(batch_id: str) -> dict[str, Any]:
     """Gracefully halts active background jobs for a batch without deleting saved questions."""
     b = await get_batch_by_id(batch_id)
     if not b:
@@ -149,7 +149,7 @@ async def stop_single_batch(batch_id: str):
     "/batches/{batch_id}/retry",
     dependencies=[Depends(limit_generation_requests), Depends(limit_active_batches)],
 )
-async def retry_single_batch(batch_id: str, req: GenerationRequest | None = None):
+async def retry_single_batch(batch_id: str, req: GenerationRequest | None = None) -> dict[str, Any]:
     """Re-launches failed or cancelled jobs for a batch into the global worker pool."""
     b = await get_batch_by_id(batch_id)
     if not b:
@@ -172,7 +172,7 @@ async def retry_single_batch(batch_id: str, req: GenerationRequest | None = None
 
 
 @router.post("/batches/cancel-all")
-async def cancel_all_batches():
+async def cancel_all_batches() -> dict[str, Any]:
     """Gracefully halts all active background batches."""
     stopped_count = await cancel_all_background_batches()
     return {
@@ -183,7 +183,7 @@ async def cancel_all_batches():
 
 
 @router.delete("/batches/{batch_id}")
-async def delete_single_batch(batch_id: str):
+async def delete_single_batch(batch_id: str) -> dict[str, Any]:
     """Deletes a generation batch and cascades delete to jobs and questions."""
     await cancel_background_batch(batch_id)
     deleted = await delete_batch(batch_id)
@@ -193,7 +193,7 @@ async def delete_single_batch(batch_id: str):
 
 
 @router.post("/batches")
-async def create_or_update_batch(batch: GenerationBatch):
+async def create_or_update_batch(batch: GenerationBatch) -> dict[str, Any]:
     """Admin endpoint to create or update a generation batch record."""
     if batch.status not in BATCH_STATUSES:
         raise HTTPException(status_code=422, detail=f"Invalid batch status: {batch.status!r}")
@@ -205,7 +205,7 @@ async def create_or_update_batch(batch: GenerationBatch):
 async def get_batch_duplicate_clusters(
     batch_id: str,
     threshold: Annotated[float, Query(ge=0.5, le=1.0)] = config.DUPLICATE_HARD_THRESHOLD,
-):
+) -> dict[str, Any]:
     """
     Performs pairwise similarity clustering on questions within a batch.
     Returns grouped clusters with designated leader questions and redundant duplicate siblings.
@@ -240,7 +240,7 @@ async def get_batch_duplicate_clusters(
 async def resolve_batch_duplicates(
     batch_id: str,
     payload: ResolveDuplicatesRequest | None = None,
-):
+) -> dict[str, Any]:
     """
     Resolves duplicate clusters in a batch by preserving the designated leader question
     and archiving or deleting the redundant duplicate questions.
@@ -314,7 +314,7 @@ async def resolve_batch_duplicates(
     "/batches/{batch_id}/refill",
     dependencies=[Depends(limit_generation_requests), Depends(limit_active_batches)],
 )
-async def refill_batch_questions(batch_id: str):
+async def refill_batch_questions(batch_id: str) -> dict[str, Any]:
     """
     Replenishes a batch up to its target_count by launching targeted jobs for
     archived or missing questions with diverse pedagogical thematic angles.

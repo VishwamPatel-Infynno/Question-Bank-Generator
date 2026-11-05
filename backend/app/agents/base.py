@@ -108,7 +108,7 @@ def safe_json_loads(text: str) -> Any:
     # 1. Primary: json.loads with strict=False
     try:
         return json.loads(cleaned, strict=False)
-    except Exception as e1:
+    except ValueError as e1:
         logger.debug("Primary json.loads failed: %s. Attempting resilient fallbacks...", e1)
         # 2. Resilient fallback: json_repair (on the cleaned text, then on the raw text)
         for candidate_text, label in ((cleaned, "cleaned"), (text, "raw")):
@@ -116,14 +116,14 @@ def safe_json_loads(text: str) -> Any:
                 res = json_repair.loads(candidate_text)
                 if isinstance(res, (dict, list)) and res:
                     return res
-            except Exception as repair_err:
+            except Exception as repair_err:  # third-party parser: any failure means "try the next"
                 logger.debug("json_repair on %s text failed: %s", label, repair_err)
 
         # 3. Clean low ASCII control characters (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F) and retry
         try:
             sanitized = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", cleaned)
             return json.loads(sanitized, strict=False)
-        except Exception as sanitize_err:
+        except ValueError as sanitize_err:
             logger.debug("json.loads after control-char sanitization failed: %s", sanitize_err)
 
         raise e1

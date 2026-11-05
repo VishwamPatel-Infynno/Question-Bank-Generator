@@ -21,6 +21,16 @@ from app.schemas.question import ACTIVE_QUESTION_STATUSES
 
 logger = logging.getLogger(__name__)
 
+# Stored difficulty labels vary in spelling and case; every spelling of a level shares one bucket
+_LOW_LABELS = ["low", "Low", "easy", "Easy"]
+_MEDIUM_LABELS = ["medium", "Medium", "standard", "Standard"]
+_HIGH_LABELS = ["high", "High", "hard", "Hard"]
+_DIFFICULTY_ALIASES: dict[str, list[str]] = {
+    **dict.fromkeys(("low", "easy"), _LOW_LABELS),
+    **dict.fromkeys(("medium", "standard"), _MEDIUM_LABELS),
+    **dict.fromkeys(("high", "hard"), _HIGH_LABELS),
+}
+
 
 def _model_to_schema(m: QuestionModel, slim: bool = False) -> Question:
     """Converts a SQLAlchemy QuestionModel to a Pydantic Question schema.
@@ -376,14 +386,9 @@ def _build_question_filters(
         conditions.append(QuestionModel.section == section)
     if difficulty:
         diff_lower = difficulty.strip().lower()
-        if diff_lower in ["low", "easy"]:
-            conditions.append(QuestionModel.difficulty.in_(["low", "Low", "easy", "Easy"]))
-        elif diff_lower in ["high", "hard"]:
-            conditions.append(QuestionModel.difficulty.in_(["high", "High", "hard", "Hard"]))
-        elif diff_lower in ["medium", "standard"]:
-            conditions.append(
-                QuestionModel.difficulty.in_(["medium", "Medium", "standard", "Standard"])
-            )
+        aliases = _DIFFICULTY_ALIASES.get(diff_lower)
+        if aliases:
+            conditions.append(QuestionModel.difficulty.in_(aliases))
         else:
             conditions.append(QuestionModel.difficulty == difficulty)
     if combination_id:
@@ -526,9 +531,9 @@ async def get_questions(
             stmt = stmt.order_by(QuestionModel.final_score.asc(), QuestionModel.created_at.desc())
         elif sort_by == "difficulty":
             diff_order = case(
-                (QuestionModel.difficulty.in_(["low", "Low", "easy", "Easy"]), 1),
-                (QuestionModel.difficulty.in_(["medium", "Medium", "standard", "Standard"]), 2),
-                (QuestionModel.difficulty.in_(["high", "High", "hard", "Hard"]), 3),
+                (QuestionModel.difficulty.in_(_DIFFICULTY_ALIASES["low"]), 1),
+                (QuestionModel.difficulty.in_(_DIFFICULTY_ALIASES["medium"]), 2),
+                (QuestionModel.difficulty.in_(_DIFFICULTY_ALIASES["high"]), 3),
                 else_=4,
             )
             stmt = stmt.order_by(diff_order, QuestionModel.created_at.desc())

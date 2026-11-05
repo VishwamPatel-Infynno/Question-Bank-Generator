@@ -57,7 +57,7 @@ async def list_questions(
     limit: Annotated[int | None, Query(ge=1, le=500)] = None,
     offset: Annotated[int | None, Query(ge=0)] = 0,
     slim: Annotated[bool, Query()] = False,
-):
+) -> dict[str, Any]:
     """Lists saved questions from the Question Bank repository along with aggregated metrics."""
     effective_status = None if status == "all" else (status or "in_bank")
     questions = await get_questions(
@@ -112,7 +112,7 @@ async def _require_question(question_id: str) -> Question:
 
 
 @router.get("/questions/{question_id}")
-async def get_single_question(question_id: str):
+async def get_single_question(question_id: str) -> dict[str, Any]:
     """Retrieves a single question by UUID4 primary key."""
     return (await _require_question(question_id)).model_dump()
 
@@ -175,7 +175,7 @@ def _require_valid_status(question: Question) -> None:
 
 
 @router.post("/questions")
-async def approve_and_save_question(question: Question):
+async def approve_and_save_question(question: Question) -> dict[str, Any]:
     """
     Admin approval endpoint: persists an approved candidate question into the Question Bank repository.
     """
@@ -188,7 +188,7 @@ async def approve_and_save_question(question: Question):
 
 
 @router.post("/questions/batch")
-async def batch_approve_and_save_questions(questions: list[Question]):
+async def batch_approve_and_save_questions(questions: list[Question]) -> dict[str, Any]:
     """
     Bulk Admin approval endpoint: persists an array of approved candidate questions into the Question Bank repository in a single atomic transaction.
     """
@@ -204,7 +204,7 @@ async def batch_approve_and_save_questions(questions: list[Question]):
 
 
 @router.delete("/questions/{question_id}")
-async def remove_question(question_id: str):
+async def remove_question(question_id: str) -> dict[str, Any]:
     """Deletes a question by primary key ID."""
     success = await delete_question(question_id)
     if not success:
@@ -213,7 +213,7 @@ async def remove_question(question_id: str):
 
 
 @router.post("/questions/delete-batch")
-async def remove_questions_batch(payload: BatchDeleteRequest):
+async def remove_questions_batch(payload: BatchDeleteRequest) -> dict[str, Any]:
     """Bulk Admin deletion endpoint: removes multiple questions in a single atomic SQL transaction."""
     deleted_count = await delete_questions_batch(payload.ids)
     logger.info(f"Bulk deleted {deleted_count} questions from Question Bank.")
@@ -221,7 +221,7 @@ async def remove_questions_batch(payload: BatchDeleteRequest):
 
 
 @router.delete("/questions/{question_id}/permanent")
-async def purge_single_question(question_id: str):
+async def purge_single_question(question_id: str) -> dict[str, Any]:
     """Permanently deletes a single question by ID from the database."""
     success = await hard_delete_question(question_id)
     if not success:
@@ -231,7 +231,7 @@ async def purge_single_question(question_id: str):
 
 
 @router.post("/questions/purge-batch")
-async def purge_questions_batch_endpoint(payload: BatchDeleteRequest):
+async def purge_questions_batch_endpoint(payload: BatchDeleteRequest) -> dict[str, Any]:
     """Permanently deletes multiple questions from database."""
     purged_count = await hard_delete_questions_batch(payload.ids)
     logger.info(f"Permanently purged {purged_count} questions from database.")
@@ -239,7 +239,7 @@ async def purge_questions_batch_endpoint(payload: BatchDeleteRequest):
 
 
 @router.post("/questions/{question_id}/restore")
-async def restore_single_question(question_id: str):
+async def restore_single_question(question_id: str) -> dict[str, Any]:
     """Restores a soft-deleted question and its associated passage back to active status."""
     restored = await restore_question(question_id)
     if not restored:
@@ -249,7 +249,7 @@ async def restore_single_question(question_id: str):
 
 
 @router.post("/questions/update-status")
-async def batch_update_status(payload: StatusUpdateRequest):
+async def batch_update_status(payload: StatusUpdateRequest) -> dict[str, Any]:
     """Bulk update question lifecycle status."""
     status_val = payload.status.value if hasattr(payload.status, "value") else str(payload.status)
     updated_count = await batch_update_question_status(payload.ids, status_val)
@@ -258,7 +258,9 @@ async def batch_update_status(payload: StatusUpdateRequest):
 
 
 @router.patch("/questions/{question_id}/status")
-async def update_single_status(question_id: str, payload: SingleStatusUpdateRequest):
+async def update_single_status(
+    question_id: str, payload: SingleStatusUpdateRequest
+) -> dict[str, Any]:
     """Update single question lifecycle status."""
     new_status = payload.status.value if hasattr(payload.status, "value") else str(payload.status)
     success = await update_question_status(question_id, new_status)
@@ -268,7 +270,7 @@ async def update_single_status(question_id: str, payload: SingleStatusUpdateRequ
 
 
 @router.post("/questions/{question_id}/override-duplicate")
-async def override_question_duplicate_endpoint(question_id: str):
+async def override_question_duplicate_endpoint(question_id: str) -> dict[str, Any]:
     """
     Admin/Reviewer override endpoint: marks a question's duplicate alert as manually overridden
     and updates its status to 'in_bank'.
@@ -281,7 +283,7 @@ async def override_question_duplicate_endpoint(question_id: str):
 
 
 @router.post("/questions/check-duplicate")
-async def check_question_duplicate_endpoint(payload: DuplicateCheckRequest):
+async def check_question_duplicate_endpoint(payload: DuplicateCheckRequest) -> dict[str, Any]:
     """
     On-demand deduplication check: evaluates a candidate question draft against existing bank items.
     """

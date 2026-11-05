@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -25,14 +25,14 @@ async def list_passages(
     section: Annotated[str | None, Query()] = None,
     subtopic: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
-):
+) -> dict[str, Any]:
     """Lists reading passages in the question bank."""
     passages = await get_passages(section=section, subtopic=subtopic, search=search)
     return {"passages": [p.model_dump() for p in passages]}
 
 
 @router.get("/passages/{passage_id}")
-async def get_single_passage(passage_id: str):
+async def get_single_passage(passage_id: str) -> dict[str, Any]:
     """Retrieves a single reading passage with its linked questions."""
     p = await get_passage_by_id(passage_id)
     if not p:
@@ -46,14 +46,14 @@ async def get_single_passage(passage_id: str):
 
 
 @router.post("/passages")
-async def create_or_update_passage(passage: Passage):
+async def create_or_update_passage(passage: Passage) -> dict[str, Any]:
     """Admin endpoint to create or update a passage record."""
     saved = await save_passage(passage)
     return {"success": True, "passage": saved.model_dump()}
 
 
 @router.delete("/passages/{passage_id}")
-async def remove_passage(passage_id: str):
+async def remove_passage(passage_id: str) -> dict[str, Any]:
     """Admin endpoint to soft-delete a passage record and its associated questions (preserving batch progress)."""
     success, deleted_q_count = await delete_passage(passage_id)
     if not success:
@@ -66,7 +66,7 @@ async def remove_passage(passage_id: str):
 
 
 @router.post("/passages/{passage_id}/restore")
-async def restore_single_passage(passage_id: str):
+async def restore_single_passage(passage_id: str) -> dict[str, Any]:
     """Admin endpoint to restore a soft-deleted passage record."""
     success = await restore_passage(passage_id)
     if not success:

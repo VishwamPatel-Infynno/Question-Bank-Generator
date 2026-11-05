@@ -367,7 +367,7 @@ STANDARDS FOR AAMC MCAT PASSAGES:
                     passage_text = str(data["text"]).strip()
                     image_needed = bool(data.get("image_needed", True))
                     image_prompt = data.get("image_prompt")
-            except Exception as parse_err:
+            except (ValueError, TypeError, KeyError, AttributeError) as parse_err:
                 # Plain-text passages are valid; fall back to the cleaned raw output.
                 logger.debug("Passage output was not JSON, using raw text: %s", parse_err)
 
@@ -523,7 +523,7 @@ async def generate_question_with_self_critique(
                     recommendations=critique.get("recommendations", []),
                     passed=config.passes_quality_gate(total),
                 )
-            except Exception as parse_err:
+            except (ValueError, TypeError, KeyError, AttributeError) as parse_err:
                 logger.warning(f"Failed to parse self_critique object: {parse_err}")
 
         return draft, self_review, usage
