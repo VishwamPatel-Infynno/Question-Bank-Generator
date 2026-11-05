@@ -29,6 +29,17 @@ export function formatExamTime(questions) {
 }
 
 /**
+ * Formats a latency in milliseconds ("840 ms", "2.4 s"); empty string when unknown.
+ * @param {number} ms - Duration in milliseconds
+ * @returns {string}
+ */
+export function formatDurationMs(ms) {
+  if (ms === undefined || ms === null || isNaN(ms) || ms <= 0) return '';
+  const num = Number(ms);
+  return num < 1000 ? `${Math.round(num)} ms` : `${(num / 1000).toFixed(1)} s`;
+}
+
+/**
  * Formats a numeric USD cost to a fixed fractional display string with micro-dollar accuracy.
  * @param {number} cost - Cost in USD
  * @param {number} [decimals=5] - Number of decimal places

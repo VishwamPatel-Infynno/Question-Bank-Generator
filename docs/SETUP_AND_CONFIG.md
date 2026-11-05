@@ -64,6 +64,9 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `COST_PER_MILLION_OUTPUT_TOKENS`| `float` | Dynamic | Dynamic property mapping to active provider output price ($0.294 DeepInfra / $0.50 Anthropic) |
 | `DEFAULT_TEMPERATURE` | `float` | `0.2` | Global default sampling temperature for call_llm |
 | `GENERATOR_TEMPERATURE` | `float` | `0.5` | Drafting temperature: enough variety that a batch on one subtopic does not converge on near-identical questions (invalid JSON is repaired once; low-temperature agents are unchanged) |
+| `DUPLICATE_HARD_THRESHOLD` | `float` | `0.75` | Similarity at or above which a candidate counts as a duplicate (engine anti-collision, batch clustering and auto-resolve) |
+| `DUPLICATE_SOFT_THRESHOLD` | `float` | `0.60` | Similarity at or above which a variety warning is emitted |
+| `DUPLICATE_API_THRESHOLD` | `float` | `0.80` | Stricter threshold for the on-demand `POST /api/questions/check-duplicate` pre-check |
 | `PASSAGE_TEMPERATURE` | `float` | `0.7` | Temperature for reading-passage generation (diversity across sets) |
 | `REGENERATOR_TEMPERATURE` | `float` | `0.2` | Strict remediation temperature for Regenerator |
 | `REVIEWER_TEMPERATURE` | `float` | `0.1` | Deterministic temperature for 100-pt Psychometric Reviewer |

@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from app.core.config import config
 from app.repositories import (
     batch_update_question_status,
     delete_batch,
@@ -190,7 +191,7 @@ async def create_or_update_batch(batch: GenerationBatch):
 @router.get("/batches/{batch_id}/duplicate-clusters")
 async def get_batch_duplicate_clusters(
     batch_id: str,
-    threshold: Annotated[float, Query(ge=0.5, le=1.0)] = 0.75,
+    threshold: Annotated[float, Query(ge=0.5, le=1.0)] = config.DUPLICATE_HARD_THRESHOLD,
 ):
     """
     Performs pairwise similarity clustering on questions within a batch.
@@ -240,7 +241,7 @@ async def resolve_batch_duplicates(
     active_questions = [q for q in linked_questions if is_question_active(q.status)]
     q_dumps = [q.model_dump() for q in active_questions]
 
-    clusters = cluster_questions(q_dumps, threshold=0.75)
+    clusters = cluster_questions(q_dumps, threshold=config.DUPLICATE_HARD_THRESHOLD)
     if not clusters:
         return {
             "success": True,

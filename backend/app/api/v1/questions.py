@@ -9,6 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app.core.config import config
 from app.repositories import (
     batch_update_question_status,
     count_questions,
@@ -248,7 +249,9 @@ async def check_question_duplicate_endpoint(payload: DuplicateCheckRequest | dic
     section = payload.section or ""
     subtopic = payload.subtopic or ""
     ref_pool = await get_subtopic_reference_questions(section=section, subtopic=subtopic, limit=50)
-    dup_res = evaluate_duplicate(payload.model_dump(), ref_pool, threshold=0.80)
+    dup_res = evaluate_duplicate(
+        payload.model_dump(), ref_pool, threshold=config.DUPLICATE_API_THRESHOLD
+    )
     return {"success": True, "duplicate_check": dup_res.model_dump()}
 
 

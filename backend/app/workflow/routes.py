@@ -50,7 +50,8 @@ def route_after_review(state: AgentWorkflowState) -> str:
     review = state.get("current_review")
     iteration = state.get("iteration_count", 1)
 
-    score = review.get("total_score", 100) if review else 100
+    # No review means nothing vouched for this draft: fail closed instead of passing it
+    score = review.get("total_score", 0) if review else 0
     threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
     max_attempts = config.MAX_REGENERATION_ATTEMPTS
 

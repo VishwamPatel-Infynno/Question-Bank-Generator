@@ -11,6 +11,7 @@ from __future__ import annotations
 import difflib
 import logging
 import re
+from collections import OrderedDict
 from typing import Any
 
 from pydantic import BaseModel
@@ -124,34 +125,37 @@ def extract_content_tokens(text: str | None) -> list[str]:
     return [t for t in normalized.split() if t not in STOP_WORDS and len(t) > 1]
 
 
-# In-memory LRU token cache for reference bank questions: keyed by reference ID or stem hash
-_STEM_TOKEN_CACHE: dict[str, tuple[str, list[str], set[str], set[tuple[str, str]]]] = {}
+# In-memory LRU token cache keyed by the normalized stem text itself. Keying by question id (as
+# before) served stale tokens after an edit and never cached the candidate; the text is the
+# truth, so equal stems share one entry whoever owns them.
+_StemTokens = tuple[str, list[str], set[str], set[tuple[str, str]]]
+_STEM_TOKEN_CACHE: OrderedDict[str, _StemTokens] = OrderedDict()
 _MAX_STEM_CACHE_SIZE = 2000
 
 
-def get_or_create_stem_tokens(
-    stem: str | None, ref_id: str | None = None
-) -> tuple[str, list[str], set[str], set[tuple[str, str]]]:
+def get_or_create_stem_tokens(stem: str | None, ref_id: str | None = None) -> _StemTokens:
     """
     Returns normalized text, filtered tokens list, tokens set, and bigrams set for a stem.
-    Uses in-memory cache when ref_id is provided to eliminate redundant tokenization across batch runs.
-    """
-    if ref_id and ref_id in _STEM_TOKEN_CACHE:
-        return _STEM_TOKEN_CACHE[ref_id]
 
+    ``ref_id`` is accepted for backward compatibility and ignored: entries are keyed by content.
+    Least-recently-used entries are evicted one at a time instead of flushing the whole cache.
+    """
     norm = normalize_text(stem)
+    cached = _STEM_TOKEN_CACHE.get(norm)
+    if cached is not None:
+        _STEM_TOKEN_CACHE.move_to_end(norm)
+        return cached
+
     tokens = [t for t in norm.split() if t not in STOP_WORDS and len(t) > 1] if norm else []
     token_set = set(tokens)
     bigrams = (
         {tuple(tokens[i : i + 2]) for i in range(len(tokens) - 1)} if len(tokens) >= 2 else set()
     )
-    item = (norm, tokens, token_set, bigrams)
+    item: _StemTokens = (norm, tokens, token_set, bigrams)
 
-    if ref_id:
-        if len(_STEM_TOKEN_CACHE) >= _MAX_STEM_CACHE_SIZE:
-            _STEM_TOKEN_CACHE.clear()
-        _STEM_TOKEN_CACHE[ref_id] = item
-
+    _STEM_TOKEN_CACHE[norm] = item
+    while len(_STEM_TOKEN_CACHE) > _MAX_STEM_CACHE_SIZE:
+        _STEM_TOKEN_CACHE.popitem(last=False)
     return item
 
 

@@ -160,7 +160,8 @@ export function useAppState() {
       // If there are running background batches, poll every 4s; otherwise idle poll at 30s
       const delay = activeBatchCountRef.current > 0 ? 4000 : 30000;
       timer = setTimeout(() => {
-        refreshGlobalCounts();
+        // No point refreshing counts nobody can see; the visibility handler catches up on return
+        if (document.visibilityState !== 'hidden') refreshGlobalCounts();
         scheduleNext();
       }, delay);
     };

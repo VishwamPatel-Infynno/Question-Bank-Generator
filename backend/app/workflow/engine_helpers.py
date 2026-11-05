@@ -831,8 +831,8 @@ async def _refresh_duplicate_info_after_review(
     req: GenerationRequest,
     db_reference_pool: list[Question],
     outcomes_questions: list[dict[str, Any] | None],
-    threshold: float = 0.75,
-    soft_threshold: float = 0.60,
+    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
+    soft_threshold: float = config.DUPLICATE_SOFT_THRESHOLD,
     batch_key: str | None = None,
 ) -> None:
     """Re-checks duplicates for a draft that the review loop rewrote.
@@ -867,8 +867,8 @@ async def _run_deduplication_anti_collision_loop(
     event_queue: asyncio.Queue[WorkflowEvent | None],
     make_event: Callable[..., WorkflowEvent],
     max_retries: int = 3,
-    threshold: float = 0.75,
-    soft_threshold: float = 0.60,
+    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
+    soft_threshold: float = config.DUPLICATE_SOFT_THRESHOLD,
     batch_key: str | None = None,
 ) -> None:
     """

@@ -299,3 +299,28 @@ async def test_auto_resolve_does_not_claim_refill_when_no_job_was_launched(monke
     res = await auto_resolve_batch_and_refill(batch_id, current_cycle=1, max_cycles=3)
     assert res["deficit"] > 0
     assert res["refill_launched"] is False
+
+
+def test_stem_token_cache_is_keyed_by_content_and_evicts_one_at_a_time(monkeypatch):
+    from app.services import deduplication as dd
+
+    dd._STEM_TOKEN_CACHE.clear()
+    monkeypatch.setattr(dd, "_MAX_STEM_CACHE_SIZE", 3)
+
+    first = dd.get_or_create_stem_tokens("Which enzyme catalyzes glycolysis step one?")
+    # An edited stem under the same id must NOT return the old tokens (the old id-keyed cache did)
+    edited = dd.get_or_create_stem_tokens("Completely different stem about optics lenses", "q1")
+    assert edited[0] != first[0]
+    assert dd.get_or_create_stem_tokens("Which enzyme catalyzes glycolysis step one?") is first
+
+    for i in range(5):
+        dd.get_or_create_stem_tokens(f"filler stem number {i} about topic {i}")
+    # Bounded LRU: never flushed wholesale, never above the cap
+    assert len(dd._STEM_TOKEN_CACHE) == 3
+
+
+def test_duplicate_thresholds_come_from_config():
+    from app.core.config import config
+
+    assert config.DUPLICATE_SOFT_THRESHOLD < config.DUPLICATE_HARD_THRESHOLD
+    assert config.DUPLICATE_HARD_THRESHOLD <= config.DUPLICATE_API_THRESHOLD

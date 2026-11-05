@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertTriangle, ShieldCheck, Sparkles, Target, Zap, Image as ImageIcon } from 'lucide-react';
 import { Modal } from '../common';
-import { getEffectiveTrapInfo, formatTokenCount, formatCostUsd } from '../../utils';
+import { getEffectiveTrapInfo, formatTokenCount, formatCostUsd, formatDurationMs } from '../../utils';
 import { fetchQuestionById } from '../../services/api';
 
 /**
@@ -54,6 +54,10 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
   );
 
   const totalCost = Number(question.cost_usd || 0.0);
+  // Per-stage latency recorded by the engine (usage entries carry duration_ms)
+  const stageTimings = (Array.isArray(question.token_usage_details) ? question.token_usage_details : [])
+    .filter((entry) => entry && Number(entry.duration_ms) > 0);
+  const totalDurationMs = stageTimings.reduce((sum, entry) => sum + Number(entry.duration_ms), 0);
   const visualCost = Number(
     question.stage_outcomes?.visual_stimulus?.usage?.cost_usd ||
     (hasVisual ? 0.020 : 0.0)
@@ -162,6 +166,23 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
               <span className="audit-invoice-match">
                 Exact Invoice Match
               </span>
+            </div>
+          )}
+
+          {stageTimings.length > 0 && (
+            <div className="audit-cost-breakdown">
+              <div className="audit-cost-breakdown-details">
+                <span>
+                  <strong className="audit-engine-title">Pipeline latency:</strong>{' '}
+                  {formatDurationMs(totalDurationMs)} model time
+                </span>
+                {stageTimings.map((entry, idx) => (
+                  <span key={`${entry.agent}-${entry.iteration}-${idx}`}>
+                    {entry.agent}
+                    {entry.iteration > 1 ? ` (v${entry.iteration})` : ''}: {formatDurationMs(entry.duration_ms)}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>

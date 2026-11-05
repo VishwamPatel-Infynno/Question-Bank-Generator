@@ -14,6 +14,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.config import config
 from app.repositories import (
     batch_update_question_status,
     get_batch_by_id,
@@ -234,7 +235,7 @@ async def auto_resolve_batch_and_refill(
     batch_id: str,
     current_cycle: int = 1,
     max_cycles: int = 3,
-    threshold: float = 0.75,
+    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
 ) -> dict[str, Any]:
     """
     Evaluates active questions in a batch for duplicate clusters, permanently deletes

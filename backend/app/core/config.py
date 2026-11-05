@@ -468,6 +468,10 @@ class Settings(BaseSettings):
     # Multi-Agent Workflow Parameters
     MAX_REGENERATION_ATTEMPTS: int = 3
     PASSING_SCORE_THRESHOLD: int = 90
+    # Duplicate detection: engine/batch thresholds and the (stricter) on-demand API threshold
+    DUPLICATE_HARD_THRESHOLD: float = 0.75
+    DUPLICATE_SOFT_THRESHOLD: float = 0.60
+    DUPLICATE_API_THRESHOLD: float = 0.80
     # When True the independent reviewer always audits a draft, even if its own self-critique passed.
     ALWAYS_INDEPENDENT_REVIEW: bool = True
     # Allow mock/heuristic fixtures when no LLM credentials exist (demos, tests). Off by default:
