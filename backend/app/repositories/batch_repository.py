@@ -141,7 +141,9 @@ async def refresh_batch_aggregates(
     so that deduplication and refills do not cause premature completion.
     """
     async with async_session_factory() as session:
-        batch_model = await session.get(GenerationBatchModel, batch_id)
+        # Row lock: concurrent jobs refresh the same batch; without it two refreshes compute from
+        # different snapshots and the last commit can move counts or status backwards.
+        batch_model = await session.get(GenerationBatchModel, batch_id, with_for_update=True)
         if not batch_model:
             return None
 

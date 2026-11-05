@@ -18,6 +18,7 @@ from typing import Any
 
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
+from app.core.concurrency import get_global_pipeline_semaphore
 from app.core.config import config
 from app.core.logging import bind_log_context
 from app.repositories import (
@@ -234,7 +235,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         yield f"data: {start_evt.model_dump_json()}\n\n"
 
         # Worker Pool Concurrency
-        semaphore = asyncio.Semaphore(config.GLOBAL_MAX_CONCURRENT_JOBS)
+        semaphore = get_global_pipeline_semaphore()
         event_queue: asyncio.Queue[WorkflowEvent | None] = asyncio.Queue()
 
         outcomes_questions: list[dict[str, Any] | None] = [None] * total_qty
@@ -831,6 +832,7 @@ async def run_workflow(req: GenerationRequest) -> WorkflowRunResult:
     """Non-streaming execution of the multi-agent workflow."""
     status = "failed"
     final_data = {}
+    last_rejection: dict[str, Any] = {}
     async for raw_chunk in run_workflow_stream(req):
         line = raw_chunk.strip()
         if line.startswith("data: "):
@@ -839,9 +841,12 @@ async def run_workflow(req: GenerationRequest) -> WorkflowRunResult:
             if etype == "workflow_complete":
                 status = "approved"
                 final_data = evt.get("data", {})
+            elif etype == "question_rejected":
+                # One attempt was rejected; the slot may still succeed on a retry
+                last_rejection = evt.get("data", {})
             elif etype == "workflow_rejected":
                 status = "rejected_below_threshold"
-                final_data = evt.get("data", {})
+                final_data = last_rejection or evt.get("data", {})
             elif etype == "workflow_error":
                 if status != "rejected_below_threshold":
                     status = "error"

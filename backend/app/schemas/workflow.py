@@ -211,7 +211,7 @@ class WorkflowEvent(BaseModel):
     )
     run_id: str | None = Field(None, description="Execution run UUID4")
     batch_id: str | None = Field(None, description="Batch execution UUID4")
-    event_type: str  # 'workflow_start', 'agent_start', 'agent_complete', 'workflow_complete', 'workflow_rejected', 'workflow_error'
+    event_type: str  # 'workflow_start', 'agent_start', 'agent_complete', 'workflow_complete', 'question_rejected', 'workflow_rejected', 'workflow_error'
     agent_name: str  # 'Question Generator', 'Question Reviewer', 'Question Re-Generator', 'Image Generator', 'Quality Gate', 'System'
     message: str
     data: dict[str, Any] | None = None

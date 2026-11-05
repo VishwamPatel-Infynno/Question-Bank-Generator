@@ -506,6 +506,7 @@ class Settings(BaseSettings):
     BLIND_SOLVER_MAX_TOKENS: int = 1200
 
     # Global Multi-Batch Concurrency & Rate Limiting Controls
+    GLOBAL_MAX_CONCURRENT_PIPELINES: int = 8  # question pipelines in flight across all runs
     GLOBAL_MAX_CONCURRENT_JOBS: int = 4
     GLOBAL_MAX_CONCURRENT_LLM_CALLS: int = 10
     LLM_MAX_RETRIES: int = 3

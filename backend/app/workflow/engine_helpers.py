@@ -287,7 +287,7 @@ async def _run_question_review_loop(
                 rej_data["stage"] = "rejected"
             await event_queue.put(
                 make_event(
-                    event_type="workflow_rejected",
+                    event_type="question_rejected",
                     agent_name="Quality Gate",
                     message=f"Question {idx + 1} could not be repaired after {iteration} attempts: {format_violations(blockers)}",
                     data=rej_data,
@@ -395,7 +395,7 @@ async def _run_question_review_loop(
                     rej_data["index"] = idx + 1
                     rej_data["stage"] = "rejected"
                 rej_evt = make_event(
-                    event_type="workflow_rejected",
+                    event_type="question_rejected",
                     agent_name="Quality Gate",
                     message=f"Quality check not passed for Question {idx + 1} (Score {score}/100 after {iteration} attempts).",
                     data=rej_data,
@@ -510,7 +510,7 @@ async def _run_question_review_loop(
             rej_res = await reject_node(state)
             state.update(rej_res)
             rej_evt = make_event(
-                event_type="workflow_rejected",
+                event_type="question_rejected",
                 agent_name="Quality Gate",
                 message=f"Blind-Solver validation failed after {iteration} attempts for Question {idx + 1}.",
                 data=state.get("rejection_data") or {},
