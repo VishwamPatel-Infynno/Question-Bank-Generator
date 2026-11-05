@@ -30,19 +30,25 @@ async_session_factory = async_sessionmaker(
 )
 
 
-async def init_db():
-    """Initializes PostgreSQL database tables, migrations, and indexes."""
+async def init_db() -> bool:
+    """Initializes PostgreSQL database tables, migrations, and indexes.
+
+    Returns True once the schema is ready; False when the database could not be reached or
+    migrated (the caller may retry later).
+    """
     logger.info("Initializing PostgreSQL schema and connections...")
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1;"))
         await init_db_schema(engine)
         logger.info("PostgreSQL database schema initialized successfully.")
+        return True
     except Exception as e:
         logger.warning(
             f"PostgreSQL initialization deferred or unavailable ({e}). "
             "Backend operating in offline / disconnected mode."
         )
+        return False
 
 
 async def check_db_health() -> dict[str, Any]:

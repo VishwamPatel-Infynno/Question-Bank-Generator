@@ -800,3 +800,9 @@ For complete UI design tokens, color scales, typography guidelines, and componen
 - **Resume correctness**: retry and resume run the jobs they selected (their in-memory status is stale after the reset), `stopped` jobs are executable, jobs a finished runner left pending/running are marked `failed`, and the auto-refill only reports "launched" when a job actually started. A stopped `partially_completed` batch stays terminal.
 - **Concurrency limits**: one process-wide pipeline cap (`GLOBAL_MAX_CONCURRENT_PIPELINES`) replaces the per-run limiter that multiplied concurrency; batch aggregate refreshes take a `FOR NO KEY UPDATE` row lock (it serializes writers without conflicting with the key-share lock of question inserts); schema DDL that already exists is skipped, so startup never takes the table locks that deadlocked with running batches.
 - **Security**: client-supplied `api_key` values are never persisted or returned (legacy payloads are scrubbed at startup); an optional `API_ACCESS_KEY` requires `X-API-Key` on mutating routes; text inputs are length-limited; unexpected errors return a generic `{detail, code}` body and keep details in the server log.
+
+### Batch lifecycle guarantees (round 2)
+- `refresh_batch_aggregates(allow_complete=True)` resolves a batch with no pending/running job to a terminal status (`completed`, `partially_completed`, `failed` or `cancelled`); live streamed runs call it on cancellation and failure so they never stay `in_progress`.
+- `stop`/`retry`/`delete` leave a batch that is already terminal (and not running) untouched; `refill` answers 409 while the batch is running.
+- Every job path (main, refill, cancelled, single-slot failure, truncated-output retries) records the tokens and cost it spent.
+- If PostgreSQL is down at startup, the API retries schema initialization in the background (5 s backoff up to 60 s) and then runs the startup maintenance.

@@ -160,6 +160,9 @@ async def delete_batch(batch_id: str) -> bool:
         return True
 
 
+_LIVE_STATUSES = frozenset({"pending", "running", "in_progress"})
+
+
 async def refresh_batch_aggregates(
     batch_id: str, allow_complete: bool = False
 ) -> GenerationBatch | None:
@@ -246,6 +249,20 @@ async def refresh_batch_aggregates(
                     batch_model.status = "in_progress"
             elif batch_model.status != "completed":
                 batch_model.status = "in_progress"
+
+            # Final resolution: a caller that says the batch is done (allow_complete) while no job
+            # is pending or running must leave a terminal status. Without this a batch whose jobs
+            # ended cancelled/stopped (client disconnect, stop then resume) stayed "in_progress"
+            # forever with nothing running it.
+            if allow_complete and active_jobs == 0 and batch_model.status in _LIVE_STATUSES:
+                if actual_count >= target_count and actual_count > 0:
+                    batch_model.status = "completed"
+                elif actual_count > 0 or completed_jobs > 0:
+                    batch_model.status = "partially_completed"
+                elif failed_jobs > 0:
+                    batch_model.status = "failed"
+                else:
+                    batch_model.status = "cancelled"
 
         # If batch is completed or partially completed, promote qualifying active questions (>90 score) to 'ai_validated'
         if batch_model.status in ("completed", "partially_completed"):

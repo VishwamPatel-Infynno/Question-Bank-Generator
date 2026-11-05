@@ -33,6 +33,10 @@ _batch_requests: dict[str, GenerationRequest] = {}
 # Global worker pool semaphore governing concurrent jobs across ALL running batches
 _GLOBAL_JOB_SEMAPHORE: asyncio.Semaphore | None = None
 
+_TERMINAL_STATUSES = frozenset(
+    {"completed", "failed", "cancelled", "partially_completed", "stopped"}
+)
+
 
 def get_global_job_semaphore() -> asyncio.Semaphore:
     """Returns the singleton global worker pool semaphore, lazily initialized."""
@@ -76,6 +80,13 @@ def get_active_batch_metrics() -> dict[str, Any]:
 async def stop_background_batch(batch_id: str) -> bool:
     """Gracefully stops an active batch, halts running tasks, and preserves generated questions."""
     task = _active_batch_tasks.pop(batch_id, None)
+    batch = await get_batch_by_id(batch_id)
+    if batch is None:
+        return False
+    # Nothing is running and the batch already reached a terminal status: stopping must not
+    # rewrite its history (e.g. downgrade a completed batch to partially_completed).
+    if (task is None or task.done()) and batch.status in _TERMINAL_STATUSES:
+        return False
     if task and not task.done():
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -94,6 +105,12 @@ async def stop_background_batch(batch_id: str) -> bool:
         await save_batch(b)
     await refresh_batch_aggregates(batch_id)
     return True
+
+
+def is_batch_running(batch_id: str) -> bool:
+    """True while a background task is executing this batch in this process."""
+    task = _active_batch_tasks.get(batch_id)
+    return task is not None and not task.done()
 
 
 async def cancel_background_batch(batch_id: str) -> bool:

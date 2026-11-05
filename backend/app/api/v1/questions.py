@@ -204,7 +204,9 @@ async def batch_approve_and_save_questions(questions: list[Question]):
 async def remove_question(question_id: str):
     """Deletes a question by primary key ID."""
     success = await delete_question(question_id)
-    return {"success": success}
+    if not success:
+        raise HTTPException(status_code=404, detail="Question not found")
+    return {"success": True}
 
 
 @router.post("/questions/delete-batch")

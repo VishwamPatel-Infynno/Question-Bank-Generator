@@ -763,14 +763,16 @@ async def override_question_duplicate(question_id: str) -> Question | None:
     now_dt = datetime.now(UTC)
     async with async_session_factory() as session:
         model = await session.get(QuestionModel, question_id)
-        if not model:
+        if not model or model.is_deleted:
             return None
         model.is_duplicate_override = True
         dup_dict = dict(model.duplicate_info or {})
         dup_dict["is_overridden"] = True
         dup_dict["overridden_at"] = now_iso
         model.duplicate_info = dup_dict
-        model.status = "in_bank"
+        # A question still held back by a running batch must not leak into the bank early
+        if model.status != "batch_only":
+            model.status = "in_bank"
         model.updated_at = now_dt
         await session.commit()
         await session.refresh(model)

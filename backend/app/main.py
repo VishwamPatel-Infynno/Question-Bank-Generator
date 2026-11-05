@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 
@@ -20,12 +21,8 @@ from app.services.batch_concurrency import cancel_all_background_batches
 logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Lifespan context manager for startup and shutdown events."""
-    configure_logging()
-    logger.info("Initializing Infynno MCAT Question Bank Generator backend...")
-    await init_db()
+async def _post_init_maintenance() -> None:
+    """Startup work that needs a ready database."""
     try:
         scrubbed = await scrub_stored_request_secrets()
         if scrubbed:
@@ -36,11 +33,42 @@ async def lifespan(_app: FastAPI):
         await reconcile_interrupted_batches()
     except Exception as exc:
         logger.warning(f"Batch startup reconciliation skipped or deferred: {exc}")
+
+
+async def _retry_db_init(first_delay: float = 5.0, max_delay: float = 60.0) -> None:
+    """Retries schema initialization with backoff until the database is reachable."""
+    delay = first_delay
+    while True:
+        await asyncio.sleep(delay)
+        if await init_db():
+            logger.info("Database became available; schema initialized.")
+            await _post_init_maintenance()
+            return
+        delay = min(max_delay, delay * 2)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    configure_logging()
+    logger.info("Initializing Infynno MCAT Question Bank Generator backend...")
+    db_ready = await init_db()
+    retry_task: asyncio.Task[None] | None = None
+    if db_ready:
+        await _post_init_maintenance()
+    else:
+        # The database may simply start later than the API (compose, orchestrators): keep trying
+        # instead of leaving every route broken until a manual restart.
+        retry_task = asyncio.create_task(_retry_db_init())
     try:
         yield
     except (asyncio.CancelledError, KeyboardInterrupt):
         pass
     finally:
+        if retry_task is not None and not retry_task.done():
+            retry_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await retry_task
         logger.info("Shutting down backend...")
         # Stop running batches gracefully so progress is saved and no LLM spend is orphaned.
         try:

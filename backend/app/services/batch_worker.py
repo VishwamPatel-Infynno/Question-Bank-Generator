@@ -8,6 +8,7 @@ enforcing autonomous in-flight retries (up to 3 trials) to fulfill target count 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import uuid
@@ -86,8 +87,39 @@ async def _persist_job_question(
             return (saved_q, False)
         return (None, False)
     except Exception as q_err:
-        logger.error(f"Error saving question for job {job_id}: {q_err}")
+        # A generated (and paid for) question could not be stored: keep the traceback, and let the
+        # job's error message say so, instead of a one-line log that nobody sees.
+        logger.error(f"Error saving question for job {job_id}: {q_err}", exc_info=True)
+        with contextlib.suppress(Exception):
+            await update_job_progress(
+                job_id, error_message=f"A generated question could not be saved: {q_err}"[:500]
+            )
         return (None, False)
+
+
+class _JobUsage:
+    """Running token/cost totals for one job across all of its trials."""
+
+    def __init__(self, job: GenerationJob):
+        self.tokens = job.total_tokens or 0
+        self.prompt = job.prompt_tokens or 0
+        self.completion = job.completion_tokens or 0
+        self.cost = job.cost_usd or 0.0
+
+    def add(self, usage: dict[str, Any] | None) -> None:
+        usage = usage or {}
+        self.tokens += usage.get("total_tokens", 0)
+        self.prompt += usage.get("total_prompt_tokens", 0)
+        self.completion += usage.get("total_completion_tokens", 0)
+        self.cost += float(usage.get("total_cost_usd", 0.0))
+
+    def fields(self) -> dict[str, Any]:
+        return {
+            "total_tokens": self.tokens,
+            "prompt_tokens": self.prompt,
+            "completion_tokens": self.completion,
+            "cost_usd": self.cost,
+        }
 
 
 def _is_passage_mode(req: GenerationRequest) -> bool:
@@ -138,10 +170,7 @@ async def _run_single_job_impl(
         is_passage_mode = _is_passage_mode(base_req)
 
         passage_id_for_job = job.passage_id or (str(uuid.uuid4()) if is_passage_mode else None)
-        job_tokens = job.total_tokens or 0
-        job_prompt_tokens = job.prompt_tokens or 0
-        job_completion_tokens = job.completion_tokens or 0
-        job_cost = job.cost_usd or 0.0
+        usage_totals = _JobUsage(job)
 
         from app.workflow.engine import run_workflow_stream
 
@@ -208,8 +237,9 @@ async def _run_single_job_impl(
             )
 
             attempt_new_qs: list[Question] = []
+            stream = run_workflow_stream(attempt_req)
             try:
-                async for raw_chunk in run_workflow_stream(attempt_req):
+                async for raw_chunk in stream:
                     line = raw_chunk.strip()
                     if not line.startswith("data: "):
                         continue
@@ -241,21 +271,13 @@ async def _run_single_job_impl(
                                 if should_abort:
                                     return
 
-                            usage = data.get("cumulative_usage") or {}
-                            job_tokens += usage.get("total_tokens", 0)
-                            job_prompt_tokens += usage.get("total_prompt_tokens", 0)
-                            job_completion_tokens += usage.get("total_completion_tokens", 0)
-                            job_cost += float(usage.get("total_cost_usd", 0.0))
+                            usage_totals.add(data.get("cumulative_usage"))
 
                         elif etype in ("workflow_rejected", "workflow_error") and data.get(
                             "cumulative_usage"
                         ):
                             # A run that produced nothing still spent tokens: count them.
-                            usage = data["cumulative_usage"]
-                            job_tokens += usage.get("total_tokens", 0)
-                            job_prompt_tokens += usage.get("total_prompt_tokens", 0)
-                            job_completion_tokens += usage.get("total_completion_tokens", 0)
-                            job_cost += float(usage.get("total_cost_usd", 0.0))
+                            usage_totals.add(data["cumulative_usage"])
                             if etype == "workflow_error":
                                 raise RuntimeError(data.get("error", "Unknown workflow error"))
 
@@ -274,6 +296,7 @@ async def _run_single_job_impl(
                     trial_count=trial,
                     actual_count=len(current_qs),
                     completed_at=datetime.now(UTC).isoformat(),
+                    **usage_totals.fields(),
                 )
                 await refresh_batch_aggregates(batch_id)
                 raise
@@ -289,6 +312,9 @@ async def _run_single_job_impl(
                     exc_info=True,
                 )
                 await update_job_progress(job.id, error_message=str(exc))
+            finally:
+                # An early return/raise would otherwise leave worker tasks spending tokens until GC
+                await stream.aclose()
 
             # Re-evaluate active question count after attempt
             updated_active_qs = await _get_active_job_questions(batch_id, job.id)
@@ -311,11 +337,8 @@ async def _run_single_job_impl(
             actual_count=final_count,
             trial_count=trial,
             passage_id=passage_id_for_job,
-            total_tokens=job_tokens,
-            prompt_tokens=job_prompt_tokens,
-            completion_tokens=job_completion_tokens,
-            cost_usd=job_cost,
             completed_at=completed_now,
+            **usage_totals.fields(),
         )
 
         await refresh_batch_aggregates(batch_id, allow_complete=False)
@@ -397,10 +420,12 @@ async def _run_single_job_refill_impl(
         )
 
         refill_qs: list[Question] = []
+        usage_totals = _JobUsage(job)
         from app.workflow.engine import run_workflow_stream
 
+        stream = run_workflow_stream(refill_req)
         try:
-            async for raw_chunk in run_workflow_stream(refill_req):
+            async for raw_chunk in stream:
                 line = raw_chunk.strip()
                 if not line.startswith("data: "):
                     continue
@@ -427,6 +452,13 @@ async def _run_single_job_refill_impl(
                             )
                             if should_abort:
                                 return
+                        usage_totals.add(data.get("cumulative_usage"))
+
+                    elif etype in ("workflow_rejected", "workflow_error"):
+                        # A run that produced nothing still spent tokens: count them
+                        usage_totals.add(data.get("cumulative_usage"))
+                        if etype == "workflow_error":
+                            raise RuntimeError(data.get("error", "Unknown workflow error"))
 
                 except json.JSONDecodeError:
                     continue
@@ -440,6 +472,7 @@ async def _run_single_job_refill_impl(
                 trial_count=new_trial,
                 passage_id=passage_id_for_job,
                 completed_at=completed_now,
+                **usage_totals.fields(),
             )
             await refresh_batch_aggregates(batch_id)
             logger.info(
@@ -451,4 +484,8 @@ async def _run_single_job_refill_impl(
                 f"Error replenishing Set #{job.job_number} (Job ID: {job.id}): {exc}",
                 exc_info=True,
             )
-            await update_job_progress(job.id, status="failed", error_message=str(exc))
+            await update_job_progress(
+                job.id, status="failed", error_message=str(exc), **usage_totals.fields()
+            )
+        finally:
+            await stream.aclose()

@@ -29,6 +29,7 @@ from app.services import (
     cancel_background_batch,
     cluster_questions,
     get_active_batch_metrics,
+    is_batch_running,
     launch_background_batch,
     refill_batch_deficit,
     retry_incomplete_jobs_for_batch,
@@ -334,6 +335,9 @@ async def refill_batch_questions(batch_id: str):
     b = await get_batch_by_id(batch_id)
     if not b:
         raise HTTPException(status_code=404, detail="Batch not found")
+    if is_batch_running(batch_id):
+        # A second runner would double the LLM spend and replace the stoppable task handle
+        raise HTTPException(status_code=409, detail="This batch is still running.")
 
     linked_questions = await get_questions(batch_id=batch_id)
     active_count = sum(1 for q in linked_questions if is_question_active(q.status))

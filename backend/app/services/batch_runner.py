@@ -41,6 +41,7 @@ from app.services.batch_concurrency import (
     get_active_batch_metrics,
     get_global_job_semaphore,
     get_stored_batch_request,
+    is_batch_running,
     register_batch_task,
     stop_background_batch,
     store_batch_request,
@@ -75,6 +76,7 @@ __all__ = [
     "auto_resolve_batch_and_refill",
     "cancel_all_background_batches",
     "cancel_background_batch",
+    "is_batch_running",
     "get_active_batch_metrics",
     "get_global_job_semaphore",
     "get_stored_batch_request",
@@ -162,6 +164,11 @@ async def _execute_batch_workflow(
         jobs = target_jobs or await get_jobs_by_batch_id(batch_id)
         if not jobs:
             logger.error(f"No jobs found for batch {batch_id}")
+            failed = await get_batch_by_id(batch_id)
+            if failed and failed.status in ("pending", "running", "in_progress"):
+                failed.status = "failed"
+                failed.error_message = "Batch has no jobs to run."
+                await save_batch(failed)
             return
 
         # An explicit target list (retry/resume) was already filtered by the caller against fresh

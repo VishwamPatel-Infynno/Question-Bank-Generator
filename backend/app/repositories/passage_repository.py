@@ -165,7 +165,7 @@ async def delete_passage(passage_id: str) -> tuple[bool, int]:
         # 1. Soft-delete all linked questions
         del_q_res = await session.execute(
             update(QuestionModel)
-            .where(QuestionModel.passage_id == passage_id)
+            .where(QuestionModel.passage_id == passage_id, QuestionModel.is_deleted.is_(False))
             .values(is_deleted=True, deleted_at=now_dt)
         )
         deleted_q_count = del_q_res.rowcount or 0
@@ -190,6 +190,17 @@ async def restore_passage(passage_id: str) -> bool:
         passage = await session.get(PassageModel, passage_id)
         if not passage:
             return False
+        # Bring back the questions that were removed together with the passage (same deletion
+        # timestamp), but not ones an editor deleted individually at another time.
+        if passage.deleted_at is not None:
+            await session.execute(
+                update(QuestionModel)
+                .where(
+                    QuestionModel.passage_id == passage_id,
+                    QuestionModel.deleted_at == passage.deleted_at,
+                )
+                .values(is_deleted=False, deleted_at=None)
+            )
         passage.is_deleted = False
         passage.deleted_at = None
         await session.commit()

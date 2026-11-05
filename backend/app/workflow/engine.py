@@ -674,7 +674,20 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             event_type="workflow_error",
                             agent_name="System",
                             message=f"Generation failed for Question {idx + 1}: {worker_err!s}",
-                            data={"index": idx + 1, "error": str(worker_err)},
+                            data={
+                                "index": idx + 1,
+                                "error": str(worker_err),
+                                # The batch worker stops reading at the first error event, so the
+                                # spend of this failed run must travel with it.
+                                "cumulative_usage": {
+                                    "total_tokens": sum(outcomes_tokens) + passage_tokens,
+                                    "total_prompt_tokens": sum(outcomes_prompt_tokens)
+                                    + passage_prompt_tokens,
+                                    "total_completion_tokens": sum(outcomes_completion_tokens)
+                                    + passage_completion_tokens,
+                                    "total_cost_usd": round(sum(outcomes_costs) + passage_cost, 7),
+                                },
+                            },
                             run_id=req.run_id,
                         )
                         await event_queue.put(err_evt)

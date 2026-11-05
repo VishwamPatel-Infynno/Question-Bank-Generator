@@ -129,6 +129,22 @@ def safe_json_loads(text: str) -> Any:
         raise e1
 
 
+def _usage_from_response(response: Any, model: str) -> TokenUsage:
+    """Billed usage of a response whose content is discarded (e.g. a truncated completion)."""
+    usage_obj = getattr(response, "usage", None)
+    prompt_tokens = int(getattr(usage_obj, "prompt_tokens", 0) or 0)
+    completion_tokens = int(getattr(usage_obj, "completion_tokens", 0) or 0)
+    return TokenUsage(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=prompt_tokens + completion_tokens,
+        cost_usd=calculate_token_cost(
+            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, model=model
+        ),
+        calls=1,
+    )
+
+
 def normalize_model_for_litellm(model: str) -> str:
     """
     Normalizes Anthropic model identifiers so LiteLLM provider detection never fails.
@@ -357,6 +373,8 @@ async def call_llm(
             kwargs["thinking"] = {"type": "disabled"}
 
         max_retries = config.LLM_MAX_RETRIES
+        # Usage of truncated completions that were retried: those calls were billed too
+        truncated_usage: list[TokenUsage] = []
         for attempt in range(max_retries + 1):
             try:
                 # Hold a global LLM slot only for the call itself, never while backing off.
@@ -375,6 +393,7 @@ async def call_llm(
                     current_max = int(kwargs["max_tokens"])
                     ceiling = config.LLM_MAX_TOKENS_CEILING
                     if current_max < ceiling:
+                        truncated_usage.append(_usage_from_response(response, candidate))
                         kwargs["max_tokens"] = min(ceiling, current_max * 2)
                         logger.warning(
                             f"Output truncated at {current_max} tokens on '{candidate}'. "
@@ -438,6 +457,8 @@ async def call_llm(
                 logger.info(
                     f"LLM Call Succeeded [{candidate} via {provider_label}]: {prompt_tokens} in + {completion_tokens} out = {total_tokens} tokens (${cost_usd:.5f})"
                 )
+                if truncated_usage:
+                    usage = sum_usage([*truncated_usage, usage])
                 return content, usage
             except Exception as err:
                 err_str = str(err).lower()

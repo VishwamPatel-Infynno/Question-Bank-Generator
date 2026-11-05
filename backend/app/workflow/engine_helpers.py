@@ -828,7 +828,8 @@ async def _handle_live_job_cancellation(
             actual_count=completed_total,
             completed_at=now_iso,
         )
-        await refresh_batch_aggregates(batch_id)
+        # A live (streamed) run has no background task to finish the batch later, so resolve it now
+        await refresh_batch_aggregates(batch_id, allow_complete=True)
     except (SQLAlchemyError, OSError) as clean_err:
         logger.warning(f"Error updating cancelled live batch {batch_id}: {clean_err}")
 
@@ -847,7 +848,7 @@ async def _handle_live_job_failure(
             error_message=error_msg,
             completed_at=now_iso,
         )
-        await refresh_batch_aggregates(batch_id)
+        await refresh_batch_aggregates(batch_id, allow_complete=True)
     except (SQLAlchemyError, OSError) as clean_err:
         logger.warning(f"Error updating failed live batch {batch_id}: {clean_err}")
 
