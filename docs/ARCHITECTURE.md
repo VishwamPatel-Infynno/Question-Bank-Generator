@@ -259,6 +259,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
 ### 3.9 Fail-Closed Generation Policy
 - Reviewer, Blind Solver, Generator, Fused Generator, Passage Writer and Regenerator use heuristic or mock fixtures **only** when no LLM credentials are configured **and** `OFFLINE_MODE=true` is set explicitly (demos and offline tests). Without the flag, a missing key raises `LLMNotConfiguredError`, the run fails fast with a clear message (no slot retries), and mock-produced questions are tagged `stage_outcomes.offline_mode`.
 - Any real provider failure raises instead; the per-slot retry in `engine.py` (up to 3 attempts) absorbs it and emits `question_failed` if all attempts fail. No canned question is ever saved in place of a failed generation.
+- **Validated outputs**: every agent parses model JSON through `call_llm_validated` (`agents/base.py`). Invalid output (missing stem/explanation/key, key not among the options, not 4 options, non-object JSON, out-of-range scores) gets exactly one repair call at temperature 0 that shows the model its own reply and the error; both calls are billed. A second failure raises, so nothing malformed becomes a default (a missing answer key is never guessed as option A, and design metadata such as the trap and AAMC skill is carried over by the regenerator instead of being re-invented).
 - Truncated completions (`finish_reason == "length"`) are retried with a doubled token budget up to `LLM_MAX_TOKENS_CEILING` rather than being "repaired" from partial JSON.
 
 ---

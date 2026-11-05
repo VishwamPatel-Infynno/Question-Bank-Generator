@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from app.agents.base import (
     LLMNotConfiguredError,
     QualityCheckUnavailableError,
-    call_llm,
+    call_llm_validated,
     require_offline_mode,
     safe_json_loads,
 )
@@ -156,41 +156,43 @@ async def _solve_once(
     order = _display_order(draft, variant)
     prompt = _format_blind_solver_prompt(draft, req, order)
     override = config.BLIND_SOLVER_MODEL
-    last_error: Exception | None = None
-    for attempt in (1, 2):
-        try:
-            raw_output, usage = await call_llm(
-                prompt=prompt,
-                system_prompt=BLIND_SOLVER_SYSTEM_PROMPT,
-                # A dedicated solver model must not receive a client key meant for the primary
-                model=override or req.model_name,
-                api_key=None if override else req.api_key,
-                temperature=temperature,
-                max_tokens=config.BLIND_SOLVER_MAX_TOKENS,
-            )
-            data = safe_json_loads(raw_output)
-            if not isinstance(data, dict):
-                raise ValueError(f"Blind solver did not return a JSON object: {data}")
-            shown_key = _extract_key(data.get("selected_key", ""))
-            shown_index = "ABCD".index(shown_key)
-            if shown_index >= len(order):
-                raise ValueError(f"Blind solver selected a nonexistent option: {shown_key}")
-            if "confidence" not in data:
-                raise ValueError("Blind solver response is missing 'confidence'")
-            return _Sample(
-                key=draft.options[order[shown_index]].id.strip().upper(),
-                confidence=int(float(data["confidence"])),
-                is_ambiguous=bool(data.get("is_ambiguous", False)),
-                notes=str(data.get("ambiguity_notes", "")).strip(),
-                rationale=str(data.get("solver_rationale", "")).strip(),
-                usage=usage,
-            )
-        except LLMNotConfiguredError:
-            raise
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Blind solver sample {variant} attempt {attempt}/2 failed: {e}")
-    raise QualityCheckUnavailableError(f"Blind solver failed after 2 attempts: {last_error}")
+
+    def _parse(raw: str) -> _Sample:
+        data = safe_json_loads(raw)
+        if not isinstance(data, dict):
+            raise ValueError(f"Blind solver did not return a JSON object: {data}")
+        shown_index = "ABCD".index(_extract_key(data.get("selected_key", "")))
+        if shown_index >= len(order):
+            raise ValueError("Blind solver selected a nonexistent option")
+        if "confidence" not in data:
+            raise ValueError("Blind solver response is missing 'confidence'")
+        return _Sample(
+            key=draft.options[order[shown_index]].id.strip().upper(),
+            confidence=int(float(data["confidence"])),
+            is_ambiguous=bool(data.get("is_ambiguous", False)),
+            notes=str(data.get("ambiguity_notes", "")).strip(),
+            rationale=str(data.get("solver_rationale", "")).strip(),
+            usage=TokenUsage(),
+        )
+
+    try:
+        sample, usage = await call_llm_validated(
+            prompt=prompt,
+            system_prompt=BLIND_SOLVER_SYSTEM_PROMPT,
+            parse=_parse,
+            # A dedicated solver model must not receive a client key meant for the primary
+            model=override or req.model_name,
+            api_key=None if override else req.api_key,
+            temperature=temperature,
+            max_tokens=config.BLIND_SOLVER_MAX_TOKENS,
+        )
+    except LLMNotConfiguredError:
+        raise
+    except Exception as e:
+        logger.error(f"Blind solver sample {variant} failed: {e}")
+        raise QualityCheckUnavailableError(f"Blind solver failed: {e}") from e
+    sample.usage = usage
+    return sample
 
 
 def _sum_usage(samples: list[_Sample]) -> TokenUsage:

@@ -7,7 +7,8 @@ import os
 import random
 import re
 import time
-from typing import Any
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 import litellm
 
@@ -20,6 +21,8 @@ from app.core.config import config
 from app.schemas import TokenUsage
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 # Configure litellm behavior
 litellm.suppress_debug_info = True
@@ -474,3 +477,52 @@ async def call_llm(
     raise RuntimeError(
         f"AI Generation Failed: Model unreachable or encountered errors. Details: {last_error}"
     )
+
+
+_PARSE_ERRORS = (ValueError, KeyError, TypeError, AttributeError)
+
+
+def _merge_usage(a: TokenUsage, b: TokenUsage) -> TokenUsage:
+    return TokenUsage(
+        prompt_tokens=a.prompt_tokens + b.prompt_tokens,
+        completion_tokens=a.completion_tokens + b.completion_tokens,
+        total_tokens=a.total_tokens + b.total_tokens,
+        cost_usd=round(a.cost_usd + b.cost_usd, 7),
+        duration_ms=(a.duration_ms or 0) + (b.duration_ms or 0) or None,
+    )
+
+
+async def call_llm_validated(
+    prompt: str,
+    system_prompt: str,
+    parse: Callable[[str], T],
+    **llm_kwargs: Any,
+) -> tuple[T, TokenUsage]:
+    """Calls the model and parses its reply, with one repair attempt on invalid output.
+
+    ``parse`` must raise on any structural problem (missing fields, wrong types, bad JSON). On
+    failure the model is shown its own reply and the error and asked once, at temperature 0, for a
+    corrected JSON object; both calls are billed. A second failure raises ``ValueError``, so
+    nothing malformed ever turns into a fabricated default. Provider errors (including
+    ``LLMNotConfiguredError``) propagate untouched.
+    """
+    raw, usage = await call_llm(prompt=prompt, system_prompt=system_prompt, **llm_kwargs)
+    try:
+        return parse(raw), usage
+    except _PARSE_ERRORS as first_error:
+        logger.warning(f"LLM output failed validation ({first_error}); requesting one repair.")
+        repair_prompt = (
+            f"{prompt}\n\n--- YOUR PREVIOUS REPLY WAS INVALID ---\n"
+            f"Problem: {first_error}\n"
+            f"Previous reply (truncated):\n{raw[:4000]}\n\n"
+            "Return ONLY the corrected, complete JSON object in the required schema."
+        )
+        repair_kwargs = {**llm_kwargs, "temperature": 0.0}
+        raw2, usage2 = await call_llm(
+            prompt=repair_prompt, system_prompt=system_prompt, **repair_kwargs
+        )
+        total = _merge_usage(usage, usage2)
+        try:
+            return parse(raw2), total
+        except _PARSE_ERRORS as second_error:
+            raise ValueError(f"LLM output invalid after repair: {second_error}") from second_error

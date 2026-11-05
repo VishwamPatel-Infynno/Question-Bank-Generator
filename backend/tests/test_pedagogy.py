@@ -13,6 +13,13 @@ from app.schemas import (
 )
 
 
+def _base_module():
+    """call_llm_validated resolves call_llm in app.agents.base, so patch it there."""
+    import app.agents.base as base_mod
+
+    return base_mod
+
+
 def test_option_symmetry_and_anti_guessability_engine():
     """Validates calculate_option_symmetry, balance_and_shuffle_options, and remap_explanation_keys."""
     from app.agents.option_balancer import (
@@ -130,8 +137,6 @@ def test_option_symmetry_and_anti_guessability_engine():
 @pytest.mark.asyncio
 async def test_smart_ai_trap_and_explanation_breakdown(monkeypatch):
     import app.agents.generator as gen_mod
-    import app.agents.regenerator as regen_mod
-    import app.agents.reviewer as rev_mod
     from app.agents.base import LLMNotConfiguredError
     from app.agents.mock_fixtures import get_mock_draft
     from app.workflow.graph import run_workflow
@@ -141,8 +146,11 @@ async def test_smart_ai_trap_and_explanation_breakdown(monkeypatch):
         raise LLMNotConfiguredError("Fast fallback to mock draft in unit test")
 
     monkeypatch.setattr(gen_mod, "call_llm", mock_fail_call_llm)
-    monkeypatch.setattr(rev_mod, "call_llm", mock_fail_call_llm)
-    monkeypatch.setattr(regen_mod, "call_llm", mock_fail_call_llm)
+    monkeypatch.setattr(_base_module(), "call_llm", mock_fail_call_llm)
+    # Draft/regenerate calls go through call_llm_validated, which resolves call_llm in base
+    import app.agents.base as base_mod
+
+    monkeypatch.setattr(base_mod, "call_llm", mock_fail_call_llm)
 
     # 1. Automatic Smart AI Trap Choice resolution on draft
     req_auto = GenerationRequest(

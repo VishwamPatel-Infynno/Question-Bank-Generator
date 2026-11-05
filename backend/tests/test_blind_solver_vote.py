@@ -6,6 +6,13 @@ from app.core.config import config
 from app.schemas import GenerationRequest, OptionChoice, QuestionDraft, TokenUsage
 
 
+def _base_module():
+    """call_llm_validated resolves call_llm in app.agents.base, so patch it there."""
+    import app.agents.base as base_mod
+
+    return base_mod
+
+
 def _draft(texts=None, key="A"):
     texts = texts or ["Alpha result", "Beta result", "Gamma result", "Delta result"]
     return QuestionDraft(
@@ -59,7 +66,7 @@ def _solver_that_answers(correct_text_for_key, monkeypatch, confidence=95, ambig
         )
         return body, _usage()
 
-    monkeypatch.setattr(bs, "call_llm", fake)
+    monkeypatch.setattr(_base_module(), "call_llm", fake)
 
 
 @pytest.mark.asyncio
@@ -92,7 +99,7 @@ async def test_split_vote_is_never_verified(monkeypatch):
         )
         return body, _usage()
 
-    monkeypatch.setattr(bs, "call_llm", fake)
+    monkeypatch.setattr(_base_module(), "call_llm", fake)
     result, _ = await bs.blind_solve_question(_draft(), _req())
     assert not result.is_verified and result.is_ambiguous
 
@@ -120,7 +127,7 @@ async def test_dedicated_solver_model_does_not_receive_the_clients_key(monkeypat
         )
         return body, _usage()
 
-    monkeypatch.setattr(bs, "call_llm", fake)
+    monkeypatch.setattr(_base_module(), "call_llm", fake)
     monkeypatch.setattr(config, "BLIND_SOLVER_MODEL", "solver-model")
     monkeypatch.setattr(config, "BLIND_SOLVER_SAMPLES", 1)
     req = _req().model_copy(update={"api_key": "client-key", "model_name": "gen-model"})

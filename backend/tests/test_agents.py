@@ -11,6 +11,13 @@ from app.schemas import (
 from app.workflow.graph import route_after_review
 
 
+def _base_module():
+    """call_llm_validated resolves call_llm in app.agents.base, so patch it there."""
+    import app.agents.base as base_mod
+
+    return base_mod
+
+
 @pytest.mark.asyncio
 async def test_all_mcat_sections_mock():
     for sec in MCATSection:
@@ -216,7 +223,10 @@ async def test_generate_question_with_self_critique_structure(monkeypatch):
     async def mock_call_llm(*_args, **_kwargs):
         return fused_json, mock_usage
 
+    import app.agents.base as base_mod
+
     monkeypatch.setattr(gen_mod, "call_llm", mock_call_llm)
+    monkeypatch.setattr(base_mod, "call_llm", mock_call_llm)
 
     draft2, review2, _usage2 = await generate_question_with_self_critique(req)
     assert draft2.question_stem == "Which option is definitive?"
@@ -229,7 +239,6 @@ async def test_generate_question_with_self_critique_structure(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_blind_solver_node_agreement(monkeypatch):
-    import app.agents.blind_solver as bs_mod
     from app.workflow.nodes import blind_solver_node
 
     req = GenerationRequest(section=MCATSection.BIO_BIOCHEM, difficulty=Difficulty.MEDIUM)
@@ -257,7 +266,7 @@ async def test_blind_solver_node_agreement(monkeypatch):
             prompt_tokens=100, completion_tokens=50, total_tokens=150, cost_usd=0.0001
         )
 
-    monkeypatch.setattr(bs_mod, "call_llm", mock_solver_llm)
+    monkeypatch.setattr(_base_module(), "call_llm", mock_solver_llm)
 
     state = {
         "request": req.model_dump(),
@@ -278,7 +287,6 @@ async def test_blind_solver_node_agreement(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_blind_solver_node_discrepancy_triggers_critique(monkeypatch):
-    import app.agents.blind_solver as bs_mod
     from app.workflow.nodes import blind_solver_node
 
     req = GenerationRequest(section=MCATSection.BIO_BIOCHEM, difficulty=Difficulty.MEDIUM)
@@ -297,7 +305,7 @@ async def test_blind_solver_node_discrepancy_triggers_critique(monkeypatch):
             prompt_tokens=100, completion_tokens=50, total_tokens=150, cost_usd=0.0001
         )
 
-    monkeypatch.setattr(bs_mod, "call_llm", mock_solver_llm)
+    monkeypatch.setattr(_base_module(), "call_llm", mock_solver_llm)
 
     state = {
         "request": req.model_dump(),

@@ -27,6 +27,7 @@ from app.agents.base import (
     LLMNotConfiguredError,
     calculate_token_cost,
     call_llm,
+    call_llm_validated,
     require_offline_mode,
     safe_json_loads,
 )
@@ -101,7 +102,9 @@ def _parse_option_choices(raw_options: Any, data: dict | None = None) -> list[Op
     return options
 
 
-def _parse_correct_keys(data: dict, options: list[OptionChoice]) -> tuple[str, list[str]]:
+def _parse_correct_keys(
+    data: dict, options: list[OptionChoice], fallback_keys: list[str] | None = None
+) -> tuple[str, list[str]]:
     """Extracts the string key representation and list of correct answer keys."""
     raw_id = data.get("correct_answer_id")
     raw_ids = data.get("correct_answer_ids")
@@ -109,8 +112,17 @@ def _parse_correct_keys(data: dict, options: list[OptionChoice]) -> tuple[str, l
         keys_list = [str(k).strip().upper() for k in raw_ids if str(k).strip()]
     elif isinstance(raw_id, str) and raw_id:
         keys_list = [str(k).strip().upper() for k in raw_id.split(",") if str(k).strip()]
+    elif fallback_keys:
+        keys_list = list(fallback_keys)
     else:
-        keys_list = [options[0].id]
+        # Never guess: silently defaulting to option A would certify an arbitrary key.
+        raise ValueError("Model output has no correct_answer_id")
+    valid_ids = {o.id.strip().upper() for o in options}
+    unknown = [k for k in keys_list if k not in valid_ids]
+    if unknown:
+        raise ValueError(
+            f"correct_answer_id {unknown} is not among the options {sorted(valid_ids)}"
+        )
     return ", ".join(keys_list), keys_list
 
 
@@ -192,10 +204,21 @@ def _resolve_effective_stimulus(data: dict, req: GenerationRequest) -> str:
         return ""
     if req.shared_stimulus:
         return req.shared_stimulus.strip()
-    return data.get("stimulus_text", "").strip()
+    return str(data.get("stimulus_text") or "").strip()
+
+
+def _require_text(data: dict, field: str) -> str:
+    value = data.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Model output is missing a non-empty '{field}'")
+    return value
 
 
 def _parse_question_draft_data(data: dict, req: GenerationRequest) -> QuestionDraft:
+    if not isinstance(data, dict):
+        raise ValueError(f"Model output must be a JSON object, got {type(data).__name__}")
+    question_stem = _require_text(data, "question_stem")
+    explanation = _require_text(data, "explanation")
     options = _parse_option_choices(data.get("options", []), data)
     correct_id_str, keys_list = _parse_correct_keys(data, options)
     primary_trap = _detect_primary_trap(data, req)
@@ -210,11 +233,11 @@ def _parse_question_draft_data(data: dict, req: GenerationRequest) -> QuestionDr
 
     return QuestionDraft(
         stimulus_text=effective_stimulus,
-        question_stem=data["question_stem"],
+        question_stem=question_stem,
         options=options,
         correct_answer_id=correct_id_str,
         correct_answer_ids=keys_list,
-        explanation=data["explanation"],
+        explanation=explanation,
         primary_trap=primary_trap,
         aamc_skill=aamc_skill,
         subject=req.subject,
@@ -433,16 +456,15 @@ async def generate_question(
     )
 
     try:
-        raw_output, usage = await call_llm(
+        draft, usage = await call_llm_validated(
             prompt=user_prompt,
             system_prompt=GENERATOR_SYSTEM_PROMPT,
+            parse=lambda raw: _parse_question_draft_data(safe_json_loads(raw), req),
             model=req.model_name,
             api_key=req.api_key,
             temperature=config.GENERATOR_TEMPERATURE,
             max_tokens=config.DEFAULT_MAX_TOKENS,
         )
-        data = safe_json_loads(raw_output)
-        draft = _parse_question_draft_data(data, req)
         draft, _ = balance_and_shuffle_options(draft)
         return draft, usage
     except LLMNotConfiguredError as e:
@@ -478,17 +500,20 @@ async def generate_question_with_self_critique(
     user_prompt = _build_generator_user_prompt(req, fused=True, diversity_context=diversity_context)
 
     try:
-        raw_output, usage = await call_llm(
+
+        def _parse_fused(raw: str) -> tuple[dict, QuestionDraft]:
+            parsed = safe_json_loads(raw)
+            return parsed, _parse_question_draft_data(parsed, req)
+
+        (data, draft), usage = await call_llm_validated(
             prompt=user_prompt,
             system_prompt=FUSED_GENERATOR_SYSTEM_PROMPT,
+            parse=_parse_fused,
             model=req.model_name,
             api_key=req.api_key,
             temperature=config.GENERATOR_TEMPERATURE,
             max_tokens=config.DEFAULT_MAX_TOKENS,
         )
-        data = safe_json_loads(raw_output)
-
-        draft = _parse_question_draft_data(data, req)
         draft, _ = balance_and_shuffle_options(draft)
 
         self_review = None

@@ -20,11 +20,11 @@ from app.agents._mock_tokens import (
 from app.agents.base import (
     LLMNotConfiguredError,
     calculate_token_cost,
-    call_llm,
+    call_llm_validated,
     require_offline_mode,
     safe_json_loads,
 )
-from app.agents.generator import _parse_correct_keys, _parse_option_choices
+from app.agents.generator import _parse_correct_keys, _parse_option_choices, _require_text
 from app.agents.mock_fixtures import improve_draft_heuristically
 from app.agents.prompts import REGENERATOR_SYSTEM_PROMPT
 from app.core.config import config
@@ -35,6 +35,7 @@ from app.schemas import (
     ReviewScore,
     TokenUsage,
 )
+from app.workflow._section_utils import is_cars_section
 
 logger = logging.getLogger(__name__)
 
@@ -109,45 +110,60 @@ CRITICAL REMEDIATION MANDATE:
 
 Please re-generate and refine this question to resolve all weaknesses and produce a publication-grade AAMC MCAT question. Output valid JSON only."""
 
-    try:
-        raw_output, usage = await call_llm(
-            prompt=user_prompt,
-            system_prompt=REGENERATOR_SYSTEM_PROMPT,
-            model=req.model_name,
-            api_key=req.api_key,
-            temperature=config.REGENERATOR_TEMPERATURE,
-            max_tokens=config.DEFAULT_MAX_TOKENS,
-        )
-        data = safe_json_loads(raw_output)
+    def _parse_regenerated(raw: str) -> QuestionDraft:
+        data = safe_json_loads(raw)
+        if not isinstance(data, dict):
+            raise ValueError(f"Model output must be a JSON object, got {type(data).__name__}")
 
-        # Reuse shared parsers from generator.py — single source of truth for option handling
+        # Reuse shared parsers from generator.py - single source of truth for option handling
         options = _parse_option_choices(data.get("options", []), data)
-        correct_id_str, keys_list = _parse_correct_keys(data, options)
+        # Keep the draft's key only when the model omits one (never guess a new key)
+        correct_id_str, keys_list = _parse_correct_keys(
+            data, options, fallback_keys=draft.correct_answer_ids or None
+        )
 
-        # Fall back to the draft's existing answer keys when none are returned
-        if not keys_list:
-            keys_list = draft.correct_answer_ids or [options[0].id]
-            correct_id_str = ", ".join(keys_list)
-
-        effective_stimulus = (
+        stimulus = (
             (
                 req.shared_stimulus.strip()
                 if req.shared_stimulus
-                else data.get("stimulus_text", draft.stimulus_text).strip()
+                else str(data.get("stimulus_text") or draft.stimulus_text or "").strip()
             )
             if is_passage_active
             else ""
         )
 
-        re_draft = QuestionDraft(
-            stimulus_text=effective_stimulus,
-            question_stem=data["question_stem"],
+        # Same visual gating as the generator: never request a figure it would not allow
+        image_allowed = not is_cars_section(req.section) and bool(
+            req.allow_ai_images or req.require_image
+        )
+        return QuestionDraft(
+            stimulus_text=stimulus,
+            question_stem=_require_text(data, "question_stem"),
             options=options,
             correct_answer_id=correct_id_str,
             correct_answer_ids=keys_list,
-            explanation=data["explanation"],
-            image_needed=data.get("image_needed", draft.image_needed),
-            image_prompt_or_type=data.get("image_prompt_or_type", draft.image_prompt_or_type),
+            explanation=_require_text(data, "explanation"),
+            image_needed=image_allowed and bool(data.get("image_needed", draft.image_needed)),
+            image_prompt_or_type=data.get("image_prompt_or_type") or draft.image_prompt_or_type,
+            # Metadata describes the question's design, not this rewrite: carry it over
+            primary_trap=draft.primary_trap,
+            aamc_skill=draft.aamc_skill,
+            subject=draft.subject,
+            unit=draft.unit,
+            topic=draft.topic,
+            subskill=draft.subskill,
+            likely_mistake_pattern=draft.likely_mistake_pattern,
+        )
+
+    try:
+        re_draft, usage = await call_llm_validated(
+            prompt=user_prompt,
+            system_prompt=REGENERATOR_SYSTEM_PROMPT,
+            parse=_parse_regenerated,
+            model=req.model_name,
+            api_key=req.api_key,
+            temperature=config.REGENERATOR_TEMPERATURE,
+            max_tokens=config.DEFAULT_MAX_TOKENS,
         )
         return re_draft, usage
     except LLMNotConfiguredError as e:

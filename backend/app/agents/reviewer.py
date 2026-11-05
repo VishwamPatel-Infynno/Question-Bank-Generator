@@ -18,7 +18,7 @@ from app.agents.base import (
     LLMNotConfiguredError,
     QualityCheckUnavailableError,
     calculate_token_cost,
-    call_llm,
+    call_llm_validated,
     require_offline_mode,
     safe_json_loads,
 )
@@ -108,36 +108,34 @@ Explanation:
 --------------------------
 Evaluate this question thoroughly and return your 100-point rubric breakdown as JSON."""
 
-    last_error: Exception | None = None
-    for attempt in (1, 2):
-        try:
-            raw_output, usage = await call_llm(
-                prompt=user_prompt,
-                system_prompt=REVIEWER_SYSTEM_PROMPT,
-                model=req.model_name,
-                api_key=req.api_key,
-                temperature=config.REVIEWER_TEMPERATURE,
-                max_tokens=config.REVIEWER_MAX_TOKENS,
-            )
-            review = _parse_review(safe_json_loads(raw_output))
-            return review, usage
-        except LLMNotConfiguredError as e:
-            require_offline_mode(e)
-            # No credentials at all: offline demo/test mode keeps using the heuristic reviewer.
-            logger.warning(f"Reviewer LLM not configured, using heuristic review: {e}")
-            mock_usage = TokenUsage(
-                prompt_tokens=REVIEWER_MOCK_PROMPT_TOKENS,
-                completion_tokens=REVIEWER_MOCK_COMPLETION_TOKENS,
-                total_tokens=REVIEWER_MOCK_PROMPT_TOKENS + REVIEWER_MOCK_COMPLETION_TOKENS,
-                cost_usd=calculate_token_cost(
-                    REVIEWER_MOCK_PROMPT_TOKENS,
-                    REVIEWER_MOCK_COMPLETION_TOKENS,
-                ),
-            )
-            return evaluate_heuristically(draft, req, iteration), mock_usage
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Reviewer attempt {attempt}/2 failed: {e}")
-
-    # Fail closed: an item must never pass because its reviewer broke.
-    raise QualityCheckUnavailableError(f"Quality reviewer failed after 2 attempts: {last_error}")
+    try:
+        # One validated call: invalid JSON/scores get a single informed repair (both calls billed);
+        # provider failures are already retried with backoff inside call_llm.
+        review, usage = await call_llm_validated(
+            prompt=user_prompt,
+            system_prompt=REVIEWER_SYSTEM_PROMPT,
+            parse=lambda raw: _parse_review(safe_json_loads(raw)),
+            model=req.model_name,
+            api_key=req.api_key,
+            temperature=config.REVIEWER_TEMPERATURE,
+            max_tokens=config.REVIEWER_MAX_TOKENS,
+        )
+        return review, usage
+    except LLMNotConfiguredError as e:
+        require_offline_mode(e)
+        # No credentials at all: offline demo/test mode keeps using the heuristic reviewer.
+        logger.warning(f"Reviewer LLM not configured, using heuristic review: {e}")
+        mock_usage = TokenUsage(
+            prompt_tokens=REVIEWER_MOCK_PROMPT_TOKENS,
+            completion_tokens=REVIEWER_MOCK_COMPLETION_TOKENS,
+            total_tokens=REVIEWER_MOCK_PROMPT_TOKENS + REVIEWER_MOCK_COMPLETION_TOKENS,
+            cost_usd=calculate_token_cost(
+                REVIEWER_MOCK_PROMPT_TOKENS,
+                REVIEWER_MOCK_COMPLETION_TOKENS,
+            ),
+        )
+        return evaluate_heuristically(draft, req, iteration), mock_usage
+    except Exception as e:
+        # Fail closed: an item must never pass because its reviewer broke.
+        logger.error(f"Quality reviewer failed: {e}")
+        raise QualityCheckUnavailableError(f"Quality reviewer failed: {e}") from e
