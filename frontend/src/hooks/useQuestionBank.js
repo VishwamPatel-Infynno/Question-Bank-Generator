@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useCopyToClipboard } from './useCopyToClipboard';
 import { useRequestGuard } from './useRequestGuard';
+import { useDebouncedValue } from './useDebouncedValue';
 import { formatQuestionForCopy } from '../utils/questionHelpers';
 import { fetchQuestions, deleteQuestion } from '../services/api';
 import { QUESTION_STATUS } from '../constants';
@@ -14,17 +15,9 @@ export function useQuestionBank() {
   const [diffFilter, setDiffFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState(QUESTION_STATUS.IN_BANK);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(searchQuery);
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'score_desc' | 'score_asc' | 'difficulty'
   const { copiedKey: copiedId, copy } = useCopyToClipboard();
-  // Debounce search query by 250ms
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 250);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
-
   const [refreshCount, setRefreshCount] = useState(0);
   const guard = useRequestGuard();
 

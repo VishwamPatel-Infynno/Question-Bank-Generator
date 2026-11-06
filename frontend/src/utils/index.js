@@ -49,5 +49,21 @@ export {
   sortJobQuestions
 } from './batchJobHelpers';
 
+/** Question field helpers shared across cards, tables and exports */
+export {
+  formatQuestionForCopy,
+  pickExportQuestions,
+  getCorrectAnswerIds,
+  isCorrectOption,
+  formatCorrectAnswers,
+  hasQuestionImage,
+  getReviewPillars,
+  getAuditCostBreakdown,
+  filterQuestionsByText
+} from './questionHelpers';
+export { toggleId, toggleAll, allSelected } from './selection';
+export { sortPassages, passageQuestionCounts } from './passageHelpers';
+export { buildBatchPayload } from './batchPayload';
+
 /** Browser file download helper */
 export { downloadTextFile } from './download';

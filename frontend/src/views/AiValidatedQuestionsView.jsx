@@ -7,6 +7,7 @@ import {
   AiValidatedFiltersBar,
   AiValidatedQuestionCard
 } from '../components/validated';
+import { confirmModalProps } from '../components/modals/confirmModalProps';
 
 /**
  * AiValidatedQuestionsView
@@ -142,7 +143,7 @@ export default function AiValidatedQuestionsView({
         </EmptyState>
       ) : (
         <>
-          <div className="ai-validated-list ai-validated-list-container">
+          <div className="ai-validated-list-container">
             {paginatedQuestions.map((question) => (
               <AiValidatedQuestionCard
                 key={question.id}
@@ -176,18 +177,7 @@ export default function AiValidatedQuestionsView({
       )}
 
       {/* ── Standardized Accessible Confirmation Modal ───────────────────── */}
-      <ConfirmationModal
-        isOpen={confirmModal.isOpen}
-        onClose={closeConfirmModal}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        description={confirmModal.description}
-        confirmLabel={confirmModal.confirmLabel}
-        variant={confirmModal.variant}
-        itemCount={confirmModal.itemCount}
-        itemLabel={confirmModal.itemLabel}
-        isProcessing={actionInProgress}
-      />
+      <ConfirmationModal {...confirmModalProps(confirmModal, closeConfirmModal, actionInProgress)} />
     </div>
   );
 }

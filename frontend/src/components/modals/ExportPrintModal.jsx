@@ -92,7 +92,7 @@ export default function ExportPrintModal({
         {/* Modal Header */}
         <div className="modal-header">
           <div className="modal-title-group">
-            <div className="modal-icon-badge exam-export-icon-badge">
+            <div className="exam-export-icon-badge">
               <FileDown size={18} />
             </div>
             <div>

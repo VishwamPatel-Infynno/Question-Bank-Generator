@@ -13,7 +13,7 @@ import BatchQuestionPassageDrawer from './BatchQuestionPassageDrawer';
 import BatchQuestionOptionsList from './BatchQuestionOptionsList';
 import BatchQuestionActions from './BatchQuestionActions';
 import { resolveQuestionStatus } from '../../utils';
-import { QUESTION_STATUS } from '../../constants';
+import { QUESTION_STATUS, SCORE_CUTOFFS } from '../../constants';
 
 /**
  * BatchQuestionItem - Renders an individual question item accordion within a batch set drawer.
@@ -43,9 +43,10 @@ export default function BatchQuestionItem({
 
   const status = resolveQuestionStatus(question);
   const finalScore = question.final_score ?? 95;
-  const isBelowThreshold = status === QUESTION_STATUS.BELOW_THRESHOLD || finalScore <= 85;
+  const isBelowThreshold = status === QUESTION_STATUS.BELOW_THRESHOLD || finalScore <= SCORE_CUTOFFS.batchAbove;
 
-  const scoreTierClass = finalScore > 90 ? 'high' : finalScore > 85 ? 'mid' : 'low';
+  const scoreTierClass =
+    finalScore > SCORE_CUTOFFS.aiValidatedAbove ? 'high' : finalScore > SCORE_CUTOFFS.batchAbove ? 'mid' : 'low';
 
   return (
     <div className={`batch-qitem ${isBelowThreshold ? 'below-threshold' : ''}`}>

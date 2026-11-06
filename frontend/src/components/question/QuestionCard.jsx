@@ -16,6 +16,7 @@ import MentorExplanationView from './MentorExplanationView';
 import QuestionScorecardTab from './QuestionScorecardTab';
 import QuestionInlineEditor from './QuestionInlineEditor';
 import { getEffectiveTrapInfo, calculateOptionSymmetry, countWords } from '../../utils';
+import { getCorrectAnswerIds, getReviewPillars, hasQuestionImage } from '../../utils';
 
 function QuestionCard({ 
   question, 
@@ -58,14 +59,7 @@ function QuestionCard({
     (isEditing && (showStimulusField || (editedStimulus && editedStimulus.trim())))
   );
 
-  const hasImage = Boolean(
-    question?.image_svg ||
-    question?.image_url ||
-    question?.stage_outcomes?.visual_stimulus?.image_svg ||
-    question?.stage_outcomes?.visual_stimulus?.image_url ||
-    question?.stage_outcomes?.passage_visual_stimulus?.image_svg ||
-    question?.stage_outcomes?.passage_visual_stimulus?.image_url
-  );
+  const hasImage = hasQuestionImage(question);
 
   if (!question) return null;
 
@@ -108,16 +102,9 @@ function QuestionCard({
   };
 
   const review = question.review_rubric;
-  const pillars = [
-    { label: 'Scientific Style', score: review?.authenticity_score ?? null, max: 25, color: 'var(--brand-primary)' },
-    { label: 'Clarity & Logic', score: review?.clarity_score ?? null, max: 25, color: 'var(--brand-indigo)' },
-    { label: 'Wrong Answers', score: review?.distractor_score ?? null, max: 25, color: 'var(--status-warning)' },
-    { label: 'Explanation Accuracy', score: review?.explanation_score ?? null, max: 25, color: 'var(--status-success)' },
-  ];
+  const pillars = getReviewPillars(review);
 
-  const correctKeysList = Array.isArray(question.correct_answer_ids) && question.correct_answer_ids.length > 0
-    ? question.correct_answer_ids.map(k => String(k).trim().toUpperCase())
-    : (question.correct_answer_id || '').split(',').map(k => k.trim().toUpperCase()).filter(Boolean);
+  const correctKeysList = getCorrectAnswerIds(question);
 
   return (
     <div className="glass-panel qcard-container">

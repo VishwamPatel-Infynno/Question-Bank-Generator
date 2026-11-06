@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCopyToClipboard } from '../../hooks';
 import { Code2, Copy, Check, ChevronDown, ChevronUp, PenTool, ShieldCheck, RotateCcw, ImageIcon, Sparkles } from 'lucide-react';
+import { SCORE_CUTOFFS } from '../../constants';
 
 export default function StageJsonInspector({ question }) {
   const [isOpen, setIsOpen] = useState(true);
@@ -40,7 +41,7 @@ export default function StageJsonInspector({ question }) {
         audit_id: question.review_rubric?.audit_id,
         evaluated_at: question.review_rubric?.evaluated_at,
         total_score: question.final_score,
-        passed: question.final_score > 90,
+        passed: question.final_score > SCORE_CUTOFFS.aiValidatedAbove,
         authenticity_score: 24,
         clarity_score: 24,
         distractor_score: 23,
@@ -93,7 +94,7 @@ export default function StageJsonInspector({ question }) {
         final_score: question.final_score,
         correct_answer_id: question.correct_answer_id,
         compute_units: question.total_tokens,
-        quality_status: question.final_score > 90 ? 'High Quality' : 'Passed Benchmark',
+        quality_status: question.final_score > SCORE_CUTOFFS.aiValidatedAbove ? 'High Quality' : 'Passed Benchmark',
         created_at: question.created_at
       }
     }
@@ -109,7 +110,7 @@ export default function StageJsonInspector({ question }) {
   };
 
   return (
-    <div className="glass-panel audit-trail-container stage-inspector-wrapper">
+    <div className="glass-panel stage-inspector-wrapper">
       {/* Header Accordion Toggle */}
       <button
         type="button"

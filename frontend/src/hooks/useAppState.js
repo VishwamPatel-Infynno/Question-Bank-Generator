@@ -18,6 +18,7 @@ import {
   fetchQuestionCounts
 } from '../services';
 import { makeId } from '../utils/ids';
+import { buildBatchPayload } from '../utils';
 
 /**
  * Central application state hook.
@@ -206,61 +207,8 @@ export function useAppState() {
 
   // ─── Generate Handler ─────────────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {
-    const {
-      selectedSection,
-      selectedSubject,
-      selectedUnit,
-      selectedTopic,
-      selectedSubtopic,
-      selectedSkill,
-      selectedSubskill,
-      questionType,
-      difficulty,
-      totalQuestions,
-      passageMode,
-      passageRequired,
-      primaryTrap,
-      primaryTraps,
-      likelyMistakePattern,
-      likelyMistakePatterns,
-      customMistakePattern,
-      contentDomains,
-      contentDomain,
-      selectedSubskills,
-      selectedSubtopics,
-      allowAiImages,
-      requireImage,
-      additionalInstructions
-    } = generatorForm.formData;
-
-    const isVisualsPermitted = Boolean(allowAiImages || requireImage);
-
-    const payload = {
-      section: selectedSection,
-      subject: selectedSubject || undefined,
-      unit: selectedUnit || undefined,
-      topic: selectedTopic || undefined,
-      subtopic: (selectedSubtopics && selectedSubtopics.length > 0) ? selectedSubtopics.join(', ') : selectedSubtopic,
-      aamc_skill: selectedSkill || undefined,
-      subskill: (selectedSubskills && selectedSubskills.length > 0) ? selectedSubskills.join(', ') : (selectedSubskill || undefined),
-      question_type: questionType || (passageMode === 'single_passage' ? 'PASSAGE_BASED_MCQ' : 'DISCRETE_MCQ'),
-      difficulty,
-      questions_to_generate: totalQuestions,
-      passage_count: passageMode === 'single_passage' ? (totalQuestions === 50 ? 10 : 1) : 0,
-      passage_mode: passageMode,
-      passage_question_count: passageMode === 'single_passage' ? totalQuestions : undefined,
-      interaction_type: 'single_choice',
-      passage_required: passageRequired,
-      primary_trap: (primaryTraps && primaryTraps.length > 0) ? primaryTraps.join(', ') : (primaryTrap || 'Automatic'),
-      likely_mistake_pattern: customMistakePattern || ((likelyMistakePatterns && likelyMistakePatterns.length > 0) ? likelyMistakePatterns.join(', ') : (likelyMistakePattern || 'Automatic')),
-      content_domains: contentDomains && contentDomains.length > 0 ? contentDomains : undefined,
-      content_domain: contentDomain || (contentDomains && contentDomains.length > 0 ? contentDomains.join(', ') : undefined),
-      additional_instructions: additionalInstructions?.trim() || undefined,
-      allow_ai_images: isVisualsPermitted,
-      require_image: isVisualsPermitted && passageMode !== 'single_passage' && totalQuestions === 1,
-      visual_type: isVisualsPermitted ? 'AI_FLUX_Image' : 'None',
-      require_passage_image: isVisualsPermitted && passageMode === 'single_passage'
-    };
+    const payload = buildBatchPayload(generatorForm.formData);
+    const { totalQuestions } = generatorForm.formData;
 
     // Launch background batch generation for both 5 (Quick Set) and 50 (Full Exam) questions
     if (isLaunchingBatch) return;

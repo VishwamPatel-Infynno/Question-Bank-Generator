@@ -1,3 +1,4 @@
+import { formatCorrectAnswers } from '../questionHelpers';
 // CSV export of the question bank.
 /**
  * Escapes a cell value for standard comma-separated values (CSV) export.
@@ -69,11 +70,7 @@ export function generateExamCsv(questions = []) {
       escapeCsv(opts['B'] || ''),
       escapeCsv(opts['C'] || ''),
       escapeCsv(opts['D'] || ''),
-      escapeCsv(
-        Array.isArray(q.correct_answer_ids) && q.correct_answer_ids.length > 0
-          ? q.correct_answer_ids.join(', ')
-          : (q.correct_answer_id || '')
-      ),
+      escapeCsv(formatCorrectAnswers(q)),
       escapeCsv(q.explanation || ''),
       escapeCsv(q.primary_trap || ''),
       q.final_score || 0

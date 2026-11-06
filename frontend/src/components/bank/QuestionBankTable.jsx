@@ -18,6 +18,7 @@ import SharedPassageCard from '../question/SharedPassageCard';
 import MentorExplanationView from '../question/MentorExplanationView';
 import { countWords, getEffectiveTrapInfo } from '../../utils';
 import { EMPTY_ARRAY, formatDifficulty, getDifficultyBadgeClass, getSectionBadgeClass } from '../../constants';
+import { getCorrectAnswerIds, hasQuestionImage } from '../../utils';
 
 const SECTION_SHORT_LABEL = {
   chem_phys: 'Chem / Phys',
@@ -104,7 +105,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
                 <span className="qbank-table-mode-label">Standalone</span>
               )}
 
-              {(q.image_svg || q.image_url || q.stage_outcomes?.visual_stimulus?.image_svg || q.stage_outcomes?.visual_stimulus?.image_url || q.stage_outcomes?.passage_visual_stimulus?.image_svg) && (
+                            {hasQuestionImage(q) && (
                 <span className="badge badge-purple qbank-table-fig-pill">
                   <ImageIcon size={10} /> Diagram
                 </span>
@@ -208,9 +209,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
           {/* Options Grid */}
           <div className="qbank-options-grid">
             {(() => {
-              const correctList = Array.isArray(q.correct_answer_ids) && q.correct_answer_ids.length > 0
-                ? q.correct_answer_ids.map(k => String(k).trim().toUpperCase())
-                : (q.correct_answer_id || '').split(',').map(k => k.trim().toUpperCase()).filter(Boolean);
+              const correctList = getCorrectAnswerIds(q);
 
               return q.options?.map(opt => {
                 const isCorrect = correctList.includes(opt.id.toUpperCase());

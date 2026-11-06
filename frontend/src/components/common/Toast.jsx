@@ -50,7 +50,7 @@ function ToastItem({ toast, onDismiss }) {
 
         <button
           onClick={() => onDismiss(toast.id)}
-          className="btn-icon toast-close-btn"
+          className="toast-close-btn"
           title="Dismiss notification"
           aria-label="Dismiss notification"
         >

@@ -1,4 +1,5 @@
 import SafeSvg from '../common/SafeSvg';
+import { formatCorrectAnswers } from '../../utils';
 const EMPTY_QUESTIONS = [];
 
 export default function ExportPaperPreview({
@@ -122,7 +123,7 @@ export default function ExportPaperPreview({
                   <div className="exam-paper-key-meta">
                     <strong className="exam-paper-score-val">Q{idx + 1}:</strong>
                     <span className="exam-paper-key-badge">
-                      Correct: {Array.isArray(q.correct_answer_ids) && q.correct_answer_ids.length > 0 ? q.correct_answer_ids.join(', ') : (q.correct_answer_id || 'A')}
+                      Correct: {formatCorrectAnswers(q, 'A')}
                     </span>
                     {q.primary_trap && (
                       <span className="exam-paper-key-trap">Trap: {q.primary_trap}</span>

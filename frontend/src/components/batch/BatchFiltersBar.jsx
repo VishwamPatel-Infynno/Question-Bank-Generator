@@ -26,7 +26,7 @@ export default function BatchFiltersBar({
             placeholder="Search batches (Press /)..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="input-field batch-search-input"
+            className="batch-search-input"
           />
           <span className="kbd-hint batch-search-kbd">/</span>
         </div>
@@ -53,7 +53,7 @@ export default function BatchFiltersBar({
         <select
           value={sectionFilter}
           onChange={(e) => onSectionFilterChange(e.target.value)}
-          className="input-field batch-filter-select"
+          className="batch-filter-select"
         >
           <option value="all">All Sections</option>
           <option value="CP">Chemical & Physical (CP)</option>
@@ -71,7 +71,7 @@ export default function BatchFiltersBar({
               onClick={() => onStatusFilterChange(st)}
               className={`pill-track-btn batch-filter-pill-btn ${statusFilter === st ? 'active' : ''}`}
             >
-              {st === 'in_progress' ? 'Running' : st.replace('_', ' ')}
+              {st === BATCH_FILTER.RUNNING ? 'Running' : st.replace('_', ' ')}
             </button>
           ))}
         </div>
@@ -84,7 +84,6 @@ export default function BatchFiltersBar({
             type="checkbox"
             checked={autoRefresh}
             onChange={(e) => onAutoRefreshChange(e.target.checked)}
-            className="form-checkbox"
           />
           {autoRefresh && <span className="batch-autorefresh-dot" />}
           <span>Live Auto-Sync</span>

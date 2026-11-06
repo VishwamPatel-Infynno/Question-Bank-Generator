@@ -14,6 +14,7 @@ import {
 import { MCAT_SECTION_LABELS, formatDifficulty, getSectionBadgeClass } from '../../constants/mcat';
 import { countWords, getEffectiveTrapInfo } from '../../utils';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
+import { isCorrectOption } from '../../utils';
 
 function AiValidatedQuestionCard({
   question: q,
@@ -157,9 +158,7 @@ function AiValidatedQuestionCard({
       {/* 4 Options List */}
       <div className="validated-options-list">
         {(q.options || []).map((opt) => {
-          const isCorrect =
-            (q.correct_answer_ids && q.correct_answer_ids.includes(opt.id)) ||
-            q.correct_answer_id === opt.id;
+          const isCorrect = isCorrectOption(q, opt.id);
 
           return (
             <div

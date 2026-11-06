@@ -1,4 +1,5 @@
 import { QUESTION_STATUS, SCORE_CUTOFFS } from '../constants';
+import { hasQuestionImage } from './questionHelpers';
 
 /**
  * batchJobHelpers.js - Status resolution and filtering helpers for BatchJobCard and BatchQuestionItem.
@@ -10,7 +11,7 @@ import { QUESTION_STATUS, SCORE_CUTOFFS } from '../constants';
 export function resolveQuestionStatus(q) {
   if (!q) return QUESTION_STATUS.BELOW_THRESHOLD;
   if (q.status === QUESTION_STATUS.DISCARDED) return QUESTION_STATUS.DISCARDED;
-  if (q.is_deleted) return 'deleted';
+  if (q.is_deleted) return QUESTION_STATUS.DELETED;
   if (q.status) return q.status;
   const score = q.final_score ?? 95;
   if (score > SCORE_CUTOFFS.aiValidatedAbove) return QUESTION_STATUS.AI_VALIDATED;
@@ -52,17 +53,7 @@ export function hasJobPassage(jobQuestions = []) {
  * Checks if any question in the job contains an image or diagram.
  */
 export function hasJobDiagram(jobQuestions = []) {
-  return jobQuestions.some(
-    (q) =>
-      Boolean(
-        q.image_url ||
-          q.image_svg ||
-          q.stage_outcomes?.visual_stimulus?.image_url ||
-          q.stage_outcomes?.visual_stimulus?.image_svg ||
-          q.stage_outcomes?.passage_visual_stimulus?.image_url ||
-          q.stage_outcomes?.passage_visual_stimulus?.image_svg
-      )
-  );
+  return jobQuestions.some(hasQuestionImage);
 }
 
 /**

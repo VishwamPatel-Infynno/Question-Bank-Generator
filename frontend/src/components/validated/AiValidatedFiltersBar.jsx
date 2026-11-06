@@ -28,7 +28,7 @@ export default function AiValidatedFiltersBar({
             placeholder="Search questions (Press /)..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="input-field validated-filters-search-input"
+            className="validated-filters-search-input"
           />
           <span className="kbd-hint validated-filters-search-kbd">/</span>
         </div>
@@ -36,7 +36,7 @@ export default function AiValidatedFiltersBar({
         <select
           value={sectionFilter}
           onChange={(e) => onSectionFilterChange(e.target.value)}
-          className="input-field validated-filters-select"
+          className="validated-filters-select"
         >
           <option value="">All Sections</option>
           {MCAT_SECTIONS_FALLBACK.map((sec) => (
@@ -55,7 +55,6 @@ export default function AiValidatedFiltersBar({
               type="checkbox"
               checked={allFilteredSelected}
               onChange={onSelectAll}
-              className="form-checkbox"
             />
             <span>Select All ({totalFiltered})</span>
           </label>

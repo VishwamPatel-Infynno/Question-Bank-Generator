@@ -128,7 +128,7 @@ export default function PassageBankView({
         />
       ) : (
         /* ── Master Catalog List ──────────────────────────────────────────────── */
-        <div className="passage-catalog-flow">
+        <div>
           {/* Filters & Telemetry Bar */}
           <PassageBankFilters
             searchQuery={searchQuery}

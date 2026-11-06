@@ -8,7 +8,9 @@ import {
 } from '../services/api';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { makeId } from '../utils/ids';
+import { passageQuestionCounts, sortPassages } from '../utils';
 import { useRequestGuard } from './useRequestGuard';
+import { useDebouncedValue } from './useDebouncedValue';
 
 /**
  * Custom hook encapsulating reading passages state, search debouncing,
@@ -23,24 +25,15 @@ import { useRequestGuard } from './useRequestGuard';
 export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {}) {
   const [passages, setPassages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [questionCounts, setQuestionCounts] = useState({});
   const [passageToDelete, setPassageToDelete] = useState(null);
   const [isDeletingPassage, setIsDeletingPassage] = useState(false);
 
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(searchQuery);
   const [sectionFilter, setSectionFilter] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const searchInputRef = useRef(null);
-
-  // Debounce search query by 250ms to prevent rapid API requests
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 250);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
 
   // Master-Detail Selected State
   const [selectedPassage, setSelectedPassage] = useState(null);
@@ -82,12 +75,6 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
 
       const fetchedPassages = passageRes?.passages || [];
 
-      // Map question counts by passage_id from server-aggregated count
-      const counts = {};
-      fetchedPassages.forEach((p) => {
-        counts[p.id] = p.question_count || 0;
-      });
-      setQuestionCounts(counts);
       setPassages(fetchedPassages);
     } catch (err) {
       if (err.name === 'AbortError' || !request.isCurrent()) return;
@@ -118,21 +105,9 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
   }, [performFetchPassages]);
 
   // Sort passages locally
-  const sortedPassages = useMemo(() => {
-    const list = [...passages];
-    if (sortBy === 'newest') {
-      list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-    } else if (sortBy === 'oldest') {
-      list.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-    } else if (sortBy === 'words_desc') {
-      list.sort((a, b) => (b.word_count || 0) - (a.word_count || 0));
-    } else if (sortBy === 'words_asc') {
-      list.sort((a, b) => (a.word_count || 0) - (b.word_count || 0));
-    } else if (sortBy === 'title_asc') {
-      list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-    }
-    return list;
-  }, [passages, sortBy]);
+  // Question counts come with each passage from the server aggregate
+  const questionCounts = useMemo(() => passageQuestionCounts(passages), [passages]);
+  const sortedPassages = useMemo(() => sortPassages(passages, sortBy), [passages, sortBy]);
 
   // Total word count & metrics
   const totalWordCount = useMemo(() => {

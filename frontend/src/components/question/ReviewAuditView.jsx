@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertTriangle, ShieldCheck, Sparkles, Target, Zap, Image as ImageIcon } from 'lucide-react';
 import { Modal } from '../common';
-import { getEffectiveTrapInfo, formatTokenCount, formatCostUsd, formatDurationMs } from '../../utils';
+import {
+  getEffectiveTrapInfo,
+  formatTokenCount,
+  formatCostUsd,
+  formatDurationMs,
+  getAuditCostBreakdown,
+  getReviewPillars
+} from '../../utils';
+import { SCORE_CUTOFFS } from '../../constants';
 import { fetchQuestionById } from '../../services/api';
 
 /**
@@ -45,29 +53,10 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
   const mistakePattern = question.likely_mistake_pattern && question.likely_mistake_pattern !== 'None'
     ? question.likely_mistake_pattern
     : null;
-  const hasVisual = Boolean(
-    question.image_svg ||
-    question.image_url ||
-    question.image_description ||
-    question?.stage_outcomes?.visual_stimulus?.image_svg ||
-    question?.stage_outcomes?.visual_stimulus?.image_url
-  );
+  const { hasVisual, totalCost, visualCost, cognitiveCost, stageTimings, totalDurationMs } =
+    getAuditCostBreakdown(question);
 
-  const totalCost = Number(question.cost_usd || 0.0);
-  // Per-stage latency recorded by the engine (usage entries carry duration_ms)
-  const stageTimings = (Array.isArray(question.token_usage_details) ? question.token_usage_details : [])
-    .filter((entry) => entry && Number(entry.duration_ms) > 0);
-  const totalDurationMs = stageTimings.reduce((sum, entry) => sum + Number(entry.duration_ms), 0);
-  // Only the recorded visual cost: showing an assumed figure would misreport spend
-  const visualCost = Number(question.stage_outcomes?.visual_stimulus?.usage?.cost_usd || 0);
-  const cognitiveCost = Math.max(0, totalCost - (hasVisual ? visualCost : 0.0));
-
-  const pillars = [
-    { label: 'Scientific Style', score: review?.authenticity_score ?? null, max: 25, color: 'var(--brand-primary)' },
-    { label: 'Clarity & Logic', score: review?.clarity_score ?? null, max: 25, color: 'var(--brand-indigo)' },
-    { label: 'Wrong Answers', score: review?.distractor_score ?? null, max: 25, color: 'var(--status-warning)' },
-    { label: 'Explanation Accuracy', score: review?.explanation_score ?? null, max: 25, color: 'var(--status-success)' },
-  ];
+  const pillars = getReviewPillars(review);
 
   const iconElement = (
     <div className="audit-header-icon">
@@ -102,9 +91,9 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
           </div>
           <div className="audit-score-right">
             <span
-              className={`badge ${question.final_score > 90 ? 'badge-emerald' : 'badge-amber'} audit-score-badge`}
+              className={`badge ${question.final_score > SCORE_CUTOFFS.aiValidatedAbove ? 'badge-emerald' : 'badge-amber'} audit-score-badge`}
             >
-              {question.final_score > 90 ? 'Passed' : 'Needs Polish'}
+              {question.final_score > SCORE_CUTOFFS.aiValidatedAbove ? 'Passed' : 'Needs Polish'}
             </span>
             <div className="audit-rounds-label">
               Rounds: {question.iteration_count || 1}
@@ -281,7 +270,7 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
                 </div>
               </div>
             </div>
-            <span className={`badge ${hasVisual ? 'badge-blue' : 'badge-slate'} audit-figure-badge`}>
+            <span className={`badge ${hasVisual ? 'badge-cyan' : 'badge-neutral'} audit-figure-badge`}>
               {hasVisual ? 'Diagram Attached' : 'Text Only'}
             </span>
           </div>

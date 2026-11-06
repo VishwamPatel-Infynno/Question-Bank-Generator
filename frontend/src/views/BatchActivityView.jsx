@@ -9,6 +9,7 @@ import {
   BatchEmptyState,
   BatchHeaderBanner
 } from '../components/batch';
+import { confirmModalProps } from '../components/modals/confirmModalProps';
 
 /**
  * BatchActivityView
@@ -186,18 +187,7 @@ export default function BatchActivityView({
       )}
 
       {/* ── Standardized Accessible Confirmation Modal ───────────────────── */}
-      <ConfirmationModal
-        isOpen={confirmModal.isOpen}
-        onClose={closeConfirmModal}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        description={confirmModal.description}
-        confirmLabel={confirmModal.confirmLabel}
-        variant={confirmModal.variant}
-        itemCount={confirmModal.itemCount}
-        itemLabel={confirmModal.itemLabel}
-        isProcessing={isDeletingBatch}
-      />
+      <ConfirmationModal {...confirmModalProps(confirmModal, closeConfirmModal, isDeletingBatch)} />
     </div>
   );
 }

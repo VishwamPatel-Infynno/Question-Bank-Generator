@@ -1,6 +1,7 @@
 import { formatExamTime } from '../formatters';
 import { PRINT_PAPER_CSS } from './printPaperCss';
 import { escapeHtml, escapeInlineMarkdown, sanitizeSvg, safeImageUrl } from './escape';
+import { formatCorrectAnswers } from '../questionHelpers';
 
 /**
  * Builds a standalone, print-ready HTML document string formatted for A4 examination papers.
@@ -94,11 +95,7 @@ export function generateExamHtmlDoc(questions = [], { paperMode = 'student' } = 
             <tr>
               <td style="text-align: center; font-weight: 700;">Q${idx + 1}</td>
               <td style="text-align: center;">
-                <span class="correct-badge">${
-                  Array.isArray(q.correct_answer_ids) && q.correct_answer_ids.length > 0
-                    ? escapeHtml(q.correct_answer_ids.join(', '))
-                    : escapeHtml(q.correct_answer_id || 'A')
-                }</span>
+                <span class="correct-badge">${escapeHtml(formatCorrectAnswers(q, 'A'))}</span>
               </td>
               <td style="font-size: 11px; color: #475569;">${escapeHtml(q.primary_trap || 'None')}</td>
               <td style="font-size: 11.5px; line-height: 1.5;">${escapeInlineMarkdown(q.explanation || 'No explanation recorded.')}</td>

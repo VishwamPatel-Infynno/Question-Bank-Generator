@@ -872,3 +872,23 @@
   gap: 6px;
 }
 
+
+.validated-stats-label {
+  color: var(--text-muted);
+}
+
+.validated-stats-value {
+  font-weight: 700;
+}
+
+.validated-stats-value.is-success {
+  color: var(--success);
+}
+
+.validated-stats-value.is-brand {
+  color: var(--brand-primary);
+}
+
+.validated-stats-value.is-indigo {
+  color: var(--brand-indigo);
+}

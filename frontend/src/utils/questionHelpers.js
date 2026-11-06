@@ -32,3 +32,82 @@ export function pickExportQuestions({
   if (scope === 'filtered' && hasActiveFilters) return filteredQuestions;
   return bankPool;
 }
+
+/**
+ * The correct option ids of a question, upper-cased and trimmed. Uses `correct_answer_ids` when
+ * it is a non-empty list, else splits the comma-separated `correct_answer_id`.
+ */
+export function getCorrectAnswerIds(q) {
+  const ids =
+    Array.isArray(q?.correct_answer_ids) && q.correct_answer_ids.length > 0
+      ? q.correct_answer_ids
+      : String(q?.correct_answer_id ?? '').split(',');
+  return ids.map((k) => String(k).trim().toUpperCase()).filter(Boolean);
+}
+
+/** True when `optionId` is one of the question's correct ids (case-insensitive). */
+export function isCorrectOption(q, optionId) {
+  return getCorrectAnswerIds(q).includes(String(optionId ?? '').trim().toUpperCase());
+}
+
+/** The correct ids joined for display ('A, C'), or `fallback` when none is recorded. */
+export function formatCorrectAnswers(q, fallback = '') {
+  const ids = getCorrectAnswerIds(q);
+  return ids.length ? ids.join(', ') : fallback;
+}
+
+/** True when the question (or its shared passage) carries an image or vector diagram. */
+export function hasQuestionImage(q) {
+  const vs = q?.stage_outcomes?.visual_stimulus;
+  const pvs = q?.stage_outcomes?.passage_visual_stimulus;
+  return Boolean(
+    q?.image_svg ||
+      q?.image_url ||
+      vs?.image_svg ||
+      vs?.image_url ||
+      pvs?.image_svg ||
+      pvs?.image_url
+  );
+}
+
+/** The four 25-point reviewer pillars (score null when the rubric is missing). */
+export function getReviewPillars(review) {
+  return [
+    { label: 'Scientific Style', score: review?.authenticity_score ?? null, max: 25, color: 'var(--brand-primary)' },
+    { label: 'Clarity & Logic', score: review?.clarity_score ?? null, max: 25, color: 'var(--brand-indigo)' },
+    { label: 'Wrong Answers', score: review?.distractor_score ?? null, max: 25, color: 'var(--status-warning)' },
+    { label: 'Explanation Accuracy', score: review?.explanation_score ?? null, max: 25, color: 'var(--status-success)' }
+  ];
+}
+
+/**
+ * Splits a question's recorded cost into the visual part (only what the engine recorded for the
+ * image stage) and the cognitive remainder, plus the per-stage timings that carry a duration.
+ */
+export function getAuditCostBreakdown(q) {
+  const totalCost = Number(q?.cost_usd || 0);
+  const stageTimings = (Array.isArray(q?.token_usage_details) ? q.token_usage_details : []).filter(
+    (entry) => entry && Number(entry.duration_ms) > 0
+  );
+  const totalDurationMs = stageTimings.reduce((sum, entry) => sum + Number(entry.duration_ms), 0);
+  const hasVisual = hasQuestionImage(q) || Boolean(q?.image_description);
+  const visualCost = Number(q?.stage_outcomes?.visual_stimulus?.usage?.cost_usd || 0);
+  return {
+    totalCost,
+    hasVisual,
+    visualCost,
+    cognitiveCost: Math.max(0, totalCost - (hasVisual ? visualCost : 0)),
+    stageTimings,
+    totalDurationMs
+  };
+}
+
+/** Case-insensitive search over stem, subtopic, explanation and passage text. */
+export function filterQuestionsByText(questions, query) {
+  const q = String(query ?? '').trim().toLowerCase();
+  if (!q) return questions;
+  const hit = (v) => typeof v === 'string' && v.toLowerCase().includes(q);
+  return questions.filter(
+    (item) => hit(item.question_stem) || hit(item.subtopic) || hit(item.explanation) || hit(item.stimulus_text)
+  );
+}

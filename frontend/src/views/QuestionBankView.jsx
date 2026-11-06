@@ -7,6 +7,8 @@ import { QuestionCard } from '../components/question';
 import { ExportPrintModal, ConfirmationModal } from '../components/modals';
 import QuestionBankFilters from '../components/bank/QuestionBankFilters';
 import QuestionBankTable from '../components/bank/QuestionBankTable';
+import { toggleAll, toggleId } from '../utils';
+import { confirmModalProps } from '../components/modals/confirmModalProps';
 
 /**
  * QuestionBankView - Primary view for browsing, searching, and managing questions in the bank.
@@ -112,17 +114,12 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   // ─── Selection Handlers ────────────────────────────────────────────────────
   const handleToggleSelect = useCallback((id, e) => {
     e.stopPropagation();
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    setSelectedIds((prev) => toggleId(prev, id));
   }, []);
 
   const handleSelectAll = () => {
-    const currentIds = paginatedQuestions.map(q => q.id);
-    const allCurrentSelected = currentIds.length > 0 && currentIds.every(id => selectedIds.includes(id));
-    if (allCurrentSelected) {
-      setSelectedIds(prev => prev.filter(id => !currentIds.includes(id)));
-    } else {
-      setSelectedIds(prev => Array.from(new Set([...prev, ...currentIds])));
-    }
+    const currentIds = paginatedQuestions.map((q) => q.id);
+    setSelectedIds((prev) => toggleAll(prev, currentIds));
   };
 
   // ─── Single Item Delete via Confirmation Modal ────────────────────────────
@@ -354,18 +351,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       </Modal>
 
       {/* ── Reusable Accessible Confirmation Modal ──────────────────────── */}
-      <ConfirmationModal
-        isOpen={confirmModal.isOpen}
-        onClose={closeConfirmModal}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        description={confirmModal.description}
-        confirmLabel={confirmModal.confirmLabel}
-        variant={confirmModal.variant}
-        itemCount={confirmModal.itemCount}
-        itemLabel={confirmModal.itemLabel}
-        isProcessing={isDeletingBulk}
-      />
+      <ConfirmationModal {...confirmModalProps(confirmModal, closeConfirmModal, isDeletingBulk)} />
     </div>
   );
 }

@@ -10,7 +10,9 @@ import {
 import { useConfirmModal } from './useConfirmModal';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useRequestGuard } from './useRequestGuard';
+import { useDebouncedValue } from './useDebouncedValue';
 import { QUESTION_STATUS, SCORE_CUTOFFS } from '../constants';
+import { allSelected, filterQuestionsByText, toggleAll, toggleId } from '../utils';
 
 /**
  * Custom hook encapsulating AI Validated questions state, search debouncing,
@@ -40,18 +42,10 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
 
   // Filters & search
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(searchQuery);
   const [sectionFilter, setSectionFilter] = useState('');
   const [expandedPassageIds, setExpandedPassageIds] = useState({});
   const searchInputRef = useRef(null);
-
-  // Debounce search query by 250ms to ensure responsive filtering
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 250);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
 
   // Focus search on '/'
   useKeyboardShortcuts({
@@ -124,137 +118,88 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
 
   // Filtered in-memory questions by search query (strictly preserving score > 90 benchmark)
   const filteredQuestions = useMemo(() => {
-    const validQuestions = questions.filter((item) => (item.final_score || 0) > SCORE_CUTOFFS.aiValidatedAbove);
-    if (!debouncedSearch.trim()) return validQuestions;
-    const q = debouncedSearch.toLowerCase().trim();
-    return validQuestions.filter(
-      (item) =>
-        (item.question_stem && item.question_stem.toLowerCase().includes(q)) ||
-        (item.subtopic && item.subtopic.toLowerCase().includes(q)) ||
-        (item.explanation && item.explanation.toLowerCase().includes(q)) ||
-        (item.stimulus_text && item.stimulus_text.toLowerCase().includes(q))
+    const validQuestions = questions.filter(
+      (item) => (item.final_score || 0) > SCORE_CUTOFFS.aiValidatedAbove
     );
+    return filterQuestionsByText(validQuestions, debouncedSearch);
   }, [questions, debouncedSearch]);
 
-  // Toggle single selection
-  const handleToggleSelect = (id) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
+  const handleToggleSelect = (id) => setSelectedIds((prev) => toggleId(prev, id));
+  const handleSelectAll = () =>
+    setSelectedIds((prev) => toggleAll(prev, filteredQuestions.map((q) => q.id)));
 
-  // Toggle select all
-  const handleSelectAll = () => {
-    const currentIds = filteredQuestions.map((q) => q.id);
-    const allSelected =
-      currentIds.length > 0 && currentIds.every((id) => selectedIds.includes(id));
-    if (allSelected) {
-      setSelectedIds((prev) => prev.filter((id) => !currentIds.includes(id)));
-    } else {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...currentIds])));
-    }
+  const toast = (payload) => {
+    if (onShowToast) onShowToast(payload);
   };
+  const viewInBank = onNavigateToBank ? { label: 'View in Bank', onClick: onNavigateToBank } : undefined;
 
-  // Single question actions
-  const handleMoveToBankSingle = async (q) => {
+  /**
+   * Runs one lifecycle action: calls the API, drops the affected questions from the list and the
+   * selection, shows the toast, then reloads (the reload also refreshes the global counts).
+   */
+  const runMutation = async ({ call, removeIds, successToast, errorTitle, afterSuccess }) => {
     setActionInProgress(true);
     try {
-      await updateQuestionStatus(q.id, QUESTION_STATUS.IN_BANK);
-      setQuestions((prev) => prev.filter((item) => item.id !== q.id));
-      setSelectedIds((prev) => prev.filter((id) => id !== q.id));
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Success - Question Saved to Bank',
-          message: 'Question is now available in your Question Bank.',
-          action: onNavigateToBank
-            ? { label: 'View in Bank', onClick: onNavigateToBank }
-            : undefined
-        });
-      }
-      if (onRefreshCounts) onRefreshCounts();
+      await call();
+      const gone = new Set(removeIds);
+      setQuestions((prev) => prev.filter((item) => !gone.has(item.id)));
+      setSelectedIds((prev) => prev.filter((id) => !gone.has(id)));
+      toast(successToast);
+      if (afterSuccess) afterSuccess();
       loadData(true);
     } catch (err) {
-      console.error('Error promoting question:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Action Failed',
-          message: err.message || 'Could not move question.'
-        });
-      }
+      console.error(`${errorTitle}:`, err);
+      toast({ type: 'error', title: errorTitle, message: err.message || 'Error updating questions.' });
     } finally {
       setActionInProgress(false);
     }
   };
 
-  const handleDiscardSingle = async (q) => {
-    setActionInProgress(true);
-    try {
-      await purgeQuestion(q.id);
-      setQuestions((prev) => prev.filter((item) => item.id !== q.id));
-      setSelectedIds((prev) => prev.filter((id) => id !== q.id));
-      if (onShowToast) {
-        onShowToast({
-          type: 'info',
-          title: 'Question Discarded',
-          message: 'Question has been permanently removed.'
-        });
-      }
-      if (onRefreshCounts) onRefreshCounts();
-      loadData(true);
-    } catch (err) {
-      console.error('Error discarding question:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Action Failed',
-          message: err.message || 'Could not discard question.'
-        });
-      }
-    } finally {
-      setActionInProgress(false);
-    }
-  };
+  const handleMoveToBankSingle = (q) =>
+    runMutation({
+      call: () => updateQuestionStatus(q.id, QUESTION_STATUS.IN_BANK),
+      removeIds: [q.id],
+      successToast: {
+        type: 'success',
+        title: 'Success - Question Saved to Bank',
+        message: 'Question is now available in your Question Bank.',
+        action: viewInBank
+      },
+      errorTitle: 'Action Failed'
+    });
 
-  // Bulk actions
-  const handleBulkMoveToBank = async () => {
+  const handleDiscardSingle = (q) =>
+    runMutation({
+      call: () => purgeQuestion(q.id),
+      removeIds: [q.id],
+      successToast: {
+        type: 'info',
+        title: 'Question Discarded',
+        message: 'Question has been permanently removed.'
+      },
+      errorTitle: 'Action Failed'
+    });
+
+  const handleBulkMoveToBank = () => {
     if (selectedIds.length === 0) return;
-    const count = selectedIds.length;
-    setActionInProgress(true);
-    try {
-      await batchUpdateQuestionStatus(selectedIds, QUESTION_STATUS.IN_BANK);
-      setQuestions((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Success - Saved to Bank',
-          message: `Successfully placed ${count} question(s) into Question Bank.`,
-          action: onNavigateToBank
-            ? { label: 'View in Bank', onClick: onNavigateToBank }
-            : undefined
-        });
-      }
-      setSelectedIds([]);
-      if (onRefreshCounts) onRefreshCounts();
-      loadData(true);
-    } catch (err) {
-      console.error('Bulk move failed:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Bulk Move Failed',
-          message: err.message || 'Error updating questions.'
-        });
-      }
-    } finally {
-      setActionInProgress(false);
-    }
+    const ids = [...selectedIds];
+    return runMutation({
+      call: () => batchUpdateQuestionStatus(ids, QUESTION_STATUS.IN_BANK),
+      removeIds: ids,
+      successToast: {
+        type: 'success',
+        title: 'Success - Saved to Bank',
+        message: `Successfully placed ${ids.length} question(s) into Question Bank.`,
+        action: viewInBank
+      },
+      errorTitle: 'Bulk Move Failed'
+    });
   };
 
   const handleBulkDiscard = () => {
     if (selectedIds.length === 0) return;
-    const count = selectedIds.length;
+    const ids = [...selectedIds];
+    const count = ids.length;
     openConfirmModal({
       title: 'Discard Selected Questions',
       description: `Are you sure you want to discard ${count} selected question${count !== 1 ? 's' : ''}? They will be permanently removed from the system.`,
@@ -262,35 +207,18 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
       variant: 'danger',
       itemCount: count,
       itemLabel: 'question',
-      onConfirm: async () => {
-        setActionInProgress(true);
-        try {
-          await purgeQuestionsBatch(selectedIds);
-          setQuestions((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
-          if (onShowToast) {
-            onShowToast({
-              type: 'info',
-              title: 'Questions Discarded',
-              message: `Successfully purged ${count} question(s) from database.`
-            });
-          }
-          setSelectedIds([]);
-          closeConfirmModal();
-          if (onRefreshCounts) onRefreshCounts();
-          loadData(true);
-        } catch (err) {
-          console.error('Bulk discard failed:', err);
-          if (onShowToast) {
-            onShowToast({
-              type: 'error',
-              title: 'Bulk Discard Failed',
-              message: err.message || 'Error purging questions.'
-            });
-          }
-        } finally {
-          setActionInProgress(false);
-        }
-      }
+      onConfirm: () =>
+        runMutation({
+          call: () => purgeQuestionsBatch(ids),
+          removeIds: ids,
+          successToast: {
+            type: 'info',
+            title: 'Questions Discarded',
+            message: `Successfully purged ${count} question(s) from database.`
+          },
+          errorTitle: 'Bulk Discard Failed',
+          afterSuccess: closeConfirmModal
+        })
     });
   };
 
@@ -306,52 +234,27 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
       variant: 'info',
       itemCount: count,
       itemLabel: 'question',
-      onConfirm: async () => {
-        await approveAllNow(allIds, count);
-        closeConfirmModal();
-      }
+      onConfirm: () =>
+        runMutation({
+          call: () => batchUpdateQuestionStatus(allIds, QUESTION_STATUS.IN_BANK),
+          removeIds: allIds,
+          successToast: {
+            type: 'success',
+            title: 'All Questions Saved to Bank',
+            message: `${count} question(s) saved to Question Bank.`,
+            action: viewInBank
+          },
+          errorTitle: 'Action Failed',
+          afterSuccess: closeConfirmModal
+        })
     });
-  };
-
-  const approveAllNow = async (allIds, count) => {
-    setActionInProgress(true);
-    try {
-      await batchUpdateQuestionStatus(allIds, QUESTION_STATUS.IN_BANK);
-      setQuestions((prev) => prev.filter((item) => !allIds.includes(item.id)));
-      setSelectedIds([]);
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'All Questions Saved to Bank',
-          message: `${count} question(s) saved to Question Bank.`,
-          action: onNavigateToBank
-            ? { label: 'View in Bank', onClick: onNavigateToBank }
-            : undefined
-        });
-      }
-      if (onRefreshCounts) onRefreshCounts();
-      loadData(true);
-    } catch (err) {
-      console.error('Save all questions failed:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Action Failed',
-          message: err.message || 'Error updating questions.'
-        });
-      }
-    } finally {
-      setActionInProgress(false);
-    }
   };
 
   const togglePassage = (id) => {
     setExpandedPassageIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const allFilteredSelected =
-    filteredQuestions.length > 0 &&
-    filteredQuestions.every((q) => selectedIds.includes(q.id));
+  const allFilteredSelected = allSelected(selectedIds, filteredQuestions.map((q) => q.id));
 
   return {
     // Data & state

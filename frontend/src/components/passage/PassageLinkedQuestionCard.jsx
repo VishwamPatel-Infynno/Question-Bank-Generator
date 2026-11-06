@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CheckCircle2, Edit3, X } from 'lucide-react';
 import { formatDifficulty, getDifficultyBadgeClass } from '../../constants/mcat';
 import { getEffectiveTrapInfo } from '../../utils';
+import { isCorrectOption } from '../../utils';
 
 /**
  * PassageInlineQuestionEditor
@@ -170,9 +171,7 @@ export default function PassageLinkedQuestionCard({
           {/* Options A-D */}
           <div className="passage-linked-options">
             {question.options?.map((opt) => {
-              const isCorrect =
-                String(opt.id).toUpperCase() === String(question.correct_answer_id).toUpperCase() ||
-                (question.correct_answer_ids && question.correct_answer_ids.includes(opt.id));
+              const isCorrect = isCorrectOption(question, opt.id);
 
               return (
                 <div

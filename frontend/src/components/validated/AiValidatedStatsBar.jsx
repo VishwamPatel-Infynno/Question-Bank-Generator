@@ -50,22 +50,22 @@ export default function AiValidatedStatsBar({
       {/* Quick Metrics Bar */}
       <div className="validated-stats-strip">
         <div className="validated-stats-pill">
-          <span className="text-muted">Ready for Review:</span>
-          <strong className="text-success font-bold">
+          <span className="validated-stats-label">Ready for Review:</span>
+          <strong className="validated-stats-value is-success">
             {counts.ai_validated || questionsCount}
           </strong>
         </div>
         <span className="validated-stats-divider">•</span>
         <div className="validated-stats-pill">
-          <span className="text-muted">In Question Bank:</span>
-          <strong className="text-brand font-bold">
+          <span className="validated-stats-label">In Question Bank:</span>
+          <strong className="validated-stats-value is-brand">
             {counts.in_bank || 0}
           </strong>
         </div>
         <span className="validated-stats-divider">•</span>
         <div className="validated-stats-pill">
-          <span className="text-muted">Good Quality:</span>
-          <strong className="text-indigo font-bold">
+          <span className="validated-stats-label">Good Quality:</span>
+          <strong className="validated-stats-value is-indigo">
             {counts.batch_only || 0}
           </strong>
         </div>

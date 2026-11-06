@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { BATCH_STATUS, formatDifficulty, isStoppedStatus, MCAT_SECTION_LABELS } from '../../constants';
+import { BATCH_STATUS, formatDifficulty, getSectionBadgeClass, isStoppedStatus, MCAT_SECTION_LABELS } from '../../constants';
 import { formatCostUsd, formatDateTime, formatTokenCount } from '../../utils';
 import { LiveStopwatch } from '../common';
 
@@ -79,7 +79,7 @@ function BatchCardSummary({
   onRetryBatch,
   onDeleteBatch
 }) {
-  const sectionClass = `badge-sec-${batch.section?.toLowerCase() || 'cp'}`;
+  const sectionClass = getSectionBadgeClass(batch.section);
   const stagePillClass = stageInfo.isAuditing
     ? 'auditing'
     : stageInfo.isRefilling
@@ -223,7 +223,7 @@ function BatchCardSummary({
         <button
           type="button"
           onClick={(e) => onDeleteBatch(e, batch.id)}
-          className="btn-icon batch-summary-del-btn"
+          className="batch-summary-del-btn"
           title="Delete batch log"
         >
           <Trash2 size={14} />

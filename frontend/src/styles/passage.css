@@ -4,6 +4,53 @@
    Passage Bank & Editorial Desk Component Classes
    ========================================================================== */
 
+/* Passage Bank View Header */
+.passage-bank-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.passage-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.passage-header-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  background: rgba(79, 48, 185, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+.passage-header-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.passage-header-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.passage-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Editorial Desk Top Bar */
 .passage-desk-topbar {
   display: flex;
