@@ -22,7 +22,11 @@ async def cleanup_discarded_duplicates(dry_run: bool = False) -> int:
             logger.info("No discarded duplicate questions found in database.")
             return 0
         if dry_run:
-            logger.info("Dry run: %s discarded question(s) would be purged: %s", len(ids_to_delete), ids_to_delete)
+            logger.info(
+                "Dry run: %s discarded question(s) would be purged: %s",
+                len(ids_to_delete),
+                ids_to_delete,
+            )
             return len(ids_to_delete)
 
         stmt_del = delete(QuestionModel).where(QuestionModel.id.in_(ids_to_delete))
