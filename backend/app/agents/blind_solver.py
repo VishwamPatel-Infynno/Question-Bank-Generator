@@ -25,7 +25,7 @@ from app.agents.base import (
     safe_json_loads,
 )
 from app.core.config import config
-from app.schemas import GenerationRequest, QuestionDraft, TokenUsage
+from app.schemas import GenerationRequest, QuestionDraft, TokenUsage, enum_value
 from app.schemas.token import sum_usage
 
 logger = logging.getLogger(__name__)
@@ -122,9 +122,7 @@ def _extract_key(raw: object) -> str:
 def _format_blind_solver_prompt(
     draft: QuestionDraft, req: GenerationRequest, order: list[int] | None = None
 ) -> str:
-    prompt_lines = [
-        f"Section: {req.section.value if hasattr(req.section, 'value') else str(req.section)}"
-    ]
+    prompt_lines = [f"Section: {enum_value(req.section)}"]
     if req.topic:
         prompt_lines.append(f"Topic: {req.topic}")
 

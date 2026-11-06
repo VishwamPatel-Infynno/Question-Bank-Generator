@@ -28,7 +28,6 @@ from app.schemas import (
 )
 from app.services import (
     cancel_all_background_batches,
-    cancel_background_batch,
     cluster_questions,
     get_active_batch_metrics,
     is_batch_running,
@@ -42,6 +41,18 @@ from app.services.batch_concurrency import forget_batch_request
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Generation Batches"])
+
+
+def _or_404(value: Any, detail: str) -> Any:
+    """Answers 404 when a lookup or a targeted mutation found nothing."""
+    if not value:
+        raise HTTPException(status_code=404, detail=detail)
+    return value
+
+
+async def _require_batch(batch_id: str) -> GenerationBatch:
+    """Loads a batch or answers 404 (the repeated get-or-404 of this module)."""
+    return _or_404(await get_batch_by_id(batch_id), "Batch not found")
 
 
 @router.post(
@@ -97,9 +108,7 @@ async def get_single_batch(batch_id: str) -> dict[str, Any]:
     Retrieves a single generation batch along with its 10 jobs and all generated questions.
     Questions are organized so the client can easily view questions per job.
     """
-    b = await get_batch_by_id(batch_id)
-    if not b:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    b = await _require_batch(batch_id)
 
     jobs = await get_jobs_by_batch_id(batch_id)
     linked_questions = await get_questions(batch_id=batch_id, include_deleted=True)
@@ -134,9 +143,7 @@ async def get_single_batch(batch_id: str) -> dict[str, Any]:
 @router.post("/batches/{batch_id}/stop")
 async def stop_single_batch(batch_id: str) -> dict[str, Any]:
     """Gracefully halts active background jobs for a batch without deleting saved questions."""
-    b = await get_batch_by_id(batch_id)
-    if not b:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    await _require_batch(batch_id)
     await stop_background_batch(batch_id)
     refreshed = await get_batch_by_id(batch_id)
     return {
@@ -152,9 +159,7 @@ async def stop_single_batch(batch_id: str) -> dict[str, Any]:
 )
 async def retry_single_batch(batch_id: str, req: GenerationRequest | None = None) -> dict[str, Any]:
     """Re-launches failed or cancelled jobs for a batch into the global worker pool."""
-    b = await get_batch_by_id(batch_id)
-    if not b:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    await _require_batch(batch_id)
     batch, jobs = await retry_incomplete_jobs_for_batch(batch_id, req)
     if not jobs:
         raise HTTPException(
@@ -186,11 +191,9 @@ async def cancel_all_batches() -> dict[str, Any]:
 @router.delete("/batches/{batch_id}")
 async def delete_single_batch(batch_id: str) -> dict[str, Any]:
     """Deletes a generation batch and cascades delete to jobs and questions."""
-    await cancel_background_batch(batch_id)
+    await stop_background_batch(batch_id)
     forget_batch_request(batch_id)
-    deleted = await delete_batch(batch_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    _or_404(await delete_batch(batch_id), "Batch not found")
     return {"success": True, "message": f"Batch {batch_id} deleted successfully."}
 
 
@@ -213,9 +216,7 @@ async def get_batch_duplicate_clusters(
     Returns grouped clusters with designated leader questions and redundant duplicate siblings.
     """
     threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
-    b = await get_batch_by_id(batch_id)
-    if not b:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    await _require_batch(batch_id)
 
     linked_questions = await get_questions(batch_id=batch_id)
     # Only evaluate active questions (ignore previously discarded questions)
@@ -249,9 +250,7 @@ async def resolve_batch_duplicates(
     and archiving or deleting the redundant duplicate questions.
     """
     req_data = payload or ResolveDuplicatesRequest()
-    b = await get_batch_by_id(batch_id)
-    if not b:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    await _require_batch(batch_id)
 
     linked_questions = await get_questions(batch_id=batch_id)
     active_questions = [q for q in linked_questions if is_question_active(q.status)]
@@ -322,9 +321,7 @@ async def refill_batch_questions(batch_id: str) -> dict[str, Any]:
     Replenishes a batch up to its target_count by launching targeted jobs for
     archived or missing questions with diverse pedagogical thematic angles.
     """
-    b = await get_batch_by_id(batch_id)
-    if not b:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    b = await _require_batch(batch_id)
     if is_batch_running(batch_id):
         # A second runner would double the LLM spend and replace the stoppable task handle
         raise HTTPException(status_code=409, detail="This batch is still running.")

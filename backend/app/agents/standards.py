@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import math
 
+# Re-exported: agents import the CARS predicate from here
+from app.schemas.mcat import is_cars as is_cars
+
 # Reading passage length in words
 SCIENCE_PASSAGE_WORDS: tuple[int, int] = (300, 500)
 CARS_PASSAGE_WORDS: tuple[int, int] = (500, 600)
@@ -33,23 +36,13 @@ OPTION_PARITY_TEXT = (
 )
 
 
-def is_cars(section: object) -> bool:
-    """True for the CARS subtest (enum member or string, any case).
-
-    Lives here (not in workflow/_section_utils) so agents can use it without importing the
-    workflow package, which imports the agents back.
-    """
-    value = section.value if hasattr(section, "value") else section
-    return str(value).strip().lower() in ("cars", "mcatsection.cars")
-
-
-def passage_band(is_cars: bool) -> tuple[int, int]:
+def passage_band(cars: bool) -> tuple[int, int]:
     """Word band for the section's reading passage."""
-    return CARS_PASSAGE_WORDS if is_cars else SCIENCE_PASSAGE_WORDS
+    return CARS_PASSAGE_WORDS if cars else SCIENCE_PASSAGE_WORDS
 
 
-def passage_words_text(is_cars: bool) -> str:
-    lo, hi = passage_band(is_cars)
+def passage_words_text(cars: bool) -> str:
+    lo, hi = passage_band(cars)
     return f"{lo}-{hi} words"
 
 

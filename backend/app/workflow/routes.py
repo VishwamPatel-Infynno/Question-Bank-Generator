@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from app.core.config import config
-from app.schemas import GenerationRequest, MCATSection
+from app.schemas import GenerationRequest, is_cars
 from app.workflow.state import AgentWorkflowState
 
 logger = logging.getLogger(__name__)
@@ -11,13 +11,7 @@ logger = logging.getLogger(__name__)
 
 def _is_image_required(req: GenerationRequest, draft: dict) -> bool:
     """Evaluates whether an image is required based on section restrictions, autonomous AI discretion, or explicit flags."""
-    sec_val = req.section.value if hasattr(req.section, "value") else str(req.section)
-    if sec_val in (
-        MCATSection.CARS.value,
-        "CARS",
-        "cars",
-        "critical_analysis_and_reasoning_skills",
-    ):
+    if is_cars(req.section):
         return False
     if req.require_image or req.requires_visual_stimulus:
         return True

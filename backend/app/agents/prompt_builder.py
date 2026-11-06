@@ -17,7 +17,7 @@ from app.agents.standards import (
 from app.schemas import (
     MCAT_SECTION_LABELS,
     GenerationRequest,
-    MCATSection,
+    enum_value,
 )
 
 
@@ -45,7 +45,7 @@ def _build_generator_user_prompt(
         A fully assembled prompt string ready to be sent as the ``user`` turn
         to ``call_llm``.
     """
-    section_val = req.section.value if hasattr(req.section, "value") else str(req.section)
+    section_val = enum_value(req.section)
     section_name = MCAT_SECTION_LABELS.get(req.section, section_val)
 
     user_prompt = f"""Generate an official-caliber AAMC MCAT Multiple Choice Question with 4 options (A, B, C, D) and exactly ONE correct answer.
@@ -164,11 +164,7 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
         )
 
     # Visual stimulus discretion instruction
-    allow_visuals = (req.allow_ai_images or req.require_image) and req.section not in (
-        MCATSection.CARS,
-        "CARS",
-        "cars",
-    )
+    allow_visuals = (req.allow_ai_images or req.require_image) and not is_cars(req.section)
     if allow_visuals:
         if req.require_image:
             user_prompt += (

@@ -16,7 +16,7 @@ from app.models.batch import GenerationBatchModel
 from app.models.passage import PassageModel
 from app.models.question import QuestionModel
 from app.repositories._filters import active_question_clause
-from app.schemas import BatchStatus, DuplicateInfo, OptionChoice, Question, ReviewScore
+from app.schemas import BatchStatus, DuplicateInfo, OptionChoice, Question, ReviewScore, enum_value
 from app.schemas.question import ACTIVE_QUESTION_STATUSES
 
 logger = logging.getLogger(__name__)
@@ -740,7 +740,7 @@ async def get_subtopic_reference_questions(
             )
         )
         if section:
-            sec_val = section.value if hasattr(section, "value") else str(section)
+            sec_val = enum_value(section)
             stmt = stmt.where(
                 or_(
                     QuestionModel.section == sec_val,
@@ -782,26 +782,6 @@ async def override_question_duplicate(question_id: str) -> Question | None:
         await session.commit()
         await session.refresh(model)
         return _model_to_schema(model)
-
-
-__all__ = [
-    "batch_update_question_status",
-    "count_questions",
-    "delete_question",
-    "delete_questions_batch",
-    "get_question_by_id",
-    "get_question_status_counts",
-    "get_questions",
-    "get_repository_metrics",
-    "get_subtopic_reference_questions",
-    "hard_delete_question",
-    "hard_delete_questions_batch",
-    "override_question_duplicate",
-    "restore_question",
-    "save_question",
-    "save_questions_batch",
-    "update_question_status",
-]
 
 
 @dataclass(frozen=True)

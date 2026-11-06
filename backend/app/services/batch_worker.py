@@ -35,7 +35,6 @@ from app.schemas import (
     Question,
     determine_question_status,
 )
-from app.workflow._section_utils import is_cars_section as _is_cars_section
 
 logger = logging.getLogger(__name__)
 
@@ -134,11 +133,8 @@ class _JobUsage:
 
 def _is_passage_mode(req: GenerationRequest) -> bool:
     """Returns True when the request needs a shared passage (CARS, single-passage, or explicit)."""
-    return (
-        _is_cars_section(req.section)
-        or req.passage_mode == "single_passage"
-        or str(req.passage_required).lower() in ("yes", "true", "1")
-    )
+    # GenerationRequest's validator already resolved the binary passage mode (CARS always linked)
+    return req.passage_mode == "single_passage"
 
 
 async def _get_active_job_questions(batch_id: str, job_id: str) -> list[QuestionHead]:

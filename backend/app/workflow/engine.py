@@ -40,8 +40,8 @@ from app.schemas import (
     JobStatus,
     Question,
     WorkflowEvent,
+    enum_value,
 )
-from app.workflow._section_utils import is_cars_section
 from app.workflow.dedup_inflight import (
     _refresh_duplicate_info_after_review,
     _run_deduplication_anti_collision_loop,
@@ -73,19 +73,12 @@ logger = logging.getLogger(__name__)
 # Max buffered SSE events before workers wait for the consumer to catch up
 _EVENT_QUEUE_MAX = 256
 
-# Attempts per question slot (replenishing it after a rejection or error) before moving on
-MAX_SLOT_ATTEMPTS = 3
 SLOT_REPLENISH_DELAY_SECONDS = 0.5  # pause before re-drafting a rejected slot
 SLOT_ERROR_RETRY_DELAY_SECONDS = 1.0  # pause before retrying a slot after an error
 # Workers start slightly apart so siblings can see each other's in-flight stems for dedup
 WORKER_STAGGER_SECONDS = 0.35
 WORKER_STAGGER_MAX_SECONDS = 2.0
 EVENT_POLL_SECONDS = 1.0  # how often the stream loop re-checks that the workers are still running
-
-
-def _enum_value(value: Any) -> str:
-    """The wire value of an enum member, or the string form of anything else."""
-    return value.value if hasattr(value, "value") else str(value)
 
 
 @dataclass(frozen=True)
@@ -114,13 +107,9 @@ class RunLayout:
 
 def _resolve_run_layout(req: GenerationRequest) -> RunLayout:
     """Resolves the binary passage mode (all questions linked, or all independent) and the ids."""
-    total_qty = max(1, req.questions_to_generate) if req.questions_to_generate is not None else 5
-    is_independent = not is_cars_section(req.section) and (
-        req.passage_mode == "independent"
-        or str(req.passage_required).lower() in ("no", "false", "0")
-        or (req.passage_question_count == 0 and not req.shared_stimulus)
-    )
-    is_single_passage_set = not is_independent
+    total_qty = max(1, req.questions_to_generate)
+    # GenerationRequest's validator already resolved the binary passage mode (CARS always linked)
+    is_single_passage_set = req.passage_mode != "independent"
     return RunLayout(
         total_qty=total_qty,
         batch_id=req.batch_id or str(uuid.uuid4()),
@@ -135,14 +124,14 @@ async def _init_live_records(req: GenerationRequest, layout: RunLayout) -> None:
     """Creates the batch (when new) and job rows for a standalone live run; DB errors only log."""
     try:
         now_iso = datetime.now(UTC).isoformat()
-        sec_val = _enum_value(req.section)
+        sec_val = enum_value(req.section)
         if not await get_batch_by_id(layout.batch_id):
             await save_batch(
                 GenerationBatch(
                     id=layout.batch_id,
                     section=sec_val,
                     subtopic=req.subtopic or f"{sec_val} Mini-Batch",
-                    difficulty=_enum_value(req.difficulty),
+                    difficulty=enum_value(req.difficulty),
                     passage_mode=req.passage_mode or layout.passage_mode,
                     target_count=layout.total_qty,
                     actual_count=0,
@@ -290,11 +279,8 @@ def _drafting_message(
 
 def _resolve_passing_threshold(item_req: GenerationRequest, req: GenerationRequest) -> float:
     """Item override, then run override, then the configured default."""
-    return (
-        getattr(item_req, "passing_threshold", None)
-        or getattr(req, "passing_threshold", None)
-        or config.PASSING_SCORE_THRESHOLD
-    )
+    # item_req is a copy of req, so one lookup covers both overrides
+    return item_req.passing_threshold or req.passing_threshold or config.PASSING_SCORE_THRESHOLD
 
 
 def _initial_attempt_state(
@@ -464,7 +450,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         # Reference pool for duplicate detection (same section & subtopic from DB)
         db_reference_pool: list[Question] = []
         try:
-            sec_str = req.section.value if hasattr(req.section, "value") else str(req.section)
+            sec_str = enum_value(req.section)
             db_reference_pool = await get_subtopic_reference_questions(
                 section=sec_str,
                 subtopic=req.subtopic,
@@ -474,7 +460,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             logger.warning("Could not load reference questions for deduplication: %s", ref_err)
 
         async def _worker(idx: int) -> None:
-            max_slot_attempts = MAX_SLOT_ATTEMPTS
+            # Attempts per slot: the first draft plus the configured number of replenishments
+            max_slot_attempts = config.WORKFLOW_MAX_WORKER_RETRIES + 1
             for attempt in range(max_slot_attempts):
                 if attempt > 0 and ledger.budget_spent(idx, config.MAX_LLM_CALLS_PER_SLOT):
                     logger.warning(
@@ -678,9 +665,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                                 }
 
                             requires_image = _determine_item_diagram_requirement(
-                                state=state,
-                                idx=idx,
-                                is_passage_item=is_passage_item_check,
+                                state=state, is_passage_item=is_passage_item_check
                             )
 
                             if requires_image:

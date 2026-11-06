@@ -5,12 +5,12 @@ description: Work on the multi-agent question-generation pipeline of the Questio
 
 # AI pipeline
 
-## Flow (production path: workflow/engine.py + engine_helpers.py)
+## Flow (production path: workflow/engine.py + review_loop.py, passage_prep.py, dedup_inflight.py, live_job_store.py)
 `fused_generator` (draft + honest 100-point self-critique) -> dedup/anti-collision loop -> `_run_question_review_loop`: deterministic validator (`agents/validators.py`, free; auto-repairs dashes; blocking defects regenerate or reject without any review call) -> reviewer and blind solver run **concurrently** (`run_review_and_solve`; both billed) -> `route_after_review`: score > threshold and solver verified goes to `image_generator` (only if a diagram is needed) then `finalize`; otherwise `regenerator` and back to the validator; attempts exhausted goes to `reject`.
 
-There is no LangGraph runtime: the flow is the hand-written loop in `engine.py`/`engine_helpers.py`; `routes.py` only provides `route_after_review` (used by the loop). Change the loop and keep `route_after_review` consistent with it.
+There is no LangGraph runtime: the flow is the hand-written loop in `engine.py`/`review_loop.py`; `routes.py` only provides `route_after_review` (used by the loop). Change the loop and keep `route_after_review` consistent with it.
 
-Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_update`, `build_usage_only_update`, `run_review_and_solve`), `routes.py`, `state.py` (`AgentWorkflowState`), `engine.py` + `engine_helpers.py`, `agents/*` (LLM calls), `agents/validators.py`, `agents/prompts.py`, `agents/prompt_builder.py`.
+Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_update`, `build_usage_only_update`, `run_review_and_solve`), `routes.py`, `state.py` (`AgentWorkflowState`), `engine.py` + `review_loop.py`/`passage_prep.py`/`dedup_inflight.py`/`live_job_store.py`, `agents/*` (LLM calls), `agents/validators.py`, `agents/prompts.py`, `agents/prompt_builder.py`.
 
 ## Invariants (do not weaken without the user asking)
 - Quality gate: score must be above the threshold (`config.passes_quality_gate`, never a literal 90); up to 3 regeneration attempts; then reject.

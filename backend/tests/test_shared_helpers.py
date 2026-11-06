@@ -7,7 +7,6 @@ from app.agents.base import calculate_token_cost
 from app.agents.standards import is_cars
 from app.schemas import GenerationRequest, TokenUsage
 from app.schemas.token import sum_usage
-from app.workflow._section_utils import is_cars_section
 
 
 def _u(tokens, cost, ms=None):
@@ -37,8 +36,8 @@ def test_mock_usage_is_priced_like_a_real_call():
 
 @pytest.mark.parametrize("section", ["CARS", "cars", "Cars"])
 def test_workflow_and_agent_cars_helpers_agree(section):
-    assert is_cars(section) and is_cars_section(section)
-    assert not is_cars("chem_phys") and not is_cars_section("chem_phys")
+    assert is_cars(section)
+    assert not is_cars("chem_phys")
 
 
 def test_passage_prompt_differs_between_cars_and_science(patch_llm):

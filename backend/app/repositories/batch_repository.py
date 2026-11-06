@@ -167,6 +167,61 @@ async def delete_batch(batch_id: str) -> bool:
         return True
 
 
+def _next_batch_status(
+    current: str,
+    *,
+    completed_jobs: int,
+    failed_jobs: int,
+    active_jobs: int,
+    actual_count: int,
+    target_count: int,
+    total_jobs: int,
+    allow_complete: bool,
+) -> str:
+    """The batch status implied by its job and question counts (pure; the aggregate state machine).
+
+    Terminal or user-stopped statuses are preserved; a partially_completed batch with no live jobs
+    is terminal (e.g. just stopped by the user). With ``allow_complete`` a batch with nothing
+    running always ends in a terminal status.
+    """
+    keep_terminal = current in (BatchStatus.CANCELLED, BatchStatus.STOPPED) or (
+        current == BatchStatus.PARTIALLY_COMPLETED and active_jobs == 0
+    )
+    if keep_terminal:
+        return current
+
+    status = current
+    if completed_jobs + failed_jobs >= total_jobs and failed_jobs > 0:
+        status = BatchStatus.PARTIALLY_COMPLETED if completed_jobs > 0 else BatchStatus.FAILED
+    elif actual_count >= target_count and actual_count > 0:
+        status = BatchStatus.COMPLETED if allow_complete else BatchStatus.IN_PROGRESS
+    elif completed_jobs >= total_jobs:
+        if allow_complete:
+            status = (
+                BatchStatus.COMPLETED
+                if actual_count >= target_count
+                else BatchStatus.PARTIALLY_COMPLETED
+            )
+        else:
+            status = BatchStatus.IN_PROGRESS
+    elif status != BatchStatus.COMPLETED:
+        status = BatchStatus.IN_PROGRESS
+
+    # Final resolution: a caller that says the batch is done (allow_complete) while no job is
+    # pending or running must leave a terminal status. Without this a batch whose jobs ended
+    # cancelled/stopped (client disconnect, stop then resume) stayed "in_progress" forever.
+    if allow_complete and active_jobs == 0 and status in LIVE_STATES:
+        if actual_count >= target_count and actual_count > 0:
+            status = BatchStatus.COMPLETED
+        elif actual_count > 0 or completed_jobs > 0:
+            status = BatchStatus.PARTIALLY_COMPLETED
+        elif failed_jobs > 0:
+            status = BatchStatus.FAILED
+        else:
+            status = BatchStatus.CANCELLED
+    return status
+
+
 async def refresh_batch_aggregates(
     batch_id: str, allow_complete: bool = False
 ) -> GenerationBatch | None:
@@ -231,45 +286,16 @@ async def refresh_batch_aggregates(
         total_jobs = batch_model.total_jobs or 10
         target_count = batch_model.target_count or 50
 
-        # Preserve terminal or user-stopped status unless transitioning upon completion. A
-        # partially_completed batch with no live jobs is terminal (e.g. just stopped by the user).
-        keep_terminal = batch_model.status in (BatchStatus.CANCELLED, BatchStatus.STOPPED) or (
-            batch_model.status == BatchStatus.PARTIALLY_COMPLETED and active_jobs == 0
+        batch_model.status = _next_batch_status(
+            batch_model.status,
+            completed_jobs=completed_jobs,
+            failed_jobs=failed_jobs,
+            active_jobs=active_jobs,
+            actual_count=actual_count,
+            target_count=target_count,
+            total_jobs=total_jobs,
+            allow_complete=allow_complete,
         )
-        if not keep_terminal:
-            if completed_jobs + failed_jobs >= total_jobs and failed_jobs > 0:
-                batch_model.status = (
-                    BatchStatus.PARTIALLY_COMPLETED if completed_jobs > 0 else BatchStatus.FAILED
-                )
-            elif actual_count >= target_count and actual_count > 0:
-                batch_model.status = (
-                    BatchStatus.COMPLETED if allow_complete else BatchStatus.IN_PROGRESS
-                )
-            elif completed_jobs >= total_jobs:
-                if allow_complete:
-                    batch_model.status = (
-                        BatchStatus.COMPLETED
-                        if actual_count >= target_count
-                        else BatchStatus.PARTIALLY_COMPLETED
-                    )
-                else:
-                    batch_model.status = BatchStatus.IN_PROGRESS
-            elif batch_model.status != BatchStatus.COMPLETED:
-                batch_model.status = BatchStatus.IN_PROGRESS
-
-            # Final resolution: a caller that says the batch is done (allow_complete) while no job
-            # is pending or running must leave a terminal status. Without this a batch whose jobs
-            # ended cancelled/stopped (client disconnect, stop then resume) stayed "in_progress"
-            # forever with nothing running it.
-            if allow_complete and active_jobs == 0 and batch_model.status in LIVE_STATES:
-                if actual_count >= target_count and actual_count > 0:
-                    batch_model.status = BatchStatus.COMPLETED
-                elif actual_count > 0 or completed_jobs > 0:
-                    batch_model.status = BatchStatus.PARTIALLY_COMPLETED
-                elif failed_jobs > 0:
-                    batch_model.status = BatchStatus.FAILED
-                else:
-                    batch_model.status = BatchStatus.CANCELLED
 
         # If batch is completed or partially completed, promote qualifying active questions (>90 score) to 'ai_validated'
         if batch_model.status in COMPLETED_STATES:

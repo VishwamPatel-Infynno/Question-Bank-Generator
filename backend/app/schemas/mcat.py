@@ -20,13 +20,6 @@ MCAT_SECTION_LABELS = {
     MCATSection.PSYCH_SOC: "Psychological, Social, and Biological Foundations of Behavior",
 }
 
-MCAT_SECTION_SHORT_LABELS = {
-    MCATSection.CHEM_PHYS: "Chem / Phys",
-    MCATSection.CARS: "CARS",
-    MCATSection.BIO_BIOCHEM: "Bio / Biochem",
-    MCATSection.PSYCH_SOC: "Psych / Soc",
-}
-
 MCAT_SECTION_CODES = {
     MCATSection.CHEM_PHYS: "CP",
     MCATSection.CARS: "CARS",
@@ -84,16 +77,6 @@ AAMC_REASONING_SKILLS = {
     "CARS_Skill_1": "Foundations of Comprehension",
     "CARS_Skill_2": "Reasoning Within the Text",
     "CARS_Skill_3": "Reasoning Beyond the Text",
-}
-
-AAMC_SKILL_LABELS = {
-    "Skill_1": "AAMC Skill 1: Scientific Concepts",
-    "Skill_2": "AAMC Skill 2: Scientific Reasoning",
-    "Skill_3": "AAMC Skill 3: Research Design",
-    "Skill_4": "AAMC Skill 4: Data & Statistics",
-    "CARS_Skill_1": "CARS Skill 1: Comprehension",
-    "CARS_Skill_2": "CARS Skill 2: Reasoning In-Text",
-    "CARS_Skill_3": "CARS Skill 3: Reasoning Beyond",
 }
 
 
@@ -349,3 +332,13 @@ def normalize_mistake_pattern(pattern_str: str | None) -> str | None:
         if clean.lower() == val or clean.lower() in val:
             return item.get("value", clean)
     return clean
+
+
+def enum_value(value: object) -> str:
+    """The wire value of an enum member, or the string form of anything else."""
+    return value.value if hasattr(value, "value") else str(value)
+
+
+def is_cars(section: object) -> bool:
+    """True for the CARS subtest (enum member or string, any case)."""
+    return enum_value(section).strip().lower() in ("cars", "mcatsection.cars")

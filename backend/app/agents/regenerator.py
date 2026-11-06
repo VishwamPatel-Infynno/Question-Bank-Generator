@@ -35,6 +35,7 @@ from app.schemas import (
     QuestionDraft,
     ReviewScore,
     TokenUsage,
+    enum_value,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ async def regenerate_question(
     draft: QuestionDraft, review: ReviewScore, req: GenerationRequest, iteration: int = 2
 ) -> tuple[QuestionDraft, TokenUsage]:
     """Invokes the Question Re-Generator Agent to refine a draft that scored <= 90."""
-    section_val = req.section.value if hasattr(req.section, "value") else str(req.section)
+    section_val = enum_value(req.section)
     section_name = MCAT_SECTION_LABELS.get(req.section, section_val)
     options_formatted = "\n".join([f"{opt.id}: {opt.text}" for opt in draft.options])
 

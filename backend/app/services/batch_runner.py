@@ -36,13 +36,14 @@ from app.schemas import (
     GenerationJob,
     GenerationRequest,
     JobStatus,
+    enum_value,
     is_question_active,
 )
 from app.services.batch_concurrency import (
-    cancel_background_batch,
     get_global_job_semaphore,
     get_stored_batch_request,
     register_batch_task,
+    stop_background_batch,
     store_batch_request,
     unregister_batch_task,
 )
@@ -362,7 +363,7 @@ async def retry_incomplete_jobs_for_batch(
         return None, []
 
     # Stop any currently active task for this batch first
-    await cancel_background_batch(batch_id)
+    await stop_background_batch(batch_id)
 
     jobs = await get_jobs_by_batch_id(batch_id)
     # Strictly enforce the trial ceiling: only jobs with trial_count < MAX_JOB_TRIALS are eligible for retry/resume
@@ -462,10 +463,10 @@ async def launch_background_batch(
     b_id = batch_id or str(uuid.uuid4())
     now_iso = datetime.now(UTC).isoformat()
 
-    sec_val = req.section.value if hasattr(req.section, "value") else str(req.section)
-    diff_val = req.difficulty.value if hasattr(req.difficulty, "value") else str(req.difficulty)
+    sec_val = enum_value(req.section)
+    diff_val = enum_value(req.difficulty)
 
-    target_count = req.questions_to_generate or 50
+    target_count = req.questions_to_generate
     total_jobs = max(1, (target_count + (QUESTIONS_PER_JOB - 1)) // QUESTIONS_PER_JOB)
 
     # Cache request for potential 1-click retries

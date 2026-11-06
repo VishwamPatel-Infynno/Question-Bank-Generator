@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.schemas.mcat import Difficulty, MCATSection, normalize_section
+from app.schemas.mcat import Difficulty, MCATSection, is_cars, normalize_section
 
 KNOWN_VISUAL_TYPES: tuple[str, ...] = (
     "SVG_Diagram",
@@ -66,7 +66,6 @@ class GenerationRequest(BaseModel):
         default_factory=lambda: str(uuid.uuid4()),
         description="Combination UUID4 or custom code e.g. CMB00001",
     )
-    subcategory: str | None = Field(None, description="e.g. Inference")
     content_domain: str | None = Field(None, description="e.g. General_Chemistry, Biochemistry")
     question_type: str | None = Field(
         None, description="e.g. Passage_Based_Set, Independent_Discrete"
@@ -126,7 +125,7 @@ class GenerationRequest(BaseModel):
     def is_passage_active(self) -> bool:
         """Determines whether a reading passage stimulus is active for this request."""
         # CARS is strictly 100% passage-based in official MCAT
-        if self.section in (MCATSection.CARS, "CARS", "cars"):
+        if is_cars(self.section):
             return True
         if self.passage_required is not None:
             return str(self.passage_required).lower() in ("yes", "true", "1")
@@ -137,7 +136,7 @@ class GenerationRequest(BaseModel):
     @property
     def requires_visual_stimulus(self) -> bool:
         """Determines whether visual image/diagram stimulus generation is explicitly required."""
-        if self.section in (MCATSection.CARS, "CARS", "cars"):
+        if is_cars(self.section):
             return False
         if self.visual_type in KNOWN_VISUAL_TYPES:
             return True
@@ -176,15 +175,10 @@ class GenerationRequest(BaseModel):
     @model_validator(mode="after")
     def resolve_binary_passage_and_fixed_count(self) -> GenerationRequest:
         """Enforces 1 to 50 questions for batch runs and binary passage mode (all linked or all independent)."""
-        if not (1 <= self.questions_to_generate <= 50):
-            raise ValueError(
-                f"MCAT question generation requires 1 to 50 questions per run (received {self.questions_to_generate})."
-            )
-
-        total_q = self.questions_to_generate or 5
+        total_q = self.questions_to_generate
 
         # Rule 1: CARS is ALWAYS 100% passage-based (all linked to passage)
-        if self.section in (MCATSection.CARS, "cars", "CARS"):
+        if is_cars(self.section):
             self.passage_mode = "single_passage"
             self.passage_required = "Yes"
             self.passage_question_count = total_q

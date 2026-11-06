@@ -125,11 +125,6 @@ def is_batch_running(batch_id: str) -> bool:
     return task is not None and not task.done()
 
 
-async def cancel_background_batch(batch_id: str) -> bool:
-    """Cancels an active background batch runner task if running."""
-    return await stop_background_batch(batch_id)
-
-
 async def cancel_all_background_batches() -> int:
     """Gracefully halts all active background batches, preserving generated questions."""
     batch_ids = list(_active_batch_tasks.keys())

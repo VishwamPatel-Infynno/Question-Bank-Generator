@@ -423,7 +423,7 @@ async def call_llm(
         }
         if resolved_key:
             kwargs["api_key"] = resolved_key
-        if config.is_anthropic_model(candidate) and "thinking" not in kwargs:
+        if config.is_anthropic_model(candidate):
             kwargs["thinking"] = {"type": "disabled"}
 
         max_retries = config.LLM_MAX_RETRIES

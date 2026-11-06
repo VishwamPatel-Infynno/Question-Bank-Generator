@@ -68,9 +68,7 @@ async def get_runtime_settings(request: Request = None) -> dict[str, Any]:  # ty
         "openai_model": config.OPENAI_MODEL,
         "openai_image_model": config.OPENAI_IMAGE_MODEL,
         "deepinfra_image_model": config.DEEPINFRA_IMAGE_MODEL,
-        "fast_model_cascade": config.FAST_MODEL_CASCADE
-        if isinstance(config.FAST_MODEL_CASCADE, list)
-        else [config.FAST_MODEL_CASCADE],
+        "fast_model_cascade": config.FAST_MODEL_CASCADE,
         "max_regenerations": config.MAX_REGENERATION_ATTEMPTS,
         "passing_threshold": config.PASSING_SCORE_THRESHOLD,
         "batch_passing_threshold": config.BATCH_PASSING_SCORE_THRESHOLD,

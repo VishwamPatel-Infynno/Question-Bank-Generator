@@ -15,8 +15,9 @@ from app.schemas import (
     OptionChoice,
     QuestionDraft,
     WorkflowEvent,
+    enum_value,
+    is_cars,
 )
-from app.workflow._section_utils import is_cars_section
 from app.workflow.state import AgentWorkflowState
 
 
@@ -81,7 +82,7 @@ def _build_batch_worker_request(
 
     # For independent questions in science sections, when AI diagrams are permitted,
     # calibrate authentic AAMC frequency (~40%: items 0 and 2 in every 5 questions, or single question)
-    sec_is_cars = is_cars_section(req.section)
+    sec_is_cars = is_cars(req.section)
     has_diagrams_enabled = (
         req.allow_ai_images or req.require_image or req.visual_type in KNOWN_VISUAL_TYPES
     )
@@ -112,11 +113,7 @@ def _build_batch_worker_request(
     return item_req, item_run_id, is_passage_item, item_interaction
 
 
-def _determine_item_diagram_requirement(
-    state: AgentWorkflowState,
-    idx: int,
-    is_passage_item: bool,
-) -> bool:
+def _determine_item_diagram_requirement(state: AgentWorkflowState, is_passage_item: bool) -> bool:
     """
     Evaluates whether a specific question item within a batch requires a visual stimulus diagram.
 
@@ -126,22 +123,20 @@ def _determine_item_diagram_requirement(
 
     Args:
         state: Current AgentWorkflowState for this question worker.
-        idx: Zero-based index of this question (informational; not used in logic).
         is_passage_item: Whether this question is linked to the shared reading passage.
 
     Returns:
         True if a visual stimulus diagram should be generated for this question.
     """
-    _ = idx  # Informational parameter reserved for item-index specific diagram rules
     req_data = state["request"]
     sec_raw = req_data.get("section", "")
-    section_val = sec_raw.value if hasattr(sec_raw, "value") else str(sec_raw)
+    section_val = enum_value(sec_raw)
     allow_ai_images = req_data.get("allow_ai_images", False)
     explicit_image = req_data.get("require_image", False)
     visual_type = req_data.get("visual_type", "None")
 
     # CARS strictly has no figures, data tables or diagrams in official AAMC format
-    if is_cars_section(section_val):
+    if is_cars(section_val):
         return False
     if is_passage_item:
         # Passage question items share the passage diagram; they never have internal images
@@ -243,7 +238,7 @@ async def _prepare_shared_passage_and_visual(
         yield passage_done_evt
 
     requires_passage_image = bool(
-        not is_cars_section(req.section)
+        not is_cars(req.section)
         and (
             req.allow_ai_images
             or passage_image_needed

@@ -154,17 +154,6 @@ MANDATORY: The "options" key must be a JSON array of exactly 4 objects with "id"
   "image_prompt_or_type": null
 }"""
 
-SVG_SYSTEM_PROMPT = """You are an expert SVG diagram architect specialising in educational and scientific medical admissions diagrams.
-Your task is to generate valid, standalone, crisp SVG markup that illustrates an experimental diagram, biochemical pathway, titration curve, or physics apparatus for an AAMC MCAT question.
-
-RULES:
-1. Output ONLY valid SVG markup starting with <svg> and ending with </svg>.
-2. Do NOT wrap in markdown backticks or commentary.
-3. Use a viewBox of "0 0 600 380" and responsive styling.
-4. Use clean modern styling with accessible high-contrast colors suited for a light theme.
-5. Ensure text labels are clear and legible (font-family="system-ui, sans-serif").
-"""
-
 FUSED_GENERATOR_SYSTEM_PROMPT = """You are a Master AAMC MCAT Psychometrician and Lead Question Writer for official medical college admissions examinations.
 Your task is to write authentic, publication-grade MCAT Multiple Choice Questions adhering strictly to official AAMC conventions, and to immediately perform an objective, strict self-critique evaluation of your drafted item against the official 100-point rubric.
 
@@ -222,7 +211,6 @@ Respond ONLY with a valid JSON object matching this exact structure (strictly es
     "recommendations": ["<fix for each weakness>"]
   }
 }"""
-
 
 # Resolve the <<TOKEN>> placeholders from agents/standards.py so every prompt quotes the same numbers
 from app.agents.standards import resolve_standards  # noqa: E402

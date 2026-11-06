@@ -1,6 +1,7 @@
 """Regression tests for the round-6 backend bug fixes."""
 
 import json
+import pathlib
 import uuid
 from types import SimpleNamespace
 
@@ -275,3 +276,130 @@ async def test_reconcile_stops_pending_batches_too():
     )
     await reconcile_interrupted_batches()
     assert (await get_batch_by_id(batch_id)).status == "stopped"
+
+
+# --- batch status state machine (pure) --------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("current", "counts", "allow_complete", "expected"),
+    [
+        # terminal and user-stopped statuses are preserved
+        (
+            "cancelled",
+            {"completed_jobs": 5, "failed_jobs": 0, "active_jobs": 0, "actual_count": 50},
+            True,
+            "cancelled",
+        ),
+        (
+            "stopped",
+            {"completed_jobs": 5, "failed_jobs": 0, "active_jobs": 0, "actual_count": 50},
+            True,
+            "stopped",
+        ),
+        (
+            "partially_completed",
+            {"completed_jobs": 3, "failed_jobs": 0, "active_jobs": 0, "actual_count": 15},
+            False,
+            "partially_completed",
+        ),
+        # a partially completed batch with live jobs may still move on
+        (
+            "partially_completed",
+            {"completed_jobs": 10, "failed_jobs": 0, "active_jobs": 1, "actual_count": 50},
+            True,
+            "completed",
+        ),
+        # every job ended and some failed
+        (
+            "in_progress",
+            {"completed_jobs": 7, "failed_jobs": 3, "active_jobs": 0, "actual_count": 35},
+            True,
+            "partially_completed",
+        ),
+        (
+            "in_progress",
+            {"completed_jobs": 0, "failed_jobs": 10, "active_jobs": 0, "actual_count": 0},
+            True,
+            "failed",
+        ),
+        # target reached: completed only when the caller allows it
+        (
+            "in_progress",
+            {"completed_jobs": 4, "failed_jobs": 0, "active_jobs": 6, "actual_count": 50},
+            False,
+            "in_progress",
+        ),
+        (
+            "in_progress",
+            {"completed_jobs": 4, "failed_jobs": 0, "active_jobs": 6, "actual_count": 50},
+            True,
+            "completed",
+        ),
+        # all jobs done but short of the target
+        (
+            "in_progress",
+            {"completed_jobs": 10, "failed_jobs": 0, "active_jobs": 0, "actual_count": 40},
+            True,
+            "partially_completed",
+        ),
+        (
+            "in_progress",
+            {"completed_jobs": 10, "failed_jobs": 0, "active_jobs": 0, "actual_count": 40},
+            False,
+            "in_progress",
+        ),
+        # nothing running and the caller says the run is over: never left live
+        (
+            "in_progress",
+            {"completed_jobs": 0, "failed_jobs": 0, "active_jobs": 0, "actual_count": 0},
+            True,
+            "cancelled",
+        ),
+        (
+            "pending",
+            {"completed_jobs": 0, "failed_jobs": 2, "active_jobs": 0, "actual_count": 0},
+            True,
+            "failed",
+        ),
+        (
+            "in_progress",
+            {"completed_jobs": 2, "failed_jobs": 0, "active_jobs": 0, "actual_count": 8},
+            True,
+            "partially_completed",
+        ),
+        # still running
+        (
+            "pending",
+            {"completed_jobs": 1, "failed_jobs": 0, "active_jobs": 9, "actual_count": 5},
+            False,
+            "in_progress",
+        ),
+    ],
+)
+def test_next_batch_status(current, counts, allow_complete, expected):
+    from app.repositories.batch_repository import _next_batch_status
+
+    result = _next_batch_status(
+        current, target_count=50, total_jobs=10, allow_complete=allow_complete, **counts
+    )
+    assert result == expected
+
+
+def test_enum_value_and_is_cars_accept_members_and_strings():
+    from app.schemas import MCATSection, enum_value, is_cars
+
+    assert enum_value(MCATSection.CARS) == "cars"
+    assert enum_value("psych_soc") == "psych_soc"
+    assert enum_value(None) == "None"
+    assert is_cars(MCATSection.CARS) and is_cars("CARS") and is_cars(" cars ")
+    assert not is_cars(MCATSection.CHEM_PHYS) and not is_cars("critical_analysis")
+
+
+def test_slot_attempts_follow_the_worker_retry_setting(monkeypatch):
+    """The engine's attempts per slot are the configured retries plus the first draft."""
+    from app.workflow import engine
+
+    source = pathlib.Path(engine.__file__).read_text()
+    assert "config.WORKFLOW_MAX_WORKER_RETRIES + 1" in source
+    assert "MAX_SLOT_ATTEMPTS" not in source

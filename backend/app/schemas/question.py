@@ -18,7 +18,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import config
-from app.schemas.mcat import calculate_mcat_scaled_score
+from app.schemas.mcat import calculate_mcat_scaled_score, enum_value
 
 
 class QuestionStatus(str, Enum):
@@ -358,7 +358,7 @@ class BatchDeleteRequest(BaseModel):
 
 def _validate_question_status(v: Any) -> str:
     """Shared validator: normalizes and guards the question lifecycle status field."""
-    val = v.value if hasattr(v, "value") else str(v)
+    val = enum_value(v)
     if val not in VALID_QUESTION_STATUSES:
         raise ValueError(
             f"Invalid status '{val}'. Must be one of {sorted(VALID_QUESTION_STATUSES)}"

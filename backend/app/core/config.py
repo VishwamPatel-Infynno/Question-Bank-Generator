@@ -60,10 +60,8 @@ class Settings(BaseSettings):
 
     # Private runtime override attributes
     _override_default_text_model: str | None = PrivateAttr(default=None)
-    _override_default_image_model: str | None = PrivateAttr(default=None)
     _override_cost_input: float | None = PrivateAttr(default=None)
     _override_cost_output: float | None = PrivateAttr(default=None)
-    _override_cascade: list[str] | None = PrivateAttr(default=None)
 
     @property
     def active_provider_key(self) -> str:
@@ -144,24 +142,11 @@ class Settings(BaseSettings):
     @property
     def FAST_MODEL_CASCADE(self) -> list[str]:
         """Candidate models for fallback, aware of the active provider."""
-        if self._override_cascade is not None:
-            return self._override_cascade
         if self.active_provider_key == "anthropic":
             return [self.ANTHROPIC_MODEL]
         if self.active_provider_key == "openai":
             return [self.OPENAI_MODEL]
         return [self.DEEPINFRA_MODEL]
-
-    @FAST_MODEL_CASCADE.setter
-    def FAST_MODEL_CASCADE(self, value: list[str] | None) -> None:
-        if value is None or value in (
-            [self.ANTHROPIC_MODEL],
-            [self.DEEPINFRA_MODEL],
-            [self.OPENAI_MODEL],
-        ):
-            self._override_cascade = None
-        else:
-            self._override_cascade = value
 
     # Image generation parameters
     IMAGE_WIDTH: int = 1024
@@ -171,19 +156,10 @@ class Settings(BaseSettings):
     @property
     def DEFAULT_IMAGE_MODEL(self) -> str:
         """Active default image model, dynamically resolved from active image provider."""
-        if self._override_default_image_model is not None:
-            return self._override_default_image_model
         provider = self.get_active_image_provider()
         if provider == "openai":
             return self.OPENAI_IMAGE_MODEL
         return self.DEEPINFRA_IMAGE_MODEL
-
-    @DEFAULT_IMAGE_MODEL.setter
-    def DEFAULT_IMAGE_MODEL(self, value: str | None) -> None:
-        if value is None or value in (self.OPENAI_IMAGE_MODEL, self.DEEPINFRA_IMAGE_MODEL):
-            self._override_default_image_model = None
-        else:
-            self._override_default_image_model = value
 
     def calculate_flux_image_cost(
         self,

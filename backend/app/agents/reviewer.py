@@ -32,6 +32,7 @@ from app.schemas import (
     QuestionDraft,
     ReviewScore,
     TokenUsage,
+    enum_value,
 )
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ async def review_question(
     draft: QuestionDraft, req: GenerationRequest, iteration: int = 1
 ) -> tuple[ReviewScore, TokenUsage]:
     """Invokes the Question Reviewer Agent to score a candidate draft against the 100-point rubric."""
-    section_val = req.section.value if hasattr(req.section, "value") else str(req.section)
+    section_val = enum_value(req.section)
     section_name = MCAT_SECTION_LABELS.get(req.section, section_val)
     options_formatted = "\n".join([f"{opt.id}: {opt.text}" for opt in draft.options])
 

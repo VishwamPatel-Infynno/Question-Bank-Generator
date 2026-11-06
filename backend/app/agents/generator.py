@@ -45,6 +45,7 @@ from app.schemas import (
     QuestionDraft,
     ReviewScore,
     TokenUsage,
+    enum_value,
     normalize_mistake_pattern,
     normalize_primary_trap,
 )
@@ -258,7 +259,7 @@ async def generate_passage_stimulus(
     req: GenerationRequest,
 ) -> tuple[str, TokenUsage, bool, str | None]:
     """Generates a standalone, publication-caliber AAMC MCAT academic/experimental reading passage."""
-    section_val = req.section.value if hasattr(req.section, "value") else str(req.section)
+    section_val = enum_value(req.section)
     section_name = MCAT_SECTION_LABELS.get(req.section, section_val)
     domain = req.content_domain or (
         "Humanities & Social Sciences" if is_cars(req.section) else "Biomedical & Physical Sciences"
