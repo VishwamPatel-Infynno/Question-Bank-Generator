@@ -5,6 +5,12 @@ import {
   getSectionPacingSeconds,
   normalizeSectionId
 } from '../mcat';
+import {
+  DIFFICULTY,
+  formatDifficulty,
+  getDifficultyBadgeClass,
+  normalizeDifficulty
+} from '../mcat';
 
 describe('normalizeSectionId', () => {
   it('accepts canonical ids and short codes', () => {
@@ -49,13 +55,6 @@ describe('section helpers', () => {
     expect(getSectionPacingSeconds('nope')).toBe(96);
   });
 });
-
-import {
-  DIFFICULTY,
-  formatDifficulty,
-  getDifficultyBadgeClass,
-  normalizeDifficulty
-} from '../mcat';
 
 describe('normalizeDifficulty', () => {
   it.each([

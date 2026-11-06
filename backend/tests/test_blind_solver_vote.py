@@ -16,10 +16,6 @@ def _draft(texts=None, key="A"):
     )
 
 
-def _usage():
-    return make_usage(15, 0.001)
-
-
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [("B", "B"), ("b.", "B"), ("Option C", "C"), ("THE ANSWER IS D", "D"), ("choice a", "A")],
@@ -53,7 +49,7 @@ def _solver_that_answers(correct_text_for_key, patch_llm, confidence=95, ambiguo
             f'{{"solver_rationale": "r", "ambiguity_notes": "", "is_ambiguous": '
             f'{str(ambiguous).lower()}, "confidence": {confidence}, "selected_key": "{shown}"}}'
         )
-        return body, _usage()
+        return body, make_usage()
 
     patch_llm(fake)
 
@@ -83,7 +79,7 @@ async def test_split_vote_is_never_verified(monkeypatch, patch_llm):
             '{"solver_rationale": "r", "ambiguity_notes": "", "is_ambiguous": false, '
             f'"confidence": 99, "selected_key": "{key}"}}'
         )
-        return body, _usage()
+        return body, make_usage()
 
     patch_llm(fake)
     result, _ = await bs.blind_solve_question(_draft(), make_request())
@@ -109,7 +105,7 @@ async def test_dedicated_solver_model_does_not_receive_the_clients_key(monkeypat
             '{"solver_rationale": "r", "ambiguity_notes": "", "is_ambiguous": false, '
             '"confidence": 95, "selected_key": "A"}'
         )
-        return body, _usage()
+        return body, make_usage()
 
     patch_llm(fake)
     monkeypatch.setattr(config, "BLIND_SOLVER_MODEL", "solver-model")

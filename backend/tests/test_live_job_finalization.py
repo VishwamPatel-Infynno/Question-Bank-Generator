@@ -1,27 +1,18 @@
 """Standalone /generate runs must always finalize their job and batch rows."""
 
-import json
-
 import pytest
 from app.repositories import get_batch_by_id, get_job_by_id
-from app.schemas import Difficulty, GenerationRequest, MCATSection
+from app.schemas import GenerationRequest
 from app.workflow import engine as engine_mod
 from app.workflow import run_workflow_stream
+from app.workflow.sse import iter_sse_events
+from factories import make_request
 
 pytestmark = pytest.mark.requires_db
 
 
 def _req(n: int = 1) -> GenerationRequest:
-    return GenerationRequest(
-        section=MCATSection.CHEM_PHYS,
-        subtopic="Kinetics",
-        difficulty=Difficulty.MEDIUM,
-        questions_to_generate=n,
-    )
-
-
-def _event(chunk: str) -> dict:
-    return json.loads(chunk.strip()[len("data: ") :])
+    return make_request(questions_to_generate=n)
 
 
 async def test_all_rejected_run_marks_job_failed_not_running(monkeypatch):
@@ -32,8 +23,7 @@ async def test_all_rejected_run_marks_job_failed_not_running(monkeypatch):
 
     job_id = batch_id = None
     last = {}
-    async for chunk in run_workflow_stream(_req()):
-        evt = _event(chunk)
+    async for evt in iter_sse_events(run_workflow_stream(_req())):
         job_id = job_id or (evt.get("data") or {}).get("job_id")
         batch_id = batch_id or (evt.get("data") or {}).get("batch_id")
         last = evt
@@ -50,8 +40,7 @@ async def test_all_rejected_run_marks_job_failed_not_running(monkeypatch):
 async def test_closing_on_workflow_complete_keeps_job_completed():
     job_id = batch_id = None
     stream = run_workflow_stream(_req())
-    async for chunk in stream:
-        evt = _event(chunk)
+    async for evt in iter_sse_events(stream):
         data = evt.get("data") or {}
         job_id = job_id or data.get("job_id")
         batch_id = batch_id or data.get("batch_id")

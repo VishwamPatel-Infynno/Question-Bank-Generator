@@ -34,7 +34,7 @@ pnpm install
 - Port busy: `pnpm run clean:ports`.
 - Is it up? `curl localhost:8000/api/health/ready` (200 ready, 503 database down).
 - DB refused or auth failure: `docker compose ps`; confirm `DATABASE_URL` is `postgresql+asyncpg://...`. DB-backed tests skip themselves when Postgres is unreachable, so a "passing" run without Docker does not exercise them.
-- Duplicate questions or passages in the DB: `pnpm run db:clean-duplicates` (script `scripts/clean_duplicate_artifacts.py`). This mutates data, so confirm with the user first.
+- Purging discarded questions (archived duplicates and reviewer discards; passages are untouched): `pnpm run db:clean-duplicates` (script `scripts/clean_duplicate_artifacts.py`; pass `--dry-run` to list first). This deletes data, so confirm with the user first.
 - Seed data: `backend/scripts/seed_questions.py`.
 - Frontend calls `/api/...`, so check the Vite proxy rather than hardcoding a backend host.
 

@@ -40,7 +40,7 @@ graph TD
 
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
-| **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (90 frontend files, 100% ruff compliance across backend) |
+| **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (137 frontend files, 100% ruff compliance across backend) |
 | **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **353 passing tests across 55 modules** (~23-28s) |
 | **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (363 total backend tests across 56 modules) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
@@ -56,7 +56,7 @@ The deterministic test suite verifies all backend logic without making live exte
 
 ```
 backend/tests/
-├── conftest.py                       # Socket probe for offline DB auto-skipping, async client fixtures & DB overrides
+├── conftest.py                       # Socket probe for offline DB auto-skipping, credential stripping, async client & patch_llm fixtures
 ├── test_additional_instructions.py   # Educator custom authoring instructions and prompt builder integration
 ├── test_agents.py                    # Multi-agent worker nodes, heuristics, and blind solver
 ├── test_anthropic.py                 # Multi-provider switching, Anthropic models, prompt cache pricing & API keys
@@ -106,7 +106,7 @@ backend/tests/
 ### 2.2 Test Suite Execution Commands & Execution Modes
 
 #### Execution Modes Breakdown
-- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 80 database-dependent tests, executing all 273 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`220 passed, 76 skipped, 10 deselected`).
+- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 78 database-dependent tests, executing all 275 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`220 passed, 76 skipped, 10 deselected`).
 - **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 353 deterministic unit and integration tests execute across all 55 modules in ~23-28 seconds (10 live tests deselected).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
 - **Total Suite**: 363 backend tests across 56 test files.
@@ -116,11 +116,12 @@ backend/tests/
 source .venv/bin/activate
 
 # 2. Run all deterministic unit and integration tests across 55 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 273 pure unit tests pass and 80 DB tests cleanly skip
-# Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
-ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 275 pure unit tests pass and 78 DB tests cleanly skip
+# conftest.py strips provider keys and enables OFFLINE_MODE, so no test ever calls a live LLM
+# (pyproject.toml sets the test path, PYTHONPATH and the "not live_e2e" marker)
+pytest -v
 
-# Or run via root package.json
+# Or run via root package.json (backend only)
 pnpm run test
 
 # Database maintenance: purge discarded duplicate questions
@@ -208,7 +209,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
    - `test_centralized_repository_package_exports`: Ensures clean package exports across DAL layers.
    - `test_model_to_schema_none_options_safety`: Verifies null-safe deserialization when question options are null or empty.
    - `test_cascade_passage_deletion_multi_status_and_metrics`: Confirms that soft-deleting a passage soft-deletes associated questions across all statuses while maintaining batch metrics.
-10. **`test_deduplication.py` (8 tests)**:
+10. **`test_deduplication.py` (11 tests)**:
     - `test_normalize_text`: Verifies text normalization, case folding, punctuation removal, and whitespace trimming.
     - `test_extract_content_tokens`: Confirms extraction of domain-specific content tokens while filtering stop words.
     - `test_identical_questions_duplicate_detection`: Validates 1.0 similarity for verbatim question stems and options.
@@ -222,7 +223,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - `test_call_llm_rate_limit_backoff`: Validates exponential backoff and jitter under HTTP 429 rate limit responses.
     - `test_refresh_batch_aggregates_atomic`: Ensures atomic SQL aggregation eliminates race conditions between parallel jobs.
     - `test_simultaneous_multi_batch_launch_and_metrics`: Tests simultaneous execution of multiple 50-question batches.
-12. **`test_pedagogy.py` (4 tests)**:
+12. **`test_pedagogy.py` (6 tests)**:
     - `test_option_symmetry_and_anti_guessability_engine`: Mathematical validation that options stay within $\pm 15\%$ word count.
     - `test_smart_ai_trap_and_explanation_breakdown`: Tests automatic cognitive trap assignment and 3-card mentor breakdown.
     - `test_manager_dependent_taxonomy_integration`: Verifies official AAMC syllabus tree mapping.
@@ -244,7 +245,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - `test_interactive_slot_replenishment_recovers_from_quality_rejection`: Tests automated in-place slot replenishment when quality gate drops a candidate.
 17. **`test_taxonomy_sync.py` (1 test)**:
     - `test_taxonomy_files_are_synchronized`: Guarantees that the backend taxonomy definition (`backend/app/data/mcat_dependent_taxonomy.json`) and frontend constant (`frontend/src/constants/mcat_dependent_taxonomy.json`) remain byte-for-byte synchronized, preventing drift in syllabus topics, disciplines, and foundational concepts.
-18. **`test_tokens.py` (8 tests)**:
+18. **`test_tokens.py` (9 tests)**:
     - `test_deepinfra_model_configuration`: Verifies model identifier, cascade settings, and endpoint parameters.
     - `test_token_and_cost_calculation`: Sub-micro-cent mathematical calculation verification ($0.20/$0.60 per 1M).
     - `test_workflow_token_accumulation`: Verifies cumulative token tracking across multi-agent cycles.
@@ -257,20 +258,19 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - `test_image_node_workflow_accumulation`: Ensures visual synthesis costs accumulate into total run cost.
     - `test_visual_stimulus_persistence_in_finalize_node`: Confirms diagram SVG/URL persistence to PostgreSQL.
     - `test_autonomous_ai_determined_image_workflow`: Validates AI-determined visual stimulus routing.
-20. **`test_workflow.py` (4 tests)**:
+20. **`test_workflow.py` (3 tests)**:
     - `test_per_question_stage_metadata_in_events`: Verifies SSE event payload metadata and stage tracking.
-    - `test_fused_generator_node_passing_and_routing`: Validates fused single-pass drafting and fast-path routing.
     - `test_fused_workflow_bypasses_reviewer_when_self_critique_passed`: Confirms the reviewer bypass path when self-critique passes (opt-in: the test sets `ALWAYS_INDEPENDENT_REVIEW=false`).
     - `test_safe_json_loads_and_resilient_parsing`: Ensures resilient JSON parsing of LLM outputs.
 21. **`test_openai.py` (8 tests)**: OpenAI provider detection, pricing, image-model handling, and branded (vendor-masked) `/api/config` and `/api/health` payloads.
-22. **`test_validators.py` (11 tests)**: Deterministic validator: option ids, key validity, single-choice, forbidden dashes and their automatic repair, all/none-of-the-above, passage rules, length-parity and distractor-coverage warnings.
+22. **`test_validators.py` (12 tests)**: Deterministic validator: option ids, key validity, single-choice, forbidden dashes and their automatic repair, all/none-of-the-above, passage rules, length-parity and distractor-coverage warnings.
 23. **`test_deterministic_gate.py` (9 tests)**: The review loop runs the validator before any LLM call (invalid drafts regenerate or reject without spending a review), reviewer and blind solver fail closed on provider errors and bad scores, generators never substitute mock questions for real failures, and review and solve run concurrently with both costs accounted for.
 24. **`test_llm_call.py` (6 tests)**: `call_llm` request construction (Anthropic `cache_control`, no stacked litellm retries), truncated-completion retry with a larger budget, and LLM slot release during backoff.
 25. **`test_engine_cleanup.py` (1 test)**: Closing the workflow stream early leaves no running worker or monitor tasks.
 26. **`test_recovery.py` (2 tests, DB)**: Startup reconciliation stops orphaned batches and their running jobs; `update_job_progress(clear=...)` resets fields explicitly.
 27. **`test_logging_context.py` (2 tests)**: Correlation ids (batch, job, run, slot) appear on log records, are inherited by child tasks, and do not leak back.
 28. **`test_sse_keepalive.py` (2 tests)**: SSE keepalive comments are emitted while the source is quiet, and closing the wrapper closes the source.
-29. **`test_api_security.py` (6 tests)**: Optional `API_ACCESS_KEY` gate on mutating routes, request length limits, hidden `api_key`, paginated payload-free batch list, consistent 500 body, health admin key, readiness probe.
+29. **`test_api_security.py` (7 tests)**: Optional `API_ACCESS_KEY` gate on mutating routes, request length limits, hidden `api_key`, paginated payload-free batch list, consistent 500 body, health admin key, readiness probe.
 30. **`test_authoring_standards.py` (5 tests)**: Shared option-spread and passage-band standards quoted consistently by every prompt; idempotent DDL helper skips existing columns/indexes.
 31. **`test_batch_aggregate_lock.py` (1 tests)**: Concurrent `refresh_batch_aggregates` calls converge (row lock without FK deadlocks).
 32. **`test_batch_retry_resume.py` (3 tests)**: Retry runs its selected jobs despite stale status, stopped jobs are executable, stuck jobs are failed.
@@ -279,7 +279,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 35. **`test_offline_mode.py` (3 tests)**: `OFFLINE_MODE` gating: no mocks without it, tagged runs with it, fail-fast without credentials.
 36. **`test_request_secrets.py` (3 tests)**: API keys never stored or returned; legacy payloads scrubbed on startup.
 37. **`test_structured_output.py` (12 tests)**: `call_llm_validated` repair retry and billing, strict draft/key parsing, regenerator metadata preservation and image gating.
-38. **`test_config_docs.py` (2 tests)**: Every `Settings` field is present in `.env.example` and the setup guide, and `.env.example` has no malformed lines.
+38. **`test_config_docs.py` (4 tests)**: Every `Settings` field is present in `.env.example` and the setup guide, and `.env.example` has no malformed lines.
 39. **`test_shared_helpers.py` (6 tests)**: Shared helpers (`sum_usage` latency semantics, `mock_usage` pricing, single CARS helper) and a regression test that CARS and science passage prompts differ.
 40. **`test_engine_slices.py` (14 tests)**: The closure-free pieces of `engine.py`: `_resolve_run_layout` (binary passage mode, CARS always linked, caller ids kept), `SlotLedger` (per-attempt folding, call budget, run totals with the passage spend), diversity context and drafting messages, passing-threshold precedence, offline attempt state, sibling-collision detection, the event factory and the shared passage/complete payloads.
 41. **`test_mock_fixture_table.py` (8 tests)**: Digest snapshot of the seven canned mock drafts in `agents/mock_drafts.py` (one per section and passage/independent variant) and the CARS passage-only rule, so the offline fixtures cannot drift when their representation changes.
@@ -310,7 +310,7 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 ```
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
-- All **273 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
+- All **275 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
 - Once PostgreSQL is started (`docker compose up -d`), all **353 deterministic tests across 55 modules** execute and pass automatically in ~23-28 seconds.
 
 ---
@@ -398,7 +398,7 @@ pnpm lint
 - Shared builders live in `backend/tests/factories.py` (`make_draft`, `make_question`).
 
 ### 2.5 Frontend Unit Tests
-`pnpm --dir frontend run test` (Vitest + jsdom) covers the pure helpers: batch stage/structural-sharing/cache-patch helpers, question-status helpers, formatters, and the export escaping, CSV and print-HTML builders. `pnpm --dir frontend run check:css` fails when a CSS class is no longer used anywhere in `src`.
+`pnpm --dir frontend run test` (Vitest; jsdom only for the export test) covers the pure helpers: batch stage/structural-sharing/cache-patch helpers, question-status helpers, formatters, and the export escaping, CSV and print-HTML builders. `pnpm --dir frontend run check:css` fails when a CSS class is no longer used anywhere in `src`.
 
 ## 5. Continuous Integration (CI) Pipeline
 
@@ -408,7 +408,7 @@ The repository integrates a GitHub Actions workflow (`.github/workflows/ci.yml`)
 # Summary of CI jobs (every job has a timeout)
 1. code-quality:     Ruff lint + format check (backend)
 2. backend-tests:    PostgreSQL 16 service, full deterministic Pytest suite (--durations=15)
-3. frontend-build:   pnpm install once, Oxlint, taxonomy copy sync check, Vite production build
+3. frontend-build:   pnpm install once, Oxlint, Vitest, unused-CSS check, Vite production build
 4. docker-build:     builds the backend and web images
 5. dependency-audit: pip-audit + pnpm audit (advisory, never blocks)
 ```

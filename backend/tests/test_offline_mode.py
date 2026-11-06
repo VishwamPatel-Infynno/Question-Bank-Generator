@@ -1,13 +1,12 @@
 """Mocks are an explicit opt-in: no credentials without OFFLINE_MODE must fail loudly."""
 
-import json
-
 import pytest
 from app.agents import blind_solver, generator, reviewer
 from app.agents.base import LLMNotConfiguredError
 from app.core.config import config
 from app.workflow import run_workflow_stream
-from factories import make_draft, make_request
+from app.workflow.sse import iter_sse_events
+from factories import collect_events, make_draft, make_request
 
 
 def _draft():
@@ -40,17 +39,14 @@ async def test_offline_mode_still_provides_fixtures_and_tags_the_run(monkeypatch
     assert len(draft.options) == 4
 
     result = None
-    async for chunk in run_workflow_stream(make_request()):
-        evt = json.loads(chunk.strip()[len("data: ") :])
+    async for evt in iter_sse_events(run_workflow_stream(make_request())):
         if evt["event_type"] == "workflow_complete":
             result = evt["data"]["question"]
     assert result["stage_outcomes"]["offline_mode"] is True
 
 
 async def test_run_without_credentials_fails_fast_with_a_clear_message(strict_no_keys):
-    events = []
-    async for chunk in run_workflow_stream(make_request()):
-        events.append(json.loads(chunk.strip()[len("data: ") :]))
+    events = await collect_events(run_workflow_stream(make_request()))
     errors = [e for e in events if e["event_type"] == "workflow_error"]
     assert errors and "API Key is required" in errors[-1]["message"]
     # Fail fast: a configuration error is not retried three times

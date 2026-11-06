@@ -5,15 +5,7 @@ from types import SimpleNamespace
 
 from app.agents import base
 from app.core.config import config
-
-
-def _response(content="{}", finish_reason="stop"):
-    return SimpleNamespace(
-        choices=[
-            SimpleNamespace(message=SimpleNamespace(content=content), finish_reason=finish_reason)
-        ],
-        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5, total_tokens=15),
-    )
+from factories import make_completion
 
 
 async def test_anthropic_system_prompt_is_marked_cacheable(monkeypatch):
@@ -21,7 +13,7 @@ async def test_anthropic_system_prompt_is_marked_cacheable(monkeypatch):
 
     async def fake_completion(**kwargs):
         captured.update(kwargs)
-        return _response()
+        return make_completion()
 
     monkeypatch.setattr(base.litellm, "acompletion", fake_completion)
     monkeypatch.setattr(config, "ENABLE_PROMPT_CACHING", True)
@@ -37,7 +29,7 @@ async def test_non_anthropic_system_prompt_stays_plain_text(monkeypatch):
 
     async def fake_completion(**kwargs):
         captured.update(kwargs)
-        return _response()
+        return make_completion()
 
     monkeypatch.setattr(base.litellm, "acompletion", fake_completion)
     await base.call_llm("hi", "STATIC SYSTEM", model="deepinfra/some-model", api_key="k")
@@ -50,7 +42,9 @@ async def test_truncated_completion_is_retried_with_larger_budget(monkeypatch):
 
     async def fake_completion(**kwargs):
         budgets.append(kwargs["max_tokens"])
-        return _response("cut", "length") if len(budgets) == 1 else _response('{"ok": 1}')
+        return (
+            make_completion("cut", "length") if len(budgets) == 1 else make_completion('{"ok": 1}')
+        )
 
     monkeypatch.setattr(base.litellm, "acompletion", fake_completion)
     content, _ = await base.call_llm(
@@ -70,7 +64,7 @@ async def test_llm_slot_is_released_while_backing_off(monkeypatch):
         calls["n"] += 1
         if calls["n"] == 1:
             raise RuntimeError("HTTP 503 service unavailable")
-        return _response()
+        return make_completion()
 
     async def fake_sleep(_secs):
         sem_free_during_sleep.append(not sem.locked())

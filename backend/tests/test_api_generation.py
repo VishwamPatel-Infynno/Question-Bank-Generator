@@ -1,6 +1,5 @@
 """Generation flows through the API: batches, passage sets, visuals."""
 
-import json
 import uuid
 
 import pytest
@@ -20,6 +19,7 @@ from app.schemas import (
 from app.workflow import (
     run_workflow_stream,
 )
+from factories import collect_events
 
 pytestmark = pytest.mark.requires_db
 
@@ -101,10 +101,7 @@ async def test_batch_generation_and_staging_flow(monkeypatch):
     )
 
     events = []
-    async for chunk in run_workflow_stream(req):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events.append(json.loads(line[6:]))
+    events = await collect_events(run_workflow_stream(req))
 
     # Verify event stream contents
     event_types = [e["event_type"] for e in events]
@@ -163,10 +160,7 @@ async def test_single_passage_multi_question_set(monkeypatch):
     )
 
     events = []
-    async for chunk in run_workflow_stream(req):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events.append(json.loads(line[6:]))
+    events = await collect_events(run_workflow_stream(req))
 
     # Assert Passage Writer events exist
     passage_starts = [
@@ -222,10 +216,7 @@ async def test_binary_passage_and_independent_batches(monkeypatch):
     )
 
     events_a = []
-    async for chunk in run_workflow_stream(req_passage):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events_a.append(json.loads(line[6:]))
+    events_a = await collect_events(run_workflow_stream(req_passage))
 
     complete_a = next(e for e in events_a if e["event_type"] == "workflow_complete")
     assert complete_a["data"]["passage_mode"] == "single_passage"
@@ -248,10 +239,7 @@ async def test_binary_passage_and_independent_batches(monkeypatch):
     )
 
     events_b = []
-    async for chunk in run_workflow_stream(req_indep):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events_b.append(json.loads(line[6:]))
+    events_b = await collect_events(run_workflow_stream(req_indep))
 
     complete_b = next(e for e in events_b if e["event_type"] == "workflow_complete")
     assert complete_b["data"]["passage_mode"] == "independent"
@@ -340,10 +328,7 @@ async def test_independent_question_direct_no_stimulus(monkeypatch):
         passage_required="No",
     )
     events = []
-    async for chunk in run_workflow_stream(batch_req):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events.append(json.loads(line[6:]))
+    events = await collect_events(run_workflow_stream(batch_req))
 
     # Check worker progress message for independent question items
     batch_progress_events = [e for e in events if e.get("event_type") == "batch_progress"]
@@ -396,10 +381,7 @@ async def test_passage_set_with_passage_level_visual_stimulus(monkeypatch):
     )
 
     events = []
-    async for chunk in run_workflow_stream(req):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events.append(json.loads(line[6:]))
+    events = await collect_events(run_workflow_stream(req))
 
     # 1. Diagram & Chart Maker runs once for the passage
     passage_img_completes = [

@@ -113,24 +113,48 @@ frontend/src/
 │   └── mcatTraps.js              # AAMC cognitive trap definitions and defense strategies
 ├── hooks/
 │   ├── index.js                  # Barrel export for custom hooks
-│   ├── useAppState.js            # Centralized view routing & global event broker
+│   ├── useAiValidated.js         # Review Queue data, selection, confirm dialogs and the runMutation helper
+│   ├── useAppState.js            # Centralized view routing, toasts, generator launch & global event broker
+│   ├── useBankDeletion.js        # Question Bank single/bulk delete behind one confirm dialog
 │   ├── useBatchActivity.js       # Batch monitor polling (in-flight guard, exponential backoff on errors, hidden-tab pause)
+│   ├── useBatchFilters.js        # Batch Progress search/status filters and the / shortcut
+│   ├── useBatchMutations.js      # Stop, retry, delete, cancel-all and question actions on batches
+│   ├── useConfirmModal.js        # Standard accessible confirmation-dialog state
+│   ├── useCopyToClipboard.js     # Clipboard copy with a transient copied flag
+│   ├── useDebouncedValue.js      # Debounced value for search inputs
+│   ├── useExportActions.js       # Download, copy and print actions of the export dialog
 │   ├── useFocusTrap.js           # Accessible WCAG AA keyboard focus-trapping hook for modals
-│   ├── useGeneratorForm.js       # Form state & validation logic
-│   ├── useKeyboardShortcuts.js   # Global hotkeys (⌘↵ to generate, A to approve, D to discard, T to toggle theme)
-│   ├── usePagination.js          # Client and server pagination calculations and state management
+│   ├── useGeneratorForm.js       # Wizard form state and toggle helpers
+│   ├── useGlobalCounts.js        # Navbar live numbers: running batches, review-queue count, backend status
+│   ├── useKeyboardShortcuts.js   # Global hotkeys (⌘↵ to generate on the review step, T to toggle theme, / to focus search, Escape)
+│   ├── usePagination.js          # Page index, page size and slicing with filter-driven resets
+│   ├── usePassageBank.js         # Passage catalogue, detail, save and delete flows
 │   ├── useQuestionBank.js        # Debounced search, sorting, and bank fetching
+│   ├── useQuestionDraft.js       # Editable copy of a question's text fields with reset
+│   ├── useRequestGuard.js        # AbortController guard: only the newest request may write state
 │   └── useTheme.js               # Dark/light mode persistence
 ├── services/
 │   ├── index.js                  # Services barrel export
 │   └── api.js                    # FastAPI client & SSE stream reader (question CRUD/restore, batches, passages; sends the optional X-API-Key header)
 ├── utils/
 │   ├── index.js                  # Utilities barrel export
+│   ├── batchHelpers.js           # Calculates current execution stage, badges, descriptions, and refill status for a batch
+│   ├── batchJobHelpers.js        # Batch stage, structural-sharing and cache-patch helpers
+│   ├── batchPayload.js           # The POST /batches/start payload for the wizard's form state
+│   ├── download.js               # Text file download helper
 │   ├── explanationHelpers.js     # Pure JS distractor line & trap parser
-│   ├── exportUtils.js            # Re-export shim for the export/ modules
-│   ├── export/                   # csv.js, json.js, htmlDoc.js (print builder), printPaperCss.js
+│   ├── export/                   # csv.js, json.js, htmlDoc.js (print builder), printPaperCss.js, escape.js, index.js
 │   ├── formatters.js             # Currency, pacing, and token formatting
+│   ├── generatorFormState.js     # Pure wizard form reducers: subtopic toggles, section rules
+│   ├── ids.js                    # RFC4122-style random id. crypto.randomUUID only exists in secure contexts (HTTPS/localhost),
 │   ├── optionHelpers.js          # Option length parity & calculateOptionSymmetry engine
+│   ├── pagination.js             # Shared page-size options
+│   ├── passageHelpers.js         # Passage sorting and question counts
+│   ├── questionHelpers.js        # Correct answers, images, review pillars, audit cost breakdown, text filter
+│   ├── requestGuard.js           # Keeps only the newest of overlapping requests relevant
+│   ├── selectHelpers.js          # Keyboard navigation over enabled select options
+│   ├── selection.js              # Toggle-id / toggle-all selection helpers
+│   ├── taxonomyHelpers.js        # Taxonomy flattening for the wizard
 │   └── trapHelpers.js            # Cognitive trap detection & resolution
 ├── styles/
 │   ├── tokens.css                # Authoritative design tokens (colors, z-index layers --z-*) (Light/Dark obsidian themes)
@@ -160,7 +184,7 @@ In the repository root or `frontend` directory, you can run:
 # Automatically runs 'predev' hook to clean ports 8000 and 5173
 pnpm dev
 
-# Run Oxlint high-speed linter across 90 frontend files (0 errors, 0 warnings policy)
+# Run Oxlint high-speed linter across 137 frontend files (0 errors, 0 warnings policy)
 pnpm lint
 
 # Build production bundle with Vite (compiles cleanly)

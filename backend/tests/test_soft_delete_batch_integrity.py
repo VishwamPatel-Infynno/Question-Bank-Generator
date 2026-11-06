@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-from app.db.session import init_db
 from app.main import app
 from app.repositories import (
     delete_passage,
@@ -26,7 +25,6 @@ pytestmark = pytest.mark.requires_db
 
 
 async def test_soft_delete_passage_and_batch_integrity():
-    await init_db()
 
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())
@@ -130,7 +128,6 @@ async def test_soft_delete_passage_and_batch_integrity():
 
 
 async def test_soft_delete_question_and_restore():
-    await init_db()
 
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())

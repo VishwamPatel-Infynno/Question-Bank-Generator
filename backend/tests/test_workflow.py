@@ -1,10 +1,9 @@
-import json
-
 from app.schemas import (
     Difficulty,
     GenerationRequest,
     MCATSection,
 )
+from factories import collect_events
 
 
 async def test_per_question_stage_metadata_in_events(monkeypatch):
@@ -21,10 +20,7 @@ async def test_per_question_stage_metadata_in_events(monkeypatch):
     )
 
     events = []
-    async for chunk in run_workflow_stream(req):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events.append(json.loads(line[6:]))
+    events = await collect_events(run_workflow_stream(req))
 
     # Assert agent_start events carry index, total, and stage
     gen_starts = [
@@ -115,10 +111,7 @@ async def test_fused_workflow_bypasses_reviewer_when_self_critique_passed(monkey
     )
 
     events = []
-    async for chunk in run_workflow_stream(req):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events.append(json.loads(line[6:]))
+    events = await collect_events(run_workflow_stream(req))
 
     # Reviewer agent_start should NOT be called (bypassed)
     rev_starts = [

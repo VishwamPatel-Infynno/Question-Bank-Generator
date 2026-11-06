@@ -7,6 +7,7 @@ import {
   formatExamTime,
   formatTokenCount
 } from '../formatters';
+import { formatDateTime, formatTime } from '../formatters';
 
 describe('formatters', () => {
   it('formats durations in ms or seconds and hides empty values', () => {
@@ -46,8 +47,6 @@ describe('formatters', () => {
     expect(formatExamTime([{ section: 'chem_phys' }])).toMatch(/^\d+ minutes?$/);
   });
 });
-
-import { formatDateTime, formatTime } from '../formatters';
 
 describe('date and time formatting', () => {
   it('returns an empty string for missing or invalid timestamps', () => {

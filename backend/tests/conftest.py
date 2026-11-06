@@ -60,8 +60,8 @@ def auto_skip_db_tests(request):
     """Automatically skips tests marked with @pytest.mark.requires_db if PostgreSQL is not reachable or unauthenticated."""
     if request.node.get_closest_marker("requires_db") and not POSTGRES_AVAILABLE:
         pytest.skip(
-            "PostgreSQL database on localhost:5432 is offline or credentials for mcat_user failed. "
-            "Skipping database-dependent test."
+            "PostgreSQL is not reachable with the configured DATABASE_URL (offline, or the "
+            "credentials failed). Skipping database-dependent test."
         )
 
 
@@ -73,8 +73,6 @@ def neutralize_llm_credentials(request, monkeypatch):
     """
     if request.node.get_closest_marker("live_e2e"):
         return
-
-    from app.core.config import config
 
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
@@ -127,18 +125,12 @@ async def client():
         yield ac
 
 
-@pytest.fixture(scope="session")
-def anyio_backend():
-    """Tells anyio (used by pytest-asyncio) to use the asyncio backend."""
-    return "asyncio"
-
-
 @pytest.fixture
 def patch_llm(monkeypatch):
     """Replaces the LLM call used by every agent.
 
-    Agents call ``call_llm_validated``, which resolves ``call_llm`` in ``app.agents.base``, so
-    that is the single place to patch. Usage: ``patch_llm(fake_async_fn)``.
+    Every agent (the passage writer included) resolves ``call_llm`` through ``app.agents.base``
+    at call time, so this is the single place to patch. Usage: ``patch_llm(fake_async_fn)``.
     """
     import app.agents.base as base_mod
 

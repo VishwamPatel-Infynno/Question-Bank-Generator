@@ -1,5 +1,3 @@
-import json
-
 from app.agents.generator import get_mock_draft
 from app.agents.image_generator import calculate_flux_image_cost, generate_image_stimulus
 from app.core.config import config
@@ -13,6 +11,7 @@ from app.workflow import (
     image_node,
     run_workflow_stream,
 )
+from factories import collect_events
 
 
 async def test_strict_ai_image_generator(monkeypatch):
@@ -204,10 +203,7 @@ async def test_autonomous_ai_determined_image_workflow(monkeypatch):
         allow_ai_images=False,
     )
     events_disabled = []
-    async for chunk in run_workflow_stream(req_disabled):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events_disabled.append(json.loads(line[6:]))
+    events_disabled = await collect_events(run_workflow_stream(req_disabled))
     assert not any(e.get("agent_name") == "Diagram & Chart Maker" for e in events_disabled)
     assert len(images_generated) == 0
 
@@ -220,10 +216,7 @@ async def test_autonomous_ai_determined_image_workflow(monkeypatch):
         allow_ai_images=True,
     )
     events_cars = []
-    async for chunk in run_workflow_stream(req_cars):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events_cars.append(json.loads(line[6:]))
+    events_cars = await collect_events(run_workflow_stream(req_cars))
     assert not any(e.get("agent_name") == "Diagram & Chart Maker" for e in events_cars)
     assert len(images_generated) == 0
 
@@ -237,10 +230,7 @@ async def test_autonomous_ai_determined_image_workflow(monkeypatch):
         allow_ai_images=True,
     )
     events_enabled = []
-    async for chunk in run_workflow_stream(req_enabled):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events_enabled.append(json.loads(line[6:]))
+    events_enabled = await collect_events(run_workflow_stream(req_enabled))
     img_evts = [
         e
         for e in events_enabled

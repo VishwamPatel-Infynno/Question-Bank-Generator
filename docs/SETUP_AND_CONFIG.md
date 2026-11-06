@@ -30,7 +30,7 @@ cp .env.example .env
 
 ### Configuration Variables Reference
 
-The system defines 53 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
+The system defines 67 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
 
 | Variable | Type | Default Value | Description |
 | :--- | :--- | :--- | :--- |
@@ -106,7 +106,7 @@ The system defines 53 configuration fields in `backend/app/core/config.py` (`Set
 | `IMAGE_ITERS` | `integer` | `0` | Inference step iterations (0 for flat-rate models) |
 
 > [!NOTE]
-> `COST_PER_MILLION_INPUT_TOKENS`, `COST_PER_MILLION_OUTPUT_TOKENS`, and `FAST_MODEL_CASCADE` are dynamic `@property` getters and setters in `backend/app/core/config.py`. When unset, they automatically resolve to the active provider rates (`DEEPINFRA_*` or `ANTHROPIC_*`). Setters allow optional programmatic overrides during tests or custom runs.
+> `COST_PER_MILLION_INPUT_TOKENS` and `COST_PER_MILLION_OUTPUT_TOKENS` are dynamic `@property` getters with setters in `backend/app/core/config.py`: unset, they resolve to the active provider's rates (`DEEPINFRA_*`, `ANTHROPIC_*` or `OPENAI_*`); the setters allow programmatic overrides in tests. `FAST_MODEL_CASCADE` and `DEFAULT_IMAGE_MODEL` are read-only properties derived from the active providers.
 
 ---
 
@@ -192,7 +192,7 @@ Run the complete 363-test backend verification suite across 56 modules using `py
 source .venv/bin/activate
 
 # 1. Run all 353 deterministic unit and integration tests across 55 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 273 pure unit tests pass and 80 DB tests skip cleanly
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 275 pure unit tests pass and 78 DB tests skip cleanly
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
@@ -206,7 +206,7 @@ ruff format --check .
 ```
 
 #### Dual Test Execution Modes
-- **Offline Mode** (PostgreSQL offline): Executes all 273 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`273 passed, 80 skipped, 10 deselected`).
+- **Offline Mode** (PostgreSQL offline): Executes all 275 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`275 passed, 78 skipped, 10 deselected`).
 - **Full Database Mode** (PostgreSQL online via Docker): Executes all 353 deterministic tests across 55 modules in ~23-28 seconds (10 live tests deselected).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
 - **Total Backend Suite**: 363 tests across 56 test files.
@@ -240,7 +240,7 @@ The repository includes 15 generated Playwright E2E browser scripts (run manuall
 ### 5.3 Frontend Quality & Production Verification
 
 ```bash
-# 1. High-speed Oxlint check across 90 frontend files (Zero warnings, zero errors required)
+# 1. High-speed Oxlint check across 137 frontend files (Zero warnings, zero errors required)
 pnpm --dir frontend lint
 
 # 2. Compile optimized production bundle with Vite (builds in ~218ms)
@@ -296,7 +296,7 @@ docker compose --profile app up -d --build   # postgres + backend + web
 - `backend/Dockerfile`: multi-stage `python:3.11-slim`, non-root user, one Uvicorn worker, healthcheck on `/api/health/ready`. Build context is the repository root.
 - `frontend/Dockerfile` + `frontend/nginx.conf`: Vite build served by nginx with SPA fallback, gzip, immutable caching for `/assets/`, and an `/api/` proxy with `proxy_buffering off` and a 1 hour read timeout so SSE generation streams arrive live.
 - Settings come from `.env` (optional); `DATABASE_URL` is overridden to the compose `postgres` service. Postgres stays bound to loopback and the web port to `127.0.0.1:8080`; put a TLS-terminating proxy in front for anything shared.
-- `docker compose up -d` (no profile) still starts only Postgres, which is what local development and CI tests use.
+- `docker compose up -d` (no profile) still starts only Postgres, which is what local development uses (CI runs its own PostgreSQL service container).
 
 ### 6.2 Production Frontend Build
 Compile static production assets with Vite using pnpm:
@@ -320,10 +320,10 @@ DATABASE_URL=postgresql+asyncpg://<USER>:<PASSWORD>@<HOST>:<PORT>/<DATABASE>?ssl
 
 ### Database connection error (`connection refused` on port 5432)
 - **Check Docker status**: Run `docker ps` to verify container `mcat_postgres` is running.
-- **Port Conflict**: If local PostgreSQL is already running on port 5432, stop local postgres (`brew services stop postgresql` or `sudo systemctl stop postgresql`) or edit `docker-compose.yml` to bind to port `5433:5432` and update `DATABASE_URL` accordingly.
+- **Port Conflict**: If local PostgreSQL is already running on port 5432, stop local postgres (`brew services stop postgresql` or `sudo systemctl stop postgresql`) or change the `ports` mapping in `docker-compose.yml` (it binds `127.0.0.1:5432:5432`; use e.g. `127.0.0.1:5433:5432`) and update `DATABASE_URL` accordingly.
 
-### `ValueError: DeepInfra API Key is required`
+### `ValueError: AI Gateway API Key is required`
 - The system strictly validates API keys when sending live requests to `deepinfra/*` models. All credentials must be securely supplied in the server `.env` file (`DEEPINFRA_API_KEY="..."`). For security isolation, client-side runtime key entry has been deprecated.
 
 ### CORS Errors in Browser Console
-- If hosting the backend and frontend on separate domains, ensure the FastAPI `CORSMiddleware` in [`backend/app/main.py`](../backend/app/main.py#L20-L28) includes your frontend domain in `allow_origins`.
+- If hosting the backend and frontend on separate domains, set `ALLOWED_ORIGINS` (comma-separated) so the `CORSMiddleware` configured in [`backend/app/main.py`](../backend/app/main.py) allows your frontend domain; `VITE_ALLOWED_HOSTS` does the same for the Vite dev server's host check.

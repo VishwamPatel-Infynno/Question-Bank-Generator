@@ -1,7 +1,7 @@
 # Environment & Local Secrets (NEVER COMMIT SENSITIVE KEYS)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 *.pem
 *.key
 *.cert
@@ -18,6 +18,7 @@ __pycache__/
 *.so
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 .mypy_cache/
 .ruff_cache/
@@ -31,9 +32,9 @@ eggs/
 node_modules/
 frontend/node_modules/
 frontend/dist/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+*.log
+*.local
+frontend/dist-ssr/
 .eslintcache
 .stylelintcache
 
@@ -62,5 +63,5 @@ Thumbs.db
 .agents/
 .system_generated/
 .playwright-mcp/
-skill-creator/
+.claude/launch.json
 e2e/tmp/

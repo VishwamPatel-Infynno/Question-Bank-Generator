@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 import pytest
 from app.core.config import config
 from app.schemas import (
@@ -11,6 +9,7 @@ from app.workflow import (
     fused_generator_node,
     reviewer_node,
 )
+from factories import make_completion
 
 
 async def test_deepinfra_model_configuration(monkeypatch):
@@ -130,12 +129,7 @@ async def test_call_llm_effective_max_tokens_and_temperature(monkeypatch):
 
     async def mock_acompletion(**kwargs):
         captured_kwargs.append(kwargs)
-        mock_resp = MagicMock()
-        mock_choice = MagicMock()
-        mock_choice.message.content = '{"result": "ok"}'
-        mock_resp.choices = [mock_choice]
-        mock_resp.usage = MagicMock(prompt_tokens=10, completion_tokens=20, total_tokens=30)
-        return mock_resp
+        return make_completion('{"result": "ok"}', prompt_tokens=10, completion_tokens=20)
 
     monkeypatch.setattr(litellm, "acompletion", mock_acompletion)
 

@@ -4,7 +4,6 @@ import uuid
 
 import pytest
 from app.core.config import config
-from app.db.session import init_db
 from app.repositories import (
     delete_question,
     save_question,
@@ -24,8 +23,6 @@ async def test_deduplication_and_override_api():
         override_question_duplicate_endpoint,
     )
     from app.schemas import DuplicateInfo
-
-    await init_db()
 
     # 1. Seed original question
     orig_id = f"test-orig-{uuid.uuid4().hex[:8]}"

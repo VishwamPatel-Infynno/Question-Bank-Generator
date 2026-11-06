@@ -135,7 +135,7 @@ Every approved question presents a comprehensive **3-Card Mentor Explanation**:
 3. **Card 3: Primary Cognitive Trap Spotlight** (Purple / Tactical Defense) — Details the exact psychological trap, the underlying student error mechanism, and an actionable test-day defense strategy.
 
 ### Supported Trap Taxonomy:
-- `Scope_Shift`, `Keyword_Trap`, `Extreme_Language`, `Correlation_vs_Causation`, `Partial_Match`, `Half_Truth`, `Unwarranted_Assumption`, `Calculation_Formula_Trap`, `Out_of_Scope`, `False_Dichotomy`, `Over_generalisation`.
+- The trap names offered in the wizard's Advanced Settings (defined in `frontend/src/constants/mcatTraps.js`); the generator receives the chosen names, or `Automatic` to pick its own.
 
 ---
 

@@ -2,7 +2,6 @@
 
 import asyncio
 import uuid
-from types import SimpleNamespace
 
 import pytest
 from app.agents import base
@@ -16,7 +15,7 @@ from app.repositories import (
 from app.schemas import GenerationBatch, GenerationJob
 from app.services import batch_concurrency
 from app.services.batch_worker import _JobUsage
-from factories import make_question
+from factories import make_completion, make_question
 
 requires_db = pytest.mark.requires_db
 
@@ -120,19 +119,15 @@ def test_job_usage_accumulates_all_trials_and_starts_from_stored_totals():
 
 
 async def test_truncated_retry_usage_is_billed_in_the_final_result(monkeypatch):
-    def resp(content, finish):
-        return SimpleNamespace(
-            choices=[
-                SimpleNamespace(message=SimpleNamespace(content=content), finish_reason=finish)
-            ],
-            usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5, total_tokens=15),
-        )
-
     calls = []
 
     async def fake_completion(**kwargs):
         calls.append(1)
-        return resp("cut", "length") if len(calls) == 1 else resp('{"ok": 1}', "stop")
+        return (
+            make_completion("cut", "length")
+            if len(calls) == 1
+            else make_completion('{"ok": 1}', "stop")
+        )
 
     monkeypatch.setattr(base.litellm, "acompletion", fake_completion)
     _, usage = await base.call_llm(

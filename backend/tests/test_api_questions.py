@@ -8,7 +8,6 @@ from app.api.v1.questions import (
     purge_questions_batch_endpoint,
     purge_single_question,
 )
-from app.db.session import init_db
 from app.repositories import (
     delete_question,
     get_questions,
@@ -29,7 +28,6 @@ pytestmark = pytest.mark.requires_db
 
 
 async def test_database_crud():
-    await init_db()
     opts = [
         OptionChoice(id="A", text="Option A"),
         OptionChoice(id="B", text="Option B"),

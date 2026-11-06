@@ -12,6 +12,7 @@ from app.repositories import (
 )
 from app.schemas import GenerationBatch, GenerationJob
 from app.services import get_global_job_semaphore
+from factories import make_completion
 from httpx import ASGITransport, AsyncClient
 
 pytestmark = [pytest.mark.requires_db, pytest.mark.usefixtures("clean_background_batches")]
@@ -34,29 +35,13 @@ async def test_call_llm_rate_limit_backoff(monkeypatch):
     """Verifies that call_llm intercepts HTTP 429 rate limits and retries with backoff."""
     attempt_count = 0
 
-    class MockUsage:
-        prompt_tokens = 120
-        completion_tokens = 80
-        total_tokens = 200
-
-    class MockChoice:
-        class MockMessage:
-            content = '{"test": "ok"}'
-
-        message = MockMessage()
-
-    class MockResponse:
-        def __init__(self):
-            self.choices = [MockChoice()]
-            self.usage = MockUsage()
-
     async def mock_acompletion(**_kwargs):
         nonlocal attempt_count
         attempt_count += 1
         if attempt_count == 1:
             # Simulate a 429 Too Many Requests response on first attempt
             raise Exception("HTTP 429 Too Many Requests: Rate limit exceeded")
-        return MockResponse()
+        return make_completion('{"test": "ok"}', prompt_tokens=120, completion_tokens=80)
 
     monkeypatch.setattr("litellm.acompletion", mock_acompletion)
     monkeypatch.setattr("app.agents.base._resolve_api_key", lambda _m, _k: "test-key")

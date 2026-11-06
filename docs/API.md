@@ -113,7 +113,7 @@ Accept: text/event-stream
 | `questions_to_generate` | `integer` | No | `5` | Quantity to generate (Wizard UI provides `5` [Practice Set] and `50` [Full Exam]; backend permits 1 to 50) |
 | `passage_mode` | `string` | No | `"single_passage"` | `"single_passage"` (all Qs linked to 1 passage) or `"independent"` (standalone discretes) |
 | `interaction_type` | `string` | No | `"single_choice"` | Standard 4-choice single choice item |
-| `primary_trap` | `string` | No | `"Automatic"` | Cognitive trap selection: `"Automatic"` (Smart AI choice) or explicit key (`Scope_Shift`, `Keyword_Trap`, `Extreme_Language`, `Correlation_vs_Causation`, `Partial_Match`, `Half_Truth`, `Unwarranted_Assumption`, `Calculation_Formula_Trap`, `Out_of_Scope`, `False_Dichotomy`, `Over_generalisation`) |
+| `primary_trap` | `string` | No | `"Automatic"` | Cognitive trap selection: `"Automatic"` (Smart AI choice) or an explicit trap name; the frontend offers the names in `frontend/src/constants/mcatTraps.js` and the API stores the string as given |
 | `subject` | `string` | No | `null` | Taxonomy subject (e.g. `General Chemistry`) |
 | `unit` | `string` | No | `null` | Taxonomy unit (e.g. `Atomic Structure and Periodicity`) |
 | `topic` | `string` | No | `null` | Taxonomy topic (e.g. `Periodic Trends`) |
@@ -1218,7 +1218,7 @@ Returns the complete cached syllabus hierarchy across all 4 official AAMC MCAT s
 Returns the comprehensive hierarchical AAMC Dependent Taxonomy tree powering the multi-level Guided Wizard selection flow.
 
 #### Response (`200 OK`)
-Returns the complete raw taxonomy dictionary containing `taxonomy_tree`, `subjects`, `reasoning_skills`, and `generation_options`.
+Returns the raw taxonomy document: `schema_version`, `exam`, `selection_flow`, `sections` (subjects, units, topics, subtopics), `skills`, `generation_options` and `generation_form_fields`.
 
 ---
 

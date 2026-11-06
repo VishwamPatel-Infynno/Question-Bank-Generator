@@ -9,10 +9,6 @@ from app.schemas import OptionChoice, QuestionDraft, ReviewScore
 from factories import make_request, make_usage
 
 
-def _usage(tokens=10):
-    return make_usage(tokens)
-
-
 def _payload(**overrides):
     data = {
         "stimulus_text": "",
@@ -30,7 +26,7 @@ def _script(monkeypatch, replies):
 
     async def fake(prompt, system_prompt, **kwargs):
         calls.append({"prompt": prompt, "temperature": kwargs.get("temperature")})
-        return replies[len(calls) - 1], _usage()
+        return replies[len(calls) - 1], make_usage(10)
 
     monkeypatch.setattr(base, "call_llm", fake)
     return calls

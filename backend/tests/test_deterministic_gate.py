@@ -11,7 +11,7 @@ from app.workflow.review_loop import (
     _run_question_review_loop,
     _validator_review,
 )
-from factories import make_draft, make_request, make_usage
+from factories import make_draft, make_request, make_state, make_usage
 
 
 def _draft(key="A", stem="Which statement best explains the observed rate change?"):
@@ -19,14 +19,7 @@ def _draft(key="A", stem="Which statement best explains the observed rate change
 
 
 def _state(draft: QuestionDraft) -> dict:
-    req = make_request()
-    return {
-        "request": req.model_dump(),
-        "current_draft": draft.model_dump(),
-        "iteration_count": 1,
-        "fused_self_passed": True,
-        "stage_outcomes": {},
-    }
+    return make_state(draft, fused_self_passed=True)
 
 
 def _make_event(**kwargs):
@@ -103,7 +96,6 @@ async def test_reviewer_and_solver_fail_closed_on_provider_errors(monkeypatch, p
     async def broken(*_a, **_k):
         raise RuntimeError("provider exploded")
 
-    patch_llm(broken)
     patch_llm(broken)
     req = make_request()
 

@@ -45,10 +45,10 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (353 deterministic unit & integration tests across 55 modules; 273 pass offline, 80 DB tests skip cleanly without PostgreSQL; 363 total backend tests)
-ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
+# 1. Backend pytest suite (353 deterministic unit & integration tests across 55 modules; 275 pass offline, 78 DB tests skip cleanly without PostgreSQL; 363 total backend tests)
+pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 
-# 2. Backend Python linter and formatting checks (enforcing SIM, RET, B, C4, E, W, F, I, UP)
+# 2. Backend Python linter and formatting checks (E, W, F, I, UP, B, C4, SIM, RET, G004, ASYNC, PT, RUF)
 ruff check .
 ruff format --check .
 

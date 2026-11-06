@@ -12,7 +12,7 @@ Layering is strict. Each layer only calls downward:
 Routers contain no SQL and no business logic. Repositories own every query and convert models to schemas (see `_batch_model_to_schema` in `repositories/batch_repository.py` for the pattern). This keeps tests and the batch runner reusing one data path.
 
 ## Style rules (enforced by ruff, config in pyproject.toml)
-- Every module starts with `from __future__ import annotations`.
+- Every module except the docstring-only package `__init__` files starts with `from __future__ import annotations`.
 - Python 3.11 idioms (`UTC`, `X | None`), double quotes, line length 100, ruff rules E W F I UP B C4 SIM RET G004 ASYNC PT RUF (log with lazy `%s` arguments, never f-strings; `match=` on `pytest.raises`). Run `ruff check .` and `ruff format .`.
 - Async everywhere for DB/LLM; use `async_session_factory` from `app.db.session`.
 - Keep `(str, Enum)` style for pydantic-serialized enums (UP042 is intentionally ignored).
@@ -41,7 +41,7 @@ Routers contain no SQL and no business logic. Repositories own every query and c
 - Security: never persist or return `api_key` (`batch_repository._scrub_request_payload`); optional `API_ACCESS_KEY` gate lives in `api/security.py`; keep new text inputs length-limited in `schemas/workflow.py`.
 - Repositories: use `repositories/_filters.py` (`active_question_clause`, `active_passage_clause`) for soft-delete filtering instead of retyping `is_deleted.is_(False)`. Model prices and fallbacks live in `core/pricing.py` (tables) with `Settings.get_default_pricing_rates` as the thin dispatcher.
 - DB writes: batch aggregates refresh under a `FOR NO KEY UPDATE` row lock; do not use plain `FOR UPDATE` (deadlocks with the key-share lock of question inserts). New migrations are ordered steps in `db/init_db.py` (`_SCHEMA_STEPS` run through the lock-avoiding connection, `_DATA_STEPS` in a second transaction); add a `_step_*` function and register it in the tuple (DDL that already exists is skipped; never add unconditional DDL that locks tables on every start).
-- Health: `/api/health` (liveness, `degraded` without DB) and `/api/health/ready` (503 without DB); `ADMIN_API_KEY` gates the full payload.
+- Health: `/api/health` (overview, `degraded` without DB), `/api/health/live` (liveness, no DB) and `/api/health/ready` (503 without DB); `ADMIN_API_KEY` gates the full payload.
 - Logging: bind correlation ids with `bind_log_context(batch_id=..., job_id=...)` from `app.core.logging`; set `LOG_FORMAT=json` for structured output.
 - Dedup lives in `services/deduplication.py`; reuse it, do not re-implement similarity checks.
 

@@ -10,7 +10,7 @@ from app.workflow.review_loop import (
     count_llm_calls,
     llm_budget_exhausted,
 )
-from factories import make_draft, make_request
+from factories import make_draft, make_state
 
 
 def _draft(stem="Which statement best explains the observed rate change?"):
@@ -18,17 +18,12 @@ def _draft(stem="Which statement best explains the observed rate change?"):
 
 
 def _state(prior=0, calls=0):
-    req = make_request()
-    return {
-        "request": req.model_dump(),
-        "current_draft": _draft().model_dump(),
-        "iteration_count": 1,
-        "fused_self_passed": False,
-        "stage_outcomes": {},
-        "slot_prior_calls": prior,
-        "agent_usage_breakdown": [{"agent": "x", "calls": 1} for _ in range(calls)]
+    return make_state(
+        _draft(),
+        slot_prior_calls=prior,
+        agent_usage_breakdown=[{"agent": "x", "calls": 1} for _ in range(calls)]
         + [{"agent": "mock", "calls": 0}],
-    }
+    )
 
 
 def _event(**kw):

@@ -1,6 +1,3 @@
-import os
-from unittest.mock import MagicMock
-
 import pytest
 from app.agents.base import (
     _resolve_api_key,
@@ -11,6 +8,7 @@ from app.agents.base import (
 from app.api.v1.config import get_runtime_settings
 from app.api.v1.health import health_check
 from app.core.config import config
+from factories import make_completion
 
 
 async def test_anthropic_model_detection_and_settings():
@@ -46,46 +44,30 @@ async def test_provider_switcher_via_settings(monkeypatch):
     assert config.get_active_provider() == "deepinfra"
 
 
-async def test_anthropic_strict_api_key_enforcement():
+async def test_anthropic_strict_api_key_enforcement(monkeypatch):
     """Verify that calling an Anthropic model without ANTHROPIC_API_KEY raises an informative ValueError."""
-    orig_anthropic = config.ANTHROPIC_API_KEY
-    orig_env = os.environ.get("ANTHROPIC_API_KEY")
-    try:
-        config.ANTHROPIC_API_KEY = ""
-        if "ANTHROPIC_API_KEY" in os.environ:
-            del os.environ["ANTHROPIC_API_KEY"]
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
-        with pytest.raises(ValueError, match="Anthropic API Key is required"):
-            _resolve_api_key("claude-haiku-5-5", explicit_key=None)
+    with pytest.raises(ValueError, match="Anthropic API Key is required"):
+        _resolve_api_key("claude-haiku-5-5", explicit_key=None)
 
-        # Explicit key overrides environment requirement
-        resolved = _resolve_api_key("claude-haiku-5-5", explicit_key="sk-ant-explicit-test")
-        assert resolved == "sk-ant-explicit-test"
+    # Explicit key overrides environment requirement
+    resolved = _resolve_api_key("claude-haiku-5-5", explicit_key="sk-ant-explicit-test")
+    assert resolved == "sk-ant-explicit-test"
 
-        # Setting key succeeds
-        config.ANTHROPIC_API_KEY = "sk-ant-test-key-123"
-        assert _resolve_api_key("claude-haiku-5-5", explicit_key=None) == "sk-ant-test-key-123"
-    finally:
-        config.ANTHROPIC_API_KEY = orig_anthropic
-        if orig_env:
-            os.environ["ANTHROPIC_API_KEY"] = orig_env
+    # Setting key succeeds
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "sk-ant-test-key-123")
+    assert _resolve_api_key("claude-haiku-5-5", explicit_key=None) == "sk-ant-test-key-123"
 
 
-async def test_deepinfra_key_enforcement_preservation():
+async def test_deepinfra_key_enforcement_preservation(monkeypatch):
     """Verify that DeepInfra key resolution remains fully intact."""
-    orig_di = config.DEEPINFRA_API_KEY
-    orig_env = os.environ.get("DEEPINFRA_API_KEY")
-    try:
-        config.DEEPINFRA_API_KEY = ""
-        if "DEEPINFRA_API_KEY" in os.environ:
-            del os.environ["DEEPINFRA_API_KEY"]
+    monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
+    monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
 
-        with pytest.raises(ValueError, match="AI Gateway API Key is required"):
-            _resolve_api_key("deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017", explicit_key=None)
-    finally:
-        config.DEEPINFRA_API_KEY = orig_di
-        if orig_env:
-            os.environ["DEEPINFRA_API_KEY"] = orig_env
+    with pytest.raises(ValueError, match="AI Gateway API Key is required"):
+        _resolve_api_key("deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017", explicit_key=None)
 
 
 async def test_claude_haiku_pricing_standard_tier():
@@ -192,51 +174,38 @@ async def test_mock_llm_call_anthropic(monkeypatch):
 
     async def mock_acompletion(**kwargs):
         captured_kwargs.append(kwargs)
-        mock_choice = MagicMock()
-        mock_choice.message.content = '{"result": "anthropic_success"}'
-        mock_resp = MagicMock()
-        mock_resp.choices = [mock_choice]
-        mock_resp.usage.prompt_tokens = 1000
-        mock_resp.usage.completion_tokens = 1000
-        mock_resp.usage.total_tokens = 2000
-        mock_resp.usage.cache_read_input_tokens = 0
-        mock_resp.usage.cache_creation_input_tokens = 0
-        mock_resp.usage.prompt_tokens_details = None
-        return mock_resp
-
-    orig_key = config.ANTHROPIC_API_KEY
-    monkeypatch.setattr(litellm, "acompletion", mock_acompletion)
-    try:
-        config.ANTHROPIC_API_KEY = "sk-ant-mock-key"
-
-        content, usage = await call_llm(
-            prompt="Generate an MCAT biology scenario",
-            system_prompt="You are an MCAT author",
-            model="claude-haiku-5-5",
+        return make_completion(
+            '{"result": "anthropic_success"}', prompt_tokens=1000, completion_tokens=1000
         )
 
-        assert content == '{"result": "anthropic_success"}'
-        assert len(captured_kwargs) == 1
-        assert captured_kwargs[0]["model"] == "claude-haiku-5-5"
-        assert captured_kwargs[0]["api_key"] == "sk-ant-mock-key"
-        assert captured_kwargs[0]["thinking"] == {"type": "disabled"}
-        assert usage.prompt_tokens == 1000
-        assert usage.completion_tokens == 1000
-        assert usage.cost_usd == 0.00060
-    finally:
-        config.ANTHROPIC_API_KEY = orig_key
+    monkeypatch.setattr(litellm, "acompletion", mock_acompletion)
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "sk-ant-mock-key")
+
+    content, usage = await call_llm(
+        prompt="Generate an MCAT biology scenario",
+        system_prompt="You are an MCAT author",
+        model="claude-haiku-5-5",
+    )
+
+    assert content == '{"result": "anthropic_success"}'
+    assert len(captured_kwargs) == 1
+    assert captured_kwargs[0]["model"] == "claude-haiku-5-5"
+    assert captured_kwargs[0]["api_key"] == "sk-ant-mock-key"
+    assert captured_kwargs[0]["thinking"] == {"type": "disabled"}
+    assert usage.prompt_tokens == 1000
+    assert usage.completion_tokens == 1000
+    assert usage.cost_usd == 0.00060
 
 
-async def test_health_and_config_endpoints_anthropic_reporting():
+async def test_health_and_config_endpoints_anthropic_reporting(monkeypatch):
     """Verify /config and /health endpoints report has_anthropic_key, active_provider, and dynamic pricing."""
+    # DEFAULT_TEXT_MODEL is a property with a public setter; restore it by hand (monkeypatch
+    # would delete the private attribute behind it when undoing)
     orig_model = config.DEFAULT_TEXT_MODEL
-    orig_key = config.ANTHROPIC_API_KEY
-    orig_provider = config.ACTIVE_LLM_PROVIDER
+    monkeypatch.setattr(config, "ACTIVE_LLM_PROVIDER", "anthropic")
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "sk-ant-live")
+    config.DEFAULT_TEXT_MODEL = "claude-haiku-5-5"
     try:
-        config.ACTIVE_LLM_PROVIDER = "anthropic"
-        config.DEFAULT_TEXT_MODEL = "claude-haiku-5-5"
-        config.ANTHROPIC_API_KEY = "sk-ant-live"
-
         cfg_data = await get_runtime_settings()
         assert cfg_data["default_text_model"] == "claude-haiku-5-5"
         assert cfg_data["active_provider"] == "anthropic"
@@ -252,5 +221,3 @@ async def test_health_and_config_endpoints_anthropic_reporting():
         assert hlth_data["cost_per_million_output"] == 0.50
     finally:
         config.DEFAULT_TEXT_MODEL = orig_model
-        config.ANTHROPIC_API_KEY = orig_key
-        config.ACTIVE_LLM_PROVIDER = orig_provider

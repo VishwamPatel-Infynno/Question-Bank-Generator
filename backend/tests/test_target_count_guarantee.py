@@ -21,6 +21,7 @@ from app.services import (
     auto_resolve_batch_and_refill,
     launch_background_batch,
 )
+from factories import collect_events
 
 pytestmark = pytest.mark.requires_db
 
@@ -229,7 +230,6 @@ async def test_interactive_slot_replenishment_recovers_from_quality_rejection(mo
     the in-place self-healing loop automatically replenishes the slot
     and completes with exactly the requested 5 questions.
     """
-    import json
 
     import app.workflow.engine as engine_mod
     from app.core.config import config
@@ -263,10 +263,7 @@ async def test_interactive_slot_replenishment_recovers_from_quality_rejection(mo
     )
 
     events = []
-    async for chunk in run_workflow_stream(req):
-        line = chunk.strip()
-        if line.startswith("data: "):
-            events.append(json.loads(line[6:]))
+    events = await collect_events(run_workflow_stream(req))
 
     # Verify that slot 0 retried and recovered
     assert attempt_tracker["slot_0_calls"] >= 2

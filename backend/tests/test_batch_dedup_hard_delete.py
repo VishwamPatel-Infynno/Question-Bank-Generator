@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-from app.db.session import init_db
 from app.main import app
 from app.repositories import (
     get_questions,
@@ -19,7 +18,6 @@ pytestmark = pytest.mark.requires_db
 
 async def test_hard_delete_purges_duplicate_questions():
     """Verifies that hard_delete_questions_batch permanently removes records from PostgreSQL."""
-    await init_db()
 
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())
@@ -105,7 +103,6 @@ async def test_hard_delete_purges_duplicate_questions():
 
 async def test_refresh_batch_aggregates_completion_guard():
     """Verifies that refresh_batch_aggregates keeps in_progress status when allow_complete=False."""
-    await init_db()
 
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())

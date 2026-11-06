@@ -4,7 +4,6 @@ import uuid
 from unittest.mock import patch
 
 import pytest
-from app.db.session import init_db
 from app.main import app
 from app.repositories import (
     get_jobs_by_batch_id,
@@ -23,7 +22,6 @@ pytestmark = pytest.mark.requires_db
 
 async def test_job_trial_count_persistence():
     """Verifies that trial_count is properly stored and updated in PostgreSQL."""
-    await init_db()
 
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())
@@ -60,7 +58,6 @@ async def test_job_trial_count_persistence():
 
 async def test_resume_stopped_jobs_under_3_trials():
     """Verifies that stopped/cancelled jobs with trial_count < 3 can be resumed."""
-    await init_db()
 
     batch_id = str(uuid.uuid4())
     job_full_id = str(uuid.uuid4())
@@ -132,7 +129,6 @@ async def test_retry_strictly_blocked_after_3_trials():
     Verifies that jobs with trial_count >= 3 cannot be retried,
     and the API returns HTTP 400 Bad Request.
     """
-    await init_db()
 
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())
@@ -178,7 +174,6 @@ async def test_run_single_job_autonomous_in_flight_retry():
     Verifies that _run_single_job automatically executes up to 3 trials in-flight
     when an initial trial yields fewer than target_count questions.
     """
-    await init_db()
 
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())

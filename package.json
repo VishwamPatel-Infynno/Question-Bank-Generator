@@ -14,7 +14,7 @@
     "format": "ruff format .",
     "format:check": "ruff format --check .",
     "test": "pnpm run test:backend",
-    "test:backend": "PYTHONPATH=backend pytest backend/tests",
+    "test:backend": "pytest",
     "db:clean-duplicates": "PYTHONPATH=backend ./.venv/bin/python scripts/clean_duplicate_artifacts.py",
     "preview": "pnpm --dir frontend run preview",
     "test:frontend": "pnpm --dir frontend run test",

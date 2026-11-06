@@ -9,7 +9,10 @@ from app.agents.image_generator import (
 from app.core.config import config
 from app.main import app
 from app.schemas import Difficulty, GenerationRequest, MCATSection
+from factories import make_json_response
 from httpx import ASGITransport, AsyncClient
+
+_ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 
 
 def test_openai_provider_detection():
@@ -70,26 +73,14 @@ async def test_call_openai_image_api_token_metered_costing(monkeypatch):
     """Verifies that call_openai_image_api extracts usage tokens ($5/1M in, $30/1M out) when reported."""
     import httpx
 
-    class MockResponseWithUsage:
-        status_code = 200
-
-        def json(self):
-            return {
-                "created": 1720000000,
-                "data": [
-                    {
-                        "b64_json": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-                    }
-                ],
-                "usage": {
-                    "prompt_tokens": 20,
-                    "completion_tokens": 1000,
-                    "total_tokens": 1020,
-                },
-            }
-
     async def mock_post(self, url, *args, **kwargs):
-        return MockResponseWithUsage()
+        return make_json_response(
+            {
+                "created": 1720000000,
+                "data": [{"b64_json": _ONE_PIXEL_PNG}],
+                "usage": {"prompt_tokens": 20, "completion_tokens": 1000, "total_tokens": 1020},
+            }
+        )
 
     monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
 
@@ -157,26 +148,22 @@ async def test_call_openai_image_api_network_mock(monkeypatch):
     """Verifies call_openai_image_api correctly posts to OpenAI endpoint and parses b64_json."""
     import httpx
 
-    class MockResponse:
-        status_code = 200
-
-        def json(self):
-            return {
-                "created": 1720000000,
-                "data": [
-                    {
-                        "b64_json": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-                        "revised_prompt": "Medical test figure with clear labels",
-                    }
-                ],
-            }
-
     async def mock_post(self, url, *args, **kwargs):
         assert "api.openai.com/v1/images/generations" in url
         payload = kwargs.get("json", {})
         assert payload.get("model") == "gpt-image-2.5-flare"
         assert payload.get("response_format") == "b64_json"
-        return MockResponse()
+        return make_json_response(
+            {
+                "created": 1720000000,
+                "data": [
+                    {
+                        "b64_json": _ONE_PIXEL_PNG,
+                        "revised_prompt": "Medical test figure with clear labels",
+                    }
+                ],
+            }
+        )
 
     monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
 

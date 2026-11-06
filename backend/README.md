@@ -14,7 +14,7 @@ The backend is engineered with clear separation of concerns across presentation,
 ```
 backend/
 ├── app/
-│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 38 operations across 32 paths)
+│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 36 operations across 30 paths)
 │   │   ├── router.py        # Central API v1 router aggregator (applies the optional API_ACCESS_KEY gate)
 │   │   ├── security.py      # Optional X-API-Key dependency for mutating routes
 │   │   └── v1/
@@ -60,15 +60,15 @@ backend/
 │   ├── models/              # Persistence Layer (SQLAlchemy 2.0 ORM Entities)
 │   │   ├── question.py      # QuestionModel with JSONB duplicate_info, is_deleted, deleted_at & 7 composite indexes
 │   │   ├── passage.py       # PassageModel for multi-item shared reading stimuli with is_deleted & deleted_at
-│   │   ├── batch.py         # BatchModel for multi-question generation runs
-│   │   └── job.py           # JobModel for tracking individual background batch jobs with persisted trial_count
+│   │   ├── batch.py         # GenerationBatchModel for multi-question generation runs
+│   │   └── job.py           # GenerationJobModel for background batch jobs with persisted trial_count
 │   ├── schemas/             # Domain Transfer Layer (Pydantic V2)
 │   │   ├── mcat.py          # MCAT sections, difficulty tiers (low/medium/high) & subtopic taxonomy
 │   │   ├── token.py         # TokenUsage & TokenCostAccumulator schemas
 │   │   ├── question.py      # QuestionOption, QuestionDraft, Question, determine_question_status helper
 │   │   └── workflow.py      # GenerationRequest, ReviewScore, WorkflowEvent
 │   ├── core/                # Configuration & Settings
-│   │   ├── config.py        # Pydantic SettingsConfigDict, dual-provider defaults & settings (61 fields)
+│   │   ├── config.py        # Pydantic SettingsConfigDict, dual-provider defaults & settings (67 fields)
 │   │   ├── pricing.py       # Model price fallback tables and LiteLLM registry lookup
 │   │   ├── concurrency.py   # Process-wide pipeline semaphore shared by all runs
 │   │   └── logging.py       # Centralized console logging handler & formatter
@@ -81,28 +81,64 @@ backend/
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
 └── tests/                   # Deterministic Automated Test Suite (55 deterministic modules / 353 tests + 1 live E2E module with 10 tests = 363 total)
-    ├── conftest.py          # Pytest fixtures, offline DB socket probe & async test client
-    ├── test_additional_instructions.py # Educator custom instructions and prompt builder integration
-    ├── test_agents.py       # Cognitive agent unit tests
-    ├── test_anthropic.py    # Multi-provider switching, Anthropic models, prompt cache pricing & API keys
-    ├── test_api_*.py        # REST & SSE endpoint integration tests (questions, generation, duplicates/passages/health, security): CRUD, batch staging, pagination & duplicate overrides
-    ├── test_batch_autonomous_retry.py # Autonomous 3-trials policy, trial count persistence, HTTP 400 rejection, and in-flight retries
-    ├── test_batch_dedup_hard_delete.py # Hard-delete duplicate purge during batch deduplication and completion guards
-    ├── test_batch_jobs_flow.py # Background batch runner, job concurrency, and refill preservation
-    ├── test_batch_review_withholding.py # Review queue withholding during batch execution and atomic promotion
-    ├── test_database_structure.py # SQLAlchemy models, cascade deletion, and constraint tests
-    ├── test_deduplication.py# Multi-metric similarity, token containment & options overlap tests
-    ├── test_e2e_live.py     # Live end-to-end integration tests (10 tests marked live_e2e)
-    ├── test_multi_batch_concurrency.py # Multi-batch semaphore stress tests
-    ├── test_pedagogy.py     # Pedagogical format & 3-card explanation tests
-    ├── test_question_status_refill.py # Status enums, active question helpers, and deficit calculations
-    ├── test_schemas.py      # Pydantic schema validation tests
-    ├── test_soft_delete_batch_integrity.py # Soft deletion & restoration preserving batch progress integrity
-    ├── test_target_count_guarantee.py # Dynamic job allocation, slot replenishment, and target count guarantees
-    ├── test_taxonomy_sync.py # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
-    ├── test_tokens.py       # Mathematical token cost accumulation tests across providers
-    ├── test_visuals.py      # SVG & neural image generation tests
-    └── test_workflow.py     # Streaming workflow execution tests
+    ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
+    ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
+    ├── test_additional_instructions.py     # Educator custom instructions and prompt builder integration
+    ├── test_agents.py                      # Heuristics, agent mocking, blind solver & quality gates
+    ├── test_anthropic.py                   # Multi-provider switching, Anthropic models, prompt cache pricing & API keys
+    ├── test_api_duplicates_passages_health.py # Duplicate detection, passage lifecycle, CORS and health endpoints
+    ├── test_api_generation.py              # Generation flows through the API: batches, passage sets, visuals
+    ├── test_api_hardening.py               # API hardening: admin gate, image safety, safe defaults, write validation
+    ├── test_api_questions.py               # Question bank API: CRUD, approval, status lifecycle, pagination
+    ├── test_api_security.py                # Optional shared-secret gate and request input limits
+    ├── test_authoring_standards.py         # One source of truth for authoring numbers; DDL helper that never locks migrated tables
+    ├── test_backend_polish.py              # Difficulty alias filtering, OpenAPI generation and the narrowed JSON parsing
+    ├── test_batch_aggregate_lock.py        # Concurrent refreshes of one batch must serialize and stay consistent
+    ├── test_batch_autonomous_retry.py      # Autonomous 3-trials policy, trial count persistence and in-flight retries
+    ├── test_batch_dedup_hard_delete.py     # Hard-delete duplicate purge during batch deduplication and completion guards
+    ├── test_batch_jobs_flow.py             # Background batch runner, job concurrency and refill preservation
+    ├── test_batch_retry_resume.py          # Retry/resume must run the jobs it selected, and stuck jobs must never hang
+    ├── test_batch_review_withholding.py    # Review queue withholding during batch execution and atomic promotion
+    ├── test_batch_state.py                 # Batch correctness: terminal resolution, stop/refill guards, cost accounting
+    ├── test_blind_solver_vote.py           # Blind solver: robust key parsing, layout-varied sampling and majority voting
+    ├── test_config_docs.py                 # Settings fields, .env.example and the setup doc must not drift apart
+    ├── test_cpu_async_hygiene.py           # Dedup pruning keeps verdicts, big pools leave the loop, litellm stays lazy
+    ├── test_database_structure.py          # SQLAlchemy models, cascade deletion and constraint tests
+    ├── test_deduplication.py               # Multi-metric similarity, token containment, options overlap and auto-resolve
+    ├── test_deterministic_gate.py          # Tests that the deterministic validator gate runs before LLM review in the review loop
+    ├── test_e2e_live.py                    # Live end-to-end integration tests (10 tests marked live_e2e)
+    ├── test_engine_cleanup.py              # The workflow stream must not leak worker tasks when its consumer stops reading
+    ├── test_engine_slices.py               # Unit tests for the pure, closure-free pieces sliced out of ``workflow.engine``
+    ├── test_image_calls.py                 # Retry behaviour and response handling of the provider image calls (HTTP mocked)
+    ├── test_index_migration.py             # The redundant single-column question indexes are dropped, covering composites stay
+    ├── test_job_stream_consumer.py         # The shared stream reader and request builder behind job runs and refills
+    ├── test_live_job_finalization.py       # Standalone /generate runs must always finalize their job and batch rows
+    ├── test_llm_budget.py                  # Hard per-slot LLM call budget and the free duplicate re-check after rewrites
+    ├── test_llm_call.py                    # Tests for call_llm request construction and retry behavior (provider mocked)
+    ├── test_logging_context.py             # Correlation ids bound with bind_log_context appear on log records, including in child tasks
+    ├── test_mock_fixture_table.py          # The seven canned mock drafts must stay byte-identical when their source representation changes
+    ├── test_multi_batch_concurrency.py     # Multi-batch semaphore stress tests and rate-limit backoff
+    ├── test_offline_mode.py                # Mocks are an explicit opt-in: no credentials without OFFLINE_MODE must fail loudly
+    ├── test_openai.py                      # OpenAI text and image provider wiring (HTTP mocked)
+    ├── test_ops_and_resolution.py          # Request ids, body limits, error sanitising, liveness, batch resolution helpers
+    ├── test_pedagogy.py                    # Pedagogical format & 3-card explanation tests
+    ├── test_pricing_table.py               # Verified provider prices, model-based rate resolution, cache billing and image costs
+    ├── test_projected_reads.py             # Lightweight repository reads used by the batch worker
+    ├── test_question_status_refill.py      # Status enums, active question helpers and deficit calculations
+    ├── test_recovery.py                    # Startup recovery: orphaned running jobs must not stay 'running' forever
+    ├── test_request_secrets.py             # Client-supplied API keys must never be persisted or returned
+    ├── test_round6_backend_fixes.py        # Regression tests for the round-6 backend bug fixes
+    ├── test_schemas.py                     # Pydantic schema validation tests
+    ├── test_shared_helpers.py              # Shared helpers extracted during cleanup keep their exact semantics
+    ├── test_soft_delete_batch_integrity.py # Tests
+    ├── test_sse_keepalive.py               # SSE keep-alive comments while the engine is quiet
+    ├── test_structured_output.py           # Model output is validated strictly, repaired once, and never silently defaulted
+    ├── test_target_count_guarantee.py      # Dynamic job allocation, slot replenishment and target count guarantees
+    ├── test_taxonomy_sync.py               # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
+    ├── test_tokens.py                      # Token cost accumulation across providers and config cascade
+    ├── test_validators.py                  # Unit tests for the deterministic question validators (no LLM, no database)
+    ├── test_visuals.py                     # AI image generation, visual stimulus routing and cost accumulation
+    └── test_workflow.py                    # Streaming workflow execution and event metadata
 ```
 
 ---
@@ -115,15 +151,15 @@ The multi-agent workflow coordinates a 3-step autonomous pipeline through a stri
 graph TD
     Start([Generation Request]) --> NodeFused[Fused Draft & Self-Critique Node]
     
-    NodeFused --> FusedScoreCheck{Self-Score > 90?}
-    FusedScoreCheck -->|Yes & Needs Diagram| NodeImg[FLUX-2-klein-4b / SVG Node]
-    FusedScoreCheck -->|Yes & Text Only| NodeFin[Finalize & Persist Node]
+    NodeFused --> Gate[Deterministic Validator Gate]
+    Gate -->|Blocking defect| NodeRegen[Remediation Node]
+    Gate -->|Clean| NodeRev[Independent Reviewer Node]
+    NodeRev --> Solver[Blind Solver Node]
+    Solver --> ScoreCheck{Score > 90 & key confirmed?}
+    ScoreCheck -->|Yes & Needs Diagram| NodeImg[AI Image Node]
+    ScoreCheck -->|Yes & Text Only| NodeFin[Finalize & Persist Node]
     NodeImg --> NodeFin
-    
-    FusedScoreCheck -->|No| NodeRegen[Remediation Node]
-    NodeRegen --> NodeRev[Independent Reviewer Node]
-    
-    NodeRev --> ScoreCheck{Score > 90?}
+    NodeRegen --> NodeRev
     ScoreCheck -->|Yes & Needs Diagram| NodeImg
     ScoreCheck -->|Yes & Text Only| NodeFin
     ScoreCheck -->|No & Cycles < 3| NodeRegen
@@ -135,7 +171,7 @@ graph TD
 
 - **Fused Draft-and-Critique Entry Point**: Drafts question and generates immediate 100-point self-critique in a single pass (`fused_generator_node`), combining drafting and self-critique in one inference round-trip; the independent reviewer and blind solver still audit every draft by default (`ALWAYS_INDEPENDENT_REVIEW`).
 - **Passing Threshold**: A question candidate must score **$> 90$** out of 100 on the standardized rubric to be approved for publication (`config.passes_quality_gate`).
-- **Deterministic Gate & Fail-Closed Checks**: Before any LLM review, `validators.py` checks structure and repairs forbidden dashes. The Reviewer and Blind Solver run concurrently (`PARALLEL_REVIEW_AND_SOLVE`) and raise `QualityCheckUnavailableError` rather than passing an item they could not check. Mock fixtures are used only when no credentials are configured.
+- **Deterministic Gate & Fail-Closed Checks**: Before any LLM review, `validators.py` checks structure and repairs forbidden dashes. The Reviewer runs first and the Blind Solver after it by default (`PARALLEL_REVIEW_AND_SOLVE=true` runs them concurrently); both raise `QualityCheckUnavailableError` rather than passing an item they could not check. Mock fixtures are used only when no credentials are configured.
 - **Option Symmetry & Anti-Guessability**: Generator and Reviewer enforce word count parity (within 3 words, or 20% of the average for longer options) across all 4 options ($A, B, C, D$), parallel grammar, and balanced qualifiers to eliminate test-wiseness guessing cues.
 - **Anti-AI Formatting Standard**: Strictly forbids em dashes, en dashes, or double hyphens; standard single hyphens (`-`) only.
 - **3-Part Structured Mentor Explanations**: Renders pedagogical explanations across three specialized visual cards: Core Intuition & Proof, Itemized Distractor Analysis, and Primary Cognitive Trap Spotlight.
@@ -192,7 +228,7 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 ```
 - **Service Root**: [http://localhost:8000](http://localhost:8000)
 - **Interactive OpenAPI Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Health Check**: [http://localhost:8000/api/health](http://localhost:8000/api/health) (liveness, `degraded` without a database) and [http://localhost:8000/api/health/ready](http://localhost:8000/api/health/ready) (readiness, `503` when the database is down)
+- **Health Check**: [http://localhost:8000/api/health](http://localhost:8000/api/health) (overview, `degraded` without a database), [http://localhost:8000/api/health/live](http://localhost:8000/api/health/live) (liveness, no database access) and [http://localhost:8000/api/health/ready](http://localhost:8000/api/health/ready) (readiness, `503` when the database is down)
 
 ---
 
@@ -203,16 +239,16 @@ Run the deterministic backend test suite covering endpoints, schemas, database o
 
 ```bash
 # Run all unit and integration tests (353 deterministic tests across 55 modules)
-# Smart auto-skip: 273 pure unit tests pass offline, 80 DB-dependent tests skip cleanly if PostgreSQL is offline
+# Smart auto-skip: 275 pure unit tests pass offline, 78 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
-ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
+pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 
 # Run database relational structure tests
 PYTHONPATH=backend pytest backend/tests/test_database_structure.py -v
 ```
 
 ### Code Formatting & Linting
-Enforce Python code hygiene using **Ruff** (enforces SIM, RET, B, C4, E, W, F, I, UP):
+Enforce Python code hygiene using **Ruff** (rules E, W, F, I, UP, B, C4, SIM, RET, G004, ASYNC, PT, RUF):
 
 ```bash
 # Check code style and rules (0 errors policy)

@@ -14,5 +14,14 @@ node_modules
 docs
 e2e
 frontend/dist
+frontend/scripts
 backend/tests
-*.md
+scripts
+**/*.md
+coverage.xml
+.coverage
+htmlcov
+**/.DS_Store
+.mypy_cache
+.vscode
+.idea

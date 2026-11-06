@@ -14,9 +14,8 @@ from app.repositories import (
 )
 from app.schemas import OptionChoice, Question
 
-pytestmark = pytest.mark.requires_db
 
-
+@pytest.mark.requires_db
 async def test_database_schema_initialization():
     """init_db() is idempotent and leaves the expected tables, status constraints and indexes."""
     from app.db.session import engine
@@ -50,6 +49,7 @@ async def test_database_schema_initialization():
         assert {"ix_questions_status_created", "ix_questions_batch_job"} <= indexes
 
 
+@pytest.mark.requires_db
 async def test_passage_auto_sync_and_retrieval():
     """Verify that saving a question with passage_id auto-creates and updates the passage in the passages table."""
     passage_uuid = f"test-passage-{uuid.uuid4()}"
@@ -96,6 +96,7 @@ async def test_passage_auto_sync_and_retrieval():
     await delete_question(q.id)
 
 
+@pytest.mark.requires_db
 async def test_batch_auto_sync_and_atomic_aggregation():
     """Verify saving questions via save_questions_batch aggregates count, tokens, and cost on GenerationBatchModel."""
     batch_uuid = f"test-batch-{uuid.uuid4()}"
@@ -153,6 +154,7 @@ async def test_batch_auto_sync_and_atomic_aggregation():
     await delete_question(q2.id)
 
 
+@pytest.mark.requires_db
 async def test_hybrid_full_text_search():
     """Verify full-text search correctly indexes and retrieves questions by distinctive keywords."""
     unique_keyword = f"quasarastrophysics{uuid.uuid4().hex[:6]}"
@@ -186,6 +188,7 @@ async def test_hybrid_full_text_search():
     await delete_question(q.id)
 
 
+@pytest.mark.requires_db
 async def test_api_passages_and_batches():
     """Verify HTTP API endpoints for /api/passages and /api/batches."""
     passage_id = f"api-p-{uuid.uuid4()}"
@@ -332,6 +335,7 @@ async def test_model_to_schema_none_options_safety():
     assert schema_item.options == []
 
 
+@pytest.mark.requires_db
 async def test_cascade_passage_deletion_multi_status_and_metrics():
     """Verify that deleting a passage cascade-deletes all linked questions across all statuses and recalculates job/batch actual counts."""
     from app.repositories import (

@@ -1,6 +1,5 @@
 """Regression tests for the round-6 backend bug fixes."""
 
-import json
 import pathlib
 import uuid
 from types import SimpleNamespace
@@ -23,7 +22,7 @@ from app.services.batch_resolution import find_cluster_duplicates
 from app.workflow import dedup_inflight
 from app.workflow.engine import run_workflow_stream
 from app.workflow.passage_prep import SharedPassageState, _prepare_shared_passage_and_visual
-from factories import make_draft, make_question, make_request, make_usage
+from factories import collect_events, make_draft, make_question, make_request, make_usage
 
 # --- in-flight pool: one batch, several concurrent jobs -----------------------------------------
 
@@ -191,12 +190,10 @@ def strict_no_keys(monkeypatch):
 
 
 async def test_failed_single_question_run_reports_one_workflow_error(strict_no_keys):
-    events = []
     # Independent mode: a passage set fails earlier, inside the shared-passage draft
-    async for chunk in run_workflow_stream(
-        make_request(passage_mode="independent", questions_to_generate=1)
-    ):
-        events.append(json.loads(chunk.strip()[len("data: ") :]))
+    events = await collect_events(
+        run_workflow_stream(make_request(passage_mode="independent", questions_to_generate=1))
+    )
     kinds = [e["event_type"] for e in events]
     assert kinds.count("question_failed") == 1
     assert kinds.count("workflow_error") == 1
