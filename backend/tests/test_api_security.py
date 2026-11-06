@@ -12,6 +12,7 @@ async def test_mutating_routes_open_when_no_access_key_is_configured(client, mon
     assert res.status_code != 401
 
 
+@pytest.mark.requires_db
 async def test_mutating_routes_require_the_key_when_configured(client, monkeypatch):
     monkeypatch.setattr(config, "API_ACCESS_KEY", "gate-secret")
 
@@ -48,6 +49,7 @@ def test_api_key_is_not_shown_in_repr():
     assert "sk-secret" not in repr(req)
 
 
+@pytest.mark.requires_db
 async def test_batch_list_is_paginated_and_omits_payloads(client):
     res = await client.get("/api/batches?limit=2&offset=0")
     assert res.status_code == 200

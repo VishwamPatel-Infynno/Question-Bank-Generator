@@ -287,6 +287,9 @@ async def test_auto_resolve_does_not_claim_refill_when_no_job_was_launched(monke
     monkeypatch.setattr("app.services.batch_runner.get_batch_by_id", AsyncMock(return_value=batch))
     monkeypatch.setattr("app.services.batch_runner.get_questions", AsyncMock(return_value=[q]))
     monkeypatch.setattr(
+        "app.services.batch_runner.get_jobs_by_batch_id", AsyncMock(return_value=[])
+    )
+    monkeypatch.setattr(
         "app.services.batch_runner.refresh_batch_aggregates", AsyncMock(return_value=batch)
     )
     monkeypatch.setattr(

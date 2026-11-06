@@ -13,7 +13,8 @@ import contextlib
 import json
 import logging
 import uuid
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -41,6 +42,7 @@ from app.schemas import (
 )
 from app.workflow._section_utils import is_cars_section
 from app.workflow.engine_helpers import (
+    SharedPassageState,
     _build_batch_worker_request,
     _determine_item_diagram_requirement,
     _finalize_live_job_progress,
@@ -77,57 +79,68 @@ WORKER_STAGGER_MAX_SECONDS = 2.0
 EVENT_POLL_SECONDS = 1.0  # how often the stream loop re-checks that the workers are still running
 
 
-async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, None]:
-    """
-    Streams multi-agent workflow events in real time as Server-Sent Events (SSE).
-    Supports generating single or multiple questions in one shot (batch).
-    Emits batch_progress and question_generated as each question finishes,
-    culminating in workflow_complete with all staged questions for user confirmation.
-    """
-    total_qty = max(1, req.questions_to_generate) if req.questions_to_generate is not None else 5
-    batch_id = req.batch_id or str(uuid.uuid4())
-    job_id = req.job_id or str(uuid.uuid4())
-    is_standalone_live_run = req.job_id is None
+def _enum_value(value: Any) -> str:
+    """The wire value of an enum member, or the string form of anything else."""
+    return value.value if hasattr(value, "value") else str(value)
 
-    # Resolve binary passage mode: either all 5 linked or all 5 independent
-    is_cars = is_cars_section(req.section)
-    is_independent = not is_cars and (
+
+@dataclass(frozen=True)
+class RunLayout:
+    """The fixed shape of one run: how many questions, which ids, and the passage mode."""
+
+    total_qty: int
+    batch_id: str
+    job_id: str
+    is_standalone_live_run: bool
+    is_single_passage_set: bool
+    shared_passage_id: str | None
+
+    @property
+    def effective_passage_count(self) -> int:
+        return self.total_qty if self.is_single_passage_set else 0
+
+    @property
+    def independent_count(self) -> int:
+        return 0 if self.is_single_passage_set else self.total_qty
+
+    @property
+    def passage_mode(self) -> str:
+        return "single_passage" if self.is_single_passage_set else "independent"
+
+
+def _resolve_run_layout(req: GenerationRequest) -> RunLayout:
+    """Resolves the binary passage mode (all questions linked, or all independent) and the ids."""
+    total_qty = max(1, req.questions_to_generate) if req.questions_to_generate is not None else 5
+    is_independent = not is_cars_section(req.section) and (
         req.passage_mode == "independent"
         or str(req.passage_required).lower() in ("no", "false", "0")
         or (req.passage_question_count == 0 and not req.shared_stimulus)
     )
+    is_single_passage_set = not is_independent
+    return RunLayout(
+        total_qty=total_qty,
+        batch_id=req.batch_id or str(uuid.uuid4()),
+        job_id=req.job_id or str(uuid.uuid4()),
+        is_standalone_live_run=req.job_id is None,
+        is_single_passage_set=is_single_passage_set,
+        shared_passage_id=req.passage_id or (str(uuid.uuid4()) if is_single_passage_set else None),
+    )
 
-    if is_independent:
-        effective_passage_count = 0
-        is_single_passage_set = False
-        independent_count = total_qty
-    else:
-        effective_passage_count = total_qty
-        is_single_passage_set = True
-        independent_count = 0
 
-    shared_passage_id = req.passage_id or (str(uuid.uuid4()) if is_single_passage_set else None)
-    shared_passage_text = req.shared_stimulus
-
-    # Auto-initialize Batch and Job records in PostgreSQL for live interactive runs
-    if is_standalone_live_run:
-        try:
-            now_iso = datetime.now(UTC).isoformat()
-            sec_val = req.section.value if hasattr(req.section, "value") else str(req.section)
-            diff_val = (
-                req.difficulty.value if hasattr(req.difficulty, "value") else str(req.difficulty)
-            )
-
-            existing_b = await get_batch_by_id(batch_id)
-            if not existing_b:
-                batch_record = GenerationBatch(
-                    id=batch_id,
+async def _init_live_records(req: GenerationRequest, layout: RunLayout) -> None:
+    """Creates the batch (when new) and job rows for a standalone live run; DB errors only log."""
+    try:
+        now_iso = datetime.now(UTC).isoformat()
+        sec_val = _enum_value(req.section)
+        if not await get_batch_by_id(layout.batch_id):
+            await save_batch(
+                GenerationBatch(
+                    id=layout.batch_id,
                     section=sec_val,
                     subtopic=req.subtopic or f"{sec_val} Mini-Batch",
-                    difficulty=diff_val,
-                    passage_mode=req.passage_mode
-                    or ("single_passage" if is_single_passage_set else "independent"),
-                    target_count=total_qty,
+                    difficulty=_enum_value(req.difficulty),
+                    passage_mode=req.passage_mode or layout.passage_mode,
+                    target_count=layout.total_qty,
                     actual_count=0,
                     total_jobs=1,
                     completed_jobs=0,
@@ -135,22 +148,28 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     status=BatchStatus.IN_PROGRESS,
                     created_at=now_iso,
                 )
-                await save_batch(batch_record)
-
-            job_record = GenerationJob(
-                id=job_id,
-                batch_id=batch_id,
+            )
+        await save_job(
+            GenerationJob(
+                id=layout.job_id,
+                batch_id=layout.batch_id,
                 job_number=1,
                 status=JobStatus.RUNNING,
-                target_count=total_qty,
+                target_count=layout.total_qty,
                 actual_count=0,
-                passage_id=shared_passage_id,
+                passage_id=layout.shared_passage_id,
                 created_at=now_iso,
                 started_at=now_iso,
             )
-            await save_job(job_record)
-        except Exception as db_err:
-            logger.warning("Live batch/job persistence skipped (DB offline): %s", db_err)
+        )
+    except Exception as db_err:
+        logger.warning("Live batch/job persistence skipped (DB offline): %s", db_err)
+
+
+def _make_event_factory(
+    req: GenerationRequest, batch_id: str, job_id: str
+) -> Callable[..., WorkflowEvent]:
+    """An event factory that stamps batch_id and job_id into event data unless already present."""
 
     def make_event(
         event_type: str,
@@ -159,15 +178,9 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         data: dict[str, Any] | None = None,
         run_id: str | None = None,
     ) -> WorkflowEvent:
-        """
-        Factory closure that creates a WorkflowEvent, automatically injecting
-        the current batch_id and job_id into event data when not already present.
-        """
         event_data = dict(data or {})
-        if "batch_id" not in event_data and batch_id:
-            event_data["batch_id"] = batch_id
-        if "job_id" not in event_data and job_id:
-            event_data["job_id"] = job_id
+        event_data.setdefault("batch_id", batch_id)
+        event_data.setdefault("job_id", job_id)
         return WorkflowEvent(
             run_id=run_id or req.run_id,
             batch_id=batch_id,
@@ -176,6 +189,207 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             message=message,
             data=event_data,
         )
+
+    return make_event
+
+
+@dataclass
+class SlotLedger:
+    """Spend per question slot, summed across every attempt the slot makes."""
+
+    tokens: list[int]
+    prompt_tokens: list[int]
+    completion_tokens: list[int]
+    costs: list[float]
+    usage: list[list[dict[str, Any]]]
+    calls: list[int] = field(default_factory=list)
+
+    @classmethod
+    def for_slots(cls, total_qty: int) -> SlotLedger:
+        return cls(
+            tokens=[0] * total_qty,
+            prompt_tokens=[0] * total_qty,
+            completion_tokens=[0] * total_qty,
+            costs=[0.0] * total_qty,
+            usage=[[] for _ in range(total_qty)],
+            calls=[0] * total_qty,
+        )
+
+    def fold(self, idx: int, st: AgentWorkflowState | None) -> None:
+        """Adds one attempt's complete spend (tokens, split, cost, breakdown, calls) to the slot."""
+        if not st:
+            return
+        self.tokens[idx] += st.get("total_tokens", 0)
+        self.prompt_tokens[idx] += st.get("total_prompt_tokens", 0)
+        self.completion_tokens[idx] += st.get("total_completion_tokens", 0)
+        self.costs[idx] += st.get("total_cost_usd", 0.0)
+        self.usage[idx].extend(st.get("agent_usage_breakdown", []))
+        self.calls[idx] += count_llm_calls(st)
+
+    def budget_spent(self, idx: int, limit: int) -> bool:
+        """True once the slot has used ``limit`` LLM calls (a limit of 0 disables the cap)."""
+        return limit > 0 and self.calls[idx] >= limit
+
+    def cumulative(self, passage: SharedPassageState | None = None) -> dict[str, Any]:
+        """Run totals across every slot plus the shared passage draft, as the SSE payload shape."""
+        passage = passage or SharedPassageState()
+        return {
+            "total_tokens": sum(self.tokens) + passage.tokens,
+            "total_prompt_tokens": sum(self.prompt_tokens) + passage.prompt_tokens,
+            "total_completion_tokens": sum(self.completion_tokens) + passage.completion_tokens,
+            "total_cost_usd": round(sum(self.costs) + passage.cost, 7),
+        }
+
+    def all_usage(self) -> list[dict[str, Any]]:
+        return [entry for slot_usage in self.usage for entry in slot_usage]
+
+
+def _build_diversity_context(
+    idx: int,
+    total_qty: int,
+    attempt: int,
+    used_traps: list[str],
+    used_mistakes: list[str],
+) -> str | None:
+    """Prompt context steering a slot away from traps/misconceptions its siblings already used."""
+    if total_qty <= 1 and attempt == 0:
+        return None
+    parts = [f"Item {idx + 1} of {total_qty} in this question set."]
+    if attempt > 0:
+        alt_trap = ALT_TRAP_ROTATION[(idx + attempt) % len(ALT_TRAP_ROTATION)]
+        parts.append(
+            f"REPLENISHMENT ATTEMPT {attempt + 1}: The previous attempt did not satisfy quality or uniqueness standards. "
+            f"You MUST formulate a fresh scenario testing cognitive trap '{alt_trap}' for variety."
+        )
+    elif used_traps:
+        parts.append(
+            f"Previously calibrated traps: {', '.join(used_traps[-4:])}. Please select a complementary AAMC trap for variety."
+        )
+    if used_mistakes:
+        parts.append(
+            f"Previously targeted misconceptions: {', '.join(used_mistakes[-3:])}. Diversify the targeted misconception."
+        )
+    return " ".join(parts)
+
+
+def _drafting_message(
+    idx: int, total_qty: int, attempt: int, is_passage_item: bool, interaction: str
+) -> str:
+    prefix = f"[{idx + 1}/{total_qty}]"
+    if attempt > 0:
+        return f"{prefix} Calibrating alternative scientific angle for Question {idx + 1}..."
+    kind = interaction.replace("_", " ").title()
+    if is_passage_item:
+        return f"{prefix} Writing linked {kind} question from shared passage..."
+    return f"{prefix} Writing independent {kind} question (direct question)..."
+
+
+def _resolve_passing_threshold(item_req: GenerationRequest, req: GenerationRequest) -> float:
+    """Item override, then run override, then the configured default."""
+    return (
+        getattr(item_req, "passing_threshold", None)
+        or getattr(req, "passing_threshold", None)
+        or config.PASSING_SCORE_THRESHOLD
+    )
+
+
+def _initial_attempt_state(
+    item_req: GenerationRequest,
+    item_run_id: str,
+    batch_id: str,
+    diversity_context: str | None,
+    passing_threshold: float,
+    slot_prior_calls: int,
+) -> AgentWorkflowState:
+    """The fresh workflow state one attempt starts from."""
+    return {
+        "request": item_req.model_dump(),
+        "run_id": item_run_id,
+        "batch_id": batch_id,
+        "iteration_count": 1,
+        "iterations_history": [],
+        "log_messages": [],
+        "total_tokens": 0,
+        "total_prompt_tokens": 0,
+        "total_completion_tokens": 0,
+        "total_cost_usd": 0.0,
+        "agent_usage_breakdown": [],
+        # Marks results produced from mock fixtures so they are never mistaken for real
+        "stage_outcomes": {"offline_mode": True} if config.OFFLINE_MODE else {},
+        "diversity_context": diversity_context,
+        "passing_threshold": passing_threshold,
+        "slot_prior_calls": slot_prior_calls,
+    }
+
+
+def _is_sibling_collision(
+    dup_info: dict[str, Any], outcomes_questions: list[dict[str, Any] | None]
+) -> bool:
+    """True when a hard duplicate matched a sibling of this run (staged or still in flight)."""
+    if not dup_info.get("is_duplicate", False):
+        return False
+    matched_id = str(dup_info.get("matched_question_id") or "")
+    sibling_ids = {str(q["id"]) for q in outcomes_questions if q is not None and "id" in q}
+    return matched_id in sibling_ids or matched_id.startswith("in_flight_")
+
+
+def _shared_passage_payload(layout: RunLayout, passage: SharedPassageState) -> dict[str, Any]:
+    """The passage-mode fields the workflow_start and workflow_complete events both carry."""
+    linked = layout.is_single_passage_set
+    return {
+        "passage_mode": layout.passage_mode,
+        "passage_question_count": layout.effective_passage_count,
+        "independent_question_count": layout.independent_count,
+        "shared_passage": passage.passage_text if linked else None,
+        "shared_passage_image_svg": passage.image_svg if linked else None,
+        "shared_passage_image_url": passage.image_url if linked else None,
+        "shared_passage_image_description": passage.image_desc if linked else None,
+    }
+
+
+def _start_message(layout: RunLayout, req: GenerationRequest) -> str:
+    if layout.is_single_passage_set:
+        return f"Starting AAMC MCAT Passage Set ({layout.total_qty} questions) on shared reading passage..."
+    if layout.total_qty == 1:
+        return f"Starting AAMC MCAT Generation Workflow for {req.section.value} ({req.difficulty.value}) using Infynno Cognitive Architecture..."
+    return f"Starting AAMC MCAT Independent Discretes Batch ({layout.total_qty} standalone questions) in parallel..."
+
+
+def _complete_message(
+    layout: RunLayout, staged: list[dict[str, Any]], usage: dict[str, Any]
+) -> str:
+    totals = f"Total: {usage['total_tokens']} tokens (${usage['total_cost_usd']:.5f})."
+    if layout.is_single_passage_set and layout.total_qty > 1:
+        return f"Passage Set generated! {len(staged)} questions linked to shared reading passage staged for Review. {totals}"
+    if layout.total_qty > 1:
+        return f"Parallel batch generation completed! {len(staged)} of {layout.total_qty} questions staged for User Confirmation. {totals}"
+    score = staged[0].get("final_score", 95) if staged else 95
+    return f"Multi-Agent workflow completed! Candidate question scored {score}/100 and is staged for Confirmation. {totals}"
+
+
+async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, None]:
+    """
+    Streams multi-agent workflow events in real time as Server-Sent Events (SSE).
+    Supports generating single or multiple questions in one shot (batch).
+    Emits batch_progress and question_generated as each question finishes,
+    culminating in workflow_complete with all staged questions for user confirmation.
+    """
+    layout = _resolve_run_layout(req)
+    total_qty = layout.total_qty
+    batch_id = layout.batch_id
+    job_id = layout.job_id
+    is_standalone_live_run = layout.is_standalone_live_run
+    is_single_passage_set = layout.is_single_passage_set
+    effective_passage_count = layout.effective_passage_count
+    independent_count = layout.independent_count
+    shared_passage_id = layout.shared_passage_id
+    shared_passage_text = req.shared_stimulus
+
+    # Auto-initialize Batch and Job records in PostgreSQL for live interactive runs
+    if is_standalone_live_run:
+        await _init_live_records(req, layout)
+
+    make_event = _make_event_factory(req, batch_id, job_id)
 
     all_staged_questions: list[dict[str, Any]] = []
     all_agent_usage: list[dict[str, Any]] = []
@@ -211,43 +425,20 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         shared_passage_image_url = passage_state.image_url
         shared_passage_image_svg = passage_state.image_svg
         shared_passage_image_desc = passage_state.image_desc
-        passage_tokens = passage_state.tokens
-        passage_prompt_tokens = passage_state.prompt_tokens
-        passage_completion_tokens = passage_state.completion_tokens
-        passage_cost = passage_state.cost
         all_agent_usage.extend(passage_state.usage_breakdown)
 
         # Initial workflow start
-        if is_single_passage_set:
-            start_msg = f"Starting AAMC MCAT Passage Set ({total_qty} questions) on shared reading passage..."
-        elif total_qty == 1:
-            start_msg = f"Starting AAMC MCAT Generation Workflow for {req.section.value} ({req.difficulty.value}) using Infynno Cognitive Architecture..."
-        else:
-            start_msg = f"Starting AAMC MCAT Independent Discretes Batch ({total_qty} standalone questions) in parallel..."
-
         start_evt = make_event(
             event_type="workflow_start",
             agent_name="System",
-            message=start_msg,
+            message=_start_message(layout, req),
             data={
                 "total_questions": total_qty,
                 "single_count": total_qty,
                 "passage_count": effective_passage_count,
-                "passage_question_count": effective_passage_count,
-                "independent_question_count": independent_count,
                 "batch_id": batch_id,
                 "passage_id": shared_passage_id,
-                "passage_mode": "single_passage" if is_single_passage_set else "independent",
-                "shared_passage": shared_passage_text if is_single_passage_set else None,
-                "shared_passage_image_svg": shared_passage_image_svg
-                if is_single_passage_set
-                else None,
-                "shared_passage_image_url": shared_passage_image_url
-                if is_single_passage_set
-                else None,
-                "shared_passage_image_description": shared_passage_image_desc
-                if is_single_passage_set
-                else None,
+                **_shared_passage_payload(layout, passage_state),
             },
         )
         yield f"data: {start_evt.model_dump_json()}\n\n"
@@ -261,13 +452,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
         outcomes_questions: list[dict[str, Any] | None] = [None] * total_qty
         outcomes_rejections: list[dict[str, Any]] = []
-        outcomes_tokens: list[int] = [0] * total_qty
-        outcomes_prompt_tokens: list[int] = [0] * total_qty
-        outcomes_completion_tokens: list[int] = [0] * total_qty
-        outcomes_costs: list[float] = [0.0] * total_qty
-        outcomes_usage: list[list[dict[str, Any]]] = [[] for _ in range(total_qty)]
-        # LLM calls spent per slot across all of its attempts (feeds MAX_LLM_CALLS_PER_SLOT)
-        outcomes_calls: list[int] = [0] * total_qty
+        # Spend per slot across all of its attempts (calls feed MAX_LLM_CALLS_PER_SLOT)
+        ledger = SlotLedger.for_slots(total_qty)
         shared_used_traps: list[str] = []
         shared_used_mistakes: list[str] = []
 
@@ -283,29 +469,14 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         except Exception as ref_err:
             logger.warning("Could not load reference questions for deduplication: %s", ref_err)
 
-        def _fold_attempt_usage(idx: int, st: AgentWorkflowState | None) -> None:
-            """Adds one attempt's complete spend (tokens, split, cost, breakdown) to the slot."""
-            if not st:
-                return
-            outcomes_tokens[idx] += st.get("total_tokens", 0)
-            outcomes_prompt_tokens[idx] += st.get("total_prompt_tokens", 0)
-            outcomes_completion_tokens[idx] += st.get("total_completion_tokens", 0)
-            outcomes_costs[idx] += st.get("total_cost_usd", 0.0)
-            outcomes_usage[idx].extend(st.get("agent_usage_breakdown", []))
-            outcomes_calls[idx] += count_llm_calls(st)
-
-        def _slot_budget_spent(idx: int) -> bool:
-            limit = config.MAX_LLM_CALLS_PER_SLOT
-            return limit > 0 and outcomes_calls[idx] >= limit
-
         async def _worker(idx: int) -> None:
             max_slot_attempts = MAX_SLOT_ATTEMPTS
             for attempt in range(max_slot_attempts):
-                if attempt > 0 and _slot_budget_spent(idx):
+                if attempt > 0 and ledger.budget_spent(idx, config.MAX_LLM_CALLS_PER_SLOT):
                     logger.warning(
                         "Question %s: LLM call budget exhausted after %s calls; not starting attempt %s.",
                         idx + 1,
-                        outcomes_calls[idx],
+                        ledger.calls[idx],
                         attempt + 1,
                     )
                     return
@@ -330,39 +501,17 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                                 f"Question Item {idx + 1} Attempt {attempt + 1}"
                             )
 
-                        diversity_context = None
-                        if total_qty > 1 or attempt > 0:
-                            parts = [f"Item {idx + 1} of {total_qty} in this question set."]
-                            if attempt > 0:
-                                alt_trap = ALT_TRAP_ROTATION[
-                                    (idx + attempt) % len(ALT_TRAP_ROTATION)
-                                ]
-                                parts.append(
-                                    f"REPLENISHMENT ATTEMPT {attempt + 1}: The previous attempt did not satisfy quality or uniqueness standards. "
-                                    f"You MUST formulate a fresh scenario testing cognitive trap '{alt_trap}' for variety."
-                                )
-                            elif shared_used_traps:
-                                parts.append(
-                                    f"Previously calibrated traps: {', '.join(shared_used_traps[-4:])}. Please select a complementary AAMC trap for variety."
-                                )
-                            if shared_used_mistakes:
-                                parts.append(
-                                    f"Previously targeted misconceptions: {', '.join(shared_used_mistakes[-3:])}. Diversify the targeted misconception."
-                                )
-                            diversity_context = " ".join(parts)
+                        diversity_context = _build_diversity_context(
+                            idx, total_qty, attempt, shared_used_traps, shared_used_mistakes
+                        )
 
                         if total_qty > 1:
-                            if attempt > 0:
-                                worker_msg = f"[{idx + 1}/{total_qty}] Calibrating alternative scientific angle for Question {idx + 1}..."
-                            elif is_passage_item:
-                                worker_msg = f"[{idx + 1}/{total_qty}] Writing linked {item_interaction.replace('_', ' ').title()} question from shared passage..."
-                            else:
-                                worker_msg = f"[{idx + 1}/{total_qty}] Writing independent {item_interaction.replace('_', ' ').title()} question (direct question)..."
-
                             batch_prog_evt = make_event(
                                 event_type="batch_progress",
                                 agent_name="System",
-                                message=worker_msg,
+                                message=_drafting_message(
+                                    idx, total_qty, attempt, is_passage_item, item_interaction
+                                ),
                                 data={
                                     "current_index": idx + 1,
                                     "total_count": total_qty,
@@ -378,29 +527,14 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             )
                             await event_queue.put(batch_prog_evt)
 
-                        effective_threshold = (
-                            getattr(item_req, "passing_threshold", None)
-                            or getattr(req, "passing_threshold", None)
-                            or config.PASSING_SCORE_THRESHOLD
+                        state = _initial_attempt_state(
+                            item_req,
+                            item_run_id,
+                            batch_id,
+                            diversity_context,
+                            _resolve_passing_threshold(item_req, req),
+                            slot_prior_calls=ledger.calls[idx],
                         )
-                        state: AgentWorkflowState = {
-                            "request": item_req.model_dump(),
-                            "run_id": item_run_id,
-                            "batch_id": batch_id,
-                            "iteration_count": 1,
-                            "iterations_history": [],
-                            "log_messages": [],
-                            "total_tokens": 0,
-                            "total_prompt_tokens": 0,
-                            "total_completion_tokens": 0,
-                            "total_cost_usd": 0.0,
-                            "agent_usage_breakdown": [],
-                            # Marks results produced from mock fixtures so they are never mistaken for real
-                            "stage_outcomes": {"offline_mode": True} if config.OFFLINE_MODE else {},
-                            "diversity_context": diversity_context,
-                            "passing_threshold": effective_threshold,
-                            "slot_prior_calls": outcomes_calls[idx],
-                        }
                         attempt_state = state
 
                         # Step 1: Question Writer & Reviewer (Fused Authoring & 100-pt Audit)
@@ -511,15 +645,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
                         dup_info = state.get("duplicate_info") or {}
                         is_hard_dup = bool(dup_info.get("is_duplicate", False))
-                        matched_id = str(dup_info.get("matched_question_id") or "")
-                        sibling_ids = {
-                            str(q.get("id"))
-                            for q in outcomes_questions
-                            if q is not None and "id" in q
-                        }
-                        is_sibling_collision = is_hard_dup and (
-                            matched_id in sibling_ids or matched_id.startswith("in_flight_")
-                        )
+                        is_sibling_collision = _is_sibling_collision(dup_info, outcomes_questions)
 
                         # Accept if question passed quality audit and does not collide with a sibling in this batch
                         if question_passed and (
@@ -624,7 +750,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             )
                             await event_queue.put(q_gen_evt)
 
-                            _fold_attempt_usage(idx, state)
+                            ledger.fold(idx, state)
                             attempt_state = None  # already counted
                             await remove_in_flight_draft(batch_id, idx)
                             return  # Successfully completed this slot!
@@ -646,18 +772,18 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             question_passed,
                             is_hard_dup,
                         )
-                        _fold_attempt_usage(idx, state)
+                        ledger.fold(idx, state)
                         attempt_state = None  # already counted
                         await remove_in_flight_draft(batch_id, idx)
                         await asyncio.sleep(SLOT_REPLENISH_DELAY_SECONDS)
                         continue
 
                 except asyncio.CancelledError:
-                    _fold_attempt_usage(idx, attempt_state)
+                    ledger.fold(idx, attempt_state)
                     await remove_in_flight_draft(batch_id, idx)
                     raise
                 except Exception as worker_err:
-                    _fold_attempt_usage(idx, attempt_state)
+                    ledger.fold(idx, attempt_state)
                     # A question staged in this failed attempt must not linger beside the retry
                     outcomes_questions[idx] = None
                     await remove_in_flight_draft(batch_id, idx)
@@ -665,7 +791,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     if (
                         attempt < max_slot_attempts - 1
                         and not isinstance(worker_err, LLMNotConfiguredError)
-                        and not _slot_budget_spent(idx)
+                        and not ledger.budget_spent(idx, config.MAX_LLM_CALLS_PER_SLOT)
                     ):
                         logger.warning(
                             "Worker %s encountered error (attempt %s/%s): %s. Auto-replenishing slot in 1.0s...",
@@ -703,14 +829,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                                 "error": str(worker_err),
                                 # The batch worker stops reading at the first error event, so the
                                 # spend of this failed run must travel with it.
-                                "cumulative_usage": {
-                                    "total_tokens": sum(outcomes_tokens) + passage_tokens,
-                                    "total_prompt_tokens": sum(outcomes_prompt_tokens)
-                                    + passage_prompt_tokens,
-                                    "total_completion_tokens": sum(outcomes_completion_tokens)
-                                    + passage_completion_tokens,
-                                    "total_cost_usd": round(sum(outcomes_costs) + passage_cost, 7),
-                                },
+                                "cumulative_usage": ledger.cumulative(passage_state),
                             },
                             run_id=req.run_id,
                         )
@@ -761,20 +880,12 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         await monitor_task
 
         all_staged_questions = [q for q in outcomes_questions if q is not None]
-        cumulative_tokens = sum(outcomes_tokens) + passage_tokens
-        cumulative_prompt_tokens = sum(outcomes_prompt_tokens) + passage_prompt_tokens
-        cumulative_completion_tokens = sum(outcomes_completion_tokens) + passage_completion_tokens
-        cumulative_cost = round(sum(outcomes_costs) + passage_cost, 7)
-        for usage_list in outcomes_usage:
-            all_agent_usage.extend(usage_list)
-
-        def _cumulative_usage_dict() -> dict[str, Any]:
-            return {
-                "total_tokens": cumulative_tokens,
-                "total_prompt_tokens": cumulative_prompt_tokens,
-                "total_completion_tokens": cumulative_completion_tokens,
-                "total_cost_usd": cumulative_cost,
-            }
+        usage_totals = ledger.cumulative(passage_state)
+        cumulative_tokens = usage_totals["total_tokens"]
+        cumulative_prompt_tokens = usage_totals["total_prompt_tokens"]
+        cumulative_completion_tokens = usage_totals["total_completion_tokens"]
+        cumulative_cost = usage_totals["total_cost_usd"]
+        all_agent_usage.extend(ledger.all_usage())
 
         if not all_staged_questions:
             if is_standalone_live_run:
@@ -799,7 +910,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     data={
                         "rejections": outcomes_rejections,
                         "total_rejected": len(outcomes_rejections),
-                        "cumulative_usage": _cumulative_usage_dict(),
+                        "cumulative_usage": usage_totals,
                     },
                 )
                 yield f"data: {rej_evt.model_dump_json()}\n\n"
@@ -812,46 +923,22 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     event_type="workflow_error",
                     agent_name="System",
                     message=error_msg,
-                    data={"error": error_msg, "cumulative_usage": _cumulative_usage_dict()},
+                    data={"error": error_msg, "cumulative_usage": usage_totals},
                 )
                 yield f"data: {error_evt.model_dump_json()}\n\n"
                 return
 
-        if is_single_passage_set and total_qty > 1:
-            complete_msg = f"Passage Set generated! {len(all_staged_questions)} questions linked to shared reading passage staged for Review. Total: {cumulative_tokens} tokens (${cumulative_cost:.5f})."
-        elif total_qty > 1:
-            complete_msg = f"Parallel batch generation completed! {len(all_staged_questions)} of {total_qty} questions staged for User Confirmation. Total: {cumulative_tokens} tokens (${cumulative_cost:.5f})."
-        else:
-            complete_msg = f"Multi-Agent workflow completed! Candidate question scored {all_staged_questions[0].get('final_score', 95) if all_staged_questions else 95}/100 and is staged for Confirmation. Total: {cumulative_tokens} tokens (${cumulative_cost:.5f})."
-
         complete_evt = make_event(
             event_type="workflow_complete",
             agent_name="System",
-            message=complete_msg,
+            message=_complete_message(layout, all_staged_questions, usage_totals),
             data={
                 "questions": all_staged_questions,
                 "question": all_staged_questions[0] if all_staged_questions else None,
                 "batch_id": batch_id,
                 "passage_id": shared_passage_id if is_single_passage_set else None,
-                "passage_mode": "single_passage" if is_single_passage_set else "independent",
-                "passage_question_count": effective_passage_count,
-                "independent_question_count": independent_count,
-                "shared_passage": shared_passage_text if is_single_passage_set else None,
-                "shared_passage_image_svg": shared_passage_image_svg
-                if is_single_passage_set
-                else None,
-                "shared_passage_image_url": shared_passage_image_url
-                if is_single_passage_set
-                else None,
-                "shared_passage_image_description": shared_passage_image_desc
-                if is_single_passage_set
-                else None,
-                "cumulative_usage": {
-                    "total_tokens": cumulative_tokens,
-                    "total_prompt_tokens": cumulative_prompt_tokens,
-                    "total_completion_tokens": cumulative_completion_tokens,
-                    "total_cost_usd": cumulative_cost,
-                },
+                **_shared_passage_payload(layout, passage_state),
+                "cumulative_usage": usage_totals,
                 "usage_breakdown": all_agent_usage,
             },
         )
