@@ -58,16 +58,24 @@ export function formatCorrectAnswers(q, fallback = '') {
 
 /** True when the question (or its shared passage) carries an image or vector diagram. */
 export function hasQuestionImage(q) {
-  const vs = q?.stage_outcomes?.visual_stimulus;
-  const pvs = q?.stage_outcomes?.passage_visual_stimulus;
-  return Boolean(
-    q?.image_svg ||
-      q?.image_url ||
-      vs?.image_svg ||
-      vs?.image_url ||
-      pvs?.image_svg ||
-      pvs?.image_url
-  );
+  const { svg, url } = getQuestionVisual(q);
+  return Boolean(svg || url);
+}
+
+/**
+ * The visual attached to a question: its own figure first, then the figure recorded in the
+ * image stage, then the shared passage's figure. Every field is `''` when absent.
+ */
+export function getQuestionVisual(q) {
+  const own = q || {};
+  const stage = own.stage_outcomes?.visual_stimulus || {};
+  const passage = own.stage_outcomes?.passage_visual_stimulus || {};
+  const pick = (key) => own[key] || stage[key] || passage[key] || '';
+  return {
+    svg: pick('image_svg'),
+    url: pick('image_url'),
+    description: pick('image_description')
+  };
 }
 
 /** The four 25-point reviewer pillars (score null when the rubric is missing). */

@@ -12,7 +12,7 @@ import VisualStimulusViewer from '../question/VisualStimulusViewer';
 import BatchQuestionPassageDrawer from './BatchQuestionPassageDrawer';
 import BatchQuestionOptionsList from './BatchQuestionOptionsList';
 import BatchQuestionActions from './BatchQuestionActions';
-import { resolveQuestionStatus } from '../../utils';
+import { hasQuestionImage, resolveQuestionStatus } from '../../utils';
 import { QUESTION_STATUS, SCORE_CUTOFFS } from '../../constants';
 
 /**
@@ -32,14 +32,7 @@ export default function BatchQuestionItem({
   if (!question) return null;
 
   const hasPassage = Boolean(question.stimulus_text && question.stimulus_text.trim().length > 0);
-  const hasDiagram = Boolean(
-    question.image_url ||
-      question.image_svg ||
-      question.stage_outcomes?.visual_stimulus?.image_url ||
-      question.stage_outcomes?.visual_stimulus?.image_svg ||
-      question.stage_outcomes?.passage_visual_stimulus?.image_url ||
-      question.stage_outcomes?.passage_visual_stimulus?.image_svg
-  );
+  const hasDiagram = hasQuestionImage(question);
 
   const status = resolveQuestionStatus(question);
   const finalScore = question.final_score ?? 95;

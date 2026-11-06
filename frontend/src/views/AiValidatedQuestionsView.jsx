@@ -144,12 +144,13 @@ export default function AiValidatedQuestionsView({
       ) : (
         <>
           <div className="ai-validated-list-container">
-            {paginatedQuestions.map((question) => (
+            {paginatedQuestions.map((question, idx) => (
               <AiValidatedQuestionCard
                 key={question.id}
                 question={question}
+                index={(safeCurrentPage - 1) * pageSize + idx}
                 isSelected={selectedIds.includes(question.id)}
-                isPassageExpanded={Boolean(expandedPassageIds[question.passage_id])}
+                isPassageExpanded={Boolean(expandedPassageIds[question.id])}
                 actionInProgress={actionInProgress}
                 onToggleSelect={handleToggleSelect}
                 onTogglePassage={togglePassage}

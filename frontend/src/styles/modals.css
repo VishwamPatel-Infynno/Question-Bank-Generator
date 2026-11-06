@@ -752,13 +752,12 @@
   color: var(--status-success);
 }
 
-.audit-engine-title {
-  color: var(--text-primary);
+.audit-metric-value.warning {
+  color: var(--status-warning);
 }
 
-.audit-invoice-match {
-  font-weight: 600;
-  color: var(--status-success);
+.audit-engine-title {
+  color: var(--text-primary);
 }
 
 .audit-trap-icon {

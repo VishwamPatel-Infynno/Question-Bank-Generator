@@ -14,9 +14,9 @@ import { LiveStopwatch } from '../common';
 
 function ActiveMultiBatchMonitor({
   activeBatches = EMPTY_ARRAY,
-  onStopBatch
+  onCancelAll,
+  isCancellingAll = false
 }) {
-  const [isCancellingAll, setIsCancellingAll] = useState(false);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
 
   if (!activeBatches || activeBatches.length === 0) {
@@ -43,13 +43,9 @@ function ActiveMultiBatchMonitor({
   const queuedJobs = Math.max(0, totalJobs - completedJobs - activeWorkerSlots);
 
   const handleConfirmCancel = async () => {
-    setIsCancellingAll(true);
     try {
-      if (onStopBatch) {
-        await Promise.all(activeBatches.map((b) => onStopBatch(b.id)));
-      }
+      await onCancelAll?.();
     } finally {
-      setIsCancellingAll(false);
       setShowConfirmCancel(false);
     }
   };

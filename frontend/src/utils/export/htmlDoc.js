@@ -1,7 +1,7 @@
 import { formatExamTime } from '../formatters';
 import { PRINT_PAPER_CSS } from './printPaperCss';
 import { escapeHtml, escapeInlineMarkdown, sanitizeSvg, safeImageUrl } from './escape';
-import { formatCorrectAnswers } from '../questionHelpers';
+import { formatCorrectAnswers, getQuestionVisual } from '../questionHelpers';
 
 /**
  * Builds a standalone, print-ready HTML document string formatted for A4 examination papers.
@@ -23,15 +23,10 @@ export function generateExamHtmlDoc(questions = [], { paperMode = 'student' } = 
 
   const questionsHtml = questions.map((q, idx) => {
     const qNum = idx + 1;
-    const svgDiagram = sanitizeSvg(
-      q.image_svg || q.stage_outcomes?.visual_stimulus?.image_svg || ''
-    );
-    const imgUrl = safeImageUrl(
-      q.image_url || q.stage_outcomes?.visual_stimulus?.image_url || ''
-    );
-    const imgDesc = escapeHtml(
-      q.image_description || q.stage_outcomes?.visual_stimulus?.description || ''
-    );
+    const visual = getQuestionVisual(q);
+    const svgDiagram = sanitizeSvg(visual.svg);
+    const imgUrl = safeImageUrl(visual.url);
+    const imgDesc = escapeHtml(visual.description);
 
     const optionsHtml = (q.options || []).map(opt => `
       <div class="option-row">

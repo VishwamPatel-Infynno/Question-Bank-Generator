@@ -1,3 +1,4 @@
+import { getQuestionVisual } from '../../utils';
 import { useState } from 'react';
 import { useCopyToClipboard } from '../../hooks';
 import {
@@ -33,25 +34,12 @@ export default function VisualStimulusViewer({
   const copiedSvg = copiedKey === true;
 
   // Extract visual data from direct props or question or stage outcomes (supporting both discrete and passage stimuli)
-  const svgContent =
-    directImageSvg ||
-    question?.image_svg ||
-    question?.stage_outcomes?.visual_stimulus?.image_svg ||
-    question?.stage_outcomes?.passage_visual_stimulus?.image_svg ||
-    null;
-  const imageUrl =
-    directImageUrl ||
-    question?.image_url ||
-    question?.stage_outcomes?.visual_stimulus?.image_url ||
-    question?.stage_outcomes?.passage_visual_stimulus?.image_url ||
-    null;
+  const visual = getQuestionVisual(question);
+  const svgContent = directImageSvg || visual.svg || null;
+  const imageUrl = directImageUrl || visual.url || null;
   const rawDescription = isEditing
     ? (editedDescription ?? directImageDescription ?? question?.image_description ?? '')
-    : (directImageDescription ||
-       question?.image_description ||
-       question?.stage_outcomes?.visual_stimulus?.image_description ||
-       question?.stage_outcomes?.passage_visual_stimulus?.image_description ||
-       '');
+    : (directImageDescription || visual.description);
 
   if (!svgContent && !imageUrl) {
     return null;

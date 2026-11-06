@@ -57,6 +57,7 @@ export {
   isCorrectOption,
   formatCorrectAnswers,
   hasQuestionImage,
+  getQuestionVisual,
   getReviewPillars,
   getAuditCostBreakdown,
   filterQuestionsByText

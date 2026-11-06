@@ -112,6 +112,7 @@ export function useQuestionBank() {
 
   return {
     questions,
+    rawQuestions,
     rawQuestionsCount: rawQuestions.length,
     repoStats,
     loading,

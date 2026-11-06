@@ -12,7 +12,7 @@ import {
   Target
 } from 'lucide-react';
 import { MCAT_SECTION_LABELS, formatDifficulty, getSectionBadgeClass } from '../../constants/mcat';
-import { countWords, getEffectiveTrapInfo } from '../../utils';
+import { countWords, getEffectiveTrapInfo, hasQuestionImage } from '../../utils';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
 import { isCorrectOption } from '../../utils';
 
@@ -29,14 +29,7 @@ function AiValidatedQuestionCard({
   actionInProgress = false
 }) {
   const hasPassage = Boolean(q.stimulus_text && q.stimulus_text.trim());
-  const hasDiagram = Boolean(
-    q.image_svg ||
-    q.image_url ||
-    q.stage_outcomes?.visual_stimulus?.image_svg ||
-    q.stage_outcomes?.visual_stimulus?.image_url ||
-    q.stage_outcomes?.passage_visual_stimulus?.image_svg ||
-    q.stage_outcomes?.passage_visual_stimulus?.image_url
-  );
+  const hasDiagram = hasQuestionImage(q);
   const trapInfo = getEffectiveTrapInfo(q);
 
   return (

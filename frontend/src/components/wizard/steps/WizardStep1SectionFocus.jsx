@@ -81,11 +81,8 @@ export default function WizardStep1SectionFocus({
   const handleSelectTopic = (top) => {
     onSelectSubject?.(top.subjectId);
     onSelectUnit?.(top.unitId);
-    onSelectTopic?.(top.id);
-    onSelectSubtopic?.(top.name);
-    if (onToggleSubtopic) {
-      onToggleSubtopic('All Core Topics');
-    }
+    onSelectTopic?.(top.id, top.name);
+    onToggleSubtopic?.('All Core Topics');
   };
 
   return (
@@ -314,12 +311,7 @@ export default function WizardStep1SectionFocus({
               {/* Chip 0: All Concepts (Default) */}
               <button
                 type="button"
-                onClick={() => {
-                  onSelectSubtopic?.(`${activeTopic.name} (All Concepts)`);
-                  if (onToggleSubtopic) {
-                    onToggleSubtopic('All Core Topics (Balanced Mix)');
-                  }
-                }}
+                onClick={() => onToggleSubtopic?.('All Core Topics (Balanced Mix)')}
                 className={`wizard-filter-chip ${(!selectedSubtopics || selectedSubtopics.length === 0) ? 'active' : ''}`}
               >
                 {(!selectedSubtopics || selectedSubtopics.length === 0) && <Check size={11} />}

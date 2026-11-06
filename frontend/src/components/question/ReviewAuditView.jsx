@@ -55,6 +55,7 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
     : null;
   const { hasVisual, totalCost, visualCost, cognitiveCost, stageTimings, totalDurationMs } =
     getAuditCostBreakdown(question);
+  const isHighQuality = question.final_score > SCORE_CUTOFFS.aiValidatedAbove;
 
   const pillars = getReviewPillars(review);
 
@@ -93,7 +94,7 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
             <span
               className={`badge ${question.final_score > SCORE_CUTOFFS.aiValidatedAbove ? 'badge-emerald' : 'badge-amber'} audit-score-badge`}
             >
-              {question.final_score > SCORE_CUTOFFS.aiValidatedAbove ? 'Passed' : 'Needs Polish'}
+              {isHighQuality ? 'Passed' : 'Needs Polish'}
             </span>
             <div className="audit-rounds-label">
               Rounds: {question.iteration_count || 1}
@@ -132,7 +133,9 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
             </div>
             <div className="audit-metric-card">
               <div className="audit-metric-label">QUALITY STATUS</div>
-              <div className="audit-metric-value success">High Quality</div>
+              <div className={`audit-metric-value ${isHighQuality ? 'success' : 'warning'}`}>
+                {isHighQuality ? 'High Quality' : 'Needs Polish'}
+              </div>
             </div>
           </div>
 
@@ -150,9 +153,6 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
                   </span>
                 )}
               </div>
-              <span className="audit-invoice-match">
-                Exact Invoice Match
-              </span>
             </div>
           )}
 

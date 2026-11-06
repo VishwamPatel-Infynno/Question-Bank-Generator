@@ -28,13 +28,13 @@ export function useFocusTrap({ isActive = true, onClose = null }) {
   useEffect(() => {
     if (!isActive) return;
 
+    const container = containerRef.current;
+    if (!container) return;
+
     const trapToken = {};
     trapStack.push(trapToken);
 
     previousActiveElementRef.current = document.activeElement;
-
-    const container = containerRef.current;
-    if (!container) return;
 
     // Find first focusable element and focus it
     const focusableElements = container.querySelectorAll(FOCUSABLE_SELECTOR);

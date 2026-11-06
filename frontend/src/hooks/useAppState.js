@@ -18,6 +18,7 @@ import {
   fetchQuestionCounts
 } from '../services';
 import { makeId } from '../utils/ids';
+import { applySectionRules } from '../utils/generatorFormState';
 import { buildBatchPayload } from '../utils';
 
 /**
@@ -245,7 +246,8 @@ export function useAppState() {
   // ─── Preset Handler ───────────────────────────────────────────────────────
   const handleApplyPreset = useCallback((cfg) => {
     updateFields({
-      ...(cfg.section && { selectedSection: cfg.section }),
+      ...(cfg.section &&
+        applySectionRules(generatorForm.formData, cfg.section, cfg.totalQuestions)),
       ...(cfg.difficulty && { difficulty: cfg.difficulty }),
       ...(cfg.totalQuestions !== undefined && { totalQuestions: cfg.totalQuestions }),
       interactionType: 'single_choice',
@@ -265,7 +267,7 @@ export function useAppState() {
       title: 'Preset Applied',
       message: `${cfg.totalQuestions || 50} questions configured for ${cfg.section ? cfg.section.replace(/_/g, ' ') : 'MCAT'}.`
     });
-  }, [updateFields, showToast]);
+  }, [updateFields, showToast, generatorForm.formData]);
 
   // ─── Keyboard Shortcuts ────────────────────────────────────────────────────
   useKeyboardShortcuts({

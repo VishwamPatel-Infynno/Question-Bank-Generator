@@ -24,6 +24,8 @@ import { confirmModalProps } from '../components/modals/confirmModalProps';
 export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const {
     questions,
+    rawQuestions,
+    repoStats,
     loading,
     loadError,
     sectionFilter,
@@ -321,10 +323,11 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
         <ExportPrintModal
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
-          allQuestions={questions}
+          allQuestions={rawQuestions}
           selectedIds={selectedIds}
           filteredQuestions={questions}
           hasActiveFilters={hasActiveFilters}
+          bankTotalCount={repoStats.bank_total_count}
           onShowToast={onShowToast}
         />
       )}

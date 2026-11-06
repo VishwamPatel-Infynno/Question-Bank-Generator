@@ -26,6 +26,7 @@ export default function ExportPrintModal({
   selectedIds = EMPTY_ARRAY,
   filteredQuestions = EMPTY_ARRAY,
   hasActiveFilters = false,
+  bankTotalCount = 0,
   onShowToast
 }) {
   const modalRef = useFocusTrap({ isActive: Boolean(isOpen), onClose });
@@ -56,6 +57,9 @@ export default function ExportPrintModal({
 
   // Compute active export dataset
   const bankPool = fetchedAll || allQuestions;
+  // The list in hand is already filtered server-side; the bank total comes from the API until
+  // the whole bank has been fetched for the export itself
+  const allCount = fetchedAll ? fetchedAll.length : bankTotalCount || allQuestions.length;
 
   const exportQuestions = useMemo(
     () =>
@@ -143,7 +147,7 @@ export default function ExportPrintModal({
                   className={`pill-track-btn ${scope === 'all' ? 'active' : ''}`}
                   onClick={() => setScope('all')}
                 >
-                  <span>All ({allQuestions.length})</span>
+                  <span>All ({allCount})</span>
                 </button>
               </div>
             </div>

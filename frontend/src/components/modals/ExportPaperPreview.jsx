@@ -1,5 +1,5 @@
 import SafeSvg from '../common/SafeSvg';
-import { formatCorrectAnswers } from '../../utils';
+import { formatCorrectAnswers, getQuestionVisual } from '../../utils';
 const EMPTY_QUESTIONS = [];
 
 export default function ExportPaperPreview({
@@ -50,9 +50,7 @@ export default function ExportPaperPreview({
       <div className="exam-paper-questions-list">
         {exportQuestions.map((q, idx) => {
           const qNum = idx + 1;
-          const svgDiagram = q.image_svg || q.stage_outcomes?.visual_stimulus?.image_svg || '';
-          const imgUrl = q.image_url || q.stage_outcomes?.visual_stimulus?.image_url || '';
-          const imgDesc = q.image_description || q.stage_outcomes?.visual_stimulus?.description || '';
+          const { svg: svgDiagram, url: imgUrl, description: imgDesc } = getQuestionVisual(q);
 
           return (
             <div key={q.id || idx} className="exam-paper-question-block">

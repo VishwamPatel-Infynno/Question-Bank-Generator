@@ -205,7 +205,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
 
     setPassageToDelete({
       ...passage,
-      questionCount: qCount
+      question_count: qCount
     });
   };
 

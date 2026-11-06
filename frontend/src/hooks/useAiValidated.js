@@ -169,15 +169,26 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     });
 
   const handleDiscardSingle = (q) =>
-    runMutation({
-      call: () => purgeQuestion(q.id),
-      removeIds: [q.id],
-      successToast: {
-        type: 'info',
-        title: 'Question Discarded',
-        message: 'Question has been permanently removed.'
-      },
-      errorTitle: 'Action Failed'
+    openConfirmModal({
+      title: 'Discard Question',
+      description:
+        'Are you sure you want to discard this question? It will be permanently removed from the system.',
+      confirmLabel: 'Discard Question',
+      variant: 'danger',
+      itemCount: 1,
+      itemLabel: 'question',
+      onConfirm: () =>
+        runMutation({
+          call: () => purgeQuestion(q.id),
+          removeIds: [q.id],
+          successToast: {
+            type: 'info',
+            title: 'Question Discarded',
+            message: 'Question has been permanently removed.'
+          },
+          errorTitle: 'Action Failed',
+          afterSuccess: closeConfirmModal
+        })
     });
 
   const handleBulkMoveToBank = () => {

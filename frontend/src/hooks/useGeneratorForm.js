@@ -6,6 +6,7 @@ const DEFAULT_GENERATOR_FORM = {
   selectedSubject: '',
   selectedUnit: '',
   selectedTopic: '',
+  selectedTopicName: '',
   selectedSubtopic: '',
   selectedSkill: '',
   selectedSubskill: '',

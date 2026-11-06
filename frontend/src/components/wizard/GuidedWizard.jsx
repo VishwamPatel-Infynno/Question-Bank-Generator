@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { applySectionRules } from '../../utils/generatorFormState';
 import {
   PACING_INFO,
-  getSkillsForSection,
   SECTION_METADATA,
   DIFFICULTY,
   DIFFICULTY_TIERS,
@@ -71,48 +71,7 @@ export default function GuidedWizard({
 
   // Section Selection handler
   const handleSelectSection = (sectionId) => {
-    const isCars = sectionId === 'cars';
-    const skills = getSkillsForSection(sectionId);
-    const firstSkill = skills[0];
-
-    if (isCars) {
-      updateFields({
-        selectedSection: sectionId,
-        selectedSubject: '',
-        selectedUnit: '',
-        selectedTopic: '',
-        selectedSubtopic: 'All Core Topics (Balanced Mix)',
-        selectedSubtopics: [],
-        selectedSkill: firstSkill?.id || 'CARS1',
-        selectedSubskill: firstSkill?.subskills?.[0] || '',
-        selectedSubskills: [],
-        passageMode: 'single_passage',
-        passageRequired: 'Yes',
-        questionType: 'PASSAGE_BASED_MCQ',
-        passageQuestionCount: totalQuestions,
-        passageCount: totalQuestions,
-        requireImage: false,
-        allowAiImages: false,
-        requirePassageImage: false,
-        visual_type: 'None'
-      });
-    } else {
-      updateFields({
-        selectedSection: sectionId,
-        selectedSubject: '',
-        selectedUnit: '',
-        selectedTopic: '',
-        selectedSubtopic: 'All Core Topics (Balanced Mix)',
-        selectedSubtopics: [],
-        selectedSkill: firstSkill?.id || 'S1',
-        selectedSubskill: firstSkill?.subskills?.[0] || '',
-        selectedSubskills: [],
-        allowAiImages: true,
-        requireImage: true,
-        requirePassageImage: true,
-        visual_type: 'AI_FLUX_Image'
-      });
-    }
+    updateFields(applySectionRules(form, sectionId));
   };
 
   const handlePassageModeChange = (mode) => {
@@ -161,23 +120,8 @@ export default function GuidedWizard({
     setStep(3); // Fast track straight to Step 3 Review
   };
 
-  // Keyboard navigation
-  const handleKeyDown = useCallback((e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      onGenerateQuestions?.();
-      return;
-    }
-    if (e.key === 'Enter' && !e.shiftKey && e.target.tagName !== 'TEXTAREA') {
-      e.preventDefault();
-      handleNext();
-    }
-  }, [handleNext, onGenerateQuestions]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+  // Cmd/Ctrl+Enter on the review step is handled once, by useKeyboardShortcuts in useAppState;
+  // plain Enter is left to the focused control (cards and buttons activate themselves).
 
   const currentStepConfig = STEP_CONFIG[step - 1] || STEP_CONFIG[0];
 
@@ -205,7 +149,7 @@ export default function GuidedWizard({
             onSelectSubject={(v) => update('selectedSubject', v)}
             onSelectUnit={(v) => update('selectedUnit', v)}
             selectedTopic={selectedTopic}
-            onSelectTopic={(v) => update('selectedTopic', v)}
+            onSelectTopic={(id, name) => updateFields({ selectedTopic: id, selectedTopicName: name || '' })}
             onSelectSubtopic={(v) => update('selectedSubtopic', v)}
             selectedSubtopics={selectedSubtopics}
             onToggleSubtopic={toggleSubtopic}

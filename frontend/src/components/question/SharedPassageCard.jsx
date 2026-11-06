@@ -5,7 +5,7 @@ import {
   ChevronUp,
   Image as ImageIcon
 } from 'lucide-react';
-import { countWords } from '../../utils';
+import { countWords, hasQuestionImage } from '../../utils';
 import VisualStimulusViewer from './VisualStimulusViewer';
 import { EMPTY_OBJECT } from '../../constants';
 
@@ -54,12 +54,7 @@ export default function SharedPassageCard({
   // Determine if a diagram/image is present
   const hasDiagram = Boolean(
     diagramQuestion &&
-    (diagramQuestion.image_url ||
-     diagramQuestion.image_svg ||
-     diagramQuestion.stage_outcomes?.visual_stimulus?.image_url ||
-     diagramQuestion.stage_outcomes?.visual_stimulus?.image_svg ||
-     diagramQuestion.stage_outcomes?.passage_visual_stimulus?.image_url ||
-     diagramQuestion.stage_outcomes?.passage_visual_stimulus?.image_svg)
+    hasQuestionImage(diagramQuestion)
   );
 
   const defaultTitle = isMixedBatch

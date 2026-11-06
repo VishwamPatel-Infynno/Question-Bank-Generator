@@ -1,5 +1,5 @@
 import { BookOpen, Sparkles, Plus } from 'lucide-react';
-import { PaginationBar } from '../components/common';
+import { PaginationBar, EmptyState } from '../components/common';
 import { usePagination, usePassageBank } from '../hooks';
 import PassageBankFilters from '../components/passage/PassageBankFilters';
 import PassageBankTable from '../components/passage/PassageBankTable';
@@ -27,12 +27,9 @@ export default function PassageBankView({
   onRefreshCounts
 }) {
   const {
-    passages,
     sortedPassages,
     loading,
     questionCounts,
-    totalWordCount,
-    avgWordCount,
     searchQuery,
     setSearchQuery,
     debouncedSearch,
@@ -46,7 +43,6 @@ export default function PassageBankView({
     selectedPassage,
     setSelectedPassage,
     selectedPassageQuestions,
-    isLoadingDetail,
     handleSelectPassage,
     handleCreateNewPassage,
     handleSavePassage,
@@ -54,8 +50,7 @@ export default function PassageBankView({
     handleConfirmDeletePassage,
     handleUpdateQuestion,
     passageToDelete,
-    setPassageToDelete,
-    isDeletingPassage
+    setPassageToDelete
   } = usePassageBank({ onShowToast, resetSignal, onRefreshCounts });
 
   // ─── Pagination ────────────────────────────────────────────────────────────
@@ -116,15 +111,11 @@ export default function PassageBankView({
       {selectedPassage ? (
         <PassageEditorialDesk
           passage={selectedPassage}
-          linkedQuestions={selectedPassageQuestions}
-          isLoadingQuestions={isLoadingDetail}
-          onBackToList={() => {
-            setSelectedPassage(null);
-          }}
+          questions={selectedPassageQuestions}
+          onBack={() => setSelectedPassage(null)}
           onSavePassage={handleSavePassage}
-          onRequestDelete={() => handleRequestDeletePassage(selectedPassage)}
+          onDeletePassage={handleRequestDeletePassage}
           onUpdateQuestion={handleUpdateQuestion}
-          onNavigateToWizard={onNavigateToWizard}
         />
       ) : (
         /* ── Master Catalog List ──────────────────────────────────────────────── */
@@ -132,29 +123,46 @@ export default function PassageBankView({
           {/* Filters & Telemetry Bar */}
           <PassageBankFilters
             searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            setSearchQuery={setSearchQuery}
             searchInputRef={searchInputRef}
             sectionFilter={sectionFilter}
-            onSectionFilterChange={setSectionFilter}
+            setSectionFilter={setSectionFilter}
             sortBy={sortBy}
-            onSortByChange={setSortBy}
-            totalPassages={passages.length}
-            totalWords={totalWordCount}
-            avgWords={avgWordCount}
+            setSortBy={setSortBy}
+            hasActiveFilters={hasActiveFilters}
+            onClearAllFilters={handleClearAllFilters}
           />
 
           {/* Table Container */}
-          <PassageBankTable
-            loading={loading}
-            passages={paginatedPassages}
-            totalPassages={passages.length}
-            questionCounts={questionCounts}
-            hasActiveFilters={hasActiveFilters}
-            onClearFilters={handleClearAllFilters}
-            onSelectPassage={handleSelectPassage}
-            onRequestDelete={handleRequestDeletePassage}
-            onNavigateToWizard={onNavigateToWizard}
-          />
+          {loading ? (
+            <div className="view-loading-box">
+              <div className="view-loading-spinner" />
+              <span className="view-loading-text">Loading reading passages...</span>
+            </div>
+          ) : sortedPassages.length === 0 ? (
+            <EmptyState
+              icon={<BookOpen size={28} />}
+              title="No Passages Found"
+              description={
+                hasActiveFilters
+                  ? 'No passages matched your current search or section filter.'
+                  : 'Create a passage by hand or generate a passage set with the wizard.'
+              }
+            >
+              {hasActiveFilters && (
+                <button type="button" onClick={handleClearAllFilters} className="btn-secondary">
+                  Clear Filters
+                </button>
+              )}
+            </EmptyState>
+          ) : (
+            <PassageBankTable
+              passages={paginatedPassages}
+              questionCounts={questionCounts}
+              onSelectPassage={handleSelectPassage}
+              onDeletePassage={handleRequestDeletePassage}
+            />
+          )}
 
           {/* Pagination */}
           {!loading && sortedPassages.length > 0 && (
@@ -176,14 +184,12 @@ export default function PassageBankView({
       )}
 
       {/* ── Delete Confirmation Modal ────────────────────────────────────────── */}
-      {passageToDelete && (
-        <DeletePassageModal
-          passage={passageToDelete}
-          isDeleting={isDeletingPassage}
-          onClose={() => setPassageToDelete(null)}
-          onConfirm={handleConfirmDeletePassage}
-        />
-      )}
+      <DeletePassageModal
+        isOpen={Boolean(passageToDelete)}
+        passage={passageToDelete}
+        onClose={() => setPassageToDelete(null)}
+        onConfirmDelete={handleConfirmDeletePassage}
+      />
     </div>
   );
 }

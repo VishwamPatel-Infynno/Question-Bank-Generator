@@ -117,8 +117,25 @@ export default function PassageEditorialDesk({
         image_description: imageDescription.trim() || null
       };
       await onSavePassage(payload);
+    } catch (err) {
+      // usePassageBank has already shown the failure toast; the edits stay in the editor
+      console.error('Passage save failed:', err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveQuestion = async (updatedQ) => {
+    if (!onUpdateQuestion) {
+      setEditingQuestionId(null);
+      return;
+    }
+    try {
+      await onUpdateQuestion(updatedQ);
+      setEditingQuestionId(null);
+    } catch (err) {
+      // the hook toasts the failure; leave the editor open with the user's changes
+      console.error('Linked question save failed:', err);
     }
   };
 
@@ -300,10 +317,7 @@ export default function PassageEditorialDesk({
               onToggleEdit={() =>
                 setEditingQuestionId(editingQuestionId === activeQuestion.id ? null : activeQuestion.id)
               }
-              onSaveQuestion={(updatedQ) => {
-                if (onUpdateQuestion) onUpdateQuestion(updatedQ);
-                setEditingQuestionId(null);
-              }}
+              onSaveQuestion={handleSaveQuestion}
             />
           )}
         </div>

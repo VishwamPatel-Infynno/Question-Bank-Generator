@@ -293,6 +293,7 @@ export default function CustomSelect({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
+                        e.stopPropagation(); // the list's handler would select the active option too
                         handleSelect(opt);
                       }
                     }}
