@@ -384,7 +384,7 @@
   max-width: 600px;
   margin: 40px auto;
   background: var(--bg-surface);
-  border: 1px solid var(--status-danger-border, #fca5a5);
+  border: 1px solid var(--status-danger-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   text-align: center;
@@ -402,7 +402,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--status-danger, #ef4444);
+  color: var(--status-danger);
 }
 
 .error-boundary-title {
@@ -423,11 +423,11 @@
   width: 100%;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
-  background: var(--bg-surface-elevated, #f3f4f6);
-  border: 1px solid var(--border-subtle, #e5e7eb);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
   font-size: 0.75rem;
   font-family: var(--font-mono);
-  color: var(--status-danger, #ef4444);
+  color: var(--status-danger);
   text-align: left;
   max-height: 140px;
   overflow-y: auto;

@@ -114,12 +114,12 @@
 
 .stepper-step.completed .stepper-icon-pill {
   background: var(--status-success);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 
 .stepper-step.active .stepper-icon-pill {
   background: var(--brand-primary);
-  color: #ffffff;
+  color: var(--text-on-brand);
   box-shadow: 0 0 8px rgba(79, 48, 185, 0.6);
 }
 

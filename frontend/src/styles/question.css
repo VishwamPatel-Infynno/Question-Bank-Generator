@@ -62,7 +62,7 @@
 
 .stage-inspector-tab-btn.is-active {
   background: var(--brand-primary);
-  color: var(--text-on-brand, #ffffff);
+  color: var(--text-on-brand);
   border: 1px solid var(--border-brand);
 }
 
@@ -452,13 +452,13 @@
 
 .qcard-footer-kbd-save {
   font-size: 0.6rem;
-  color: var(--text-on-brand, #ffffff);
+  color: var(--text-on-accent);
   border-color: rgba(255, 255, 255, 0.3);
 }
 
 .qcard-footer-kbd-next {
   font-size: 0.6rem;
-  color: var(--text-on-brand, #ffffff);
+  color: var(--text-on-accent);
   border: none;
   background: rgba(255, 255, 255, 0.2);
 }
@@ -779,7 +779,7 @@
 
 /* --- Visual Stimulus Viewer (.stimulus-*) --- */
 .stimulus-compact-box {
-  background: #ffffff;
+  background: var(--paper-bg);
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -801,7 +801,7 @@
 .stimulus-compact-title {
   font-size: 0.625rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--paper-ink);
   text-transform: uppercase;
 }
 
@@ -880,8 +880,8 @@
 
 /* Permanent high-contrast white card for diagram legibility */
 .stimulus-stage-light {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--paper-bg);
+  border: 1px solid var(--paper-border);
   border-radius: var(--radius-sm);
   padding: 12px;
   display: flex;
@@ -1001,7 +1001,7 @@
 }
 
 .lightbox-canvas {
-  background: #ffffff;
+  background: var(--paper-bg);
   border-radius: var(--radius-md);
   padding: 24px;
   box-shadow: var(--shadow-lg);

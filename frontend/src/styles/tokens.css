@@ -32,6 +32,16 @@
   --brand-ring: rgba(51, 90, 207, 0.25);
   --success-tint: rgba(16, 185, 129, 0.08);
 
+  /* Theme-independent colours: text on a solid accent/gradient button is always white, the
+     confirm-dialog solids keep their light-theme hue in both themes, and the diagram "paper"
+     card stays white so generated figures remain legible in dark mode. */
+  --text-on-accent: #ffffff;
+  --danger-solid: #e11d48;
+  --warning-solid: #d97706;
+  --paper-bg: #ffffff;
+  --paper-ink: #0f172a;
+  --paper-border: #e2e8f0;
+
   --radius-xs: 4px;
   --radius-sm: 8px;
   --radius-md: 12px;

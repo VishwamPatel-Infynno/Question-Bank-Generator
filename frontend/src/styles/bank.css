@@ -125,8 +125,8 @@
 }
 
 .qbank-option-cell.correct {
-  background: var(--status-success-bg, var(--success-tint));
-  border-color: var(--status-success-border, rgba(16, 185, 129, 0.25));
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
 }
 
 .qbank-option-cell-letter {
@@ -255,9 +255,9 @@
 }
 
 .validated-score-pill {
-  background: var(--status-success-bg, var(--success-tint));
-  color: var(--status-success, #10b981);
-  border: 1px solid var(--status-success-border, rgba(16, 185, 129, 0.25));
+  background: var(--status-success-bg);
+  color: var(--status-success);
+  border: 1px solid var(--status-success-border);
   border-radius: 12px;
   font-size: 0.72rem;
   font-weight: 800;
@@ -286,7 +286,7 @@
 
 .validated-passage-text {
   color: var(--text-primary);
-  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+  font-family: var(--font-serif);
   font-size: 0.85rem;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -321,8 +321,8 @@
 }
 
 .validated-option-row.correct {
-  background: var(--status-success-bg, var(--success-tint));
-  border-color: var(--status-success-border, rgba(16, 185, 129, 0.25));
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
 }
 
 .validated-card-footer {
@@ -336,8 +336,8 @@
 }
 
 .validated-save-btn {
-  background: var(--status-success, #10b981) !important;
-  border-color: var(--status-success, #10b981) !important;
+  background: var(--status-success) !important;
+  border-color: var(--status-success) !important;
 }
 
 .validated-filters-bar {

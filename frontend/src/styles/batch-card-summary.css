@@ -89,9 +89,9 @@
 }
 
 .batch-summary-stop-btn {
-  background: var(--status-danger-bg, rgba(239, 68, 68, 0.08));
-  color: var(--status-danger, #ef4444);
-  border: 1px solid var(--status-danger-border, rgba(239, 68, 68, 0.25));
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+  border: 1px solid var(--status-danger-border);
   border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-size: 0.72rem;
@@ -605,9 +605,9 @@
 }
 
 .batch-job-tag.below {
-  background: var(--status-warning-bg, rgba(245, 158, 11, 0.12));
-  color: var(--status-warning, #d97706);
-  border: 1px solid var(--status-warning-border, rgba(245, 158, 11, 0.25));
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+  border: 1px solid var(--status-warning-border);
 }
 
 .batch-job-tag.discarded {
@@ -707,9 +707,9 @@
 }
 
 .batch-qitem-tag.below {
-  background: var(--status-warning-bg, rgba(245, 158, 11, 0.12));
-  color: var(--status-warning, #d97706);
-  border: 1px solid var(--status-warning-border, rgba(245, 158, 11, 0.3));
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+  border: 1px solid var(--status-warning-border);
 }
 
 .batch-qitem-tag.deleted {
@@ -740,8 +740,8 @@
 }
 
 .batch-qitem-score-badge.low {
-  background: var(--status-warning-bg, rgba(245, 158, 11, 0.12));
-  color: var(--status-warning, #d97706);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
 }
 
 .batch-qitem-diagram-pill {
@@ -900,7 +900,7 @@
   align-items: center;
   gap: 4px;
   background: rgba(16, 185, 129, 0.15);
-  color: var(--status-success, #10b981);
+  color: var(--status-success);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 

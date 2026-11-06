@@ -220,7 +220,7 @@
   border: 1px solid var(--border-light);
   background: var(--bg-surface-elevated);
   color: var(--text-primary);
-  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+  font-family: var(--font-serif);
   font-size: 0.98rem;
   line-height: 1.7;
   resize: vertical;
@@ -597,7 +597,7 @@
 }
 
 .passage-card-excerpt {
-  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+  font-family: var(--font-serif);
   font-size: 0.88rem;
   line-height: 1.55;
   color: var(--text-secondary);

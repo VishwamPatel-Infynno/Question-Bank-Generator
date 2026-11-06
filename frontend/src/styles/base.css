@@ -53,7 +53,7 @@ body {
   justify-content: center;
   gap: 7px;
   background: var(--infynno-gradient);
-  color: #ffffff;
+  color: var(--text-on-accent);
   font-weight: 600;
   font-size: 0.825rem;
   padding: 8px 16px;
@@ -160,7 +160,7 @@ body {
   justify-content: center;
   gap: 6px;
   background: var(--status-success);
-  color: #ffffff;
+  color: var(--text-on-accent);
   font-weight: 600;
   font-size: 0.825rem;
   padding: 8px 16px;
@@ -209,7 +209,7 @@ body {
 }
 
 .badge-cyan { background: var(--brand-light); color: var(--brand-primary); border: 1px solid var(--border-brand); }
-.badge-indigo { background: rgba(99, 102, 241, 0.1); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.2); }
+.badge-indigo { background: rgba(99, 102, 241, 0.1); color: var(--brand-indigo); border: 1px solid rgba(99, 102, 241, 0.2); }
 .badge-emerald { background: var(--status-success-bg); color: var(--status-success); border: 1px solid var(--status-success-border); }
 .badge-amber { background: var(--status-warning-bg); color: var(--status-warning); border: 1px solid var(--status-warning-border); }
 .badge-purple { background: var(--status-purple-bg); color: var(--status-purple); border: 1px solid var(--status-purple-border); }
@@ -329,7 +329,7 @@ input:focus, select:focus, textarea:focus {
 .choice-option-card.is-correct .choice-letter-badge {
   background: var(--status-success);
   border-color: var(--status-success);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 
 @keyframes spin {
@@ -451,7 +451,7 @@ input:focus, select:focus, textarea:focus {
   justify-content: center;
   gap: 8px;
   background: var(--infynno-gradient);
-  color: #ffffff;
+  color: var(--text-on-accent);
   font-weight: 600;
   font-size: 0.825rem;
   padding: 9px 18px;

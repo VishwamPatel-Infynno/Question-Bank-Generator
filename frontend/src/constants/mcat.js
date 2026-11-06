@@ -165,7 +165,6 @@ export const SECTION_METADATA = {
     shortCode: 'CP',
     icon: FlaskConical,
     tag: 'Chemistry & Physics',
-    color: '#0284c7',
     desc: 'Chemistry, physics, thermodynamics, and math applied to biological systems.',
     coachTip: '⚡ MCAT Coach Tip: Check units and estimate orders of magnitude before doing exact arithmetic to save time!'
   },
@@ -175,7 +174,6 @@ export const SECTION_METADATA = {
     shortCode: 'CARS',
     icon: BookOpen,
     tag: 'Critical Reasoning',
-    color: '#e11d48',
     desc: 'Passage analysis, logic, and arguments in humanities and social sciences with no outside knowledge needed.',
     coachTip: '⚡ MCAT Coach Tip: Rely only on what is in the passage. Every correct answer is anchored solely in the text and author’s argument.'
   },
@@ -185,7 +183,6 @@ export const SECTION_METADATA = {
     shortCode: 'BB',
     icon: Dna,
     tag: 'Biology & Biochem',
-    color: '#059669',
     desc: 'Biology, biochemistry, enzyme pathways, genetics, and cell physiology experiments.',
     coachTip: '⚡ MCAT Coach Tip: Study graphs and experiment controls first before reading the question prompt.'
   },
@@ -195,7 +192,6 @@ export const SECTION_METADATA = {
     shortCode: 'PS',
     icon: Brain,
     tag: 'Behavioral Sciences',
-    color: '#7c3aed',
     desc: 'Psychology, sociology, behavior, and social factors in health.',
     coachTip: '⚡ MCAT Coach Tip: Pay close attention to subtle differences between similar theories (e.g., Conflict Theory vs. Functionalism).'
   }
@@ -206,21 +202,18 @@ export const DIFFICULTY_TIERS = [
     id: 'low',
     title: 'Easy',
     desc: 'Core science concepts and straightforward questions.',
-    color: '#10b981',
     badgeClass: 'badge-emerald'
   },
   {
     id: 'medium',
     title: 'Medium',
     desc: 'Standard exam difficulty and multi-step reasoning.',
-    color: '#f59e0b',
     badgeClass: 'badge-amber'
   },
   {
     id: 'high',
     title: 'Hard',
     desc: 'Challenging questions with multi-step logic and complex data.',
-    color: '#f43f5e',
     badgeClass: 'badge-rose'
   }
 ];
