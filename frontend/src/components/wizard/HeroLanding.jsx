@@ -17,7 +17,6 @@ export default function HeroLanding({
   const PRESETS = [
     {
       label: 'Chem / Phys',
-      tag: '~96s / q',
       icon: FlaskConical,
       config: {
         section: 'chem_phys',
@@ -31,7 +30,6 @@ export default function HeroLanding({
     },
     {
       label: 'CARS',
-      tag: '~101s / q',
       icon: BookOpen,
       config: {
         section: 'cars',
@@ -45,7 +43,6 @@ export default function HeroLanding({
     },
     {
       label: 'Bio / Biochem',
-      tag: '~96s / q',
       icon: Dna,
       config: {
         section: 'bio_biochem',
@@ -59,7 +56,6 @@ export default function HeroLanding({
     },
     {
       label: 'Psych / Soc',
-      tag: '~96s / q',
       icon: Brain,
       config: {
         section: 'psych_soc',
@@ -134,11 +130,10 @@ export default function HeroLanding({
                   type="button"
                   className="hero-preset-chip"
                   onClick={() => onApplyPreset(preset.config)}
-                  title={`Start with ${preset.label} (${preset.tag})`}
+                  title={`Start with ${preset.label}`}
                 >
                   <Icon size={13} className="hero-landing-preset-icon" />
                   <span>{preset.label}</span>
-                  <span className="hero-landing-preset-tag">{preset.tag}</span>
                 </button>
               );
             })}

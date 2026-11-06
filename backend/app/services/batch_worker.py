@@ -34,6 +34,7 @@ from app.schemas import (
     Question,
     determine_question_status,
 )
+from app.workflow import engine as workflow_engine
 from app.workflow.sse import iter_sse_events
 
 logger = logging.getLogger(__name__)
@@ -258,8 +259,6 @@ async def _run_single_job_impl(
         passage_id_for_job = job.passage_id or (str(uuid.uuid4()) if is_passage_mode else None)
         usage_totals = _JobUsage(job)
 
-        from app.workflow.engine import run_workflow_stream
-
         start_trial = job.trial_count or 1
         trial = start_trial
         for current_trial in range(start_trial, max_trials + 1):
@@ -326,7 +325,7 @@ async def _run_single_job_impl(
             )
 
             attempt_new_qs: list[Question] = []
-            stream = run_workflow_stream(attempt_req)
+            stream = workflow_engine.run_workflow_stream(attempt_req)
             try:
                 if await _consume_job_stream(
                     stream,
@@ -495,9 +494,8 @@ async def _run_single_job_refill_impl(
 
         refill_qs: list[Question] = []
         usage_totals = _JobUsage(job)
-        from app.workflow.engine import run_workflow_stream
 
-        stream = run_workflow_stream(refill_req)
+        stream = workflow_engine.run_workflow_stream(refill_req)
         try:
             if await _consume_job_stream(
                 stream,

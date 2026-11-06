@@ -1021,11 +1021,6 @@
   color: var(--brand-primary);
 }
 
-.hero-landing-preset-tag {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
 .wizard-step-column {
   display: flex;
   flex-direction: column;

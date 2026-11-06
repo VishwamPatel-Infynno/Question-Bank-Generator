@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { EMPTY_ARRAY, getSectionBadgeClass, SECTION_IDS } from '../../constants';
+import { EMPTY_ARRAY, getSectionBadgeClass, getSectionShortLabel, SECTION_IDS } from '../../constants';
 import { countWords } from '../../utils';
 import PassageVisualStimulusEditor from './PassageVisualStimulusEditor';
 import PassageLinkedQuestionCard from './PassageLinkedQuestionCard';
@@ -158,7 +158,7 @@ export default function PassageEditorialDesk({
 
           <div className="passage-desk-title-group">
             <span className={`badge ${getSectionBadgeClass(section)}`}>
-              {section.toUpperCase()}
+              {getSectionShortLabel(section)}
             </span>
             {subtopic && (
               <span className="passage-desk-pill-subtopic">

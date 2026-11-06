@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  getSectionBadgeClass,
-  getSectionColor,
-  getSectionPacingSeconds,
-  normalizeSectionId
-} from '../mcat';
-import {
   DIFFICULTY,
   formatDifficulty,
   getDifficultyBadgeClass,
-  normalizeDifficulty
+  getSectionBadgeClass,
+  getSectionColor,
+  getSectionPacingSeconds,
+  normalizeDifficulty,
+  normalizeSectionId
 } from '../mcat';
 
 describe('normalizeSectionId', () => {

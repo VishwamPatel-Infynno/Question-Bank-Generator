@@ -11,10 +11,14 @@ import {
   Tag,
   Target
 } from 'lucide-react';
-import { MCAT_SECTION_LABELS, formatDifficulty, getSectionBadgeClass } from '../../constants/mcat';
-import { countWords, getEffectiveTrapInfo, hasQuestionImage } from '../../utils';
+import { formatDifficulty, getSectionBadgeClass, getSectionShortLabel } from '../../constants/mcat';
+import {
+  countWords,
+  getEffectiveTrapInfo,
+  hasQuestionImage,
+  isCorrectOption
+} from '../../utils';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
-import { isCorrectOption } from '../../utils';
 
 function AiValidatedQuestionCard({
   question: q,
@@ -47,7 +51,7 @@ function AiValidatedQuestionCard({
             #{index + 1}
           </span>
           <span className={`badge ${getSectionBadgeClass(q.section)} validated-card-badge-sm`}>
-            {q.section_label || MCAT_SECTION_LABELS[q.section] || q.section}
+            {getSectionShortLabel(q.section) || q.section_label || q.section}
           </span>
           <span className="validated-card-diff">
             {formatDifficulty(q.difficulty)}

@@ -49,7 +49,7 @@ backend/
 │   │   ├── mock_drafts.py   # Table of the seven canned mock drafts (section x passage/independent)
 │   │   └── base.py          # LiteLLM execution wrapper & sub-micro-cent token cost engine (DeepInfra + Anthropic)
 │   ├── services/            # Background Worker & Asynchronous Services
-│   │   ├── batch_runner.py  # Background pool managing Practice Sets (1-job, 5 Qs) and Full Exams (10-job, 50 Qs)
+│   │   ├── batch_runner.py  # Background pool managing 5 Questions (1-job) and 50 Questions (10-job batch)
 │   │   └── deduplication.py # Multi-metric similarity scoring & anti-collision service
 │   ├── repositories/        # Data Access Layer (DAL)
 │   │   ├── _filters.py            # Shared soft-delete clauses (active_question_clause, active_passage_clause)

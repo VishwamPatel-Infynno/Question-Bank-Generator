@@ -1,5 +1,10 @@
 import { Award, Edit3, ShieldCheck, Image as ImageIcon, Tag } from 'lucide-react';
-import { formatDifficulty, getDifficultyBadgeClass, getSectionBadgeClass } from '../../constants/mcat';
+import {
+  formatDifficulty,
+  getDifficultyBadgeClass,
+  getSectionBadgeClass,
+  getSectionShortLabel
+} from '../../constants/mcat';
 
 /**
  * QuestionCardHeader
@@ -39,7 +44,7 @@ export default function QuestionCardHeader({
         <span className="qcard-header-divider">|</span>
 
         <span className={`badge ${getSectionBadgeClass(question.section)} qcard-header-section-badge`}>
-          {question.section_label || question.section}
+          {getSectionShortLabel(question.section) || question.section_label || question.section}
         </span>
 
         <span className={`badge ${diffBadgeClass} qcard-header-diff-badge`}>

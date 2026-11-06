@@ -14,6 +14,7 @@ import { startBackgroundBatch } from '../services';
 import { makeId } from '../utils/ids';
 import { applySectionRules } from '../utils/generatorFormState';
 import { buildBatchPayload } from '../utils';
+import { getSectionShortLabel } from '../constants/mcat';
 
 /**
  * Central application state hook.
@@ -160,7 +161,7 @@ export function useAppState() {
     showToast({
       type: 'info',
       title: 'Preset Applied',
-      message: `${cfg.totalQuestions || 50} questions configured for ${cfg.section ? cfg.section.replace(/_/g, ' ') : 'MCAT'}.`
+      message: `${cfg.totalQuestions || 50} questions configured for ${getSectionShortLabel(cfg.section) || 'MCAT'}.`
     });
   }, [updateFields, showToast, generatorForm.formData]);
 

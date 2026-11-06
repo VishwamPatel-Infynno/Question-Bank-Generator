@@ -1,7 +1,7 @@
 (function() {
   try {
-    var migrated = localStorage.getItem('mcat_theme_migrated_light_v1');
-    var saved = localStorage.getItem('mcat_theme');
+    const migrated = localStorage.getItem('mcat_theme_migrated_light_v1');
+    const saved = localStorage.getItem('mcat_theme');
     if (!migrated) {
       localStorage.setItem('mcat_theme_migrated_light_v1', 'true');
       localStorage.setItem('mcat_theme', 'light');
@@ -19,6 +19,6 @@
 // Fonts: the stylesheet is declared media="print" (non-blocking). Switching it on after parsing
 // keeps first paint independent of Google Fonts without an inline onload handler (CSP-friendly).
 document.addEventListener('DOMContentLoaded', function () {
-  var fonts = document.getElementById('app-fonts');
+  const fonts = document.getElementById('app-fonts');
   if (fonts) fonts.media = 'all';
 });

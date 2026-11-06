@@ -135,7 +135,8 @@ const approveQuestion = (question) =>
 const AUDIT_FIELDS = ['stage_outcomes', 'iterations_history', 'token_usage_details'];
 
 const isEmptyAudit = (value) =>
-  value == null ||
+  value === null ||
+  value === undefined ||
   (Array.isArray(value) && value.length === 0) ||
   (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0);
 

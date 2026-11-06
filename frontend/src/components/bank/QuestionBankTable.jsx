@@ -16,16 +16,19 @@ import {
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
 import SharedPassageCard from '../question/SharedPassageCard';
 import MentorExplanationView from '../question/MentorExplanationView';
-import { countWords, getEffectiveTrapInfo } from '../../utils';
-import { EMPTY_ARRAY, formatDifficulty, getDifficultyBadgeClass, getSectionBadgeClass } from '../../constants';
-import { getCorrectAnswerIds, hasQuestionImage } from '../../utils';
-
-const SECTION_SHORT_LABEL = {
-  chem_phys: 'Chem / Phys',
-  cars: 'CARS',
-  bio_biochem: 'Bio / Biochem',
-  psych_soc: 'Psych / Soc'
-};
+import {
+  countWords,
+  getCorrectAnswerIds,
+  getEffectiveTrapInfo,
+  hasQuestionImage
+} from '../../utils';
+import {
+  EMPTY_ARRAY,
+  formatDifficulty,
+  getDifficultyBadgeClass,
+  getSectionBadgeClass,
+  getSectionShortLabel
+} from '../../constants';
 
 /**
  * QuestionBankCardRow
@@ -65,7 +68,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
             {/* Metadata Row */}
             <div className="qbank-badges-strip">
               <span className={`badge ${getSectionBadgeClass(q.section)} qbank-table-badge-sec`}>
-                {SECTION_SHORT_LABEL[q.section] || q.section_label || q.section}
+                {getSectionShortLabel(q.section) || q.section_label || q.section}
               </span>
 
               {q.subtopic && (
@@ -105,7 +108,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
                 <span className="qbank-table-mode-label">Standalone</span>
               )}
 
-                            {hasQuestionImage(q) && (
+              {hasQuestionImage(q) && (
                 <span className="badge badge-purple qbank-table-fig-pill">
                   <ImageIcon size={10} /> Diagram
                 </span>

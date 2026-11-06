@@ -34,7 +34,7 @@ export default function BatchFiltersBar({
         {/* Scope Tabs */}
         <div className="pill-track batch-filter-pill-track">
           {[
-            { id: 'all', label: 'All Practice Sets' },
+            { id: 'all', label: 'All Sets' },
             { id: 'mini', label: 'Quick Sets (5 Questions)' },
             { id: 'full', label: 'Full Sets (50 Questions)' }
           ].map((scope) => (

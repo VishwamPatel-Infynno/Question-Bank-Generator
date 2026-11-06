@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, Trash2, BookOpen, Layers } from 'lucide-react';
 import { Modal } from '../common';
+import { getSectionShortLabel } from '../../constants';
 
 /**
  * DeletePassageModal
@@ -106,7 +107,7 @@ export default function DeletePassageModal({
             <div className="delete-passage-badges-row">
               {passage.section && (
                 <span className="delete-passage-section-chip">
-                  {passage.section}
+                  {getSectionShortLabel(passage.section)}
                 </span>
               )}
               {typeof passage.word_count === 'number' && passage.word_count > 0 && (

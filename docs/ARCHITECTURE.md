@@ -317,10 +317,10 @@ The streaming execution pipeline is implemented in [`backend/app/workflow/engine
 
 The backend utilizes an asynchronous worker pool managed by [`backend/app/services/batch_runner.py`](../backend/app/services/batch_runner.py) supporting 2 calibrated Generation Scopes governed by the unified 5-question Job architecture:
 
-1. **Practice Set (5 Questions, 1 Single Job)**:
+1. **5 Questions (1 Single Job)**:
    - Dispatches a single background worker job comprising 5 questions linked to a shared reading passage (or 5 discretes).
    - Generates and self-audits within ~35-50s, streaming real-time status and automatically staging passing items (`score > 90`) into the **AI Validated** bank (`status = 'ai_validated'`).
-2. **Full Exam (50 Questions, 10 Parallel Jobs)**:
+2. **50 Questions (10 Parallel Jobs)**:
    - Enterprise background batch spawning 10 parallel jobs (5 questions each) across the global worker pool.
    - Automatically provisions shared passages per job, coordinates concurrent inference calls under rate-limit semaphores, and dynamically aggregates batch completion metrics.
 
@@ -330,7 +330,7 @@ graph TD
     API --> Runner[launch_background_batch]
     
     Runner --> BatchDB[Create Batch Record in DB]
-    Runner --> JobDB[Create Job Records in DB: 1 for Practice Set, 10 for Full Exam]
+    Runner --> JobDB[Create Job Records in DB: 1 for 5 Questions, 10 for 50 Questions]
     Runner --> BackgroundTask[Spawn Async Background Worker Pool]
     
     API -->> Client|202 Accepted + Batch/Job UUIDs| Client
@@ -665,7 +665,7 @@ graph TD
 
 ### 7.1 Export Modes
 1. **Official Exam Paper (PDF / Print)**:
-   - Formatted for classroom and mock exam printing with candidate name/date header, official pacing instructions (~96s to ~101s per item), and clean typographic separation.
+   - Formatted for classroom and mock exam printing with candidate name/date header, official section specifications, and clean typographic separation.
    - Enforces `.page-break { break-before: page; }` CSS print rules to ensure reading passages and question options never split awkwardly across page folds.
 2. **Comprehensive Study Pack (PDF / Print)**:
    - Includes reading stimulus, question stem, answer key, and the complete step-by-step cognitive proof and distractor trap analysis.

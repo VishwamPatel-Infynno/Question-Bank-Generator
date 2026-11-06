@@ -222,7 +222,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
           description={
             hasActiveFilters
               ? 'No questions match your current search or filters. Clear your filters to see more, or create questions.'
-              : 'Your Question Bank is currently empty. Create your first practice set to get started!'
+              : 'Your Question Bank is currently empty. Create your first questions to get started!'
           }
         >
           {!hasActiveFilters && onNavigateToWizard && (

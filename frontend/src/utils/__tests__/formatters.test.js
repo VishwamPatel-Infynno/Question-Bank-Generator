@@ -3,11 +3,12 @@ import {
   countWords,
   formatCostUsd,
   formatDate,
+  formatDateTime,
   formatDurationMs,
   formatExamTime,
+  formatTime,
   formatTokenCount
 } from '../formatters';
-import { formatDateTime, formatTime } from '../formatters';
 
 describe('formatters', () => {
   it('formats durations in ms or seconds and hides empty values', () => {

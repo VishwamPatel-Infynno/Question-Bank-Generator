@@ -16,8 +16,14 @@ import VisualStimulusViewer from './VisualStimulusViewer';
 import MentorExplanationView from './MentorExplanationView';
 import QuestionScorecardTab from './QuestionScorecardTab';
 import QuestionInlineEditor from './QuestionInlineEditor';
-import { getEffectiveTrapInfo, calculateOptionSymmetry, countWords } from '../../utils';
-import { getCorrectAnswerIds, getReviewPillars, hasQuestionImage } from '../../utils';
+import {
+  calculateOptionSymmetry,
+  countWords,
+  getCorrectAnswerIds,
+  getEffectiveTrapInfo,
+  getReviewPillars,
+  hasQuestionImage
+} from '../../utils';
 
 function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion }) {
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'scorecard' | 'telemetry'

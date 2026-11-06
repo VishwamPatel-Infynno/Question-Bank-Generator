@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { BATCH_STATUS, formatDifficulty, getSectionBadgeClass, isStoppedStatus, MCAT_SECTION_LABELS } from '../../constants';
+import { BATCH_STATUS, formatDifficulty, getSectionBadgeClass, getSectionShortLabel, isStoppedStatus, MCAT_SECTION_LABELS } from '../../constants';
 import { formatCostUsd, formatDateTime, formatTokenCount } from '../../utils';
 import { LiveStopwatch } from '../common';
 
@@ -113,7 +113,7 @@ function BatchCardSummary({
                 border: `1px solid ${secColor}30`
               }}
             >
-              {MCAT_SECTION_LABELS[batch.section] || batch.section}
+              {getSectionShortLabel(batch.section) || MCAT_SECTION_LABELS[batch.section] || batch.section}
             </span>
             <span className="badge-minimal batch-summary-badge-text">
               {formatDifficulty(batch.difficulty)}

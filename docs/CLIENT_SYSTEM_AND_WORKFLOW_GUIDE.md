@@ -22,8 +22,8 @@ Most off-the-shelf generative AI setups produce flawed test questions for four r
 The **Infynno MCAT Question Bank Generator v2.0** solves these challenges with five core pillars:
 
 - **Calibrated Multi-Tier Generation Scopes**:
-  - **Practice Set (5 Qs)**: Rapid background worker drafting on a shared passage or discrete set (~35-50s) streamed into the AI Validated Bank and Batch Activity Desk with live telemetry.
-  - **Full Exam (50 Qs)**: Enterprise background multi-job batch (10 concurrent jobs x 5 questions) with automatic AI validation.
+  - **5 Questions**: Rapid single background worker (1 Job, 5 Questions) drafting on a shared passage or discrete set (~35-50s) streamed into the AI Validated Bank and Batch Activity Desk with live telemetry.
+  - **50 Questions**: Enterprise background multi-job batch (10 concurrent jobs x 5 questions) with automatic AI validation.
 - **Binary Passage Architecture**: In a generation run, the studio generates either:
   - **Passage-Based Set**: 1 comprehensive scientific or rhetoric passage linked to all questions in the set; OR
   - **Independent Discretes**: Standalone scientific stems with zero stimulus text.
@@ -61,7 +61,7 @@ The workstation provides an interactive **Streamlined 3-Step Guided Wizard** doc
    - **Discipline & Major Unit**: Select syllabus discipline and unit taxonomy.
    - **High-Yield Concept Subtopics**: Multi-select granular subtopics or select all concepts for a balanced mix.
 2. **Step 2: Level, Format & Scope**:
-   - **Generation Scope**: Select **Practice Set (5 Qs, 1 Job)** for fast iterative authoring (~35-50s) or **Full Exam (50 Qs, 10 Jobs)** for comprehensive background mock section generation. Cards feature clean, streamlined selection buttons without distracting redundant badge pills.
+   - **Generation Scope**: Select **5 Questions (1 Job)** for fast iterative authoring (~35-50s) or **50 Questions (10 Jobs)** for comprehensive background mock section generation. Cards feature clean, streamlined selection buttons without distracting redundant badge pills.
    - **Challenge Level**: Calibrate between **Low**, **Medium**, and **High** difficulty tiers with color-coded badges and plain-English descriptors.
    - **Binary Passage Mode**: Passage-Based Set vs Independent Discretes.
    - **Question Breakdown**: Calibrate single-choice and multi-choice proportions.
@@ -72,7 +72,7 @@ The workstation provides an interactive **Streamlined 3-Step Guided Wizard** doc
    - **Expandable Advanced Accordion**: Collapsible drawer giving fine-grained control over:
      - *Cognitive Distractor Traps*: Multi-select official AAMC cognitive traps (Formula Trap, Extreme Quantifiers, False Causation, etc.).
      - *AAMC Reasoning Skills*: Target specific SIRS reasoning skills (Skill 1–4) and likely student mistake patterns.
-   - **Unified Launch Action**: Launch real-time SSE streaming for practice sets or dispatch enterprise background mock runs.
+   - **Unified Launch Action**: Launch real-time SSE streaming for 5-question sets or dispatch enterprise background mock runs.
 
 
 ---

@@ -8,7 +8,7 @@ import {
   Clock,
   CheckCircle2
 } from 'lucide-react';
-import { EMPTY_ARRAY, MCAT_SECTION_LABELS } from '../../constants';
+import { EMPTY_ARRAY, MCAT_SECTION_LABELS, getSectionShortLabel } from '../../constants';
 import { formatCostUsd, formatTokenCount } from '../../utils';
 import { LiveStopwatch } from '../common';
 
@@ -208,7 +208,7 @@ function ActiveMultiBatchMonitor({
           Active Batches:
         </span>
         {activeBatches.map((b) => {
-          const secLabel = MCAT_SECTION_LABELS[b.section] || b.section;
+          const secLabel = getSectionShortLabel(b.section) || MCAT_SECTION_LABELS[b.section] || b.section;
           const prog = b.target_count > 0 ? Math.round(((b.actual_count || 0) / b.target_count) * 100) : 0;
           return (
             <span key={b.id} className="batch-monitor-batch-pill">

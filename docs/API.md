@@ -67,7 +67,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 ### 3.1 Start Multi-Agent Generation (SSE Stream)
 `POST /api/generate`
 
-Initiates the multi-agent generation and psychometric evaluation workflow. Per-attempt rejections arrive as the non-terminal `question_rejected` event; `workflow_rejected` is terminal (all slots rejected) and, like `workflow_error`, carries `cumulative_usage`. When the server sets `API_ACCESS_KEY`, send it as the `X-API-Key` header (all `POST`/`PUT`/`PATCH`/`DELETE` routes; `POST /api/questions/check-duplicate` stays open). While a long LLM stage is quiet the stream emits an SSE comment line (`: keepalive`) every 15 seconds so proxies keep the connection open; clients ignore comment lines. Returns a live Server-Sent Events stream delivering step-by-step agent telemetry, intermediate drafts, review rubrics, token usage, and candidate question payloads. Supports single-item and live practice set generation.
+Initiates the multi-agent generation and psychometric evaluation workflow. Per-attempt rejections arrive as the non-terminal `question_rejected` event; `workflow_rejected` is terminal (all slots rejected) and, like `workflow_error`, carries `cumulative_usage`. When the server sets `API_ACCESS_KEY`, send it as the `X-API-Key` header (all `POST`/`PUT`/`PATCH`/`DELETE` routes; `POST /api/questions/check-duplicate` stays open). While a long LLM stage is quiet the stream emits an SSE comment line (`: keepalive`) every 15 seconds so proxies keep the connection open; clients ignore comment lines. Returns a live Server-Sent Events stream delivering step-by-step agent telemetry, intermediate drafts, review rubrics, token usage, and candidate question payloads. Supports single-item and live 5-question set generation.
 
 #### Request Headers
 ```http
@@ -110,7 +110,7 @@ Accept: text/event-stream
 | `require_passage_image`| `boolean` | No | `false` | Force visual diagram generation for the shared passage stimulus |
 | `custom_prompt` | `string` | No | `null` | Contextual steer or clinical scenario / reading passage guidance |
 | `additional_instructions` | `string` | No | `null` | Educator instructions specifying constraints, clinical scenarios, or pedagogical rules strictly enforced across passage generation, question generation, and remediation critique cycles |
-| `questions_to_generate` | `integer` | No | `5` | Quantity to generate (Wizard UI provides `5` [Practice Set] and `50` [Full Exam]; backend permits 1 to 50) |
+| `questions_to_generate` | `integer` | No | `5` | Quantity to generate (Wizard UI provides `5` [1 Single Job] and `50` [10-Job Batch]; backend permits 1 to 50) |
 | `passage_mode` | `string` | No | `"single_passage"` | `"single_passage"` (all Qs linked to 1 passage) or `"independent"` (standalone discretes) |
 | `interaction_type` | `string` | No | `"single_choice"` | Standard 4-choice single choice item |
 | `primary_trap` | `string` | No | `"Automatic"` | Cognitive trap selection: `"Automatic"` (Smart AI choice) or an explicit trap name; the frontend offers the names in `frontend/src/constants/mcatTraps.js` and the API stores the string as given |
