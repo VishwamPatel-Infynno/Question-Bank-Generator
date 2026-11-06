@@ -156,7 +156,6 @@ async def test_section_image_guard_routing():
 
 async def test_generate_question_with_self_critique_structure(monkeypatch):
     """Verifies that generate_question_with_self_critique returns a valid draft, review score, and usage."""
-    import app.agents.generator as gen_mod
     from app.agents.generator import generate_question_with_self_critique
     from app.core.config import config
     from app.schemas import QuestionDraft, ReviewScore, TokenUsage
@@ -212,7 +211,6 @@ async def test_generate_question_with_self_critique_structure(monkeypatch):
 
     import app.agents.base as base_mod
 
-    monkeypatch.setattr(gen_mod, "call_llm", mock_call_llm)
     monkeypatch.setattr(base_mod, "call_llm", mock_call_llm)
 
     draft2, review2, _usage2 = await generate_question_with_self_critique(req)

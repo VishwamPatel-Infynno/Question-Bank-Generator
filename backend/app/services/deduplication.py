@@ -339,8 +339,8 @@ def compute_question_similarity(
 def evaluate_duplicate(
     candidate: dict[str, Any] | Any,
     reference_pool: list[dict[str, Any] | Any],
-    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
-    soft_threshold: float = config.DUPLICATE_SOFT_THRESHOLD,
+    threshold: float | None = None,
+    soft_threshold: float | None = None,
 ) -> DuplicateCheckResult:
     """
     Evaluates a candidate question against a pool of reference questions (from DB or batch siblings).
@@ -349,6 +349,8 @@ def evaluate_duplicate(
     - is_duplicate: True if similarity >= threshold (default 0.75)
     - is_soft_warning: True if soft_threshold <= similarity < threshold (default 0.60)
     """
+    threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
+    soft_threshold = config.DUPLICATE_SOFT_THRESHOLD if soft_threshold is None else soft_threshold
     candidate_id = (
         candidate.get("id") if isinstance(candidate, dict) else getattr(candidate, "id", None)
     )
@@ -429,13 +431,14 @@ def evaluate_duplicate(
 
 def cluster_questions(
     questions: list[dict[str, Any] | Any],
-    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
+    threshold: float | None = None,
 ) -> list[dict[str, Any]]:
     """
     Groups questions into duplicate clusters using graph connected components.
     For each cluster with >= 2 items, identifies the leader question (highest final_score)
     and list of redundant sibling duplicates with similarity metrics.
     """
+    threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
     n = len(questions)
     if n < 2:
         return []

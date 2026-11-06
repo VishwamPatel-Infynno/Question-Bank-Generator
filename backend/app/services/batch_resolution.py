@@ -20,12 +20,13 @@ logger = logging.getLogger(__name__)
 
 def find_cluster_duplicates(
     active_questions: list[Question],
-    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
+    threshold: float | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """
     Identifies semantic duplicate clusters among active questions.
     Returns: (clusters, duplicate_ids_to_purge)
     """
+    threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
     q_dumps = [q.model_dump() for q in active_questions]
     clusters = cluster_questions(q_dumps, threshold=threshold)
     duplicate_ids_to_purge: list[str] = []

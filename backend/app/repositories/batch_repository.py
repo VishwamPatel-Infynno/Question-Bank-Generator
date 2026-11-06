@@ -15,6 +15,7 @@ from app.models.job import GenerationJobModel
 from app.models.question import QuestionModel
 from app.repositories._filters import active_question_clause
 from app.schemas import (
+    ACTIVE_QUESTION_STATUSES,
     COMPLETED_STATES,
     LIVE_STATES,
     BatchStatus,
@@ -213,9 +214,8 @@ async def refresh_batch_aggregates(
         q_count_stmt = select(func.count(QuestionModel.id)).where(
             QuestionModel.batch_id == batch_id,
             active_question_clause(),
-            QuestionModel.status.notin_(
-                ("discarded", "rejected_below_threshold", "error", "failed")
-            ),
+            # The same notion of "active" every refill/deficit computation uses
+            QuestionModel.status.in_(ACTIVE_QUESTION_STATUSES),
         )
         q_count_res = await session.execute(q_count_stmt)
         active_q_count = int(q_count_res.scalar() or 0)
@@ -253,7 +253,7 @@ async def refresh_batch_aggregates(
                         else BatchStatus.PARTIALLY_COMPLETED
                     )
                 else:
-                    batch_model.status = "in_progress"
+                    batch_model.status = BatchStatus.IN_PROGRESS
             elif batch_model.status != BatchStatus.COMPLETED:
                 batch_model.status = BatchStatus.IN_PROGRESS
 
@@ -317,9 +317,7 @@ async def reconcile_interrupted_batches() -> int:
     """
     async with async_session_factory() as session:
         result = await session.execute(
-            select(GenerationBatchModel).where(
-                GenerationBatchModel.status == BatchStatus.IN_PROGRESS
-            )
+            select(GenerationBatchModel).where(GenerationBatchModel.status.in_(LIVE_STATES))
         )
         orphans = list(result.scalars().all())
         if not orphans:

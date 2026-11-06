@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -171,15 +171,15 @@ async def _prepare_shared_passage_and_visual(
     make_event: Callable[..., WorkflowEvent],
     passage_generator_fn: Callable[..., Any] | None = None,
     image_generator_fn: Callable[..., Any] | None = None,
-) -> tuple[SharedPassageState, list[WorkflowEvent]]:
-    """
-    Drafts a shared reading passage and associated visual stimulus diagram when requested.
+    *,
+    state: SharedPassageState,
+) -> AsyncIterator[WorkflowEvent]:
+    """Drafts the shared reading passage and its visual stimulus diagram when requested.
 
-    Returns:
-        Tuple of (SharedPassageState, events_to_emit).
+    Yields each progress event as it happens (so "writing passage" reaches the client before
+    the passage call, not after the diagram is done) and fills ``state`` in place.
     """
-    events: list[WorkflowEvent] = []
-    state = SharedPassageState(passage_text=shared_passage_text)
+    state.passage_text = shared_passage_text
 
     actual_passage_gen = passage_generator_fn or generate_passage_stimulus
     actual_image_gen = image_generator_fn or generate_image_stimulus
@@ -201,7 +201,7 @@ async def _prepare_shared_passage_and_visual(
                 "passage_id": shared_passage_id,
             },
         )
-        events.append(passage_start_evt)
+        yield passage_start_evt
 
         (
             shared_passage_text,
@@ -240,7 +240,7 @@ async def _prepare_shared_passage_and_visual(
                 "latest_usage": passage_usage.model_dump(),
             },
         )
-        events.append(passage_done_evt)
+        yield passage_done_evt
 
     requires_passage_image = bool(
         not is_cars_section(req.section)
@@ -265,7 +265,7 @@ async def _prepare_shared_passage_and_visual(
                 "batch_id": batch_id,
             },
         )
-        events.append(p_img_start_evt)
+        yield p_img_start_evt
 
         p_draft = QuestionDraft(
             stimulus_text=state.passage_text,
@@ -295,8 +295,10 @@ async def _prepare_shared_passage_and_visual(
         state.image_svg = img_svg
         state.image_desc = img_desc
 
-        if p_img_usage and p_img_usage.get("cost_usd"):
-            state.cost += p_img_usage["cost_usd"]
+        if p_img_usage:
+            # The diagram's spend belongs in the breakdown as well as the total
+            state.cost += p_img_usage.get("cost_usd", 0.0) or 0.0
+            state.usage_breakdown.append({"iteration": 1, **p_img_usage})
 
         p_img_done_evt = make_event(
             event_type="agent_complete",
@@ -311,6 +313,4 @@ async def _prepare_shared_passage_and_visual(
                 "batch_id": batch_id,
             },
         )
-        events.append(p_img_done_evt)
-
-    return state, events
+        yield p_img_done_evt

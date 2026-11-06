@@ -23,6 +23,7 @@ from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
 from app.core.concurrency import get_global_pipeline_semaphore
 from app.core.config import config
+from app.core.errors import sanitize_error_text
 from app.core.logging import bind_log_context
 from app.repositories import (
     get_batch_by_id,
@@ -405,10 +406,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
     try:
         # Step 0: Draft Shared Reading Passage and Diagram (if passage-set mode)
-        (
-            passage_state,
-            passage_events,
-        ) = await _prepare_shared_passage_and_visual(
+        passage_state = SharedPassageState(passage_text=shared_passage_text)
+        passage_events = _prepare_shared_passage_and_visual(
             req=req,
             batch_id=batch_id,
             shared_passage_id=shared_passage_id,
@@ -420,8 +419,9 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             make_event=make_event,
             passage_generator_fn=generate_passage_stimulus,
             image_generator_fn=generate_image_stimulus,
+            state=passage_state,
         )
-        for p_evt in passage_events:
+        async for p_evt in passage_events:
             yield f"data: {p_evt.model_dump_json()}\n\n"
 
         shared_passage_text = passage_state.passage_text
@@ -455,6 +455,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
         outcomes_questions: list[dict[str, Any] | None] = [None] * total_qty
         outcomes_rejections: list[dict[str, Any]] = []
+        outcomes_errors: list[str] = []
         # Spend per slot across all of its attempts (calls feed MAX_LLM_CALLS_PER_SLOT)
         ledger = SlotLedger.for_slots(total_qty)
         shared_used_traps: list[str] = []
@@ -571,6 +572,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                             event_queue=event_queue,
                             make_event=make_event,
                             batch_key=batch_id,
+                            job_id=job_id,
                         )
 
                         cur_draft = state.get("current_draft") or {}
@@ -622,6 +624,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                                 db_reference_pool,
                                 outcomes_questions,
                                 batch_key=batch_id,
+                                job_id=job_id,
                             )
 
                         question_passed = await _run_question_review_loop(
@@ -644,6 +647,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                                 db_reference_pool,
                                 outcomes_questions,
                                 batch_key=batch_id,
+                                job_id=job_id,
                             )
 
                         dup_info = state.get("duplicate_info") or {}
@@ -755,7 +759,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
                             ledger.fold(idx, state)
                             attempt_state = None  # already counted
-                            await remove_in_flight_draft(batch_id, idx)
+                            await remove_in_flight_draft(batch_id, idx, job_id=job_id)
                             return  # Successfully completed this slot!
 
                         # Rejection or collision - auto-replenish slot
@@ -777,19 +781,19 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                         )
                         ledger.fold(idx, state)
                         attempt_state = None  # already counted
-                        await remove_in_flight_draft(batch_id, idx)
+                        await remove_in_flight_draft(batch_id, idx, job_id=job_id)
                         await asyncio.sleep(SLOT_REPLENISH_DELAY_SECONDS)
                         continue
 
                 except asyncio.CancelledError:
                     ledger.fold(idx, attempt_state)
-                    await remove_in_flight_draft(batch_id, idx)
+                    await remove_in_flight_draft(batch_id, idx, job_id=job_id)
                     raise
                 except Exception as worker_err:
                     ledger.fold(idx, attempt_state)
                     # A question staged in this failed attempt must not linger beside the retry
                     outcomes_questions[idx] = None
-                    await remove_in_flight_draft(batch_id, idx)
+                    await remove_in_flight_draft(batch_id, idx, job_id=job_id)
                     # A missing-credentials error cannot succeed on retry: fail fast with the message
                     if (
                         attempt < max_slot_attempts - 1
@@ -813,30 +817,15 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                         worker_err,
                         exc_info=worker_err,
                     )
-                    if total_qty > 1:
-                        err_evt = make_event(
-                            event_type="question_failed",
-                            agent_name="System",
-                            message=f"Generation failed for Question {idx + 1} after retries: {worker_err!s}",
-                            data={"index": idx + 1, "error": str(worker_err)},
-                            run_id=req.run_id,
-                        )
-                        await event_queue.put(err_evt)
-                    else:
-                        err_evt = make_event(
-                            event_type="workflow_error",
-                            agent_name="System",
-                            message=f"Generation failed for Question {idx + 1}: {worker_err!s}",
-                            data={
-                                "index": idx + 1,
-                                "error": str(worker_err),
-                                # The batch worker stops reading at the first error event, so the
-                                # spend of this failed run must travel with it.
-                                "cumulative_usage": ledger.cumulative(passage_state),
-                            },
-                            run_id=req.run_id,
-                        )
-                        await event_queue.put(err_evt)
+                    outcomes_errors.append(str(worker_err))
+                    err_evt = make_event(
+                        event_type="question_failed",
+                        agent_name="System",
+                        message=f"Generation failed for Question {idx + 1} after retries: {worker_err!s}",
+                        data={"index": idx + 1, "error": str(worker_err)},
+                        run_id=req.run_id,
+                    )
+                    await event_queue.put(err_evt)
                     return
 
         async def _staggered_worker(w_idx: int) -> None:
@@ -922,11 +911,19 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 error_msg = (
                     f"All {total_qty} questions in the run failed to generate after retries."
                 )
+                if outcomes_errors:
+                    error_msg += f" Last error: {outcomes_errors[-1]}"
                 error_evt = make_event(
                     event_type="workflow_error",
                     agent_name="System",
                     message=error_msg,
-                    data={"error": error_msg, "cumulative_usage": usage_totals},
+                    data={
+                        "error": outcomes_errors[-1] if outcomes_errors else error_msg,
+                        "errors": outcomes_errors,
+                        # The batch worker stops reading at the first error event, so the spend
+                        # of this failed run must travel with it.
+                        "cumulative_usage": usage_totals,
+                    },
                 )
                 yield f"data: {error_evt.model_dump_json()}\n\n"
                 return
@@ -987,14 +984,15 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             )
         raise
     except Exception as e:
-        logger.error("Workflow stream error: %s", e)
-        if is_standalone_live_run:
+        logger.error("Workflow stream error: %s", e, exc_info=True)
+        err_msg = sanitize_error_text(e)
+        # A job already finalized (completed) must not be flipped to failed by a late error
+        if is_standalone_live_run and not job_finalized:
             await _handle_live_job_failure(
                 job_id=job_id,
                 batch_id=batch_id,
-                error_msg=str(e),
+                error_msg=err_msg,
             )
-        err_msg = str(e)
         error_evt = make_event(
             event_type="workflow_error",
             agent_name="System Error",
@@ -1011,7 +1009,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
         # Drop anything a cancelled worker left in the sibling-collision pool
-        await clear_in_flight_batch(batch_id)
+        await clear_in_flight_batch(batch_id, job_id=job_id)
 
 
 class WorkflowRunResult:

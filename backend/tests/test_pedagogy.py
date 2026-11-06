@@ -127,7 +127,6 @@ def test_option_symmetry_and_anti_guessability_engine():
 
 
 async def test_smart_ai_trap_and_explanation_breakdown(monkeypatch, patch_llm):
-    import app.agents.generator as gen_mod
     from app.agents.base import LLMNotConfiguredError
     from app.agents.mock_fixtures import get_mock_draft
     from app.workflow import run_workflow
@@ -136,7 +135,6 @@ async def test_smart_ai_trap_and_explanation_breakdown(monkeypatch, patch_llm):
         # Offline mode: no credentials configured, so agents use their heuristic fixtures.
         raise LLMNotConfiguredError("Fast fallback to mock draft in unit test")
 
-    monkeypatch.setattr(gen_mod, "call_llm", mock_fail_call_llm)
     patch_llm(mock_fail_call_llm)
     # Draft/regenerate calls go through call_llm_validated, which resolves call_llm in base
     import app.agents.base as base_mod

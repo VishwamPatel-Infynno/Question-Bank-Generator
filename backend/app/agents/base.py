@@ -130,18 +130,30 @@ def safe_json_loads(text: str) -> Any:
         raise e1
 
 
-def _usage_from_response(response: Any, model: str) -> TokenUsage:
-    """Billed usage of a response whose content is discarded (e.g. a truncated completion)."""
+def _usage_from_response(
+    response: Any, model: str, *, duration_ms: int | None = None
+) -> TokenUsage:
+    """Billed usage of one completion, cache tokens included (also for a truncated retry)."""
     usage_obj = getattr(response, "usage", None)
     prompt_tokens = int(getattr(usage_obj, "prompt_tokens", 0) or 0)
     completion_tokens = int(getattr(usage_obj, "completion_tokens", 0) or 0)
+    total_tokens = int(
+        getattr(usage_obj, "total_tokens", prompt_tokens + completion_tokens)
+        or (prompt_tokens + completion_tokens)
+    )
+    cache_read_tokens, cache_creation_tokens = _cache_tokens_from_usage(usage_obj)
     return TokenUsage(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
-        total_tokens=prompt_tokens + completion_tokens,
+        total_tokens=total_tokens,
         cost_usd=calculate_token_cost(
-            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, model=model
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            model=model,
+            cache_read_tokens=cache_read_tokens,
+            cache_creation_tokens=cache_creation_tokens,
         ),
+        duration_ms=duration_ms,
         calls=1,
     )
 
@@ -448,40 +460,20 @@ async def call_llm(
                         f"Model {candidate} output was truncated at {current_max} tokens"
                     )
 
-                usage_obj = getattr(response, "usage", None)
-                prompt_tokens = int(getattr(usage_obj, "prompt_tokens", 0) or 0)
-                completion_tokens = int(getattr(usage_obj, "completion_tokens", 0) or 0)
-                total_tokens = int(
-                    getattr(usage_obj, "total_tokens", prompt_tokens + completion_tokens)
-                    or (prompt_tokens + completion_tokens)
-                )
-
-                cache_read_tokens, cache_creation_tokens = _cache_tokens_from_usage(usage_obj)
-
-                cost_usd = calculate_token_cost(
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    model=candidate,
-                    cache_read_tokens=cache_read_tokens,
-                    cache_creation_tokens=cache_creation_tokens,
-                )
-                usage = TokenUsage(
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    total_tokens=total_tokens,
-                    cost_usd=cost_usd,
+                usage = _usage_from_response(
+                    response,
+                    candidate,
                     duration_ms=int((time.perf_counter() - call_started) * 1000),
-                    calls=1,
                 )
                 provider_label = config.get_active_provider(candidate).capitalize()
                 logger.info(
                     "LLM Call Succeeded [%s via %s]: %s in + %s out = %s tokens ($%.5f)",
                     candidate,
                     provider_label,
-                    prompt_tokens,
-                    completion_tokens,
-                    total_tokens,
-                    cost_usd,
+                    usage.prompt_tokens,
+                    usage.completion_tokens,
+                    usage.total_tokens,
+                    usage.cost_usd,
                 )
                 if truncated_usage:
                     usage = sum_usage([*truncated_usage, usage])

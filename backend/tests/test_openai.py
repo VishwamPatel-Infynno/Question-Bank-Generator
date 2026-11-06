@@ -120,7 +120,7 @@ async def test_openai_image_generator_missing_key(monkeypatch):
     img_url, img_svg, _desc, usage = await generate_image_stimulus(draft, req)
     assert img_url is None
     assert img_svg is None
-    assert usage["agent_name"] == "Image Generator"
+    assert usage["agent"] == "Image Generator"
     assert usage["details"]["provider"] == "infynno"
     assert "Visual Studio" in usage["details"]["error"]
 

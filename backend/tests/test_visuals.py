@@ -33,7 +33,7 @@ async def test_strict_ai_image_generator(monkeypatch):
     assert _img_url is None
     assert img_svg is None
     assert usage is not None
-    assert usage["agent_name"] == "Image Generator"
+    assert usage["agent"] == "Image Generator"
     assert "error" in usage["details"]
 
     # 2. Valid API key & mocked FLUX call -> returns image_url, img_svg is strictly None
@@ -96,7 +96,7 @@ async def test_image_node_workflow_accumulation(monkeypatch):
             None,
             "Mock visual prompt",
             {
-                "agent_name": "Image Generator",
+                "agent": "Image Generator",
                 "cost_usd": 0.0020,
                 "model": "black-forest-labs/FLUX-1-schnell",
             },
@@ -115,8 +115,8 @@ async def test_image_node_workflow_accumulation(monkeypatch):
         "current_draft": draft.model_dump(),
         "total_cost_usd": 0.0015,
         "agent_usage_breakdown": [
-            {"agent_name": "Question Generator", "cost_usd": 0.0010},
-            {"agent_name": "Question Reviewer", "cost_usd": 0.0005},
+            {"agent": "Question Generator", "cost_usd": 0.0010},
+            {"agent": "Question Reviewer", "cost_usd": 0.0005},
         ],
     }
     res = await image_node(state)
@@ -125,7 +125,7 @@ async def test_image_node_workflow_accumulation(monkeypatch):
     assert res["image_url"] == "data:image/jpeg;base64,mock_flux"
     assert res["image_svg"] is None
     assert len(res["agent_usage_breakdown"]) == 3
-    assert res["agent_usage_breakdown"][-1]["agent_name"] == "Image Generator"
+    assert res["agent_usage_breakdown"][-1]["agent"] == "Image Generator"
     assert "latest_usage" in res
 
 
@@ -168,7 +168,6 @@ async def test_visual_stimulus_persistence_in_finalize_node():
 
 async def test_autonomous_ai_determined_image_workflow(monkeypatch):
     """Verifies that image generation strictly follows autonomous AI determination when enabled, and is bypassed when disabled or in CARS."""
-    import app.agents.generator as gen_mod
 
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
     monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
@@ -178,8 +177,6 @@ async def test_autonomous_ai_determined_image_workflow(monkeypatch):
     async def mock_fail_call_llm(*_args, **_kwargs):
         raise LLMNotConfiguredError("Fast unit test fallback")
 
-    monkeypatch.setattr(gen_mod, "call_llm", mock_fail_call_llm)
-
     images_generated = []
 
     async def mock_flux_gen(*_args, **_kwargs):
@@ -188,7 +185,7 @@ async def test_autonomous_ai_determined_image_workflow(monkeypatch):
             "data:image/jpeg;base64,mock_flux",
             None,
             "Autonomous diagram description",
-            {"agent_name": "Image Generator", "cost_usd": 0.014},
+            {"agent": "Image Generator", "cost_usd": 0.014},
         )
 
     from app.workflow import engine as workflow_engine

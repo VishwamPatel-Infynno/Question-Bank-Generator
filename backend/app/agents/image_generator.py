@@ -324,7 +324,7 @@ async def generate_image_stimulus(
                 "OpenAI API Key is not configured. Strict image generation policy prohibits SVG mock fallbacks."
             )
             error_usage = {
-                "agent_name": "Image Generator",
+                "agent": "Image Generator",
                 "model": "Infynno Visual Studio v2",
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
@@ -370,7 +370,7 @@ async def generate_image_stimulus(
             cost = round(cost, 7)
             cost_formula = f"Standard Visual Stimulus Rate (${cost:.5f}/unit)"
             usage_dict = {
-                "agent_name": "Image Generator",
+                "agent": "Image Generator",
                 "model": "Infynno Visual Studio v2",
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
@@ -391,7 +391,7 @@ async def generate_image_stimulus(
             model_id,
         )
         failure_usage = {
-            "agent_name": "Image Generator",
+            "agent": "Image Generator",
             "model": "Infynno Visual Studio v2",
             "prompt_tokens": 0,
             "completion_tokens": 0,
@@ -415,7 +415,7 @@ async def generate_image_stimulus(
             "AI Gateway Key is not configured. Strict image generation policy prohibits SVG mock fallbacks."
         )
         error_usage = {
-            "agent_name": "Image Generator",
+            "agent": "Image Generator",
             "model": "Infynno Visual Studio v2",
             "prompt_tokens": 0,
             "completion_tokens": 0,
@@ -468,7 +468,7 @@ async def generate_image_stimulus(
             else f"Standard Visual Stimulus Rate (${cost:.5f}/unit)"
         )
         usage_dict = {
-            "agent_name": "Image Generator",
+            "agent": "Image Generator",
             "model": "Infynno Visual Studio v2",
             "prompt_tokens": 0,
             "completion_tokens": 0,
@@ -491,7 +491,7 @@ async def generate_image_stimulus(
         model_id,
     )
     failure_usage = {
-        "agent_name": "Image Generator",
+        "agent": "Image Generator",
         "model": "Infynno Visual Studio v2",
         "prompt_tokens": 0,
         "completion_tokens": 0,

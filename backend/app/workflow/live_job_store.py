@@ -9,7 +9,6 @@ from typing import Any
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.repositories import (
-    promote_completed_batch_questions,
     refresh_batch_aggregates,
     save_question,
     update_job_progress,
@@ -78,9 +77,8 @@ async def _finalize_live_job_progress(
             cost_usd=cumulative_cost,
             completed_at=now_iso,
         )
+        # refresh_batch_aggregates promotes qualifying questions once the batch is complete
         await refresh_batch_aggregates(batch_id, allow_complete=True)
-        if job_status == JobStatus.COMPLETED:
-            await promote_completed_batch_questions(batch_id)
     except (SQLAlchemyError, OSError) as db_err:
         logger.warning("Could not finalize live job progress (DB offline): %s", db_err)
 

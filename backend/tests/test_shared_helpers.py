@@ -41,7 +41,7 @@ def test_workflow_and_agent_cars_helpers_agree(section):
     assert not is_cars("chem_phys") and not is_cars_section("chem_phys")
 
 
-def test_passage_prompt_differs_between_cars_and_science(monkeypatch):
+def test_passage_prompt_differs_between_cars_and_science(patch_llm):
     """Regression: a variable rename once made every passage prompt use the CARS text."""
     captured = []
 
@@ -49,7 +49,7 @@ def test_passage_prompt_differs_between_cars_and_science(monkeypatch):
         captured.append(prompt)
         return "A passage.", _u(10, 0.0)
 
-    monkeypatch.setattr(generator, "call_llm", fake_call)
+    patch_llm(fake_call)
 
     async def run(section):
         await generator.generate_passage_stimulus(

@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from collections import OrderedDict
 from datetime import UTC, datetime
 from typing import Any
 
@@ -28,7 +29,10 @@ logger = logging.getLogger(__name__)
 # Module-level dicts for tracking running tasks and generation requests.
 # NOTE: Process-local. For multi-process/distributed setups, back with Redis.
 _active_batch_tasks: dict[str, asyncio.Task[Any]] = {}
-_batch_requests: dict[str, GenerationRequest] = {}
+# Most-recently stored last. Bounded: a request holds the client's API key, which must not
+# accumulate for the lifetime of the process (the DB copy is deliberately scrubbed of it).
+_batch_requests: OrderedDict[str, GenerationRequest] = OrderedDict()
+MAX_STORED_BATCH_REQUESTS = 256
 
 # Global worker pool semaphore governing concurrent jobs across ALL running batches
 _GLOBAL_JOB_SEMAPHORE: asyncio.Semaphore | None = None
@@ -55,7 +59,15 @@ def unregister_batch_task(batch_id: str, task: asyncio.Task[Any] | None = None) 
 
 def store_batch_request(batch_id: str, req: GenerationRequest) -> None:
     """Stores the original GenerationRequest in memory to support 1-click retries."""
+    _batch_requests.pop(batch_id, None)
     _batch_requests[batch_id] = req
+    while len(_batch_requests) > MAX_STORED_BATCH_REQUESTS:
+        _batch_requests.popitem(last=False)
+
+
+def forget_batch_request(batch_id: str) -> None:
+    """Drops a batch's cached request (the batch is gone, so nothing can retry it)."""
+    _batch_requests.pop(batch_id, None)
 
 
 def get_stored_batch_request(batch_id: str) -> GenerationRequest | None:

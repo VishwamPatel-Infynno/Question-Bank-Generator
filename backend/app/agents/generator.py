@@ -17,6 +17,7 @@ import logging
 import re
 from typing import Any
 
+from app.agents import base
 from app.agents._mock_tokens import (
     PASSAGE_GENERATOR_MOCK_COMPLETION_TOKENS,
     PASSAGE_GENERATOR_MOCK_PROMPT_TOKENS,
@@ -26,7 +27,6 @@ from app.agents._mock_tokens import (
 )
 from app.agents.base import (
     LLMNotConfiguredError,
-    call_llm,
     call_llm_validated,
     require_offline_mode,
     safe_json_loads,
@@ -337,7 +337,7 @@ STANDARDS FOR AAMC MCAT PASSAGES:
     try:
         # Elevated temperature for passage diversity across jobs
         passage_temp = max(config.GENERATOR_TEMPERATURE, config.PASSAGE_TEMPERATURE)
-        raw_output, usage = await call_llm(
+        raw_output, usage = await base.call_llm(
             prompt=prompt,
             system_prompt=system_prompt,
             model=req.model_name,

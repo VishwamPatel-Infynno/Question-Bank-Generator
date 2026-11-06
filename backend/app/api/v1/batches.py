@@ -37,6 +37,7 @@ from app.services import (
     retry_incomplete_jobs_for_batch,
     stop_background_batch,
 )
+from app.services.batch_concurrency import forget_batch_request
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +187,7 @@ async def cancel_all_batches() -> dict[str, Any]:
 async def delete_single_batch(batch_id: str) -> dict[str, Any]:
     """Deletes a generation batch and cascades delete to jobs and questions."""
     await cancel_background_batch(batch_id)
+    forget_batch_request(batch_id)
     deleted = await delete_batch(batch_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Batch not found")
@@ -204,12 +206,13 @@ async def create_or_update_batch(batch: GenerationBatch) -> dict[str, Any]:
 @router.get("/batches/{batch_id}/duplicate-clusters")
 async def get_batch_duplicate_clusters(
     batch_id: str,
-    threshold: Annotated[float, Query(ge=0.5, le=1.0)] = config.DUPLICATE_HARD_THRESHOLD,
+    threshold: Annotated[float | None, Query(ge=0.5, le=1.0)] = None,
 ) -> dict[str, Any]:
     """
     Performs pairwise similarity clustering on questions within a batch.
     Returns grouped clusters with designated leader questions and redundant duplicate siblings.
     """
+    threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
     b = await get_batch_by_id(batch_id)
     if not b:
         raise HTTPException(status_code=404, detail="Batch not found")

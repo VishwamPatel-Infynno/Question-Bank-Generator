@@ -146,7 +146,6 @@ async def test_generator_does_not_substitute_mock_questions_for_real_failures(mo
 
     import app.agents.base as base_mod
 
-    monkeypatch.setattr(gen_mod, "call_llm", broken)
     monkeypatch.setattr(base_mod, "call_llm", broken)
     req = make_request()
     with pytest.raises(RuntimeError):

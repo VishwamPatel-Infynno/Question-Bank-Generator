@@ -22,14 +22,12 @@ from app.repositories import (
     get_jobs_by_batch_id,
     get_questions,
     hard_delete_questions_batch,
-    promote_completed_batch_questions,
     refresh_batch_aggregates,
     save_batch,
     save_jobs_bulk,
     update_job_progress,
 )
 from app.schemas import (
-    COMPLETED_STATES,
     EXECUTABLE_JOB_STATES,
     LIVE_STATES,
     RETRYABLE_JOB_STATES,
@@ -101,9 +99,7 @@ async def _execute_in_set_refill(
             batch_id, current_cycle=current_cycle, max_cycles=max_cycles
         )
         if not refill_result.get("refill_launched"):
-            final_b = await refresh_batch_aggregates(batch_id, allow_complete=True)
-            if final_b and final_b.status in COMPLETED_STATES:
-                await promote_completed_batch_questions(batch_id)
+            await refresh_batch_aggregates(batch_id, allow_complete=True)
     except asyncio.CancelledError:
         logger.info("In-set refill for batch %s was cancelled.", batch_id)
         for t in tasks:
@@ -202,9 +198,7 @@ async def _execute_batch_workflow(
         )
         if not refill_result.get("refill_launched"):
             # Batch has fully concluded all processing, deduplication, and refilling
-            final_b = await refresh_batch_aggregates(batch_id, allow_complete=True)
-            if final_b and final_b.status in COMPLETED_STATES:
-                await promote_completed_batch_questions(batch_id)
+            await refresh_batch_aggregates(batch_id, allow_complete=True)
 
     except asyncio.CancelledError:
         logger.info("Batch %s execution was cancelled; terminating all sub-tasks...", batch_id)
@@ -229,7 +223,7 @@ async def auto_resolve_batch_and_refill(
     batch_id: str,
     current_cycle: int = 1,
     max_cycles: int = MAX_REFILL_CYCLES,
-    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
+    threshold: float | None = None,
 ) -> dict[str, Any]:
     """
     Evaluates active questions in a batch for duplicate clusters, permanently deletes
@@ -237,6 +231,7 @@ async def auto_resolve_batch_and_refill(
     and automatically triggers in-set replenishment within affected sets if a deficit exists,
     capped at max_cycles (up to 3 cycles). Also trims excess questions within sets to exact target.
     """
+    threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
     b = await get_batch_by_id(batch_id)
     if not b:
         return {"resolved": False, "reason": "Batch not found"}

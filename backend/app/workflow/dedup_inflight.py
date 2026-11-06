@@ -42,50 +42,70 @@ _IN_FLIGHT_BATCH_STEMS: dict[str, list[dict[str, Any]]] = {}
 _IN_FLIGHT_LOCK = asyncio.Lock()
 
 
+def _slot(job_id: str | None, worker_idx: int) -> tuple[str | None, int]:
+    """One question slot: the job it belongs to and its worker index within that job."""
+    return (job_id, worker_idx)
+
+
 async def register_in_flight_draft(
-    batch_id: str | None, draft: dict[str, Any], worker_idx: int
+    batch_id: str | None, draft: dict[str, Any], worker_idx: int, job_id: str | None = None
 ) -> None:
-    """Registers a freshly drafted question stem into the active batch pool to alert concurrent siblings."""
+    """Registers a freshly drafted stem in the batch pool so concurrent siblings (same job or
+    another job of the batch) can detect it before it is persisted."""
     if not batch_id:
         return
+    slot = _slot(job_id, worker_idx)
     async with _IN_FLIGHT_LOCK:
         pool = _IN_FLIGHT_BATCH_STEMS.setdefault(batch_id, [])
-        pool[:] = [item for item in pool if item.get("_worker_idx") != worker_idx]
+        pool[:] = [item for item in pool if item.get("_slot") != slot]
         item = dict(draft)
-        item["_worker_idx"] = worker_idx
+        item["_slot"] = slot
         # Synthetic id so a collision with an in-flight sibling is recognisable as such.
-        item["id"] = f"in_flight_{worker_idx}"
+        item["id"] = f"in_flight_{job_id or 'live'}_{worker_idx}"
         pool.append(item)
 
 
 async def get_in_flight_drafts(
-    batch_id: str | None, current_worker_idx: int
+    batch_id: str | None, current_worker_idx: int, job_id: str | None = None
 ) -> list[dict[str, Any]]:
-    """Returns all active in-flight candidate questions in this batch excluding the current worker."""
+    """Every in-flight draft of the batch except the asking slot's own."""
     if not batch_id:
         return []
+    slot = _slot(job_id, current_worker_idx)
     async with _IN_FLIGHT_LOCK:
         pool = _IN_FLIGHT_BATCH_STEMS.get(batch_id, [])
-        return [item for item in pool if item.get("_worker_idx") != current_worker_idx]
+        return [item for item in pool if item.get("_slot") != slot]
 
 
-async def remove_in_flight_draft(batch_id: str | None, worker_idx: int) -> None:
-    """Removes a worker's draft from in-flight cache when finalized or cancelled."""
+async def remove_in_flight_draft(
+    batch_id: str | None, worker_idx: int, job_id: str | None = None
+) -> None:
+    """Removes one slot's draft from the pool when it is finalized or cancelled."""
     if not batch_id:
         return
+    slot = _slot(job_id, worker_idx)
     async with _IN_FLIGHT_LOCK:
         pool = _IN_FLIGHT_BATCH_STEMS.get(batch_id, [])
-        pool[:] = [item for item in pool if item.get("_worker_idx") != worker_idx]
-        if not pool and batch_id in _IN_FLIGHT_BATCH_STEMS:
+        pool[:] = [item for item in pool if item.get("_slot") != slot]
+        if not pool:
             _IN_FLIGHT_BATCH_STEMS.pop(batch_id, None)
 
 
-async def clear_in_flight_batch(batch_id: str | None) -> None:
-    """Forgets every in-flight draft of a batch (end of run, whatever the exit path)."""
+async def clear_in_flight_batch(batch_id: str | None, job_id: str | None = None) -> None:
+    """Forgets a job's in-flight drafts at the end of its run (every job's, when job_id is None).
+
+    Jobs of one batch run concurrently, so a finishing job must not wipe its siblings' entries.
+    """
     if not batch_id:
         return
     async with _IN_FLIGHT_LOCK:
-        _IN_FLIGHT_BATCH_STEMS.pop(batch_id, None)
+        if job_id is None:
+            _IN_FLIGHT_BATCH_STEMS.pop(batch_id, None)
+            return
+        pool = _IN_FLIGHT_BATCH_STEMS.get(batch_id, [])
+        pool[:] = [item for item in pool if item.get("_slot", (None,))[0] != job_id]
+        if not pool:
+            _IN_FLIGHT_BATCH_STEMS.pop(batch_id, None)
 
 
 async def _refresh_duplicate_info_after_review(
@@ -94,21 +114,24 @@ async def _refresh_duplicate_info_after_review(
     req: GenerationRequest,
     db_reference_pool: list[Question],
     outcomes_questions: list[dict[str, Any] | None],
-    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
-    soft_threshold: float = config.DUPLICATE_SOFT_THRESHOLD,
+    threshold: float | None = None,
+    soft_threshold: float | None = None,
     batch_key: str | None = None,
+    job_id: str | None = None,
 ) -> None:
     """Re-checks duplicates for a draft that the review loop rewrote.
 
     The first dedup pass ran on the original draft; regeneration can change the stem, so the
     stored duplicate verdict would otherwise describe a question that no longer exists.
     """
+    threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
+    soft_threshold = config.DUPLICATE_SOFT_THRESHOLD if soft_threshold is None else soft_threshold
     if state.get("iteration_count", 1) <= 1:
         return
     cur_draft = state.get("current_draft") or {}
     batch_key = batch_key or req.batch_id or req.run_id
-    await register_in_flight_draft(batch_key, cur_draft, idx)
-    in_flight = await get_in_flight_drafts(batch_key, idx)
+    await register_in_flight_draft(batch_key, cur_draft, idx, job_id=job_id)
+    in_flight = await get_in_flight_drafts(batch_key, idx, job_id=job_id)
     ref_pool = (
         list(db_reference_pool) + [q for q in outcomes_questions if q is not None] + in_flight
     )
@@ -130,9 +153,10 @@ async def _run_deduplication_anti_collision_loop(
     event_queue: asyncio.Queue[WorkflowEvent | None],
     make_event: Callable[..., WorkflowEvent],
     max_retries: int = DEDUP_REGEN_MAX_RETRIES,
-    threshold: float = config.DUPLICATE_HARD_THRESHOLD,
-    soft_threshold: float = config.DUPLICATE_SOFT_THRESHOLD,
+    threshold: float | None = None,
+    soft_threshold: float | None = None,
     batch_key: str | None = None,
+    job_id: str | None = None,
 ) -> None:
     """
     Evaluates candidate draft against database reference pool, sibling batch questions,
@@ -141,14 +165,16 @@ async def _run_deduplication_anti_collision_loop(
       anti-collision instructions and alternate trap re-seeding up to max_retries.
     - If 0.60 <= similarity < 0.75 (Soft Warning): emits a variety warning and logs collision rationale.
     """
+    threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
+    soft_threshold = config.DUPLICATE_SOFT_THRESHOLD if soft_threshold is None else soft_threshold
     cur_draft = state.get("current_draft") or {}
     # Must match the key the engine uses to remove drafts, or every run leaks its registry entry.
     batch_key = batch_key or req.batch_id or req.run_id
 
     # Immediately register candidate draft so concurrent siblings detect this stem in flight
-    await register_in_flight_draft(batch_key, cur_draft, idx)
+    await register_in_flight_draft(batch_key, cur_draft, idx, job_id=job_id)
 
-    in_flight = await get_in_flight_drafts(batch_key, idx)
+    in_flight = await get_in_flight_drafts(batch_key, idx, job_id=job_id)
     active_siblings = [q for q in outcomes_questions if q is not None]
     ref_pool = list(db_reference_pool) + active_siblings + in_flight
 
@@ -205,8 +231,8 @@ async def _run_deduplication_anti_collision_loop(
         cur_draft = state.get("current_draft") or {}
 
         # Update in-flight registration with new draft
-        await register_in_flight_draft(batch_key, cur_draft, idx)
-        in_flight = await get_in_flight_drafts(batch_key, idx)
+        await register_in_flight_draft(batch_key, cur_draft, idx, job_id=job_id)
+        in_flight = await get_in_flight_drafts(batch_key, idx, job_id=job_id)
         ref_pool = list(db_reference_pool) + active_siblings + in_flight
         dup_result = await _evaluate_duplicate_async(
             cur_draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
