@@ -66,8 +66,8 @@ async def test_closing_on_workflow_complete_keeps_job_completed():
 
 
 async def test_standalone_run_leaves_no_in_flight_drafts_behind():
-    from app.workflow import engine_helpers
+    from app.workflow import dedup_inflight
 
     async for _ in run_workflow_stream(_req(3)):
         pass
-    assert engine_helpers._IN_FLIGHT_BATCH_STEMS == {}
+    assert dedup_inflight._IN_FLIGHT_BATCH_STEMS == {}

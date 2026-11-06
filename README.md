@@ -24,7 +24,7 @@ For deep-dive technical specifications, architecture diagrams, API schemas, and 
 | **[Token Usage & Cost Tracking](docs/TOKEN_TRACKING.md)** | Verified rate cards per model: DeepInfra DeepSeek ($0.20 in / $0.60 out per 1M tokens standard), Anthropic Claude Haiku 5.5 ($0.10 in / $0.50 out with tiers and prompt-cache rates), OpenAI gpt-4o-mini, and token-billed gpt-image-2.5-flare images, exact mathematical cost formulas, multi-agent accumulation, and UI observability. |
 | **[Installation, Setup & Deployment](docs/SETUP_AND_CONFIG.md)** | Step-by-step setup, Docker PostgreSQL 16 guide, environment variables reference (65 Settings fields), database duplicate cleanup (`pnpm run db:clean-duplicates`), predev port cleanup, production deployment, linters, and troubleshooting. |
 | **[MCAT Psychometric Rubric & Standards](docs/MCAT_RUBRIC.md)** | Official 4 AAMC sections pacing (~96s to ~101s), 100-point 4-pillar evaluation rubric, Blind-Solver algorithmic verification, $> 90$ quality benchmark, calibrated scaled score (118-132), and cognitive distractor trap engineering. |
-| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `engine_helpers.py`, `nodes.py`), Blind-Solver agent, services, repositories, 3-trial retry engine, testing (320 tests across 54 modules: 310 offline-capable, 10 live), and seeding scripts. |
+| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `review_loop.py`, `passage_prep.py`, `dedup_inflight.py`, `live_job_store.py`, `nodes.py`), Blind-Solver agent, services, repositories, 3-trial retry engine, testing (320 tests across 54 modules: 310 offline-capable, 10 live), and seeding scripts. |
 | **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directory (`wizard/`, `question/`, `batch/`, `modals/`, `common/`), top-level views, hooks, predev port cleaner, and local development instructions. |
 
 ---
@@ -298,7 +298,11 @@ Question Bank Generator/
 │       │   └── __init__.py
 │       ├── workflow/            # Multi-agent workflow engine
 │       │   ├── engine.py        # Core asynchronous workflow runner & event emitters
-│       │   ├── engine_helpers.py# Review loop, passage preparation & persistence helpers
+│       │   ├── review_loop.py   # Deterministic gate, reviewer, Blind-Solver & remediation loop
+│       │   ├── passage_prep.py  # Per-item requests & shared passage/visual drafting
+│       │   ├── dedup_inflight.py# Duplicate detection vs. DB, siblings & in-flight drafts
+│       │   ├── live_job_store.py# Question & job/batch persistence for live runs
+│       │   ├── engine_helpers.py# Re-export hub for the helper modules above
 │       │   ├── nodes.py         # Discrete agent worker nodes (Generator, Reviewer, etc.)
 │       │   ├── routes.py        # route_after_review: Quality Gate routing used by the review loop
 │       │   ├── state.py         # AgentWorkflowState typed dictionary

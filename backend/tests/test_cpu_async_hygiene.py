@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from app.services import deduplication as dd
-from app.workflow import engine_helpers as eh
+from app.workflow import dedup_inflight as eh
 
 BACKEND = Path(__file__).resolve().parents[1]
 VOCAB = [

@@ -14,7 +14,7 @@ from app.workflow.engine import (
     _resolve_run_layout,
     _shared_passage_payload,
 )
-from app.workflow.engine_helpers import SharedPassageState
+from app.workflow.passage_prep import SharedPassageState
 from tests.factories import make_request
 
 

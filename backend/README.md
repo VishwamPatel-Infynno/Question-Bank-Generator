@@ -27,7 +27,11 @@ backend/
 │   │       └── health.py     # Database connectivity & system health checks
 │   ├── workflow/            # Orchestration Layer (async workflow engine)
 │   │   ├── engine.py        # Core streaming execution engine & event emitters
-│   │   ├── engine_helpers.py # Review loop, passage preparation & live persistence helpers
+│   │   ├── review_loop.py   # Deterministic gate, reviewer, Blind-Solver and remediation loop for one draft
+│   │   ├── passage_prep.py  # Per-item requests, diagram requirement, shared passage & visual drafting
+│   │   ├── dedup_inflight.py # Duplicate detection vs. DB pool, staged siblings and in-flight drafts
+│   │   ├── live_job_store.py # Question and job/batch persistence for standalone live runs
+│   │   ├── engine_helpers.py # Re-export hub for the four helper modules above
 │   │   ├── nodes.py         # Discrete agent worker nodes (Generator, Reviewer, etc.)
 │   │   ├── routes.py        # route_after_review: Quality Gate routing used by the review loop
 │   │   └── state.py         # AgentWorkflowState typed dictionary

@@ -8,7 +8,7 @@ This document details the software architecture, multi-agent design patterns, st
 
 ## 1. High-Level Architecture Overview
 
-The system is constructed as an asynchronous, event-driven multi-agent workflow orchestrated by the engine in `app/workflow/engine.py` (agent nodes in `nodes.py`, review loop in `engine_helpers.py`, gate routing in `routes.py`; there is no LangGraph runtime) and served via **FastAPI** with **Server-Sent Events (SSE)** to a high-performance **React 19** frontend featuring a streamlined **3-Step Guided Question Wizard**, a dedicated full-width **Generation & Review Workspace**, and an enterprise **Batch Execution Engine**.
+The system is constructed as an asynchronous, event-driven multi-agent workflow orchestrated by the engine in `app/workflow/engine.py` (agent nodes in `nodes.py`, review loop in `review_loop.py`, gate routing in `routes.py`; there is no LangGraph runtime) and served via **FastAPI** with **Server-Sent Events (SSE)** to a high-performance **React 19** frontend featuring a streamlined **3-Step Guided Question Wizard**, a dedicated full-width **Generation & Review Workspace**, and an enterprise **Batch Execution Engine**.
 
 ```mermaid
 graph TD
@@ -304,11 +304,12 @@ At each node execution, token consumption from the LLM response is unpacked and 
 4. `image_node`: Accumulates visual stimulus synthesis tokens / compute units for `Diagram & Chart Maker`.
 5. `finalize_node`: Binds final accumulated totals and itemized breakdown directly into the `Question` schema for database persistence.
 
-### 4.2 Modular Execution Architecture (`engine.py` & `engine_helpers.py`)
-The streaming execution pipeline is implemented in [`backend/app/workflow/engine.py`](../backend/app/workflow/engine.py) via `run_workflow_stream` and `run_workflow`. High-level orchestration helpers are decoupled into [`backend/app/workflow/engine_helpers.py`](../backend/app/workflow/engine_helpers.py):
-- `_prepare_shared_passage_and_visual`: Asynchronously generates shared stimulus reading passages and visual diagrams.
-- `_run_review_and_repair_loop`: Coordinates iterative remediation cycles against the 100-point rubric.
-- `_persist_live_question`: Handles transactional database persistence of approved candidate items.
+### 4.2 Modular Execution Architecture (`engine.py` and its helper modules)
+The streaming execution pipeline is implemented in [`backend/app/workflow/engine.py`](../backend/app/workflow/engine.py) via `run_workflow_stream` and `run_workflow`. The engine resolves the run layout (`RunLayout`), keeps per-slot spend in a `SlotLedger`, and runs one worker per question slot; the orchestration helpers live in one module per concern (with [`engine_helpers.py`](../backend/app/workflow/engine_helpers.py) kept as a re-export hub for older imports):
+- [`passage_prep.py`](../backend/app/workflow/passage_prep.py): `_build_batch_worker_request` (per-item request), `_determine_item_diagram_requirement`, and `_prepare_shared_passage_and_visual`, which drafts the shared reading passage and its diagram.
+- [`review_loop.py`](../backend/app/workflow/review_loop.py): `_run_question_review_loop` runs the free deterministic gate, the reviewer, the Blind-Solver and the Question Improver remediation cycles against the 100-point rubric, under the per-slot LLM call budget.
+- [`dedup_inflight.py`](../backend/app/workflow/dedup_inflight.py): duplicate detection against the database pool, staged siblings and in-flight sibling drafts, with anti-collision regeneration.
+- [`live_job_store.py`](../backend/app/workflow/live_job_store.py): `_persist_live_question` and the job/batch finalisation, cancellation and failure handlers for standalone live runs.
 
 ---
 

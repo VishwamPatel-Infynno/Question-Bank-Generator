@@ -5,8 +5,8 @@ import asyncio
 import pytest
 from app.core.config import config
 from app.schemas import QuestionDraft, ReviewScore
-from app.workflow import engine_helpers
-from app.workflow.engine_helpers import (
+from app.workflow import review_loop
+from app.workflow.review_loop import (
     _apply_deterministic_gate,
     _run_question_review_loop,
     _validator_review,
@@ -69,8 +69,8 @@ async def test_loop_regenerates_invalid_draft_before_any_review(monkeypatch):
         )
         return {"current_review": good.model_dump(), "latest_usage": {}}
 
-    monkeypatch.setattr(engine_helpers, "regenerator_node", fake_regen)
-    monkeypatch.setattr(engine_helpers, "reviewer_node", fake_review)
+    monkeypatch.setattr(review_loop, "regenerator_node", fake_regen)
+    monkeypatch.setattr(review_loop, "reviewer_node", fake_review)
     monkeypatch.setattr(config, "ENABLE_BLIND_SOLVER", False)
 
     queue: asyncio.Queue = asyncio.Queue()
@@ -86,8 +86,8 @@ async def test_loop_rejects_when_structural_defect_persists(monkeypatch):
     async def boom(s):
         raise AssertionError("no LLM call may be spent on a structurally invalid draft")
 
-    monkeypatch.setattr(engine_helpers, "regenerator_node", boom)
-    monkeypatch.setattr(engine_helpers, "reviewer_node", boom)
+    monkeypatch.setattr(review_loop, "regenerator_node", boom)
+    monkeypatch.setattr(review_loop, "reviewer_node", boom)
 
     queue: asyncio.Queue = asyncio.Queue()
     ok = await _run_question_review_loop(state, 0, 1, "run-1", queue, _make_event)
@@ -231,7 +231,7 @@ async def test_failing_review_still_accounts_solver_spend_and_ignores_solver_err
 
     monkeypatch.setattr(nodes_mod, "review_question", fake_review)
     monkeypatch.setattr(nodes_mod, "blind_solve_question", broken_solve)
-    monkeypatch.setattr(engine_helpers, "regenerator_node", fake_regen)
+    monkeypatch.setattr(review_loop, "regenerator_node", fake_regen)
     monkeypatch.setattr(config, "ENABLE_BLIND_SOLVER", True)
     monkeypatch.setattr(config, "PARALLEL_REVIEW_AND_SOLVE", True)
 

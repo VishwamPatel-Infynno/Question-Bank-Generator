@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 from app.core.config import config
-from app.workflow import engine_helpers
-from app.workflow.engine_helpers import (
+from app.workflow import review_loop
+from app.workflow.review_loop import (
     _run_question_review_loop,
     count_llm_calls,
     llm_budget_exhausted,
@@ -54,8 +54,8 @@ async def test_review_loop_stops_before_paying_for_another_call_when_over_budget
     async def must_not_run(_state):
         raise AssertionError("no paid call may run once the budget is spent")
 
-    monkeypatch.setattr(engine_helpers, "reviewer_node", must_not_run)
-    monkeypatch.setattr(engine_helpers, "regenerator_node", must_not_run)
+    monkeypatch.setattr(review_loop, "reviewer_node", must_not_run)
+    monkeypatch.setattr(review_loop, "regenerator_node", must_not_run)
 
     state = _state(prior=2, calls=2)
     queue: asyncio.Queue = asyncio.Queue()
@@ -90,8 +90,8 @@ async def test_duplicate_after_a_rewrite_is_rewritten_before_any_review(monkeypa
         events.append("review")
         raise AssertionError("a duplicate must not reach the reviewer")
 
-    monkeypatch.setattr(engine_helpers, "regenerator_node", fake_regen)
-    monkeypatch.setattr(engine_helpers, "reviewer_node", must_not_review)
+    monkeypatch.setattr(review_loop, "regenerator_node", fake_regen)
+    monkeypatch.setattr(review_loop, "reviewer_node", must_not_review)
     monkeypatch.setattr(config, "ENABLE_BLIND_SOLVER", False)
 
     state = _state()
