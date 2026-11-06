@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertTriangle, ShieldCheck, Sparkles, Target, Zap, Image as ImageIcon } from 'lucide-react';
 import { Modal } from '../common';
+import PillarBars from './PillarBars';
 import {
   getEffectiveTrapInfo,
   formatTokenCount,
@@ -56,6 +57,17 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
   const { hasVisual, totalCost, visualCost, cognitiveCost, stageTimings, totalDurationMs } =
     getAuditCostBreakdown(question);
   const isHighQuality = question.final_score > SCORE_CUTOFFS.aiValidatedAbove;
+  const metrics = [
+    { label: 'INPUT TOKENS', tone: 'brand', value: formatTokenCount(question.prompt_tokens) },
+    { label: 'OUTPUT TOKENS', tone: 'indigo', value: formatTokenCount(question.completion_tokens) },
+    { label: 'TOTAL TOKENS', tone: 'primary', value: formatTokenCount(question.total_tokens) },
+    { label: 'GENERATION COST', tone: 'success', value: formatCostUsd(totalCost) },
+    {
+      label: 'QUALITY STATUS',
+      tone: isHighQuality ? 'success' : 'warning',
+      value: isHighQuality ? 'High Quality' : 'Needs Polish'
+    }
+  ];
 
   const pillars = getReviewPillars(review);
 
@@ -114,28 +126,12 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
 
           {/* Metric Cards Grid */}
           <div className="audit-metrics-grid">
-            <div className="audit-metric-card">
-              <div className="audit-metric-label">INPUT TOKENS</div>
-              <div className="audit-metric-value brand">{formatTokenCount(question.prompt_tokens)}</div>
-            </div>
-            <div className="audit-metric-card">
-              <div className="audit-metric-label">OUTPUT TOKENS</div>
-              <div className="audit-metric-value indigo">{formatTokenCount(question.completion_tokens)}</div>
-            </div>
-            <div className="audit-metric-card">
-              <div className="audit-metric-label">TOTAL TOKENS</div>
-              <div className="audit-metric-value primary">{formatTokenCount(question.total_tokens)}</div>
-            </div>
-            <div className="audit-metric-card">
-              <div className="audit-metric-label">GENERATION COST</div>
-              <div className="audit-metric-value success">{formatCostUsd(totalCost)}</div>
-            </div>
-            <div className="audit-metric-card">
-              <div className="audit-metric-label">QUALITY STATUS</div>
-              <div className={`audit-metric-value ${isHighQuality ? 'success' : 'warning'}`}>
-                {isHighQuality ? 'High Quality' : 'Needs Polish'}
+            {metrics.map((m) => (
+              <div key={m.label} className="audit-metric-card">
+                <div className="audit-metric-label">{m.label}</div>
+                <div className={`audit-metric-value ${m.tone}`}>{m.value}</div>
               </div>
-            </div>
+            ))}
           </div>
 
           {totalCost > 0 && (
@@ -178,25 +174,7 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
           <h4 className="audit-section-title">
             Quality Pillars (100 Points Total)
           </h4>
-          <div className="audit-pillars-grid">
-            {pillars.map((p) => (
-              <div key={p.label} className="audit-pillar-card">
-                <div className="audit-pillar-header">
-                  <span className="audit-pillar-label">{p.label}</span>
-                  <span className="audit-pillar-score" style={{ color: p.color }}>{p.score ?? 'N/A'} / {p.max}</span>
-                </div>
-                <div className="audit-progress-track">
-                  <div
-                    className="audit-progress-bar"
-                    style={{
-                      width: `${((p.score ?? 0) / p.max) * 100}%`,
-                      background: p.color
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <PillarBars pillars={pillars} />
         </div>
 
         {/* Cognitive & Pedagogical Calibration */}

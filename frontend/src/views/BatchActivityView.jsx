@@ -82,7 +82,7 @@ export default function BatchActivityView({
     paginatedItems: paginatedBatches
   } = usePagination({
     items: filteredBatches,
-    initialPageSize: 10,
+    initialPageSize: 15,
     resetDeps: [scopeFilter, statusFilter, sectionFilter, searchQuery]
   });
 
@@ -176,11 +176,7 @@ export default function BatchActivityView({
               pageSize={pageSize}
               itemLabel="batches"
               onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setCurrentPage(1);
-              }}
-              pageSizeOptions={[10, 25, 50]}
+              onPageSizeChange={setPageSize}
             />
           )}
         </>

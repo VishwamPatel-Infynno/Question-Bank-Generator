@@ -10,14 +10,7 @@ import {
 } from 'lucide-react';
 import { countWords, formatDate } from '../../utils';
 import { useCopyToClipboard } from '../../hooks';
-import { EMPTY_ARRAY, EMPTY_OBJECT, getSectionBadgeClass } from '../../constants';
-
-const SECTION_SHORT_LABEL = {
-  chem_phys: 'Chem / Phys',
-  cars: 'CARS',
-  bio_biochem: 'Bio / Biochem',
-  psych_soc: 'Psych / Soc'
-};
+import { EMPTY_ARRAY, EMPTY_OBJECT, getSectionBadgeClass, getSectionShortLabel } from '../../constants';
 
 /**
  * PassageBankTable
@@ -68,7 +61,7 @@ export default function PassageBankTable({
                 {/* Badges strip */}
                 <div className="passage-card-badges">
                   <span className={`badge ${getSectionBadgeClass(passage.section)}`}>
-                    {SECTION_SHORT_LABEL[passage.section] || passage.section || 'General'}
+                    {getSectionShortLabel(passage.section)}
                   </span>
 
                   {passage.subtopic && (

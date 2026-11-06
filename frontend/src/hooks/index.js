@@ -15,3 +15,5 @@ export { useRequestGuard } from './useRequestGuard';
 export { useExportActions } from './useExportActions';
 export { useDebouncedValue } from './useDebouncedValue';
 export { useQuestionDraft } from './useQuestionDraft';
+export { useBankDeletion } from './useBankDeletion';
+export { useGlobalCounts } from './useGlobalCounts';

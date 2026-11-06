@@ -1,11 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { applySectionRules } from '../../utils/generatorFormState';
-import {
-  SECTION_METADATA,
-  DIFFICULTY,
-  DIFFICULTY_TIERS,
-  COGNITIVE_TRAPS
-} from '../../constants';
+import { SECTION_METADATA, DIFFICULTY, DIFFICULTY_TIERS, COGNITIVE_TRAPS, SECTION_IDS } from '../../constants';
 import {
   WizardStep1SectionFocus,
   WizardStep2LevelFormat,
@@ -34,7 +29,7 @@ export default function GuidedWizard({
   const update = generatorForm?.updateField;
   const updateFields = generatorForm?.updateFields;
 
-  const selectedSection = form.selectedSection || 'chem_phys';
+  const selectedSection = form.selectedSection || SECTION_IDS.CHEM_PHYS;
   const selectedSubject = form.selectedSubject || '';
   const selectedTopic = form.selectedTopic || '';
   const selectedSubtopic = form.selectedSubtopic || '';

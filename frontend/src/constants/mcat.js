@@ -11,6 +11,7 @@ import mcatTaxonomy from './mcat_dependent_taxonomy.json';
 const SECTIONS = {
   chem_phys: {
     code: 'CP',
+    shortLabel: 'Chem / Phys',
     label: 'Chemical and Physical Foundations',
     badge: 'badge-cyan',
     color: '#38bdf8',
@@ -19,6 +20,7 @@ const SECTIONS = {
   },
   cars: {
     code: 'CARS',
+    shortLabel: 'CARS',
     label: 'Critical Analysis and Reasoning Skills',
     badge: 'badge-rose',
     color: '#f43f5e',
@@ -27,6 +29,7 @@ const SECTIONS = {
   },
   bio_biochem: {
     code: 'BB',
+    shortLabel: 'Bio / Biochem',
     label: 'Biological and Biochemical Foundations',
     badge: 'badge-emerald',
     color: '#10b981',
@@ -35,6 +38,7 @@ const SECTIONS = {
   },
   psych_soc: {
     code: 'PS',
+    shortLabel: 'Psych / Soc',
     label: 'Psychological, Social, and Biological Foundations',
     badge: 'badge-purple',
     color: '#a855f7',
@@ -80,6 +84,26 @@ export const PACING_INFO = keyedByIdAndCode((sec) => sec.pacing);
 export const SECTION_CODE_MAP = keyedByIdAndCode((sec) => sec.code);
 export const MCAT_SECTION_LABELS = keyedByIdAndCode((sec) => sec.label);
 
+/** The four exam section ids as used in form state, filters and the API. */
+export const SECTION_IDS = Object.freeze({
+  CHEM_PHYS: 'chem_phys',
+  CARS: 'cars',
+  BIO_BIOCHEM: 'bio_biochem',
+  PSYCH_SOC: 'psych_soc'
+});
+
+/** Short section name for pills and table badges ("Chem / Phys"), the id itself when unknown. */
+export function getSectionShortLabel(section) {
+  const id = normalizeSectionId(section);
+  return (id && SECTIONS[id]?.shortLabel) || section || 'General';
+}
+
+/** Section filter pills: "All Sections" plus one per exam section. */
+export const SECTION_FILTER_OPTIONS = Object.freeze([
+  { id: '', label: 'All Sections' },
+  ...Object.entries(SECTIONS).map(([id, sec]) => ({ id, label: sec.shortLabel }))
+]);
+
 export function getSectionBadgeClass(section) {
   const id = normalizeSectionId(section);
   return id ? SECTIONS[id].badge : 'badge-neutral';
@@ -117,7 +141,7 @@ export const MCAT_SECTIONS_FALLBACK = (mcatTaxonomy.sections || []).map((sec) =>
     id,
     code,
     label: sec.name,
-    shortLabel: code === 'CP' ? 'Chem / Phys' : code === 'BB' ? 'Bio / Biochem' : code === 'PS' ? 'Psych / Soc' : 'CARS',
+    shortLabel: SECTIONS[id]?.shortLabel || code,
     subtopics,
     subjects: sec.subjects || []
   };

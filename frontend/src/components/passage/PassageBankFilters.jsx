@@ -1,3 +1,4 @@
+import { SECTION_FILTER_OPTIONS } from '../../constants';
 import {
   Search,
   ArrowUpDown,
@@ -12,14 +13,6 @@ const SORT_OPTIONS = [
   { id: 'words_desc', label: 'Word Count (High)' },
   { id: 'words_asc', label: 'Word Count (Low)' },
   { id: 'title_asc', label: 'Title (A-Z)' }
-];
-
-const SECTION_FILTER_OPTIONS = [
-  { id: '', label: 'All Sections' },
-  { id: 'chem_phys', label: 'Chem / Phys' },
-  { id: 'cars', label: 'CARS' },
-  { id: 'bio_biochem', label: 'Bio / Biochem' },
-  { id: 'psych_soc', label: 'Psych / Soc' }
 ];
 
 /**

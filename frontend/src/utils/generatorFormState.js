@@ -1,4 +1,4 @@
-import { getSkillsForSection } from '../constants/mcat';
+import { SECTION_IDS, getSkillsForSection } from '../constants/mcat';
 
 /**
  * Pure state updates for the generator form (used by useGeneratorForm). Each function takes the
@@ -65,7 +65,7 @@ export function applySectionRules(form, sectionId) {
     selectedSubskill: firstSkill?.subskills?.[0] || '',
     selectedSubskills: []
   };
-  if (sectionId === 'cars') {
+  if (sectionId === SECTION_IDS.CARS) {
     return {
       ...common,
       selectedSkill: firstSkill?.id || 'CARS1',

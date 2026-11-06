@@ -3,7 +3,7 @@ import {
   FileText,
   CheckCircle2
 } from 'lucide-react';
-import { normalizeDifficulty } from '../../../constants';
+import { normalizeDifficulty, SECTION_IDS, DIFFICULTY } from '../../../constants';
 
 const DEFAULT_DIFFICULTY_TIERS = [];
 const COUNT_OPTIONS = Object.freeze([
@@ -12,8 +12,8 @@ const COUNT_OPTIONS = Object.freeze([
 ]);
 
 export default function WizardStep2LevelFormat({
-  selectedSection = 'chem_phys',
-  difficulty = 'medium',
+  selectedSection = SECTION_IDS.CHEM_PHYS,
+  difficulty = DIFFICULTY.MEDIUM,
   setDifficulty,
   DIFFICULTY_TIERS = DEFAULT_DIFFICULTY_TIERS,
   passageMode = 'single_passage',
@@ -23,7 +23,7 @@ export default function WizardStep2LevelFormat({
   totalQuestions = 50,
   setTotalQuestions
 }) {
-  const isCars = selectedSection === 'cars';
+  const isCars = selectedSection === SECTION_IDS.CARS;
 
   const selectPassageMode = (mode) => {
     handlePassageModeChange?.(mode);

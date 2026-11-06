@@ -1,3 +1,4 @@
+import { SECTION_IDS } from '../constants';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   fetchPassages,
@@ -79,13 +80,11 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     } catch (err) {
       if (err.name === 'AbortError' || !request.isCurrent()) return;
       console.error('Failed to load passages:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Load Failed',
-          message: 'Could not retrieve reading passages from database.'
-        });
-      }
+      onShowToast?.({
+        type: 'error',
+        title: 'Load Failed',
+        message: 'Could not retrieve reading passages from database.'
+      });
     } finally {
       if (request.isCurrent()) setLoading(false);
     }
@@ -142,7 +141,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     const blankPassage = {
       id: newId,
       title: 'New Reading Passage',
-      section: sectionFilter || 'cars',
+      section: sectionFilter || SECTION_IDS.CARS,
       subtopic: '',
       text: '',
       word_count: 0,
@@ -170,22 +169,18 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
       // Refresh passages list
       await performFetchPassages();
 
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Passage Saved',
-          message: 'Reading passage and linked question stimuli updated successfully.'
-        });
-      }
+      onShowToast?.({
+        type: 'success',
+        title: 'Passage Saved',
+        message: 'Reading passage and linked question stimuli updated successfully.'
+      });
     } catch (err) {
       console.error('Failed to save passage:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Save Failed',
-          message: err.message || 'Could not save passage updates to database.'
-        });
-      }
+      onShowToast?.({
+        type: 'error',
+        title: 'Save Failed',
+        message: err.message || 'Could not save passage updates to database.'
+      });
       throw err;
     }
   };
@@ -228,25 +223,21 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
         onRefreshCounts();
       }
 
-      if (onShowToast) {
-        onShowToast({
-          type: 'info',
-          title: 'Passage Deleted',
-          message:
-            deletedQuestionsCount > 0
-              ? `Passage and ${deletedQuestionsCount} associated question(s) permanently removed.`
-              : 'Passage removed from database.'
-        });
-      }
+      onShowToast?.({
+        type: 'info',
+        title: 'Passage Deleted',
+        message:
+          deletedQuestionsCount > 0
+            ? `Passage and ${deletedQuestionsCount} associated question(s) permanently removed.`
+            : 'Passage removed from database.'
+      });
     } catch (err) {
       console.error('Failed to cascade delete passage:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Delete Failed',
-          message: err.message || 'Could not delete passage from database.'
-        });
-      }
+      onShowToast?.({
+        type: 'error',
+        title: 'Delete Failed',
+        message: err.message || 'Could not delete passage from database.'
+      });
     } finally {
       setIsDeletingPassage(false);
     }
@@ -261,22 +252,18 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
         prev.map((q) => (q.id === updatedQuestion.id ? updatedQuestion : q))
       );
 
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Question Updated',
-          message: 'Changes saved to Question Bank.'
-        });
-      }
+      onShowToast?.({
+        type: 'success',
+        title: 'Question Updated',
+        message: 'Changes saved to Question Bank.'
+      });
     } catch (err) {
       console.error('Failed to update question:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Update Failed',
-          message: 'Could not update question in database.'
-        });
-      }
+      onShowToast?.({
+        type: 'error',
+        title: 'Update Failed',
+        message: 'Could not update question in database.'
+      });
       throw err; // lets the editor stay open with the user's changes
     }
   };

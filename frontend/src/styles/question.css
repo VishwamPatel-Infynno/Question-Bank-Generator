@@ -111,7 +111,7 @@
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
-  .audit-pillars-grid,
+  .pillar-grid,
   .audit-calibration-grid,
   .audit-feedback-grid {
     grid-template-columns: 1fr;
@@ -1207,52 +1207,6 @@
   padding: 4px 10px;
 }
 
-.scorecard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
-}
-
-.scorecard-pillar-card {
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-}
-
-.scorecard-pillar-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  font-size: 0.775rem;
-}
-
-.scorecard-pillar-label {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.scorecard-pillar-score {
-  font-weight: 700;
-}
-
-.scorecard-progress-track {
-  width: 100%;
-  height: 4px;
-  background: var(--bg-app);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.scorecard-progress-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.3s ease;
-}
-
 @media (max-width: 640px) {
-  .scorecard-grid {
-    grid-template-columns: 1fr;
-  }
 }
 

@@ -4,7 +4,7 @@ import { useRequestGuard } from './useRequestGuard';
 import { useDebouncedValue } from './useDebouncedValue';
 import { formatQuestionForCopy } from '../utils/questionHelpers';
 import { fetchQuestions, deleteQuestion } from '../services/api';
-import { QUESTION_STATUS } from '../constants';
+import { DIFFICULTY, QUESTION_STATUS, normalizeDifficulty } from '../constants';
 
 export function useQuestionBank() {
   const [rawQuestions, setRawQuestions] = useState([]);
@@ -94,9 +94,9 @@ export function useQuestionBank() {
       return list.sort((a, b) => (a.final_score || 0) - (b.final_score || 0));
     }
     if (sortBy === 'difficulty') {
-      const order = { low: 1, easy: 1, medium: 2, high: 3, hard: 3 };
+      const order = { [DIFFICULTY.LOW]: 1, [DIFFICULTY.MEDIUM]: 2, [DIFFICULTY.HIGH]: 3 };
       return list.sort(
-        (a, b) => (order[(a.difficulty || '').toLowerCase()] || 0) - (order[(b.difficulty || '').toLowerCase()] || 0)
+        (a, b) => (order[normalizeDifficulty(a.difficulty)] || 0) - (order[normalizeDifficulty(b.difficulty)] || 0)
       );
     }
     // Default 'newest'

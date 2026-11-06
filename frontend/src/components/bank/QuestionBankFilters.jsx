@@ -9,21 +9,13 @@ import {
   Sparkles
 } from 'lucide-react';
 import CustomSelect from '../common/CustomSelect';
-import { DIFFICULTY, normalizeDifficulty } from '../../constants';
+import { SECTION_FILTER_OPTIONS, DIFFICULTY, normalizeDifficulty } from '../../constants';
 
 const SORT_OPTIONS = [
   { id: 'newest', label: 'Newest First' },
   { id: 'score_desc', label: 'Highest Score' },
   { id: 'score_asc', label: 'Lowest Score' },
   { id: 'difficulty', label: 'Difficulty Level' }
-];
-
-const SECTION_FILTER_OPTIONS = [
-  { id: '', label: 'All Sections' },
-  { id: 'chem_phys', label: 'Chem / Phys' },
-  { id: 'cars', label: 'CARS' },
-  { id: 'bio_biochem', label: 'Bio / Biochem' },
-  { id: 'psych_soc', label: 'Psych / Soc' }
 ];
 
 const DIFFICULTY_FILTER_OPTIONS = [

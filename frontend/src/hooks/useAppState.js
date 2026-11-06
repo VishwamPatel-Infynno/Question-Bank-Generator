@@ -5,15 +5,12 @@
  * assembles the layout while this hook owns all stateful logic, side-effects,
  * and event handlers.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useTheme } from './useTheme';
 import { useGeneratorForm } from './useGeneratorForm';
+import { useGlobalCounts } from './useGlobalCounts';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import {
-  startBackgroundBatch,
-  fetchBatches,
-  fetchQuestionCounts
-} from '../services';
+import { startBackgroundBatch } from '../services';
 import { makeId } from '../utils/ids';
 import { applySectionRules } from '../utils/generatorFormState';
 import { buildBatchPayload } from '../utils';
@@ -64,10 +61,6 @@ export function useAppState() {
   const [wizardStep, setWizardStep] = useState(1);
 
   // ─── Sections / Backend Status ────────────────────────────────────────────
-  // null = still connecting, true = online, false = offline
-  const [backendStatus, setBackendStatus] = useState(null);
-  const [activeBatchCount, setActiveBatchCount] = useState(0);
-  const [validatedCount, setValidatedCount] = useState(0);
 
   // ─── Form ─────────────────────────────────────────────────────────────────
   const generatorForm = useGeneratorForm();
@@ -111,78 +104,7 @@ export function useAppState() {
   }, []);
 
 
-  // ─── Polling: Active Batch Count + Validated Questions ─────────────────────
-  const activeBatchCountRef = useRef(activeBatchCount);
-  useEffect(() => {
-    activeBatchCountRef.current = activeBatchCount;
-  }, [activeBatchCount]);
-
-  const countsAbortRef = useRef(null);
-
-  // Optionally takes counts the caller already fetched so they are not requested a second time.
-  const refreshGlobalCounts = useCallback((prefetchedCounts) => {
-    countsAbortRef.current?.abort();
-    const controller = new AbortController();
-    countsAbortRef.current = controller;
-    const { signal } = controller;
-
-    // limit: 1 keeps the payload tiny; active_running_batches is counted over the whole table
-    fetchBatches({ limit: 1 }, signal)
-      .then((data) => {
-        setActiveBatchCount(data.active_running_batches || 0);
-        setBackendStatus(true);
-      })
-      .catch((err) => {
-        // This poll doubles as the health check, so the navbar recovers and goes offline live
-        if (err?.name !== 'AbortError') setBackendStatus(false);
-      });
-
-    if (prefetchedCounts && typeof prefetchedCounts === 'object' && 'ai_validated' in prefetchedCounts) {
-      Promise.resolve(prefetchedCounts).then((counts) => {
-        setValidatedCount(counts.ai_validated || 0);
-      });
-      return;
-    }
-    fetchQuestionCounts(signal)
-      .then((counts) => {
-        setValidatedCount(counts.ai_validated || 0);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    refreshGlobalCounts();
-
-    let timer = null;
-    let isCancelled = false;
-
-    const scheduleNext = () => {
-      if (isCancelled) return;
-      // If there are running background batches, poll every 4s; otherwise idle poll at 30s
-      const delay = activeBatchCountRef.current > 0 ? 4000 : 30000;
-      timer = setTimeout(() => {
-        // No point refreshing counts nobody can see; the visibility handler catches up on return
-        if (document.visibilityState !== 'hidden') refreshGlobalCounts();
-        scheduleNext();
-      }, delay);
-    };
-
-    scheduleNext();
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refreshGlobalCounts();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      isCancelled = true;
-      if (timer) clearTimeout(timer);
-      countsAbortRef.current?.abort();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [refreshGlobalCounts]);
+  const { backendStatus, activeBatchCount, validatedCount, refreshGlobalCounts } = useGlobalCounts();
 
   // ─── Generate Handler ─────────────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {

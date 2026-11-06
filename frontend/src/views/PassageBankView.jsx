@@ -173,11 +173,7 @@ export default function PassageBankView({
               pageSize={pageSize}
               itemLabel="passages"
               onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setCurrentPage(1);
-              }}
-              pageSizeOptions={[15, 30, 50]}
+              onPageSizeChange={setPageSize}
             />
           )}
         </div>

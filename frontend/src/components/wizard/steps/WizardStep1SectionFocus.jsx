@@ -8,11 +8,11 @@ import {
   Check,
   Compass
 } from 'lucide-react';
-import { EMPTY_ARRAY, EMPTY_OBJECT, getSubjectsForSection } from '../../../constants';
+import { EMPTY_ARRAY, EMPTY_OBJECT, getSubjectsForSection, SECTION_IDS } from '../../../constants';
 import { flattenTopics } from '../../../utils/taxonomyHelpers';
 
 export default function WizardStep1SectionFocus({
-  selectedSection = 'chem_phys',
+  selectedSection = SECTION_IDS.CHEM_PHYS,
   onSelectSection,
   SECTION_METADATA = EMPTY_OBJECT,
   selectedSubject = '',

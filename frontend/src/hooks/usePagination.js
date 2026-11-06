@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 
 /**
  * usePagination - Reusable pagination and item slicing hook.
@@ -17,22 +17,19 @@ export function usePagination({
   initialPageSize = 10,
   resetDeps = []
 } = {}) {
-  const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
-
-  // Auto-reset page to 1 whenever resetDeps change (safely via ref tracking in an effect)
-  const prevDepsRef = useRef(resetDeps);
-  useEffect(() => {
-    const prevDeps = prevDepsRef.current;
-    const hasChanged =
-      resetDeps.length !== prevDeps.length ||
-      resetDeps.some((dep, i) => !Object.is(dep, prevDeps[i]));
-
-    if (hasChanged) {
-      prevDepsRef.current = resetDeps;
-      setCurrentPage(1);
-    }
-  }, [resetDeps]);
+  // The page is stored with the filters it belongs to, so a filter change is page 1 in the
+  // same render (no extra render at a stale page)
+  const [pageState, setPageState] = useState({ page: 1, deps: resetDeps });
+  const depsChanged =
+    resetDeps.length !== pageState.deps.length ||
+    resetDeps.some((dep, i) => !Object.is(dep, pageState.deps[i]));
+  const currentPage = depsChanged ? 1 : pageState.page;
+  const setCurrentPage = useCallback(
+    (page) => setPageState({ page: typeof page === 'function' ? page(currentPage) : page, deps: resetDeps }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentPage, ...resetDeps]
+  );
 
   const totalItems = items?.length || 0;
   const totalPages =
@@ -49,7 +46,7 @@ export function usePagination({
     return items.slice(start, start + pageSize);
   }, [items, safeCurrentPage, pageSize]);
 
-  const resetPage = () => setCurrentPage(1);
+  const resetPage = useCallback(() => setCurrentPage(1), [setCurrentPage]);
 
   return {
     currentPage,

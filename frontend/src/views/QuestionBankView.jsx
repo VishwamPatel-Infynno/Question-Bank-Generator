@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { Database, Sparkles, Eye } from 'lucide-react';
 import { batchDeleteQuestions, saveEditedQuestion } from '../services/api';
-import { useQuestionBank, usePagination, useConfirmModal, useKeyboardShortcuts } from '../hooks';
+import { useQuestionBank, usePagination, useConfirmModal, useKeyboardShortcuts, useBankDeletion } from '../hooks';
 import { PaginationBar, Modal, LoadError, EmptyState } from '../components/common';
 import { QuestionCard } from '../components/question';
 import { ExportPrintModal, ConfirmationModal } from '../components/modals';
@@ -47,7 +47,6 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const searchInputRef = useRef(null);
   const [expandedId, setExpandedId] = useState(null);
   const [selectedRaw, setSelectedIds] = useState([]);
-  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [inspectingQuestion, setInspectingQuestion] = useState(null);
 
@@ -66,22 +65,18 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       await saveEditedQuestion(updated);
       setInspectingQuestion(updated);
       if (handleUpdate) handleUpdate(updated);
-      if (onShowToast) {
-        onShowToast({
-          type: 'success',
-          title: 'Changes Applied',
-          message: 'Question updated in Question Bank.'
-        });
-      }
+      onShowToast?.({
+        type: 'success',
+        title: 'Changes Applied',
+        message: 'Question updated in Question Bank.'
+      });
     } catch (err) {
       console.error('Failed to update question in bank:', err);
-      if (onShowToast) {
-        onShowToast({
-          type: 'error',
-          title: 'Update Failed',
-          message: 'Could not save question updates to database.'
-        });
-      }
+      onShowToast?.({
+        type: 'error',
+        title: 'Update Failed',
+        message: 'Could not save question updates to database.'
+      });
       throw err; // lets the editor stay open with the user's changes
     }
   };
@@ -124,74 +119,32 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     setSelectedIds((prev) => toggleAll(prev, currentIds));
   };
 
-  // ─── Single Item Delete via Confirmation Modal ────────────────────────────
+  const { isDeleting: isDeletingBulk, confirmDeletion } = useBankDeletion({
+    openConfirmModal,
+    closeConfirmModal,
+    onShowToast
+  });
+
   const handleConfirmSingleDelete = (id, e) => {
     if (e) e.stopPropagation();
-    openConfirmModal({
-      title: 'Delete Question',
-      description: 'Are you sure you want to remove this question from your Question Bank? It will remain safely preserved and viewable in Batch Progress history.',
-      confirmLabel: 'Delete Question',
-      variant: 'danger',
-      itemCount: 1,
-      itemLabel: 'question',
-      onConfirm: async () => {
-        setIsDeletingBulk(true);
-        try {
-          await handleDelete(id);
-          if (onShowToast) {
-            onShowToast({
-              type: 'success',
-              title: 'Question Deleted',
-              message: 'Successfully removed question from the Question Bank.'
-            });
-          }
-          closeConfirmModal();
-        } catch (err) {
-          console.error('Failed to delete question:', err);
-          if (onShowToast) {
-            onShowToast({ type: 'error', title: 'Deletion Failed', message: err.message || 'Could not delete question.' });
-          }
-        } finally {
-          setIsDeletingBulk(false);
-        }
-      }
+    confirmDeletion({
+      count: 1,
+      action: () => handleDelete(id),
+      successMessage: 'Successfully removed question from the Question Bank.'
     });
   };
 
-  // ─── Bulk Delete via Confirmation Modal ───────────────────────────────────
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
-    const countToDelete = selectedIds.length;
-    openConfirmModal({
-      title: 'Delete Selected Questions',
-      description: `Are you sure you want to remove ${countToDelete} selected question${countToDelete !== 1 ? 's' : ''} from the Question Bank? They will remain safely preserved and viewable in Batch Progress history.`,
-      confirmLabel: `Delete ${countToDelete} Question${countToDelete !== 1 ? 's' : ''}`,
-      variant: 'danger',
-      itemCount: countToDelete,
-      itemLabel: 'question',
-      onConfirm: async () => {
-        setIsDeletingBulk(true);
-        try {
-          await batchDeleteQuestions(selectedIds);
-          setSelectedIds([]);
-          await loadQuestions();
-          if (onShowToast) {
-            onShowToast({
-              type: 'success',
-              title: 'Questions Deleted',
-              message: `Successfully removed ${countToDelete} question(s) from the Question Bank.`
-            });
-          }
-          closeConfirmModal();
-        } catch (err) {
-          console.error('Failed to bulk delete questions:', err);
-          if (onShowToast) {
-            onShowToast({ type: 'error', title: 'Deletion Failed', message: err.message || 'Could not delete selected questions.' });
-          }
-        } finally {
-          setIsDeletingBulk(false);
-        }
-      }
+    const ids = [...selectedIds];
+    confirmDeletion({
+      count: ids.length,
+      action: async () => {
+        await batchDeleteQuestions(ids);
+        setSelectedIds([]);
+        loadQuestions();
+      },
+      successMessage: `Successfully removed ${ids.length} question(s) from the Question Bank.`
     });
   };
 
@@ -308,13 +261,6 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
           itemLabel="questions"
           onPageChange={setCurrentPage}
           onPageSizeChange={setPageSize}
-          pageSizeOptions={[
-            { value: 10, label: '10' },
-            { value: 15, label: '15' },
-            { value: 25, label: '25' },
-            { value: 50, label: '50' },
-            { value: -1, label: 'All' }
-          ]}
         />
       )}
 

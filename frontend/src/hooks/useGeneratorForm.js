@@ -1,8 +1,9 @@
+import { SECTION_IDS, DIFFICULTY } from '../constants';
 import { useState, useCallback } from 'react';
 import { toggleInList, toggleSubtopicState } from '../utils/generatorFormState';
 
 const DEFAULT_GENERATOR_FORM = {
-  selectedSection: 'chem_phys',
+  selectedSection: SECTION_IDS.CHEM_PHYS,
   selectedSubject: '',
   selectedUnit: '',
   selectedTopic: '',
@@ -11,7 +12,7 @@ const DEFAULT_GENERATOR_FORM = {
   selectedSkill: '',
   selectedSubskill: '',
   questionType: 'PASSAGE_BASED_MCQ',
-  difficulty: 'medium',
+  difficulty: DIFFICULTY.MEDIUM,
   totalQuestions: 50,
   passageMode: 'single_passage', // 'single_passage' | 'independent'
   passageRequired: 'Yes',

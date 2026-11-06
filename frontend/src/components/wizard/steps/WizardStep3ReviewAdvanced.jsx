@@ -2,16 +2,24 @@ import { useState, useMemo } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import WizardReviewSummary from './WizardReviewSummary';
 import WizardAdvancedSettings from './WizardAdvancedSettings';
-import { EMPTY_ARRAY, EMPTY_OBJECT, LIKELY_MISTAKE_PATTERNS, getSkillsForSection } from '../../../constants';
+import {
+  DIFFICULTY,
+  EMPTY_ARRAY,
+  EMPTY_OBJECT,
+  LIKELY_MISTAKE_PATTERNS,
+  SECTION_IDS,
+  formatDifficulty,
+  getSkillsForSection
+} from '../../../constants';
 
 export default function WizardStep3ReviewAdvanced({
-  selectedSection = 'chem_phys',
+  selectedSection = SECTION_IDS.CHEM_PHYS,
   sectionMeta = EMPTY_OBJECT,
   setStep,
   selectedSubject = '',
   selectedTopic = '',
   selectedSubtopic = '',
-  difficulty = 'medium',
+  difficulty = DIFFICULTY.MEDIUM,
   totalQuestions = 50,
   questionType = 'PASSAGE_BASED_MCQ',
   allowAiImages = false,
@@ -34,7 +42,7 @@ export default function WizardStep3ReviewAdvanced({
   setAdditionalInstructions
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const isCars = selectedSection === 'cars';
+  const isCars = selectedSection === SECTION_IDS.CARS;
   const hasInstructions = Boolean(additionalInstructions && additionalInstructions.trim().length > 0);
 
   const effectiveTraps = useMemo(() => {
@@ -77,9 +85,7 @@ export default function WizardStep3ReviewAdvanced({
     ? 'Passage-Based'
     : 'Standalone';
 
-  const diffLabel = difficulty
-    ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase()
-    : 'Medium';
+  const diffLabel = formatDifficulty(difficulty);
 
   const topicLabel = selectedSubtopic || selectedTopic || selectedSubject || 'All Topics';
   const sectionLabel = sectionMeta.label || selectedSection;

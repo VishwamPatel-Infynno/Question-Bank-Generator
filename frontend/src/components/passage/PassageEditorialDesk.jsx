@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { EMPTY_ARRAY, getSectionBadgeClass } from '../../constants';
+import { EMPTY_ARRAY, getSectionBadgeClass, SECTION_IDS } from '../../constants';
 import { countWords } from '../../utils';
 import PassageVisualStimulusEditor from './PassageVisualStimulusEditor';
 import PassageLinkedQuestionCard from './PassageLinkedQuestionCard';
@@ -30,7 +30,7 @@ export default function PassageEditorialDesk({
 }) {
   // Immutable Passage Metadata
   const title = passage?.title || '';
-  const section = passage?.section || 'cars';
+  const section = passage?.section || SECTION_IDS.CARS;
   const subtopic = passage?.subtopic || '';
 
   // Editable Form State

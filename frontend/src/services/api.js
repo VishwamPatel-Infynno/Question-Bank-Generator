@@ -58,118 +58,77 @@ async function assertOk(res, context = 'API call') {
   return res;
 }
 
-export async function fetchHealth() {
-  const res = await apiFetch(`${API_BASE}/health`);
-  await assertOk(res, 'Health check');
-  return res.json();
-}
-
-export async function fetchSections() {
-  const res = await apiFetch(`${API_BASE}/sections`);
-  await assertOk(res, 'Fetch sections');
-  return res.json();
-}
-
-export async function fetchQuestions(params = {}, signal = null) {
-  const query = buildQuery(params);
-  const res = await apiFetch(`${API_BASE}/questions?${query.toString()}`, { signal });
-  await assertOk(res, 'Fetch questions');
-  return res.json();
-}
-
-export async function fetchQuestionCounts(signal = null) {
-  const res = await apiFetch(`${API_BASE}/questions/counts`, { signal });
-  await assertOk(res, 'Fetch question counts');
-  return res.json();
-}
-
-export async function updateQuestionStatus(id, status) {
-  const res = await apiFetch(`${API_BASE}/questions/${id}/status`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status })
-  });
-  await assertOk(res, `Update question ${id} status to ${status}`);
-  return res.json();
-}
-
-export async function batchUpdateQuestionStatus(ids, status) {
-  const res = await apiFetch(`${API_BASE}/questions/update-status`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids, status })
-  });
-  await assertOk(res, `Bulk update questions status to ${status}`);
-  return res.json();
-}
-
-export async function fetchQuestionById(id) {
-  const res = await apiFetch(`${API_BASE}/questions/${id}`);
-  await assertOk(res, `Fetch question ${id}`);
-  return res.json();
-}
-
-export async function deleteQuestion(id) {
-  const res = await apiFetch(`${API_BASE}/questions/${id}`, { method: 'DELETE' });
-  await assertOk(res, `Delete question ${id}`);
-  return res.json();
-}
-
-export async function batchDeleteQuestions(ids) {
-  const res = await apiFetch(`${API_BASE}/questions/delete-batch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids })
-  });
-  await assertOk(res, 'Bulk delete questions');
-  return res.json();
-}
-
-export async function purgeQuestion(id) {
-  const res = await apiFetch(`${API_BASE}/questions/${id}/permanent`, {
-    method: 'DELETE'
-  });
-  await assertOk(res, `Purge question ${id}`);
-  return res.json();
-}
-
-export async function purgeQuestionsBatch(ids) {
-  const res = await apiFetch(`${API_BASE}/questions/purge-batch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids })
-  });
-  await assertOk(res, 'Purge questions batch');
-  return res.json();
-}
-
-export async function restoreQuestion(id) {
-  const res = await apiFetch(`${API_BASE}/questions/${id}/restore`, {
-    method: 'POST'
-  });
-  await assertOk(res, `Restore question ${id}`);
-  return res.json();
+/** Joins a path and its non-empty query parameters. */
+function withQuery(path, params) {
+  const query = buildQuery(params).toString();
+  return query ? `${path}?${query}` : path;
 }
 
 /**
- * Approves and saves a single question to the Question Bank.
- *
- * POSTs the full question object to `/api/questions`. On success the question
- * is persisted with status `in_bank` and a database-assigned ID is returned.
- *
- * @param {Object} question - Full Question schema object (must include all required fields).
- * @returns {Promise<Object>} The saved question record as returned by the API.
- * @throws {Error} If the HTTP response is not 2xx.
+ * One API call: JSON body in (when given), JSON body out, descriptive Error on non-2xx.
+ * @param {string} path - Path under /api.
+ * @param {{method?: string, body?: any, signal?: AbortSignal|null, context: string}} opts
  */
-async function approveQuestion(question) {
-  const res = await apiFetch(`${API_BASE}/questions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(question)
-  });
-  await assertOk(res, 'Save approved question');
+async function request(path, { method = 'GET', body, signal = null, context } = {}) {
+  const init = { method, signal };
+  if (body !== undefined) {
+    init.headers = { 'Content-Type': 'application/json' };
+    init.body = JSON.stringify(body);
+  }
+  const res = await apiFetch(`${API_BASE}${path}`, init);
+  await assertOk(res, context);
   return res.json();
 }
+
+export const fetchHealth = () => request('/health', { context: 'Health check' });
+
+export const fetchSections = () => request('/sections', { context: 'Fetch sections' });
+
+export const fetchQuestions = (params = {}, signal = null) =>
+  request(withQuery('/questions', params), { signal, context: 'Fetch questions' });
+
+export const fetchQuestionCounts = (signal = null) =>
+  request('/questions/counts', { signal, context: 'Fetch question counts' });
+
+export const updateQuestionStatus = (id, status) =>
+  request(`/questions/${id}/status`, {
+    method: 'PATCH',
+    body: { status },
+    context: `Update question ${id} status to ${status}`
+  });
+
+export const batchUpdateQuestionStatus = (ids, status) =>
+  request('/questions/update-status', {
+    method: 'POST',
+    body: { ids, status },
+    context: `Bulk update questions status to ${status}`
+  });
+
+export const fetchQuestionById = (id, signal = null) =>
+  request(`/questions/${id}`, { signal, context: `Fetch question ${id}` });
+
+export const deleteQuestion = (id) =>
+  request(`/questions/${id}`, { method: 'DELETE', context: `Delete question ${id}` });
+
+export const batchDeleteQuestions = (ids) =>
+  request('/questions/delete-batch', { method: 'POST', body: { ids }, context: 'Bulk delete questions' });
+
+export const purgeQuestion = (id) =>
+  request(`/questions/${id}/permanent`, { method: 'DELETE', context: `Purge question ${id}` });
+
+export const purgeQuestionsBatch = (ids) =>
+  request('/questions/purge-batch', { method: 'POST', body: { ids }, context: 'Purge questions batch' });
+
+export const restoreQuestion = (id) =>
+  request(`/questions/${id}/restore`, { method: 'POST', context: `Restore question ${id}` });
+
+/**
+ * Approves and saves a single question to the Question Bank (status `in_bank`, DB-assigned id).
+ * @param {Object} question - Full Question schema object.
+ * @returns {Promise<Object>} The saved question record.
+ */
+const approveQuestion = (question) =>
+  request('/questions', { method: 'POST', body: question, context: 'Save approved question' });
 
 // List endpoints return slim questions (large audit columns emptied for speed). Saving such an
 // object back through POST /questions would overwrite the stored audit data with empties.
@@ -195,84 +154,41 @@ export async function saveEditedQuestion(edited) {
   return approveQuestion(merged);
 }
 
-export async function startBackgroundBatch(payload) {
-  const res = await apiFetch(`${API_BASE}/batches/start`, {
+export const startBackgroundBatch = (payload) =>
+  request('/batches/start', { method: 'POST', body: payload, context: 'Start background batch' });
+
+export const fetchBatches = (params = {}, signal = null) =>
+  request(withQuery('/batches', params), { signal, context: 'Fetch batches' });
+
+export const fetchBatchDetail = (batchId, signal = null) =>
+  request(`/batches/${batchId}`, { signal, context: `Fetch batch ${batchId}` });
+
+export const deleteBatch = (batchId) =>
+  request(`/batches/${batchId}`, { method: 'DELETE', context: `Delete batch ${batchId}` });
+
+export const stopBatch = (batchId) =>
+  request(`/batches/${batchId}/stop`, { method: 'POST', context: `Stop batch ${batchId}` });
+
+export const retryBatchJobs = (batchId, payload = null) =>
+  request(`/batches/${batchId}/retry`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: payload || undefined,
+    context: `Retry batch ${batchId}`
   });
-  await assertOk(res, 'Start background batch');
-  return res.json();
-}
 
-export async function fetchBatches(params = {}, signal = null) {
-  const query = buildQuery(params);
-  const res = await apiFetch(`${API_BASE}/batches?${query.toString()}`, { signal });
-  await assertOk(res, 'Fetch batches');
-  return res.json();
-}
-
-export async function fetchBatchDetail(batchId, signal = null) {
-  const res = await apiFetch(`${API_BASE}/batches/${batchId}`, { signal });
-  await assertOk(res, `Fetch batch ${batchId}`);
-  return res.json();
-}
-
-export async function deleteBatch(batchId) {
-  const res = await apiFetch(`${API_BASE}/batches/${batchId}`, { method: 'DELETE' });
-  await assertOk(res, `Delete batch ${batchId}`);
-  return res.json();
-}
-
-export async function stopBatch(batchId) {
-  const res = await apiFetch(`${API_BASE}/batches/${batchId}/stop`, { method: 'POST' });
-  await assertOk(res, `Stop batch ${batchId}`);
-  return res.json();
-}
-
-export async function retryBatchJobs(batchId, payload = null) {
-  const res = await apiFetch(`${API_BASE}/batches/${batchId}/retry`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: payload ? JSON.stringify(payload) : undefined
-  });
-  await assertOk(res, `Retry batch ${batchId}`);
-  return res.json();
-}
-
-export async function cancelAllBatches() {
-  const res = await apiFetch(`${API_BASE}/batches/cancel-all`, { method: 'POST' });
-  await assertOk(res, 'Cancel all active batches');
-  return res.json();
-}
+export const cancelAllBatches = () =>
+  request('/batches/cancel-all', { method: 'POST', context: 'Cancel all active batches' });
 
 // ── Passages API ─────────────────────────────────────────────────────────────
 
-export async function fetchPassages(params = {}, signal = null) {
-  const query = buildQuery(params);
-  const res = await apiFetch(`${API_BASE}/passages?${query.toString()}`, { signal });
-  await assertOk(res, 'Fetch passages');
-  return res.json();
-}
+export const fetchPassages = (params = {}, signal = null) =>
+  request(withQuery('/passages', params), { signal, context: 'Fetch passages' });
 
-export async function fetchSinglePassage(passageId, signal = null) {
-  const res = await apiFetch(`${API_BASE}/passages/${passageId}`, { signal });
-  await assertOk(res, `Fetch passage ${passageId}`);
-  return res.json();
-}
+export const fetchSinglePassage = (passageId, signal = null) =>
+  request(`/passages/${passageId}`, { signal, context: `Fetch passage ${passageId}` });
 
-export async function savePassage(passageData) {
-  const res = await apiFetch(`${API_BASE}/passages`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(passageData)
-  });
-  await assertOk(res, 'Save passage');
-  return res.json();
-}
+export const savePassage = (passageData) =>
+  request('/passages', { method: 'POST', body: passageData, context: 'Save passage' });
 
-export async function deletePassage(passageId) {
-  const res = await apiFetch(`${API_BASE}/passages/${passageId}`, { method: 'DELETE' });
-  await assertOk(res, `Delete passage ${passageId}`);
-  return res.json();
-}
+export const deletePassage = (passageId) =>
+  request(`/passages/${passageId}`, { method: 'DELETE', context: `Delete passage ${passageId}` });

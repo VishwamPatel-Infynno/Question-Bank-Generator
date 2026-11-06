@@ -8,6 +8,7 @@
  * - question: object - The question instance containing final_score and review_rubric
  * - pillars: Array<{ label: string, score: number | null, max: number, color: string }>
  */
+import PillarBars from './PillarBars';
 const EMPTY_PILLARS = [];
 
 export default function QuestionScorecardTab({ question, pillars = EMPTY_PILLARS }) {
@@ -26,25 +27,7 @@ export default function QuestionScorecardTab({ question, pillars = EMPTY_PILLARS
         </span>
       </div>
 
-      <div className="scorecard-grid">
-        {pillars.map(p => (
-          <div
-            key={p.label}
-            className="scorecard-pillar-card"
-          >
-            <div className="scorecard-pillar-row">
-              <span className="scorecard-pillar-label">{p.label}</span>
-              <span className="scorecard-pillar-score" style={{ color: p.color }}>{p.score ?? 'N/A'}/{p.max}</span>
-            </div>
-            <div className="scorecard-progress-track">
-              <div
-                className="scorecard-progress-fill"
-                style={{ width: `${((p.score ?? 0) / p.max) * 100}%`, background: p.color }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+      <PillarBars pillars={pillars} compact />
     </div>
   );
 }
