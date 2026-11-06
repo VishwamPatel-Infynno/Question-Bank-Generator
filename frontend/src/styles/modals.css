@@ -2,19 +2,6 @@
 
 /* Standardized Modal Dialog System */
 
-.modal-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  max-height: 90vh;
-  animation: modalScaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 .modal-header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-light);
@@ -910,11 +897,6 @@
 
 .modal-title-text-box {
   min-width: 0;
-}
-
-.exam-export-icon-badge {
-  color: var(--brand-primary);
-  background: var(--brand-light);
 }
 
 .infynno-logo-root {

@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Sliders, CheckCircle2 } from 'lucide-react';
-import { EMPTY_ARRAY } from '../../../constants';
+import { COGNITIVE_TRAPS, EMPTY_ARRAY, LIKELY_MISTAKE_PATTERNS } from '../../../constants';
 
 /**
  * WizardAdvancedSettings
@@ -12,7 +12,6 @@ export default function WizardAdvancedSettings({
   setShowAdvanced,
   hasInstructions = false,
   effectiveTraps = EMPTY_ARRAY,
-  COGNITIVE_TRAPS = EMPTY_ARRAY,
   onTogglePrimaryTrap,
   setPrimaryTrap,
   availableSubskills = EMPTY_ARRAY,
@@ -20,7 +19,6 @@ export default function WizardAdvancedSettings({
   onToggleSubskill,
   setSelectedSubskill,
   effectiveMistakes = EMPTY_ARRAY,
-  LIKELY_MISTAKE_PATTERNS = EMPTY_ARRAY,
   onToggleMistakePattern,
   setLikelyMistakePattern,
   additionalInstructions = '',
@@ -65,7 +63,7 @@ export default function WizardAdvancedSettings({
                 <span>Automatic (Balanced Mix)</span>
               </button>
 
-              {(COGNITIVE_TRAPS || []).filter((t) => t.id !== 'Automatic').map((trap) => {
+              {COGNITIVE_TRAPS.filter((t) => t.id !== 'Automatic').map((trap) => {
                 const isSelected = effectiveTraps.includes(trap.id);
                 return (
                   <button
@@ -143,7 +141,7 @@ export default function WizardAdvancedSettings({
                 <span>Automatic (Recommended)</span>
               </button>
 
-              {(LIKELY_MISTAKE_PATTERNS || []).slice(0, 8).map((mp) => {
+              {LIKELY_MISTAKE_PATTERNS.slice(0, 8).map((mp) => {
                 const isSelected = effectiveMistakes.includes(mp.label) || effectiveMistakes.includes(mp.id);
                 return (
                   <button

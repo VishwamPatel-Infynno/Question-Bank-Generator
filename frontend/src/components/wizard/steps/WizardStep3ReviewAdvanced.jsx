@@ -6,41 +6,38 @@ import {
   DIFFICULTY,
   EMPTY_ARRAY,
   EMPTY_OBJECT,
-  LIKELY_MISTAKE_PATTERNS,
   SECTION_IDS,
   formatDifficulty,
   getSkillsForSection
 } from '../../../constants';
 
-export default function WizardStep3ReviewAdvanced({
-  selectedSection = SECTION_IDS.CHEM_PHYS,
-  sectionMeta = EMPTY_OBJECT,
-  setStep,
-  selectedSubject = '',
-  selectedTopic = '',
-  selectedSubtopic = '',
-  difficulty = DIFFICULTY.MEDIUM,
-  totalQuestions = 50,
-  questionType = 'PASSAGE_BASED_MCQ',
-  allowAiImages = false,
-  setAllowAiImages,
-  COGNITIVE_TRAPS = EMPTY_ARRAY,
-  primaryTrap = 'Automatic',
-  setPrimaryTrap,
-  primaryTraps = EMPTY_ARRAY,
-  onTogglePrimaryTrap,
-  selectedSkill = '',
-  selectedSubskill = '',
-  setSelectedSubskill,
-  selectedSubskills = EMPTY_ARRAY,
-  onToggleSubskill,
-  likelyMistakePattern = '',
-  setLikelyMistakePattern,
-  likelyMistakePatterns = EMPTY_ARRAY,
-  onToggleMistakePattern,
-  additionalInstructions = '',
-  setAdditionalInstructions
-}) {
+export default function WizardStep3ReviewAdvanced({ generatorForm, sectionMeta = EMPTY_OBJECT, setStep }) {
+  const form = generatorForm?.formData || EMPTY_OBJECT;
+  const update = generatorForm?.updateField;
+  const selectedSection = form.selectedSection || SECTION_IDS.CHEM_PHYS;
+  const selectedSubject = form.selectedSubject || '';
+  const selectedTopic = form.selectedTopic || '';
+  const selectedSubtopic = form.selectedSubtopic || '';
+  const difficulty = form.difficulty || DIFFICULTY.MEDIUM;
+  const totalQuestions = form.totalQuestions || 50;
+  const questionType = form.questionType || 'PASSAGE_BASED_MCQ';
+  const allowAiImages = Boolean(form.allowAiImages ?? form.requireImage);
+  const setAllowAiImages = generatorForm?.setAllowAiImages;
+  const primaryTrap = form.primaryTrap || 'Automatic';
+  const primaryTraps = form.primaryTraps || EMPTY_ARRAY;
+  const selectedSkill = form.selectedSkill || '';
+  const selectedSubskill = form.selectedSubskill || '';
+  const selectedSubskills = form.selectedSubskills || EMPTY_ARRAY;
+  const likelyMistakePattern = form.likelyMistakePattern || '';
+  const likelyMistakePatterns = form.likelyMistakePatterns || EMPTY_ARRAY;
+  const additionalInstructions = form.additionalInstructions || '';
+  const onTogglePrimaryTrap = generatorForm?.togglePrimaryTrap;
+  const onToggleSubskill = generatorForm?.toggleSubskill;
+  const onToggleMistakePattern = generatorForm?.toggleMistakePattern;
+  const setPrimaryTrap = (v) => update?.('primaryTrap', v);
+  const setSelectedSubskill = (v) => update?.('selectedSubskill', v);
+  const setLikelyMistakePattern = (v) => update?.('likelyMistakePattern', v);
+  const setAdditionalInstructions = (v) => update?.('additionalInstructions', v);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const isCars = selectedSection === SECTION_IDS.CARS;
   const hasInstructions = Boolean(additionalInstructions && additionalInstructions.trim().length > 0);
@@ -145,7 +142,6 @@ export default function WizardStep3ReviewAdvanced({
         setShowAdvanced={setShowAdvanced}
         hasInstructions={hasInstructions}
         effectiveTraps={effectiveTraps}
-        COGNITIVE_TRAPS={COGNITIVE_TRAPS}
         onTogglePrimaryTrap={onTogglePrimaryTrap}
         setPrimaryTrap={setPrimaryTrap}
         availableSubskills={availableSubskills}
@@ -153,7 +149,6 @@ export default function WizardStep3ReviewAdvanced({
         onToggleSubskill={onToggleSubskill}
         setSelectedSubskill={setSelectedSubskill}
         effectiveMistakes={effectiveMistakes}
-        LIKELY_MISTAKE_PATTERNS={LIKELY_MISTAKE_PATTERNS}
         onToggleMistakePattern={onToggleMistakePattern}
         setLikelyMistakePattern={setLikelyMistakePattern}
         additionalInstructions={additionalInstructions}

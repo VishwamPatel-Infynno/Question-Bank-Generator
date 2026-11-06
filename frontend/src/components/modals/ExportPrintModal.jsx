@@ -7,17 +7,32 @@ import {
   Code, 
   Check, 
   Copy, 
-  X, 
   Clock, 
   BookOpen, 
   GraduationCap
 } from 'lucide-react';
 import { fetchQuestions } from '../../services/api';
-import { useFocusTrap, useExportActions, useRequestGuard } from '../../hooks';
+import { useExportActions, useRequestGuard } from '../../hooks';
+import { Modal } from '../common';
 import { formatExamTime } from '../../utils';
 import { pickExportQuestions } from '../../utils/questionHelpers';
 import ExportPaperPreview from './ExportPaperPreview';
 import { EMPTY_ARRAY, QUESTION_STATUS } from '../../constants';
+
+const CODE_FORMATS = {
+  csv: {
+    callout:
+      'Exports a clean spreadsheet containing question stems, passages, choices A-D, correct answers, explanations, and quality scores for Excel or Google Sheets.',
+    downloadLabel: 'Download CSV Table',
+    downloadId: 'btn-download-csv'
+  },
+  json: {
+    callout:
+      'Exports full structured question data including passages, choices, explanations, and quality evaluation in JSON format.',
+    downloadLabel: 'Download JSON File',
+    downloadId: 'btn-download-json'
+  }
+};
 
 export default function ExportPrintModal({
   isOpen,
@@ -29,8 +44,6 @@ export default function ExportPrintModal({
   bankTotalCount = 0,
   onShowToast
 }) {
-  const modalRef = useFocusTrap({ isActive: Boolean(isOpen), onClose });
-
   // Determine initial scope: selected > filtered > all
   const initialScope = selectedIds.length > 0 
     ? 'selected' 
@@ -69,53 +82,66 @@ export default function ExportPrintModal({
 
   const timeAllowed = useMemo(() => formatExamTime(exportQuestions), [exportQuestions]);
 
-  const {
-    csvContent,
-    jsonContent,
-    copiedCsv,
-    copiedJson,
-    handleDownloadCsv,
-    handleCopyCsv,
-    handleDownloadJson,
-    handleCopyJson,
-    handleNativePrint
-  } = useExportActions({ questions: exportQuestions, paperMode, onShowToast });
+  const { formats, printPaper } = useExportActions({ questions: exportQuestions, paperMode, onShowToast });
+  const codeFormat = format === 'paper' ? null : formats[format];
+  const codeMeta = format === 'paper' ? null : CODE_FORMATS[format];
 
-  if (!isOpen) return null;
+  const footer = (
+    <>
+      <div className="exam-export-footer-info">
+        Ready to export <strong>{exportQuestions.length}</strong> question{exportQuestions.length === 1 ? '' : 's'}
+      </div>
+
+      <div className="exam-export-actions">
+        <button type="button" className="btn-ghost" onClick={onClose}>
+          Cancel
+        </button>
+
+        {format === 'paper' ? (
+          <button
+            type="button"
+            className="btn-primary"
+            id="btn-trigger-print-paper"
+            onClick={printPaper}
+            disabled={exportQuestions.length === 0}
+          >
+            <Printer size={14} />
+            <span>Print / Save as PDF</span>
+          </button>
+        ) : (
+          <>
+            <button type="button" className="btn-secondary" onClick={codeFormat.copy}>
+              {codeFormat.copied ? <Check size={14} color="var(--status-success)" /> : <Copy size={14} />}
+              <span>{codeFormat.copied ? 'Copied' : `Copy ${codeFormat.label}`}</span>
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              id={codeMeta.downloadId}
+              onClick={codeFormat.download}
+              disabled={exportQuestions.length === 0}
+            >
+              <FileDown size={14} />
+              <span>{codeMeta.downloadLabel}</span>
+            </button>
+          </>
+        )}
+      </div>
+    </>
+  );
 
   return (
-    <div className="modal-backdrop-theme" onClick={onClose}>
-      <div 
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="export-modal-title"
-        className="modal-card modal-card-theme exam-export-modal" 
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div className="modal-header">
-          <div className="modal-title-group">
-            <div className="exam-export-icon-badge">
-              <FileDown size={18} />
-            </div>
-            <div>
-              <h2 id="export-modal-title" className="modal-title">Export &amp; Print Exam</h2>
-            </div>
-          </div>
-          <button 
-            type="button" 
-            className="modal-close-btn" 
-            onClick={onClose}
-            aria-label="Close Export &amp; Print"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="modal-body exam-export-body">
-          
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Export & Print Exam"
+      icon={<FileDown size={18} />}
+      maxWidth="960px"
+      className="exam-export-modal"
+      bodyClassName="exam-export-body"
+      footerClassName="exam-export-footer"
+      footer={footer}
+    >
           {/* Top Scope & Format Bar */}
           <div className="exam-export-topbar">
             {/* Scope Selection */}
@@ -232,110 +258,13 @@ export default function ExportPrintModal({
             </div>
           )}
 
-          {/* TAB 2: CSV SPREADSHEET */}
-          {format === 'csv' && (
+          {/* TAB 2/3: CSV or JSON code preview */}
+          {codeFormat && (
             <div className="exam-export-tab-pane">
-              <div className="exam-export-callout">
-                Exports a clean spreadsheet containing question stems, passages, choices A-D, correct answers, explanations, and quality scores for Excel or Google Sheets.
-              </div>
-
-              <div className="exam-export-code-preview">
-                {csvContent}
-              </div>
+              <div className="exam-export-callout">{codeMeta.callout}</div>
+              <div className="exam-export-code-preview">{codeFormat.content}</div>
             </div>
           )}
-
-          {/* TAB 3: JSON DATASET */}
-          {format === 'json' && (
-            <div className="exam-export-tab-pane">
-              <div className="exam-export-callout">
-                Exports full structured question data including passages, choices, explanations, and quality evaluation in JSON format.
-              </div>
-
-              <div className="exam-export-code-preview">
-                {jsonContent}
-              </div>
-            </div>
-          )}
-
-        </div>
-
-        {/* Modal Footer */}
-        <div className="modal-footer exam-export-footer">
-          <div className="exam-export-footer-info">
-            Ready to export <strong>{exportQuestions.length}</strong> question{exportQuestions.length === 1 ? '' : 's'}
-          </div>
-
-          <div className="exam-export-actions">
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-
-            {format === 'paper' && (
-              <button
-                type="button"
-                className="btn-primary"
-                id="btn-trigger-print-paper"
-                onClick={handleNativePrint}
-                disabled={exportQuestions.length === 0}
-              >
-                <Printer size={14} />
-                <span>Print / Save as PDF</span>
-              </button>
-            )}
-
-            {format === 'csv' && (
-              <>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleCopyCsv}
-                >
-                  {copiedCsv ? <Check size={14} color="var(--status-success)" /> : <Copy size={14} />}
-                  <span>{copiedCsv ? 'Copied' : 'Copy CSV'}</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  id="btn-download-csv"
-                  onClick={handleDownloadCsv}
-                  disabled={exportQuestions.length === 0}
-                >
-                  <FileDown size={14} />
-                  <span>Download CSV Table</span>
-                </button>
-              </>
-            )}
-
-            {format === 'json' && (
-              <>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleCopyJson}
-                >
-                  {copiedJson ? <Check size={14} color="var(--status-success)" /> : <Copy size={14} />}
-                  <span>{copiedJson ? 'Copied' : 'Copy JSON'}</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  id="btn-download-json"
-                  onClick={handleDownloadJson}
-                  disabled={exportQuestions.length === 0}
-                >
-                  <FileDown size={14} />
-                  <span>Download JSON File</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

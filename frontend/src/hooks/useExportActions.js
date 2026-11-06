@@ -89,16 +89,19 @@ export function useExportActions({ questions, paperMode, onShowToast }) {
     printWindow.document.close();
   };
 
-  return {
-    csvContent: content.csv,
-    jsonContent: content.json,
-    copiedCsv: copiedKey === 'csv',
-    copiedJson: copiedKey === 'json',
-    handleDownloadCsv: () => download('csv'),
-    handleCopyCsv: () => copyToClipboard('csv'),
-    handleDownloadJson: () => download('json'),
-    handleCopyJson: () => copyToClipboard('json'),
-    handleNativePrint: printPaper
-  };
+  const formats = Object.fromEntries(
+    Object.keys(FORMATS).map((kind) => [
+      kind,
+      {
+        label: FORMATS[kind].label,
+        content: content[kind],
+        copied: copiedKey === kind,
+        download: () => download(kind),
+        copy: () => copyToClipboard(kind)
+      }
+    ])
+  );
+
+  return { formats, printPaper };
 }
 

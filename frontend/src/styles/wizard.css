@@ -282,6 +282,10 @@
 /* .wizard-difficulty-grid defined in Suite Classes below */
 
 .wizard-tier-card {
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: inherit;
   padding: 16px 18px;
   border-radius: var(--radius-md);
   background: var(--bg-surface);

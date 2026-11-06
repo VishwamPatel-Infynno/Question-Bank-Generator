@@ -1,11 +1,7 @@
-import {
-  Layers,
-  FileText,
-  CheckCircle2
-} from 'lucide-react';
-import { normalizeDifficulty, SECTION_IDS, DIFFICULTY } from '../../../constants';
+import { Layers, FileText } from 'lucide-react';
+import { DIFFICULTY_TIERS, normalizeDifficulty, SECTION_IDS, DIFFICULTY } from '../../../constants';
+import WizardChoiceCard from '../WizardChoiceCard';
 
-const DEFAULT_DIFFICULTY_TIERS = [];
 const COUNT_OPTIONS = Object.freeze([
   { count: 5, label: 'Practice Set (5 Qs)' },
   { count: 50, label: 'Full Exam (50 Qs)' }
@@ -15,7 +11,6 @@ export default function WizardStep2LevelFormat({
   selectedSection = SECTION_IDS.CHEM_PHYS,
   difficulty = DIFFICULTY.MEDIUM,
   setDifficulty,
-  DIFFICULTY_TIERS = DEFAULT_DIFFICULTY_TIERS,
   passageMode = 'single_passage',
   handlePassageModeChange,
   questionType = 'PASSAGE_BASED_MCQ',
@@ -49,30 +44,12 @@ export default function WizardStep2LevelFormat({
             const isSelected = normalizeDifficulty(difficulty) === normalizeDifficulty(tier.id);
 
             return (
-              <div
-                key={tier.id}
-                className={`wizard-tier-card ${isSelected ? 'selected' : ''}`}
-                onClick={() => setDifficulty?.(tier.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setDifficulty?.(tier.id);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                aria-pressed={isSelected}
-              >
-                <div className="wizard-tier-card-content">
-                  <div className="wizard-tier-title-row">
-                    <span className={`wizard-tier-dot tier-${tier.id.toLowerCase()}`} />
-                    {tier.title}
-                  </div>
-                  {isSelected && (
-                    <CheckCircle2 size={14} color="var(--brand-primary)" />
-                  )}
+              <WizardChoiceCard key={tier.id} selected={isSelected} onSelect={() => setDifficulty?.(tier.id)}>
+                <div className="wizard-tier-title-row">
+                  <span className={`wizard-tier-dot tier-${tier.id.toLowerCase()}`} />
+                  {tier.title}
                 </div>
-              </div>
+              </WizardChoiceCard>
             );
           })}
         </div>
@@ -100,62 +77,28 @@ export default function WizardStep2LevelFormat({
           /* Sciences Mode: Binary choice between Passage-Based MCQ OR Independent MCQ */
           <div className="wizard-card-grid">
             {/* Mode A: Reading Passage + Questions */}
-            <div
-              className={`wizard-tier-card ${isPassage ? 'selected' : ''}`}
-              onClick={() => selectPassageMode('single_passage')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  selectPassageMode('single_passage');
-                }
-              }}
-              role="button"
-              tabIndex={0}
+            <WizardChoiceCard
               id="btn-question-type-passage"
+              selected={isPassage}
+              onSelect={() => selectPassageMode('single_passage')}
             >
-              <div className="wizard-tier-card-content">
-                <div className="wizard-tier-card-title-group">
-                  <FileText size={15} color="var(--brand-primary)" />
-                  <div>
-                    <span className="wizard-tier-card-title">
-                      Passage-Based
-                    </span>
-                  </div>
-                </div>
-                {isPassage && (
-                  <CheckCircle2 size={14} color="var(--brand-primary)" />
-                )}
+              <div className="wizard-tier-card-title-group">
+                <FileText size={15} color="var(--brand-primary)" />
+                <span className="wizard-tier-card-title">Passage-Based</span>
               </div>
-            </div>
+            </WizardChoiceCard>
 
             {/* Mode B: Standalone Questions */}
-            <div
-              className={`wizard-tier-card ${!isPassage ? 'selected' : ''}`}
-              onClick={() => selectPassageMode('independent')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  selectPassageMode('independent');
-                }
-              }}
-              role="button"
-              tabIndex={0}
+            <WizardChoiceCard
               id="btn-question-type-independent"
+              selected={!isPassage}
+              onSelect={() => selectPassageMode('independent')}
             >
-              <div className="wizard-tier-card-content">
-                <div className="wizard-tier-card-title-group">
-                  <Layers size={15} color="var(--status-purple)" />
-                  <div>
-                    <span className="wizard-tier-card-title">
-                      Standalone
-                    </span>
-                  </div>
-                </div>
-                {!isPassage && (
-                  <CheckCircle2 size={14} color="var(--brand-primary)" />
-                )}
+              <div className="wizard-tier-card-title-group">
+                <Layers size={15} color="var(--status-purple)" />
+                <span className="wizard-tier-card-title">Standalone</span>
               </div>
-            </div>
+            </WizardChoiceCard>
           </div>
         )}
       </div>
@@ -170,29 +113,14 @@ export default function WizardStep2LevelFormat({
           {COUNT_OPTIONS.map((opt) => {
             const isSelected = totalQuestions === opt.count;
             return (
-              <div
+              <WizardChoiceCard
                 key={opt.count}
-                className={`wizard-tier-card wizard-count-card ${isSelected ? 'selected' : ''}`}
-                onClick={() => setTotalQuestions?.(opt.count)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setTotalQuestions?.(opt.count);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                aria-pressed={isSelected}
+                className="wizard-count-card"
+                selected={isSelected}
+                onSelect={() => setTotalQuestions?.(opt.count)}
               >
-                <div>
-                  <div className={`wizard-count-label ${isSelected ? 'selected' : ''}`}>
-                    {opt.label}
-                  </div>
-                </div>
-                {isSelected && (
-                  <CheckCircle2 size={16} color="var(--brand-primary)" />
-                )}
-              </div>
+                <div className={`wizard-count-label ${isSelected ? 'selected' : ''}`}>{opt.label}</div>
+              </WizardChoiceCard>
             );
           })}
         </div>

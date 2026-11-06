@@ -8,13 +8,13 @@ import {
   Check,
   Compass
 } from 'lucide-react';
-import { EMPTY_ARRAY, EMPTY_OBJECT, getSubjectsForSection, SECTION_IDS } from '../../../constants';
+import { EMPTY_ARRAY, SECTION_METADATA, getSubjectsForSection, SECTION_IDS } from '../../../constants';
 import { flattenTopics } from '../../../utils/taxonomyHelpers';
+import WizardChoiceCard from '../WizardChoiceCard';
 
 export default function WizardStep1SectionFocus({
   selectedSection = SECTION_IDS.CHEM_PHYS,
   onSelectSection,
-  SECTION_METADATA = EMPTY_OBJECT,
   selectedSubject = '',
   onSelectSubject,
   onSelectUnit,
@@ -171,60 +171,23 @@ export default function WizardStep1SectionFocus({
 
         <div className="wizard-card-grid">
           {/* Card 1: All Subjects */}
-          <div
-            className={`wizard-tier-card ${isAllDisciplines ? 'selected' : ''}`}
-            onClick={handleSelectAllDisciplines}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleSelectAllDisciplines();
-              }
-            }}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="wizard-tier-card-content">
-              <div className="wizard-tier-card-title-group">
-                <Compass size={15} color="var(--brand-primary)" />
-                <span className="wizard-tier-card-title">
-                  All Subjects
-                </span>
-              </div>
-              {isAllDisciplines && (
-                <CheckCircle2 size={14} color="var(--brand-primary)" />
-              )}
+          <WizardChoiceCard selected={isAllDisciplines} onSelect={handleSelectAllDisciplines}>
+            <div className="wizard-tier-card-title-group">
+              <Compass size={15} color="var(--brand-primary)" />
+              <span className="wizard-tier-card-title">All Subjects</span>
             </div>
-          </div>
+          </WizardChoiceCard>
 
           {/* Cards 2+: Specific Subjects */}
           {subjects.map((subj) => {
             const isSelected = activeSubject?.id === subj.id;
             return (
-              <div
-                key={subj.id}
-                className={`wizard-tier-card ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleSelectDiscipline(subj)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleSelectDiscipline(subj);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="wizard-tier-card-content">
-                  <div className="wizard-tier-card-title-group">
-                    <Atom size={15} color="var(--brand-primary)" />
-                    <span className="wizard-tier-card-title">
-                      {subj.name}
-                    </span>
-                  </div>
-                  {isSelected && (
-                    <CheckCircle2 size={14} color="var(--brand-primary)" />
-                  )}
+              <WizardChoiceCard key={subj.id} selected={isSelected} onSelect={() => handleSelectDiscipline(subj)}>
+                <div className="wizard-tier-card-title-group">
+                  <Atom size={15} color="var(--brand-primary)" />
+                  <span className="wizard-tier-card-title">{subj.name}</span>
                 </div>
-              </div>
+              </WizardChoiceCard>
             );
           })}
         </div>
@@ -238,60 +201,23 @@ export default function WizardStep1SectionFocus({
 
         <div className="wizard-card-grid">
           {/* Card 1: All Topics */}
-          <div
-            className={`wizard-tier-card ${isAllTopics ? 'selected' : ''}`}
-            onClick={handleSelectAllTopics}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleSelectAllTopics();
-              }
-            }}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="wizard-tier-card-content">
-              <div className="wizard-tier-card-title-group">
-                <Layers size={15} color="var(--brand-primary)" />
-                <span className="wizard-tier-card-title">
-                  All Topics
-                </span>
-              </div>
-              {isAllTopics && (
-                <CheckCircle2 size={14} color="var(--brand-primary)" />
-              )}
+          <WizardChoiceCard selected={isAllTopics} onSelect={handleSelectAllTopics}>
+            <div className="wizard-tier-card-title-group">
+              <Layers size={15} color="var(--brand-primary)" />
+              <span className="wizard-tier-card-title">All Topics</span>
             </div>
-          </div>
+          </WizardChoiceCard>
 
           {/* Cards 2+: High-Yield Topic Cards */}
           {availableTopics.slice(0, 5).map((top) => {
             const isSelected = activeTopic?.id === top.id;
             return (
-              <div
-                key={top.id}
-                className={`wizard-tier-card ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleSelectTopic(top)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleSelectTopic(top);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="wizard-tier-card-content">
-                  <div className="wizard-tier-card-title-group">
-                    <BookOpen size={14} color="var(--brand-primary)" />
-                    <span className="wizard-tier-card-title">
-                      {top.name}
-                    </span>
-                  </div>
-                  {isSelected && (
-                    <CheckCircle2 size={14} color="var(--brand-primary)" />
-                  )}
+              <WizardChoiceCard key={top.id} selected={isSelected} onSelect={() => handleSelectTopic(top)}>
+                <div className="wizard-tier-card-title-group">
+                  <BookOpen size={14} color="var(--brand-primary)" />
+                  <span className="wizard-tier-card-title">{top.name}</span>
                 </div>
-              </div>
+              </WizardChoiceCard>
             );
           })}
         </div>

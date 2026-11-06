@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { applySectionRules } from '../../utils/generatorFormState';
-import { SECTION_METADATA, DIFFICULTY, DIFFICULTY_TIERS, COGNITIVE_TRAPS, SECTION_IDS } from '../../constants';
+import { SECTION_METADATA, DIFFICULTY, SECTION_IDS } from '../../constants';
 import {
   WizardStep1SectionFocus,
   WizardStep2LevelFormat,
@@ -32,31 +32,17 @@ export default function GuidedWizard({
   const selectedSection = form.selectedSection || SECTION_IDS.CHEM_PHYS;
   const selectedSubject = form.selectedSubject || '';
   const selectedTopic = form.selectedTopic || '';
-  const selectedSubtopic = form.selectedSubtopic || '';
-  const selectedSkill = form.selectedSkill || '';
-  const selectedSubskill = form.selectedSubskill || '';
   const questionType = form.questionType || 'PASSAGE_BASED_MCQ';
   const difficulty = form.difficulty || DIFFICULTY.MEDIUM;
   const totalQuestions = form.totalQuestions || 50;
   const setGenerationTotal = generatorForm?.setGenerationTotal || ((t) => update('totalQuestions', t));
-  const primaryTrap = form.primaryTrap || 'Automatic';
-  const primaryTraps = form.primaryTraps || [];
-  const likelyMistakePattern = form.likelyMistakePattern || '';
-  const likelyMistakePatterns = form.likelyMistakePatterns || [];
-  const selectedSubskills = form.selectedSubskills || [];
   const selectedSubtopics = form.selectedSubtopics || [];
 
-  const togglePrimaryTrap = generatorForm?.togglePrimaryTrap;
-  const toggleSubskill = generatorForm?.toggleSubskill;
-  const toggleMistakePattern = generatorForm?.toggleMistakePattern;
   const toggleSubtopic = generatorForm?.toggleSubtopic;
 
   const setDifficulty = (v) => update('difficulty', v);
   const setQuestionType = (v) => update('questionType', v);
   const passageMode = form.passageMode || 'single_passage';
-  const setPrimaryTrap = (v) => update('primaryTrap', v);
-  const allowAiImages = Boolean(form.allowAiImages ?? form.requireImage);
-  const setAllowAiImages = generatorForm?.setAllowAiImages || ((v) => update('allowAiImages', v));
 
   const sectionMeta = SECTION_METADATA[selectedSection] || SECTION_METADATA.chem_phys;
 
@@ -133,7 +119,6 @@ export default function GuidedWizard({
           <WizardStep1SectionFocus
             selectedSection={selectedSection}
             onSelectSection={handleSelectSection}
-            SECTION_METADATA={SECTION_METADATA}
             selectedSubject={selectedSubject}
             onSelectSubject={(v) => update('selectedSubject', v)}
             onSelectUnit={(v) => update('selectedUnit', v)}
@@ -154,7 +139,6 @@ export default function GuidedWizard({
             selectedSection={selectedSection}
             difficulty={difficulty}
             setDifficulty={setDifficulty}
-            DIFFICULTY_TIERS={DIFFICULTY_TIERS}
             passageMode={passageMode}
             handlePassageModeChange={handlePassageModeChange}
             questionType={questionType}
@@ -166,35 +150,7 @@ export default function GuidedWizard({
 
         {/* Step 3: Review & Multi-Agent Launch (+ Optional Advanced Tuning) */}
         {step === 3 && (
-          <WizardStep3ReviewAdvanced
-            selectedSection={selectedSection}
-            sectionMeta={sectionMeta}
-            setStep={setStep}
-            selectedSubject={selectedSubject}
-            selectedTopic={selectedTopic}
-            selectedSubtopic={selectedSubtopic}
-            difficulty={difficulty}
-            totalQuestions={totalQuestions}
-            questionType={questionType}
-            allowAiImages={allowAiImages}
-            setAllowAiImages={setAllowAiImages}
-            COGNITIVE_TRAPS={COGNITIVE_TRAPS}
-            primaryTrap={primaryTrap}
-            setPrimaryTrap={setPrimaryTrap}
-            primaryTraps={primaryTraps}
-            onTogglePrimaryTrap={togglePrimaryTrap}
-            selectedSkill={selectedSkill}
-            selectedSubskill={selectedSubskill}
-            setSelectedSubskill={(v) => update('selectedSubskill', v)}
-            selectedSubskills={selectedSubskills}
-            onToggleSubskill={toggleSubskill}
-            likelyMistakePattern={likelyMistakePattern}
-            setLikelyMistakePattern={(v) => update('likelyMistakePattern', v)}
-            likelyMistakePatterns={likelyMistakePatterns}
-            onToggleMistakePattern={toggleMistakePattern}
-            additionalInstructions={form.additionalInstructions || ''}
-            setAdditionalInstructions={(v) => update('additionalInstructions', v)}
-          />
+          <WizardStep3ReviewAdvanced generatorForm={generatorForm} sectionMeta={sectionMeta} setStep={setStep} />
         )}
       </div>
 

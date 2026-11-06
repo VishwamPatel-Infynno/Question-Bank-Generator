@@ -19,8 +19,9 @@ import { useFocusTrap } from '../../hooks';
  * @param {boolean} [props.isProcessing=false] - When true, disables closing and dismiss interactions.
  * @param {React.ReactNode} [props.children] - Modal body content.
  * @param {React.ReactNode} [props.footer] - Optional modal footer content.
-label ID.
- * @param {string} [props.className] - Optional extra class name for the card.
+ * @param {string} [props.className] - Extra class on the card.
+ * @param {string} [props.bodyClassName] - Extra class on the body wrapper.
+ * @param {string} [props.footerClassName] - Extra class on the footer wrapper.
  * @param {Object} [props.cardStyle] - Optional inline style overrides for the card.
  */
 const DEFAULT_CARD_STYLE = Object.freeze({});
@@ -35,6 +36,9 @@ export default function Modal({
   isProcessing = false,
   children,
   footer,
+  className = '',
+  bodyClassName = '',
+  footerClassName = '',
   cardStyle = DEFAULT_CARD_STYLE
 }) {
   // While a request is running the dialog must not be dismissable (Escape included)
@@ -71,7 +75,7 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`modal-card-theme modal-card-base ${sizeClass || 'modal-md'}`}
+        className={`modal-card-theme modal-card-base ${sizeClass || 'modal-md'} ${className}`.trim()}
         onClick={(e) => e.stopPropagation()}
         style={{
           ...customMaxWidthStyle,
@@ -120,13 +124,13 @@ export default function Modal({
         )}
 
         {/* Modal Body */}
-        <div className="modal-body modal-body-wrap">
+        <div className={`modal-body modal-body-wrap ${bodyClassName}`.trim()}>
           {children}
         </div>
 
         {/* Modal Footer */}
         {footer && (
-          <div className="modal-footer modal-footer-wrap">
+          <div className={`modal-footer modal-footer-wrap ${footerClassName}`.trim()}>
             {footer}
           </div>
         )}
