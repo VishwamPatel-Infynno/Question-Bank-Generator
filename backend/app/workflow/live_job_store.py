@@ -18,6 +18,11 @@ from app.schemas import JobStatus, Question, determine_question_status
 logger = logging.getLogger(__name__)
 
 
+def _warn_db_offline(what: str, err: Exception) -> None:
+    """Live runs never fail because the database is away: the write is logged and skipped."""
+    logger.warning("%s (DB offline): %s", what, err)
+
+
 async def _persist_live_question(
     final_q_dict: dict[str, Any],
     batch_id: str,
@@ -80,7 +85,7 @@ async def _finalize_live_job_progress(
         # refresh_batch_aggregates promotes qualifying questions once the batch is complete
         await refresh_batch_aggregates(batch_id, allow_complete=True)
     except (SQLAlchemyError, OSError) as db_err:
-        logger.warning("Could not finalize live job progress (DB offline): %s", db_err)
+        _warn_db_offline("Could not finalize live job progress", db_err)
 
 
 async def _handle_live_job_cancellation(
@@ -100,7 +105,7 @@ async def _handle_live_job_cancellation(
         # A live (streamed) run has no background task to finish the batch later, so resolve it now
         await refresh_batch_aggregates(batch_id, allow_complete=True)
     except (SQLAlchemyError, OSError) as clean_err:
-        logger.warning("Error updating cancelled live batch %s: %s", batch_id, clean_err)
+        _warn_db_offline(f"Error updating cancelled live batch {batch_id}", clean_err)
 
 
 async def _handle_live_job_failure(
@@ -119,4 +124,4 @@ async def _handle_live_job_failure(
         )
         await refresh_batch_aggregates(batch_id, allow_complete=True)
     except (SQLAlchemyError, OSError) as clean_err:
-        logger.warning("Error updating failed live batch %s: %s", batch_id, clean_err)
+        _warn_db_offline(f"Error updating failed live batch {batch_id}", clean_err)

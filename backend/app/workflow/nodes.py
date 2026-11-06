@@ -33,19 +33,9 @@ from app.workflow.state import AgentWorkflowState
 logger = logging.getLogger(__name__)
 
 
-def _record_agent_usage(
-    state: AgentWorkflowState,
-    agent_name: str,
-    usage: TokenUsage,
-    iteration: int = 1,
-) -> tuple[int, int, int, float, list[dict[str, Any]]]:
-    """
-    Appends an itemized agent token usage record and calculates new cumulative token counts and costs.
-
-    Returns:
-        tuple of (total_tokens, total_prompt_tokens, total_completion_tokens, total_cost_usd, updated_breakdown)
-    """
-    agent_entry = {
+def agent_usage_entry(agent_name: str, usage: TokenUsage, iteration: int = 1) -> dict[str, Any]:
+    """One itemised line of the usage breakdown."""
+    entry = {
         "agent": agent_name,
         "iteration": iteration,
         "prompt_tokens": usage.prompt_tokens,
@@ -54,18 +44,30 @@ def _record_agent_usage(
         "cost_usd": usage.cost_usd,
     }
     if usage.duration_ms is not None:
-        agent_entry["duration_ms"] = usage.duration_ms
-    agent_entry["calls"] = usage.calls
+        entry["duration_ms"] = usage.duration_ms
+    entry["calls"] = usage.calls
+    return entry
 
-    breakdown = list(state.get("agent_usage_breakdown", []))
-    breakdown.append(agent_entry)
 
-    p_tokens = state.get("total_prompt_tokens", 0) + usage.prompt_tokens
-    c_tokens = state.get("total_completion_tokens", 0) + usage.completion_tokens
-    t_tokens = state.get("total_tokens", 0) + usage.total_tokens
-    t_cost = round(state.get("total_cost_usd", 0.0) + usage.cost_usd, 7)
-
-    return t_tokens, p_tokens, c_tokens, t_cost, breakdown
+def _record_agent_usage(
+    state: AgentWorkflowState,
+    agent_name: str,
+    usage: TokenUsage,
+    iteration: int = 1,
+) -> dict[str, Any]:
+    """The state update that records one agent call: new run totals and the extended breakdown."""
+    breakdown = [
+        *state.get("agent_usage_breakdown", []),
+        agent_usage_entry(agent_name, usage, iteration),
+    ]
+    return {
+        "total_tokens": state.get("total_tokens", 0) + usage.total_tokens,
+        "total_prompt_tokens": state.get("total_prompt_tokens", 0) + usage.prompt_tokens,
+        "total_completion_tokens": state.get("total_completion_tokens", 0)
+        + usage.completion_tokens,
+        "total_cost_usd": round(state.get("total_cost_usd", 0.0) + usage.cost_usd, 7),
+        "agent_usage_breakdown": breakdown,
+    }
 
 
 async def fused_generator_node(state: AgentWorkflowState) -> dict[str, Any]:
@@ -90,9 +92,7 @@ async def fused_generator_node(state: AgentWorkflowState) -> dict[str, Any]:
             req, diversity_context=diversity_context
         )
 
-    t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
-        state, "Question Generator", usage, iteration=1
-    )
+    usage_update = _record_agent_usage(state, "Question Generator", usage, iteration=1)
 
     outcomes = dict(state.get("stage_outcomes", {}))
     outcomes["drafting"] = draft.model_dump()
@@ -132,11 +132,7 @@ async def fused_generator_node(state: AgentWorkflowState) -> dict[str, Any]:
         "status": "fused_passed" if fused_self_passed else "fused_drafted",
         "iteration_count": 1,
         "iterations_history": existing_history,
-        "total_tokens": t_tokens,
-        "total_prompt_tokens": p_tokens,
-        "total_completion_tokens": c_tokens,
-        "total_cost_usd": t_cost,
-        "agent_usage_breakdown": breakdown,
+        **usage_update,
         "latest_usage": usage.model_dump(),
         "stage_outcomes": outcomes,
         "fused_self_passed": fused_self_passed,
@@ -150,9 +146,7 @@ def build_review_update(
     draft = QuestionDraft(**state["current_draft"])
     iteration = state.get("iteration_count", 1)
 
-    t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
-        state, "Question Reviewer", usage, iteration=iteration
-    )
+    usage_update = _record_agent_usage(state, "Question Reviewer", usage, iteration=iteration)
 
     history_entry = {
         "iteration": iteration,
@@ -172,11 +166,7 @@ def build_review_update(
         "iterations_history": existing_history,
         "active_agent": "Question Reviewer",
         "status": f"reviewed_iteration_{iteration}",
-        "total_tokens": t_tokens,
-        "total_prompt_tokens": p_tokens,
-        "total_completion_tokens": c_tokens,
-        "total_cost_usd": t_cost,
-        "agent_usage_breakdown": breakdown,
+        **usage_update,
         "latest_usage": usage.model_dump(),
         "stage_outcomes": outcomes,
     }
@@ -233,15 +223,11 @@ def build_usage_only_update(
     state: AgentWorkflowState, agent_name: str, usage: TokenUsage
 ) -> dict[str, Any]:
     """Accounts for real spend (tokens and cost) of a result whose verdict is not used."""
-    t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
+    usage_update = _record_agent_usage(
         state, agent_name, usage, iteration=state.get("iteration_count", 1)
     )
     return {
-        "total_tokens": t_tokens,
-        "total_prompt_tokens": p_tokens,
-        "total_completion_tokens": c_tokens,
-        "total_cost_usd": t_cost,
-        "agent_usage_breakdown": breakdown,
+        **usage_update,
     }
 
 
@@ -252,7 +238,7 @@ def build_solver_update(
     draft = QuestionDraft(**state["current_draft"])
     iteration = state.get("iteration_count", 1)
 
-    t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
+    usage_update = _record_agent_usage(
         state, "Blind-Solver Dual Validation", usage, iteration=iteration
     )
 
@@ -289,11 +275,7 @@ def build_solver_update(
         "current_review": cur_review,
         "active_agent": "Blind-Solver Dual Validation",
         "status": "blind_solver_passed" if blind_passed else "blind_solver_failed",
-        "total_tokens": t_tokens,
-        "total_prompt_tokens": p_tokens,
-        "total_completion_tokens": c_tokens,
-        "total_cost_usd": t_cost,
-        "agent_usage_breakdown": breakdown,
+        **usage_update,
         "latest_usage": usage.model_dump(),
         "stage_outcomes": outcomes,
     }
@@ -329,7 +311,7 @@ async def regenerator_node(state: AgentWorkflowState) -> dict[str, Any]:
     new_draft, _ = balance_and_shuffle_options(new_draft)
     reg_symmetry = calculate_option_symmetry(new_draft.options, new_draft.correct_answer_ids)
 
-    t_tokens, p_tokens, c_tokens, t_cost, breakdown = _record_agent_usage(
+    usage_update = _record_agent_usage(
         state, "Question Re-Generator", usage, iteration=next_iteration
     )
 
@@ -346,11 +328,7 @@ async def regenerator_node(state: AgentWorkflowState) -> dict[str, Any]:
         "iteration_count": next_iteration,
         "active_agent": "Question Re-Generator",
         "status": f"regenerated_draft_{next_iteration}",
-        "total_tokens": t_tokens,
-        "total_prompt_tokens": p_tokens,
-        "total_completion_tokens": c_tokens,
-        "total_cost_usd": t_cost,
-        "agent_usage_breakdown": breakdown,
+        **usage_update,
         "latest_usage": usage.model_dump(),
         "stage_outcomes": outcomes,
     }

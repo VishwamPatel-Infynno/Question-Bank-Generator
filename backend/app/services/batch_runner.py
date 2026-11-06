@@ -18,9 +18,9 @@ from app.core.config import config
 from app.core.errors import sanitize_error_text
 from app.repositories import (
     batch_update_question_status,
+    get_active_batch_questions,
     get_batch_by_id,
     get_jobs_by_batch_id,
-    get_questions,
     hard_delete_questions_batch,
     refresh_batch_aggregates,
     save_batch,
@@ -37,7 +37,6 @@ from app.schemas import (
     GenerationRequest,
     JobStatus,
     enum_value,
-    is_question_active,
 )
 from app.services.batch_concurrency import (
     get_global_job_semaphore,
@@ -111,13 +110,19 @@ async def _execute_in_set_refill(
         raise
     except Exception as e:
         logger.error("Error during in-set refill for batch %s: %s", batch_id, e, exc_info=True)
-        b = await get_batch_by_id(batch_id)
-        if b:
-            b.status = BatchStatus.FAILED
-            b.error_message = sanitize_error_text(e)
-            await save_batch(b)
+        await _mark_batch_failed(batch_id, sanitize_error_text(e))
     finally:
         unregister_batch_task(batch_id, asyncio.current_task())
+
+
+async def _mark_batch_failed(batch_id: str, message: str, *, only_live: bool = False) -> None:
+    """Records a failure on the batch row (only when it is still live, if ``only_live``)."""
+    b = await get_batch_by_id(batch_id)
+    if not b or (only_live and b.status not in LIVE_STATES):
+        return
+    b.status = BatchStatus.FAILED
+    b.error_message = message
+    await save_batch(b)
 
 
 async def _fail_stuck_jobs(batch_id: str, job_ids: list[str]) -> None:
@@ -148,11 +153,7 @@ async def _execute_batch_workflow(
         jobs = target_jobs or await get_jobs_by_batch_id(batch_id)
         if not jobs:
             logger.error("No jobs found for batch %s", batch_id)
-            failed = await get_batch_by_id(batch_id)
-            if failed and failed.status in LIVE_STATES:
-                failed.status = BatchStatus.FAILED
-                failed.error_message = "Batch has no jobs to run."
-                await save_batch(failed)
+            await _mark_batch_failed(batch_id, "Batch has no jobs to run.", only_live=True)
             return
 
         # An explicit target list (retry/resume) was already filtered by the caller against fresh
@@ -211,11 +212,7 @@ async def _execute_batch_workflow(
         raise
     except Exception as e:
         logger.error("Fatal error in batch %s execution: %s", batch_id, e, exc_info=True)
-        b = await get_batch_by_id(batch_id)
-        if b:
-            b.status = BatchStatus.FAILED
-            b.error_message = sanitize_error_text(e)
-            await save_batch(b)
+        await _mark_batch_failed(batch_id, sanitize_error_text(e))
     finally:
         unregister_batch_task(batch_id, asyncio.current_task())
 
@@ -237,8 +234,7 @@ async def auto_resolve_batch_and_refill(
     if not b:
         return {"resolved": False, "reason": "Batch not found"}
 
-    linked_questions = await get_questions(batch_id=batch_id)
-    active_questions = [q for q in linked_questions if is_question_active(q.status)]
+    active_questions = await get_active_batch_questions(batch_id)
 
     clusters, duplicate_ids_to_purge = find_cluster_duplicates(
         active_questions, threshold=threshold
@@ -256,8 +252,7 @@ async def auto_resolve_batch_and_refill(
     # Enforce exact target count per existing job (trim excess questions within each set)
     existing_jobs = await get_jobs_by_batch_id(batch_id)
     existing_jobs.sort(key=lambda j: j.job_number)
-    all_refreshed_qs = await get_questions(batch_id=batch_id)
-    active_refreshed_qs = [q for q in all_refreshed_qs if is_question_active(q.status)]
+    active_refreshed_qs = await get_active_batch_questions(batch_id)
 
     qs_by_job = partition_questions_by_job(active_refreshed_qs)
 
@@ -279,8 +274,7 @@ async def auto_resolve_batch_and_refill(
 
     await refresh_batch_aggregates(batch_id, allow_complete=False)
     refreshed_b = await get_batch_by_id(batch_id)
-    refreshed_questions = await get_questions(batch_id=batch_id)
-    valid_active = [q for q in refreshed_questions if is_question_active(q.status)]
+    valid_active = await get_active_batch_questions(batch_id)
     remaining_active = len(valid_active)
     target = refreshed_b.target_count if refreshed_b else 50
     deficit = max(0, target - remaining_active)
@@ -420,8 +414,7 @@ async def refill_batch_deficit(
         return b, []
 
     existing_jobs.sort(key=lambda j: j.job_number)
-    linked_questions = await get_questions(batch_id=batch_id)
-    active_questions = [q for q in linked_questions if is_question_active(q.status)]
+    active_questions = await get_active_batch_questions(batch_id)
 
     qs_by_job = partition_questions_by_job(active_questions)
     jobs_to_refill = compute_jobs_with_deficits(existing_jobs, qs_by_job, total_deficit=deficit)

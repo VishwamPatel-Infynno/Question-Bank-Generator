@@ -21,6 +21,12 @@ from app.core.config import config
 
 logger = logging.getLogger(__name__)
 
+
+def _field(obj: Any, key: str, default: Any = None) -> Any:
+    """Reads ``key`` from a dict or an attribute from a model (reference pools hold both)."""
+    return obj.get(key, default) if isinstance(obj, dict) else getattr(obj, key, default)
+
+
 # Common English stop words to exclude during token normalization
 STOP_WORDS = frozenset(
     {
@@ -243,11 +249,11 @@ def compute_options_overlap(
     Computes overlap between answer options based on normalized text matching with fast checks.
     """
     texts1 = [
-        normalize_text(o.get("text", "") if isinstance(o, dict) else getattr(o, "text", str(o)))
+        normalize_text(_field(o, "text", str(o) if not isinstance(o, dict) else ""))
         for o in (opts1 or [])
     ]
     texts2 = [
-        normalize_text(o.get("text", "") if isinstance(o, dict) else getattr(o, "text", str(o)))
+        normalize_text(_field(o, "text", str(o) if not isinstance(o, dict) else ""))
         for o in (opts2 or [])
     ]
     texts1 = [t for t in texts1 if t]
@@ -351,9 +357,7 @@ def evaluate_duplicate(
     """
     threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
     soft_threshold = config.DUPLICATE_SOFT_THRESHOLD if soft_threshold is None else soft_threshold
-    candidate_id = (
-        candidate.get("id") if isinstance(candidate, dict) else getattr(candidate, "id", None)
-    )
+    candidate_id = _field(candidate, "id")
     cand_stem = (
         candidate.get("question_stem")
         if isinstance(candidate, dict)
@@ -367,7 +371,7 @@ def evaluate_duplicate(
     best_reason = ""
 
     for ref in reference_pool:
-        ref_id = ref.get("id") if isinstance(ref, dict) else getattr(ref, "id", None)
+        ref_id = _field(ref, "id")
         # Skip self-comparison
         if candidate_id and ref_id and str(candidate_id) == str(ref_id):
             continue

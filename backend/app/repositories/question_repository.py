@@ -21,6 +21,15 @@ from app.schemas.question import ACTIVE_QUESTION_STATUSES
 
 logger = logging.getLogger(__name__)
 
+# Giving a question one of these statuses also un-deletes it
+_VISIBLE_STATUSES = frozenset({"in_bank", "ai_validated", "batch_only"})
+# The slim schema omits these blobs anyway (about 70% of a row's bytes): do not read them
+_SLIM_DEFER = (
+    defer(QuestionModel.stage_outcomes),
+    defer(QuestionModel.iterations_history),
+    defer(QuestionModel.token_usage_details),
+)
+
 # Stored difficulty labels vary in spelling and case; every spelling of a level shares one bucket
 _LOW_LABELS = ["low", "Low", "easy", "Easy"]
 _MEDIUM_LABELS = ["medium", "Medium", "standard", "Standard"]
@@ -287,9 +296,15 @@ async def save_questions_batch(questions: list[Question]) -> list[str]:
                 b_info["tokens"] += q.total_tokens or 0
                 b_info["cost"] += q.cost_usd or 0.0
 
-        # Upsert passages
+        # Upsert passages (one SELECT for every id, not one per passage)
+        existing_passages = {}
+        if passages_to_upsert:
+            rows = await session.execute(
+                select(PassageModel).where(PassageModel.id.in_(list(passages_to_upsert)))
+            )
+            existing_passages = {p.id: p for p in rows.scalars().all()}
         for pid, p_mod in passages_to_upsert.items():
-            existing_p = await session.get(PassageModel, pid)
+            existing_p = existing_passages.get(pid)
             if not existing_p:
                 session.add(p_mod)
             else:
@@ -304,8 +319,16 @@ async def save_questions_batch(questions: list[Question]) -> list[str]:
                 existing_p.updated_at = now_dt
 
         # Upsert batches (create batch record if it doesn't exist, leave existing batch aggregates intact to avoid double-counting)
+        existing_batches = {}
+        if batches_to_upsert:
+            rows = await session.execute(
+                select(GenerationBatchModel).where(
+                    GenerationBatchModel.id.in_(list(batches_to_upsert))
+                )
+            )
+            existing_batches = {b.id: b for b in rows.scalars().all()}
         for bid, b_info in batches_to_upsert.items():
-            existing_b = await session.get(GenerationBatchModel, bid)
+            existing_b = existing_batches.get(bid)
             if not existing_b:
                 b_model = GenerationBatchModel(
                     id=bid,
@@ -517,11 +540,7 @@ async def get_questions(
         stmt = select(QuestionModel)
         if slim:
             # The slim schema omits these blobs anyway (about 70% of a row's bytes): do not read them
-            stmt = stmt.options(
-                defer(QuestionModel.stage_outcomes),
-                defer(QuestionModel.iterations_history),
-                defer(QuestionModel.token_usage_details),
-            )
+            stmt = stmt.options(*_SLIM_DEFER)
         for cond in filters:
             stmt = stmt.where(cond)
 
@@ -547,6 +566,22 @@ async def get_questions(
         result = await session.execute(stmt)
         models = result.scalars().all()
         return [_model_to_schema(m, slim=slim) for m in models]
+
+
+async def get_active_batch_questions(batch_id: str) -> list[Question]:
+    """A batch's questions that still count (the same set every refill and deficit path uses)."""
+    async with async_session_factory() as session:
+        stmt = (
+            select(QuestionModel)
+            .where(
+                QuestionModel.batch_id == batch_id,
+                active_question_clause(),
+                QuestionModel.status.in_(ACTIVE_QUESTION_STATUSES),
+            )
+            .order_by(QuestionModel.created_at.desc())
+        )
+        result = await session.execute(stmt)
+        return [_model_to_schema(m) for m in result.scalars().all()]
 
 
 async def get_question_by_id(question_id: str, include_deleted: bool = False) -> Question | None:
@@ -650,7 +685,7 @@ async def update_question_status(question_id: str, status: str) -> bool:
         if not q:
             return False
         q.status = status
-        if status in ("in_bank", "ai_validated", "batch_only"):
+        if status in _VISIBLE_STATUSES:
             q.is_deleted = False
             q.deleted_at = None
         q.updated_at = now_dt
@@ -665,7 +700,7 @@ async def batch_update_question_status(question_ids: list[str], status: str) -> 
     now_dt = datetime.now(UTC)
     async with async_session_factory() as session:
         update_vals: dict[str, Any] = {"status": status, "updated_at": now_dt}
-        if status in ("in_bank", "ai_validated", "batch_only"):
+        if status in _VISIBLE_STATUSES:
             update_vals["is_deleted"] = False
             update_vals["deleted_at"] = None
 
@@ -729,11 +764,7 @@ async def get_subtopic_reference_questions(
         # Dedup only reads stems/options: skip the large JSONB audit blobs of every reference row
         stmt = (
             select(QuestionModel)
-            .options(
-                defer(QuestionModel.stage_outcomes),
-                defer(QuestionModel.iterations_history),
-                defer(QuestionModel.token_usage_details),
-            )
+            .options(*_SLIM_DEFER)
             .where(
                 active_question_clause(),
                 QuestionModel.status.in_(["in_bank", "ai_validated", "approved"]),

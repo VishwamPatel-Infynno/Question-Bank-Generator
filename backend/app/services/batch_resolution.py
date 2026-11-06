@@ -21,24 +21,30 @@ logger = logging.getLogger(__name__)
 def find_cluster_duplicates(
     active_questions: list[Question],
     threshold: float | None = None,
+    *,
+    cluster_ids: list[str] | None = None,
+    custom_leader_ids: list[str] | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """
-    Identifies semantic duplicate clusters among active questions.
-    Returns: (clusters, duplicate_ids_to_purge)
+    """Semantic duplicate clusters among active questions and the ids to purge.
+
+    Every cluster keeps one leader (the highest-scoring member, or the member named in
+    ``custom_leader_ids``); the rest are purged. ``cluster_ids`` restricts the purge to those
+    clusters (all clusters are still returned).
     """
     threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
     q_dumps = [q.model_dump() for q in active_questions]
     clusters = cluster_questions(q_dumps, threshold=threshold)
+    targets = (
+        clusters if not cluster_ids else [c for c in clusters if c["cluster_id"] in cluster_ids]
+    )
+    custom_leaders = set(custom_leader_ids or [])
+
     duplicate_ids_to_purge: list[str] = []
-
-    if clusters:
-        for c in clusters:
-            leader_id = c["leader_question"]["id"]
-            for d in c["duplicates"]:
-                dup_id = d["question"]["id"]
-                if dup_id != leader_id:
-                    duplicate_ids_to_purge.append(dup_id)
-
+    for c in targets:
+        leader_id = c["leader_question"]["id"]
+        member_ids = [leader_id] + [d["question"]["id"] for d in c["duplicates"]]
+        effective_leader = next((m for m in member_ids if m in custom_leaders), leader_id)
+        duplicate_ids_to_purge.extend(m for m in member_ids if m != effective_leader)
     return clusters, duplicate_ids_to_purge
 
 

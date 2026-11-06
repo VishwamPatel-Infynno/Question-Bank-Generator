@@ -23,6 +23,7 @@ from app.agents.base import (
     safe_json_loads,
 )
 from app.agents.mock_fixtures import evaluate_heuristically
+from app.agents.prompt_builder import format_options
 from app.agents.prompts import REVIEWER_SYSTEM_PROMPT
 from app.agents.standards import is_cars, passage_words_text
 from app.core.config import config
@@ -73,7 +74,7 @@ async def review_question(
     """Invokes the Question Reviewer Agent to score a candidate draft against the 100-point rubric."""
     section_val = enum_value(req.section)
     section_name = MCAT_SECTION_LABELS.get(req.section, section_val)
-    options_formatted = "\n".join([f"{opt.id}: {opt.text}" for opt in draft.options])
+    options_formatted = format_options(draft)
 
     target_trap = (
         req.primary_trap

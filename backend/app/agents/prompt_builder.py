@@ -17,8 +17,25 @@ from app.agents.standards import (
 from app.schemas import (
     MCAT_SECTION_LABELS,
     GenerationRequest,
+    QuestionDraft,
     enum_value,
 )
+
+
+def educator_instruction_block(req: GenerationRequest, mandate: str, directive: str) -> str:
+    """The author's custom instructions as a prompt block, or "" when there are none."""
+    instructions = req.additional_instructions or req.custom_prompt
+    if not instructions or not instructions.strip():
+        return ""
+    return (
+        f"\nCRITICAL EDUCATOR INSTRUCTION ({mandate}):\n{directive}\n"
+        f'"""\n{instructions.strip()}\n"""'
+    )
+
+
+def format_options(draft: QuestionDraft) -> str:
+    """Answer options as the one-per-line "A: text" list the reviewer and improver prompts use."""
+    return "\n".join(f"{opt.id}: {opt.text}" for opt in draft.options)
 
 
 def _build_generator_user_prompt(
@@ -154,14 +171,12 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
 
     if req.visual_type and req.visual_type != "None":
         user_prompt += f"\nVisual Stimulus Type: {req.visual_type}"
-    instructions = req.additional_instructions or req.custom_prompt
-    if instructions and instructions.strip():
-        user_prompt += (
-            "\nCRITICAL EDUCATOR INSTRUCTION (HIGH FIDELITY MANDATE):\n"
-            "The author has specified the following mandatory custom instructions for this question. "
-            "You MUST strictly adhere to and incorporate these requirements into the question stem, answer choices, and rationale:\n"
-            f'"""\n{instructions.strip()}\n"""'
-        )
+    user_prompt += educator_instruction_block(
+        req,
+        "HIGH FIDELITY MANDATE",
+        "The author has specified the following mandatory custom instructions for this question. "
+        "You MUST strictly adhere to and incorporate these requirements into the question stem, answer choices, and rationale:",
+    )
 
     # Visual stimulus discretion instruction
     allow_visuals = (req.allow_ai_images or req.require_image) and not is_cars(req.section)

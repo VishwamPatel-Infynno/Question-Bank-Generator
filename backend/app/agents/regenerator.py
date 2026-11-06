@@ -26,6 +26,7 @@ from app.agents.base import (
 )
 from app.agents.generator import _parse_correct_keys, _parse_option_choices, _require_text
 from app.agents.mock_fixtures import improve_draft_heuristically
+from app.agents.prompt_builder import educator_instruction_block, format_options
 from app.agents.prompts import REGENERATOR_SYSTEM_PROMPT
 from app.agents.standards import OPTION_PARITY_TEXT, is_cars
 from app.core.config import config
@@ -47,7 +48,7 @@ async def regenerate_question(
     """Invokes the Question Re-Generator Agent to refine a draft that scored <= 90."""
     section_val = enum_value(req.section)
     section_name = MCAT_SECTION_LABELS.get(req.section, section_val)
-    options_formatted = "\n".join([f"{opt.id}: {opt.text}" for opt in draft.options])
+    options_formatted = format_options(draft)
 
     is_passage_active = req.is_passage_active
 
@@ -65,14 +66,13 @@ async def regenerate_question(
         else 'Passage Required: No - Direct question ONLY. Do NOT generate any reading passage, vignette, or scenario. Leave stimulus_text strictly as an empty string (""). Pose the question directly in question_stem.'
     )
 
-    instructions = req.additional_instructions or req.custom_prompt
-    instruction_block = (
-        f"\nCRITICAL EDUCATOR INSTRUCTION (HIGH FIDELITY MANDATE):\n"
-        f"You MUST continue to strictly adhere to and incorporate these author instructions in the regenerated question:\n"
-        f'"""\n{instructions.strip()}\n"""\n'
-        if instructions and instructions.strip()
-        else ""
+    instruction_block = educator_instruction_block(
+        req,
+        "HIGH FIDELITY MANDATE",
+        "You MUST continue to strictly adhere to and incorporate these author instructions in the regenerated question:",
     )
+    if instruction_block:
+        instruction_block += "\n"
 
     user_prompt = f"""The following candidate MCAT question received a score of {review.total_score}/100 and needs to be re-generated to score > 90.
 

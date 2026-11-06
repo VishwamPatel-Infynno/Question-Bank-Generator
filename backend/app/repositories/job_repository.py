@@ -124,28 +124,25 @@ async def update_job_progress(
         if not model:
             return None
 
-        if status is not None:
-            model.status = status
-        if actual_count is not None:
-            model.actual_count = actual_count
-        if trial_count is not None:
-            model.trial_count = trial_count
-        if total_tokens is not None:
-            model.total_tokens = total_tokens
-        if prompt_tokens is not None:
-            model.prompt_tokens = prompt_tokens
-        if completion_tokens is not None:
-            model.completion_tokens = completion_tokens
-        if cost_usd is not None:
-            model.cost_usd = cost_usd
-        if passage_id is not None:
-            model.passage_id = passage_id
-        if error_message is not None:
-            model.error_message = error_message
-        if started_at is not None:
-            model.started_at = to_datetime(started_at) if started_at else None
-        if completed_at is not None:
-            model.completed_at = to_datetime(completed_at) if completed_at else None
+        updates = {
+            "status": status,
+            "actual_count": actual_count,
+            "trial_count": trial_count,
+            "total_tokens": total_tokens,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "cost_usd": cost_usd,
+            "passage_id": passage_id,
+            "error_message": error_message,
+            "started_at": started_at,
+            "completed_at": completed_at,
+        }
+        for field, value in updates.items():
+            if value is None:
+                continue
+            if field in ("started_at", "completed_at"):
+                value = to_datetime(value) if value else None
+            setattr(model, field, value)
         for field in clear:
             if field in ("error_message", "started_at", "completed_at"):
                 setattr(model, field, None)

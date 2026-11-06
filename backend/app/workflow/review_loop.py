@@ -384,39 +384,29 @@ async def _run_question_review_loop(
             bs_passed = state.get("blind_solver_passed", True)
             bs_usage = state.get("latest_usage", {})
 
-            if bs_passed:
-                bs_done_evt = make_event(
+            verdict = (
+                f"Blind-Solver validated Question {idx + 1} (Selected Option {bs_data.get('selected_key')} matches key, confidence: {bs_data.get('confidence')}%, unambiguous)."
+                if bs_passed
+                else f"Blind-Solver flagged discrepancy for Question {idx + 1}: Selected Option {bs_data.get('selected_key')} (Confidence: {bs_data.get('confidence')}%). Remediation required."
+            )
+            await event_queue.put(
+                make_event(
                     event_type="agent_complete",
                     agent_name="Blind-Solver Dual Validation",
-                    message=f"Blind-Solver validated Question {idx + 1} (Selected Option {bs_data.get('selected_key')} matches key, confidence: {bs_data.get('confidence')}%, unambiguous).",
+                    message=verdict,
                     data={
                         "blind_solver": bs_data,
                         "latest_usage": bs_usage,
                         "index": idx + 1,
                         "total": total_qty,
                         "stage": "blind_solving",
-                        "passed": True,
+                        "passed": bool(bs_passed),
                     },
                     run_id=item_run_id,
                 )
-                await event_queue.put(bs_done_evt)
-                return True
-
-            bs_fail_evt = make_event(
-                event_type="agent_complete",
-                agent_name="Blind-Solver Dual Validation",
-                message=f"Blind-Solver flagged discrepancy for Question {idx + 1}: Selected Option {bs_data.get('selected_key')} (Confidence: {bs_data.get('confidence')}%). Remediation required.",
-                data={
-                    "blind_solver": bs_data,
-                    "latest_usage": bs_usage,
-                    "index": idx + 1,
-                    "total": total_qty,
-                    "stage": "blind_solving",
-                    "passed": False,
-                },
-                run_id=item_run_id,
             )
-            await event_queue.put(bs_fail_evt)
+            if bs_passed:
+                return True
 
             # Route to Question Improver for remediation if within attempt limits
             max_attempts = config.MAX_REGENERATION_ATTEMPTS

@@ -45,7 +45,7 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (346 deterministic unit & integration tests across 55 modules; 266 pass offline, 80 DB tests skip cleanly without PostgreSQL; 356 total backend tests)
+# 1. Backend pytest suite (353 deterministic unit & integration tests across 55 modules; 273 pass offline, 80 DB tests skip cleanly without PostgreSQL; 363 total backend tests)
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
 # 2. Backend Python linter and formatting checks (enforcing SIM, RET, B, C4, E, W, F, I, UP)

@@ -10,6 +10,7 @@ from app.core.config import config
 from app.repositories import (
     batch_update_question_status,
     delete_batch,
+    get_active_batch_questions,
     get_batch_by_id,
     get_batches,
     get_jobs_by_batch_id,
@@ -37,6 +38,7 @@ from app.services import (
     stop_background_batch,
 )
 from app.services.batch_concurrency import forget_batch_request
+from app.services.batch_resolution import find_cluster_duplicates
 
 logger = logging.getLogger(__name__)
 
@@ -252,11 +254,12 @@ async def resolve_batch_duplicates(
     req_data = payload or ResolveDuplicatesRequest()
     await _require_batch(batch_id)
 
-    linked_questions = await get_questions(batch_id=batch_id)
-    active_questions = [q for q in linked_questions if is_question_active(q.status)]
-    q_dumps = [q.model_dump() for q in active_questions]
-
-    clusters = cluster_questions(q_dumps, threshold=config.DUPLICATE_HARD_THRESHOLD)
+    active_questions = await get_active_batch_questions(batch_id)
+    clusters, duplicate_ids_to_purge = find_cluster_duplicates(
+        active_questions,
+        cluster_ids=req_data.cluster_ids,
+        custom_leader_ids=req_data.custom_leader_ids,
+    )
     if not clusters:
         return {
             "success": True,
@@ -265,24 +268,11 @@ async def resolve_batch_duplicates(
             "archived_count": 0,
             "remaining_active": len(active_questions),
         }
-
-    target_clusters = clusters
-    if req_data.cluster_ids:
-        target_clusters = [c for c in clusters if c["cluster_id"] in req_data.cluster_ids]
-
-    custom_leaders = set(req_data.custom_leader_ids or [])
-    duplicate_ids_to_purge: list[str] = []
-
-    for c in target_clusters:
-        leader_id = c["leader_question"]["id"]
-        # If user picked a custom leader from within this cluster
-        member_ids = [leader_id] + [d["question"]["id"] for d in c["duplicates"]]
-        picked_custom = next((cid for cid in member_ids if cid in custom_leaders), None)
-        effective_leader_id = picked_custom or leader_id
-
-        for m_id in member_ids:
-            if m_id != effective_leader_id:
-                duplicate_ids_to_purge.append(m_id)
+    target_clusters = (
+        clusters
+        if not req_data.cluster_ids
+        else [c for c in clusters if c["cluster_id"] in req_data.cluster_ids]
+    )
 
     modified_count = 0
     if duplicate_ids_to_purge:

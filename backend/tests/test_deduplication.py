@@ -208,11 +208,9 @@ async def test_auto_resolve_batch_and_refill(monkeypatch):
         return fake_batch
 
     async def mock_get_questions(batch_id=None, **_kwargs):
+        # get_active_batch_questions filters in SQL: archived questions are not returned
         assert batch_id is not None
-        return [
-            q.model_copy(update={"status": "discarded"}) if q.id in archived_ids else q
-            for q in current_questions
-        ]
+        return [q for q in current_questions if q.id not in archived_ids]
 
     async def mock_batch_update_status(q_ids, status="discarded", **_kwargs):
         assert status == "discarded"
@@ -234,7 +232,7 @@ async def test_auto_resolve_batch_and_refill(monkeypatch):
     mock_update_job = AsyncMock(return_value=None)
 
     monkeypatch.setattr("app.services.batch_runner.get_batch_by_id", mock_get_batch)
-    monkeypatch.setattr("app.services.batch_runner.get_questions", mock_get_questions)
+    monkeypatch.setattr("app.services.batch_runner.get_active_batch_questions", mock_get_questions)
     monkeypatch.setattr(
         "app.services.batch_runner.hard_delete_questions_batch", mock_hard_delete_batch
     )
@@ -285,7 +283,9 @@ async def test_auto_resolve_does_not_claim_refill_when_no_job_was_launched(monke
         status="batch_only",
     )
     monkeypatch.setattr("app.services.batch_runner.get_batch_by_id", AsyncMock(return_value=batch))
-    monkeypatch.setattr("app.services.batch_runner.get_questions", AsyncMock(return_value=[q]))
+    monkeypatch.setattr(
+        "app.services.batch_runner.get_active_batch_questions", AsyncMock(return_value=[q])
+    )
     monkeypatch.setattr(
         "app.services.batch_runner.get_jobs_by_batch_id", AsyncMock(return_value=[])
     )

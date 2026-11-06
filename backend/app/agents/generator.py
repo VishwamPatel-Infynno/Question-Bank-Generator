@@ -33,7 +33,7 @@ from app.agents.base import (
 )
 from app.agents.mock_fixtures import evaluate_heuristically, get_mock_draft
 from app.agents.option_balancer import balance_and_shuffle_options
-from app.agents.prompt_builder import _build_generator_user_prompt
+from app.agents.prompt_builder import _build_generator_user_prompt, educator_instruction_block
 from app.agents.prompts import FUSED_GENERATOR_SYSTEM_PROMPT, GENERATOR_SYSTEM_PROMPT
 from app.agents.standards import is_cars, passage_words_text
 from app.core.config import config
@@ -283,13 +283,10 @@ async def generate_passage_stimulus(
         else ""
     )
 
-    author_instructions = req.additional_instructions or req.custom_prompt
-    author_instruction_block = (
-        f"\nCRITICAL EDUCATOR INSTRUCTION (PASSAGE MANDATE):\n"
-        f"You MUST strictly adhere to and incorporate these author instructions into the passage study, experimental methodology, or analytical focus:\n"
-        f'"""\n{author_instructions.strip()}\n"""'
-        if author_instructions and author_instructions.strip()
-        else ""
+    author_instruction_block = educator_instruction_block(
+        req,
+        "PASSAGE MANDATE",
+        "You MUST strictly adhere to and incorporate these author instructions into the passage study, experimental methodology, or analytical focus:",
     )
 
     if allow_visuals:

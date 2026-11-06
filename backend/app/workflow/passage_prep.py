@@ -18,6 +18,7 @@ from app.schemas import (
     enum_value,
     is_cars,
 )
+from app.workflow.nodes import agent_usage_entry
 from app.workflow.state import AgentWorkflowState
 
 
@@ -211,16 +212,7 @@ async def _prepare_shared_passage_and_visual(
         state.completion_tokens = passage_usage.completion_tokens
         state.cost = passage_usage.cost_usd
 
-        state.usage_breakdown.append(
-            {
-                "agent": "Passage Writer",
-                "iteration": 1,
-                "prompt_tokens": passage_usage.prompt_tokens,
-                "completion_tokens": passage_usage.completion_tokens,
-                "total_tokens": passage_usage.total_tokens,
-                "cost_usd": passage_usage.cost_usd,
-            }
-        )
+        state.usage_breakdown.append(agent_usage_entry("Passage Writer", passage_usage))
 
         word_count = len(shared_passage_text.split())
         passage_done_evt = make_event(

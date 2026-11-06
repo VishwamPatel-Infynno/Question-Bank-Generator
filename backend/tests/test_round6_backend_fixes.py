@@ -403,3 +403,97 @@ def test_slot_attempts_follow_the_worker_retry_setting(monkeypatch):
     source = pathlib.Path(engine.__file__).read_text()
     assert "config.WORKFLOW_MAX_WORKER_RETRIES + 1" in source
     assert "MAX_SLOT_ATTEMPTS" not in source
+
+
+# --- phase 6: shared helpers ------------------------------------------------------------------
+
+
+def test_find_cluster_duplicates_honours_custom_leaders_and_cluster_filter():
+    from app.services.batch_resolution import find_cluster_duplicates
+
+    stem = "Which enzyme catalyses the rate-limiting step of glycolysis in hepatocytes?"
+    a = make_question(id="qa", question_stem=stem, final_score=96)
+    b = make_question(id="qb", question_stem=stem + " Choose the best answer.", final_score=80)
+    other = make_question(id="qc", question_stem="Describe the sliding filament model of muscle.")
+
+    clusters, purge = find_cluster_duplicates([a, b, other], threshold=0.6)
+    assert len(clusters) == 1 and purge == ["qb"]  # the higher score leads
+
+    _, purge = find_cluster_duplicates([a, b, other], threshold=0.6, custom_leader_ids=["qb"])
+    assert purge == ["qa"]
+
+    _, purge = find_cluster_duplicates([a, b, other], threshold=0.6, cluster_ids=["no-such"])
+    assert purge == []
+
+
+async def test_iter_sse_events_skips_noise_and_bad_json():
+    from app.workflow.sse import iter_sse_events
+
+    async def stream():
+        for chunk in [
+            ": keep-alive\n\n",
+            'data: {"event_type": "a"}\n\n',
+            "data: {broken\n\n",
+            'data: {"event_type": "b"}\n\n',
+        ]:
+            yield chunk
+
+    assert [e["event_type"] async for e in iter_sse_events(stream())] == ["a", "b"]
+
+
+def test_image_usage_record_shape():
+    from app.agents.image_generator import _image_usage
+
+    usage = _image_usage(0.02, width=1024, height=1024, type="ai_generated_image")
+    assert usage["agent"] == "Image Generator" and usage["cost_usd"] == 0.02
+    assert usage["total_tokens"] == 0
+    assert usage["details"] == {
+        "provider": "infynno",
+        "width": 1024,
+        "height": 1024,
+        "type": "ai_generated_image",
+    }
+
+
+def test_active_statuses_agree_between_python_and_sql_sets():
+    from app.schemas import ACTIVE_QUESTION_STATUSES, QuestionStatus
+    from app.schemas.question import is_question_active
+
+    for status in QuestionStatus:
+        assert is_question_active(status) == (status.value in ACTIVE_QUESTION_STATUSES)
+
+
+def test_agent_usage_update_extends_the_breakdown_and_totals():
+    from app.workflow.nodes import _record_agent_usage, agent_usage_entry
+
+    usage = make_usage(30, 0.002)
+    state = {"total_tokens": 10, "total_cost_usd": 0.001, "agent_usage_breakdown": [{"agent": "x"}]}
+    update = _record_agent_usage(state, "Quality Reviewer", usage, iteration=2)
+    assert update["total_tokens"] == 40 and update["total_cost_usd"] == 0.003
+    assert update["total_prompt_tokens"] == 30
+    assert [e["agent"] for e in update["agent_usage_breakdown"]] == ["x", "Quality Reviewer"]
+    assert agent_usage_entry("Passage Writer", usage)["iteration"] == 1
+
+
+def test_timestamp_migration_sql_covers_every_column():
+    from app.db.init_db import _TIMESTAMP_COLUMNS, _timestamptz_migration_sql
+
+    sql = _timestamptz_migration_sql()
+    assert sql.startswith("DO $$") and sql.rstrip().endswith("END $$;")
+    assert sql.count("IF EXISTS") == len(_TIMESTAMP_COLUMNS) == 9
+    assert sql.count("SET DEFAULT NOW()") == sum(1 for _, _, now in _TIMESTAMP_COLUMNS if now)
+    assert (
+        "ALTER TABLE generation_jobs ALTER COLUMN completed_at TYPE TIMESTAMP WITH TIME ZONE" in sql
+    )
+
+
+async def test_public_runtime_fields_are_part_of_both_payloads(monkeypatch):
+    from app.api.v1.config import get_runtime_settings, public_runtime_fields
+
+    monkeypatch.setattr("app.api.v1.config.is_admin_request", lambda _request: False)
+    masked = await get_runtime_settings(None)
+    monkeypatch.setattr("app.api.v1.config.is_admin_request", lambda _request: True)
+    admin = await get_runtime_settings(None)
+    shared = public_runtime_fields()
+    assert set(shared) <= set(masked) and set(shared) <= set(admin)
+    assert "has_openai_key" in admin and "has_openai_key" not in masked

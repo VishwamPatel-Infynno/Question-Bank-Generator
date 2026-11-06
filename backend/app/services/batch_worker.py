@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
@@ -35,6 +34,7 @@ from app.schemas import (
     Question,
     determine_question_status,
 )
+from app.workflow.sse import iter_sse_events
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +131,11 @@ class _JobUsage:
         }
 
 
+def _batch_thematic_angle(job_number: int) -> str:
+    """The pedagogical angle a job gets by its position in the batch (rotates through the list)."""
+    return BATCH_THEMATIC_ANGLES[(job_number - 1) % len(BATCH_THEMATIC_ANGLES)]
+
+
 def _is_passage_mode(req: GenerationRequest) -> bool:
     """Returns True when the request needs a shared passage (CARS, single-passage, or explicit)."""
     # GenerationRequest's validator already resolved the binary passage mode (CARS always linked)
@@ -191,14 +196,7 @@ async def _consume_job_stream(
     ``workflow_error`` event, after counting the spend that event carries; other failures
     propagate untouched so the caller can decide to retry.
     """
-    async for raw_chunk in stream:
-        line = raw_chunk.strip()
-        if not line.startswith("data: "):
-            continue
-        try:
-            evt_data = json.loads(line[6:])
-        except json.JSONDecodeError:
-            continue
+    async for evt_data in iter_sse_events(stream):
         etype = evt_data.get("event_type")
         data = evt_data.get("data") or {}
 
@@ -310,13 +308,11 @@ async def _run_single_job_impl(
 
             if trial > 1:
                 thematic_angle = (
-                    f"{BATCH_THEMATIC_ANGLES[(job.job_number - 1) % len(BATCH_THEMATIC_ANGLES)]} • "
+                    f"{_batch_thematic_angle(job.job_number)} • "
                     f"In-Set Replenishment (Trial {trial}/{max_trials})"
                 )
             else:
-                thematic_angle = BATCH_THEMATIC_ANGLES[
-                    (job.job_number - 1) % len(BATCH_THEMATIC_ANGLES)
-                ]
+                thematic_angle = _batch_thematic_angle(job.job_number)
 
             attempt_req = _build_attempt_request(
                 base_req,
@@ -483,8 +479,7 @@ async def _run_single_job_refill_impl(
             passage_id_for_job = str(uuid.uuid4())
 
         refill_thematic_angle = (
-            f"{BATCH_THEMATIC_ANGLES[(job.job_number - 1) % len(BATCH_THEMATIC_ANGLES)]} • "
-            f"In-Set Replenishment Item"
+            f"{_batch_thematic_angle(job.job_number)} • In-Set Replenishment Item"
         )
 
         refill_req = _build_attempt_request(

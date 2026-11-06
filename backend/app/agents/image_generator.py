@@ -301,6 +301,19 @@ async def call_deepinfra_flux(
     return await _retry_image_call(f"AI image model ({model_id})", 35.0, attempt_once)
 
 
+def _image_usage(cost: float, **details: Any) -> dict[str, Any]:
+    """The usage record of one image call (image models bill per image, so no tokens)."""
+    return {
+        "agent": "Image Generator",
+        "model": "Infynno Visual Studio v2",
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "cost_usd": cost,
+        "details": {"provider": "infynno", **details},
+    }
+
+
 async def generate_image_stimulus(
     draft: QuestionDraft, req: GenerationRequest
 ) -> tuple[str | None, str | None, str | None, dict[str, Any]]:
@@ -323,19 +336,11 @@ async def generate_image_stimulus(
             logger.error(
                 "OpenAI API Key is not configured. Strict image generation policy prohibits SVG mock fallbacks."
             )
-            error_usage = {
-                "agent": "Image Generator",
-                "model": "Infynno Visual Studio v2",
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0,
-                "cost_usd": 0.0,
-                "details": {
-                    "provider": "infynno",
-                    "error": "AI Visual Studio Key is not configured. Visual stimuli strictly require an active AI image engine.",
-                    "type": "error",
-                },
-            }
+            error_usage = _image_usage(
+                0.0,
+                error="AI Visual Studio Key is not configured. Visual stimuli strictly require an active AI image engine.",
+                type="error",
+            )
             return (None, None, None, error_usage)
 
         prompt_for_image = (
@@ -369,40 +374,24 @@ async def generate_image_stimulus(
             )
             cost = round(cost, 7)
             cost_formula = f"Standard Visual Stimulus Rate (${cost:.5f}/unit)"
-            usage_dict = {
-                "agent": "Image Generator",
-                "model": "Infynno Visual Studio v2",
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0,
-                "cost_usd": cost,
-                "details": {
-                    "provider": "infynno",
-                    "width": width,
-                    "height": height,
-                    "cost_formula": cost_formula,
-                    "type": "ai_generated_image",
-                },
-            }
+            usage_dict = _image_usage(
+                cost,
+                width=width,
+                height=height,
+                cost_formula=cost_formula,
+                type="ai_generated_image",
+            )
             return (img_data, None, prompt_for_image, usage_dict)
 
         logger.error(
             "OpenAI Image Model (%s) failed to generate an image. Strictly returning failure without SVG mock fallback.",
             model_id,
         )
-        failure_usage = {
-            "agent": "Image Generator",
-            "model": "Infynno Visual Studio v2",
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-            "cost_usd": 0.0,
-            "details": {
-                "provider": "infynno",
-                "error": "Failed to generate visual stimulus after retries.",
-                "type": "error",
-            },
-        }
+        failure_usage = _image_usage(
+            0.0,
+            error="Failed to generate visual stimulus after retries.",
+            type="error",
+        )
         return (None, None, prompt_for_image, failure_usage)
 
     # DeepInfra FLUX provider
@@ -414,19 +403,11 @@ async def generate_image_stimulus(
         logger.error(
             "AI Gateway Key is not configured. Strict image generation policy prohibits SVG mock fallbacks."
         )
-        error_usage = {
-            "agent": "Image Generator",
-            "model": "Infynno Visual Studio v2",
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-            "cost_usd": 0.0,
-            "details": {
-                "provider": "infynno",
-                "error": "AI Visual Studio Key is not configured. Visual stimuli strictly require an active AI image engine.",
-                "type": "error",
-            },
-        }
+        error_usage = _image_usage(
+            0.0,
+            error="AI Visual Studio Key is not configured. Visual stimuli strictly require an active AI image engine.",
+            type="error",
+        )
         return (None, None, None, error_usage)
 
     prompt_for_image = (
@@ -467,22 +448,14 @@ async def generate_image_stimulus(
             if reported_cost is not None and reported_cost > 0
             else f"Standard Visual Stimulus Rate (${cost:.5f}/unit)"
         )
-        usage_dict = {
-            "agent": "Image Generator",
-            "model": "Infynno Visual Studio v2",
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-            "cost_usd": cost,
-            "details": {
-                "provider": "infynno",
-                "width": width,
-                "height": height,
-                "iters": iters,
-                "cost_formula": cost_formula,
-                "type": "ai_generated_image",
-            },
-        }
+        usage_dict = _image_usage(
+            cost,
+            width=width,
+            height=height,
+            iters=iters,
+            cost_formula=cost_formula,
+            type="ai_generated_image",
+        )
         return (img_data, None, prompt_for_image, usage_dict)
 
     # If call_deepinfra_flux returns None after all retries:
@@ -490,17 +463,9 @@ async def generate_image_stimulus(
         "AI Image Model (%s) failed to generate an image. Strictly returning failure without SVG mock fallback.",
         model_id,
     )
-    failure_usage = {
-        "agent": "Image Generator",
-        "model": "Infynno Visual Studio v2",
-        "prompt_tokens": 0,
-        "completion_tokens": 0,
-        "total_tokens": 0,
-        "cost_usd": 0.0,
-        "details": {
-            "provider": "infynno",
-            "error": "Failed to generate visual stimulus after retries.",
-            "type": "error",
-        },
-    }
+    failure_usage = _image_usage(
+        0.0,
+        error="Failed to generate visual stimulus after retries.",
+        type="error",
+    )
     return (None, None, prompt_for_image, failure_usage)

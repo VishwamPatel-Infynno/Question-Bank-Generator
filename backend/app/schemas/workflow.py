@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.mcat import Difficulty, MCATSection, is_cars, normalize_section
+from app.schemas.question import TaxonomyFields
 
 KNOWN_VISUAL_TYPES: tuple[str, ...] = (
     "SVG_Diagram",
@@ -16,7 +17,7 @@ KNOWN_VISUAL_TYPES: tuple[str, ...] = (
 )
 
 
-class GenerationRequest(BaseModel):
+class GenerationRequest(TaxonomyFields):
     section: MCATSection
     subtopic: str | None = Field(default=None, max_length=300)
     difficulty: Difficulty = Difficulty.MEDIUM
@@ -89,16 +90,6 @@ class GenerationRequest(BaseModel):
     image_required: str | bool | None = Field(None, description="Yes or No")
     visual_type: str | None = Field("None", description="e.g. None, SVG_Diagram, AI_FLUX_Image")
 
-    # Granular Dependent Taxonomy Hierarchy
-    subject: str | None = Field(None, description="Taxonomy subject e.g. General Chemistry")
-    unit: str | None = Field(
-        None, description="Taxonomy unit e.g. Atomic Structure and Periodicity"
-    )
-    topic: str | None = Field(None, description="Taxonomy topic e.g. Periodic Trends")
-    subskill: str | None = Field(None, description="Granular AAMC subskill focus")
-    likely_mistake_pattern: str | None = Field(
-        None, description="Targeted student misconception pattern"
-    )
     thematic_angle: str | None = Field(
         None, description="Optional angle/scenario focus to guarantee cross-job passage diversity"
     )

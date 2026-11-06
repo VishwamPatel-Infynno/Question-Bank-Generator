@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import logging
 import uuid
 from collections.abc import AsyncGenerator, Callable
@@ -66,6 +65,7 @@ from app.workflow.passage_prep import (
     _prepare_shared_passage_and_visual,
 )
 from app.workflow.review_loop import _run_question_review_loop, count_llm_calls
+from app.workflow.sse import iter_sse_events
 from app.workflow.state import AgentWorkflowState
 
 logger = logging.getLogger(__name__)
@@ -389,6 +389,15 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
     outcomes_questions: list[dict[str, Any] | None] = []
     # Once the live job row is finalized, a later consumer disconnect must not overwrite it.
     job_finalized = False
+
+    async def _record_consumer_gone() -> None:
+        """Marks a standalone live job cancelled unless its row was already finalized."""
+        if is_standalone_live_run and not job_finalized:
+            await _handle_live_job_cancellation(
+                job_id=job_id,
+                batch_id=batch_id,
+                completed_total=sum(1 for q in outcomes_questions if q is not None),
+            )
 
     try:
         # Step 0: Draft Shared Reading Passage and Diagram (if passage-set mode)
@@ -948,25 +957,13 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         for t in tasks:
             if not t.done():
                 t.cancel()
-        if is_standalone_live_run and not job_finalized:
-            completed_total = sum(1 for q in outcomes_questions if q is not None)
-            await _handle_live_job_cancellation(
-                job_id=job_id,
-                batch_id=batch_id,
-                completed_total=completed_total,
-            )
+        await _record_consumer_gone()
         raise
     except GeneratorExit:
         # Consumer closed the stream (client disconnect delivered as GeneratorExit, not
         # CancelledError): treat it exactly like a cancellation so jobs do not stay "running".
         logger.info("Workflow stream closed by consumer.")
-        if is_standalone_live_run and not job_finalized:
-            completed_total = sum(1 for q in outcomes_questions if q is not None)
-            await _handle_live_job_cancellation(
-                job_id=job_id,
-                batch_id=batch_id,
-                completed_total=completed_total,
-            )
+        await _record_consumer_gone()
         raise
     except Exception as e:
         logger.error("Workflow stream error: %s", e, exc_info=True)
@@ -1012,22 +1009,18 @@ async def run_workflow(req: GenerationRequest) -> WorkflowRunResult:
     status = "failed"
     final_data = {}
     last_rejection: dict[str, Any] = {}
-    async for raw_chunk in run_workflow_stream(req):
-        line = raw_chunk.strip()
-        if line.startswith("data: "):
-            evt = json.loads(line[6:])
-            etype = evt.get("event_type")
-            if etype == "workflow_complete":
-                status = "approved"
-                final_data = evt.get("data", {})
-            elif etype == "question_rejected":
-                # One attempt was rejected; the slot may still succeed on a retry
-                last_rejection = evt.get("data", {})
-            elif etype == "workflow_rejected":
-                status = "rejected_below_threshold"
-                final_data = last_rejection or evt.get("data", {})
-            elif etype == "workflow_error":
-                if status != "rejected_below_threshold":
-                    status = "error"
-                    final_data = evt.get("data", {})
+    async for evt in iter_sse_events(run_workflow_stream(req)):
+        etype = evt.get("event_type")
+        if etype == "workflow_complete":
+            status = "approved"
+            final_data = evt.get("data", {})
+        elif etype == "question_rejected":
+            # One attempt was rejected; the slot may still succeed on a retry
+            last_rejection = evt.get("data", {})
+        elif etype == "workflow_rejected":
+            status = "rejected_below_threshold"
+            final_data = last_rejection or evt.get("data", {})
+        elif etype == "workflow_error" and status != "rejected_below_threshold":
+            status = "error"
+            final_data = evt.get("data", {})
     return WorkflowRunResult(status, final_data)

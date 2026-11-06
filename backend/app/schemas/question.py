@@ -107,7 +107,21 @@ class ReviewScore(BaseModel):
     passed: bool = Field(False, description="True if total_score > 90 benchmark")
 
 
-class QuestionDraft(BaseModel):
+class TaxonomyFields(BaseModel):
+    """The dependent taxonomy hierarchy shared by drafts, questions and generation requests."""
+
+    subject: str | None = Field(None, description="Taxonomy subject e.g. General Chemistry")
+    unit: str | None = Field(
+        None, description="Taxonomy unit e.g. Atomic Structure and Periodicity"
+    )
+    topic: str | None = Field(None, description="Taxonomy topic e.g. Periodic Trends")
+    subskill: str | None = Field(None, description="Granular AAMC subskill focus")
+    likely_mistake_pattern: str | None = Field(
+        None, description="Targeted student misconception or mistake pattern"
+    )
+
+
+class QuestionDraft(TaxonomyFields):
     stimulus_text: str = Field(
         "", description="Reading passage, clinical case context, or research scenario"
     )
@@ -135,15 +149,6 @@ class QuestionDraft(BaseModel):
         None,
         description="AAMC Scientific Inquiry & Reasoning Skill (SIRS) or CARS skill classification",
     )
-    subject: str | None = Field(None, description="Taxonomy subject e.g. General Chemistry")
-    unit: str | None = Field(
-        None, description="Taxonomy unit e.g. Atomic Structure and Periodicity"
-    )
-    topic: str | None = Field(None, description="Taxonomy topic e.g. Periodic Trends")
-    subskill: str | None = Field(None, description="Granular AAMC subskill focus")
-    likely_mistake_pattern: str | None = Field(
-        None, description="Targeted student misconception or mistake pattern"
-    )
 
     def model_post_init(self, __context: Any) -> None:
         # Synchronize correct_answer_id and correct_answer_ids
@@ -159,7 +164,7 @@ class QuestionDraft(BaseModel):
             self.correct_answer_id = self.correct_answer_id.strip().upper()
 
 
-class Question(BaseModel):
+class Question(TaxonomyFields):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     run_id: str | None = Field(None, description="Workflow execution run UUID4")
     batch_id: str | None = Field(
@@ -238,17 +243,6 @@ class Question(BaseModel):
     )
     passage_questions: int | None = Field(None, description="Number of passage questions e.g. 3, 4")
     visual_type: str | None = Field("None", description="e.g. None, SVG_Diagram, AI_FLUX_Image")
-
-    # Granular Dependent Taxonomy Hierarchy
-    subject: str | None = Field(None, description="Taxonomy subject e.g. General Chemistry")
-    unit: str | None = Field(
-        None, description="Taxonomy unit e.g. Atomic Structure and Periodicity"
-    )
-    topic: str | None = Field(None, description="Taxonomy topic e.g. Periodic Trends")
-    subskill: str | None = Field(None, description="Granular AAMC subskill focus")
-    likely_mistake_pattern: str | None = Field(
-        None, description="Targeted student misconception or mistake pattern"
-    )
 
     # Deduplication & Collision Metadata
     duplicate_info: DuplicateInfo | None = Field(
