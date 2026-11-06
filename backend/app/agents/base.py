@@ -305,6 +305,57 @@ def _resolve_api_key(model: str, explicit_key: str | None) -> str:
     return key
 
 
+def _as_token_count(raw: Any) -> int:
+    """A provider token counter as an int; anything that is not a plain number counts as zero."""
+    return int(raw) if isinstance(raw, (int, float)) and not isinstance(raw, bool) else 0
+
+
+def _cache_tokens_from_usage(usage_obj: Any) -> tuple[int, int]:
+    """(cache-read, cache-creation) prompt tokens reported by the provider, zero when absent.
+
+    Anthropic reports ``cache_read_input_tokens``/``cache_creation_input_tokens``; OpenAI-style
+    providers report ``prompt_tokens_details.cached_tokens`` (an object or a dict).
+    """
+    cache_read = _as_token_count(getattr(usage_obj, "cache_read_input_tokens", 0))
+    details = getattr(usage_obj, "prompt_tokens_details", None)
+    if details is not None and type(details).__name__ not in ("MagicMock", "Mock"):
+        cached_val = (
+            details.get("cached_tokens", 0)
+            if isinstance(details, dict)
+            else getattr(details, "cached_tokens", 0)
+        )
+        cache_read = cache_read or _as_token_count(cached_val)
+    cache_creation = _as_token_count(getattr(usage_obj, "cache_creation_input_tokens", 0))
+    return cache_read, cache_creation
+
+
+def _classify_llm_error(err: Exception) -> str | None:
+    """How a failed LLM call should be retried.
+
+    ``"transient"`` (rate limit, overloaded provider, timeout) backs off exponentially,
+    ``"connection"`` retries once after a short pause, ``None`` is not retried.
+    """
+    err_str = str(err).lower()
+    is_rate_limit = "429" in err_str or "rate limit" in err_str or "too many requests" in err_str
+    is_overloaded = (
+        re.search(r"\b(500|502|503|504|529)\b", err_str) is not None
+        or "service unavailable" in err_str
+        or "bad gateway" in err_str
+        or "internal server error" in err_str
+        or "overloaded" in err_str
+    )
+    is_timeout = (
+        "timeout" in err_str
+        or "timed out" in err_str
+        or isinstance(err, (asyncio.TimeoutError, TimeoutError))
+    )
+    if is_rate_limit or is_overloaded or is_timeout:
+        return "transient"
+    if "connection" in err_str:
+        return "connection"
+    return None
+
+
 def _get_available_fallback_models(primary_model: str) -> list[str]:
     """Builds an ordered list of candidate models for which valid API credentials exist."""
     candidates = [primary_model]
@@ -405,31 +456,7 @@ async def call_llm(
                     or (prompt_tokens + completion_tokens)
                 )
 
-                # Extract prompt caching details if provided by model
-                cache_read_raw = getattr(usage_obj, "cache_read_input_tokens", 0)
-                cache_read_tokens = (
-                    int(cache_read_raw)
-                    if isinstance(cache_read_raw, (int, float))
-                    and not isinstance(cache_read_raw, bool)
-                    else 0
-                )
-
-                details = getattr(usage_obj, "prompt_tokens_details", None)
-                if details is not None and type(details).__name__ not in ("MagicMock", "Mock"):
-                    if isinstance(details, dict):
-                        cached_val = details.get("cached_tokens", 0)
-                    else:
-                        cached_val = getattr(details, "cached_tokens", 0)
-                    if isinstance(cached_val, (int, float)) and not isinstance(cached_val, bool):
-                        cache_read_tokens = cache_read_tokens or int(cached_val)
-
-                cache_create_raw = getattr(usage_obj, "cache_creation_input_tokens", 0)
-                cache_creation_tokens = (
-                    int(cache_create_raw)
-                    if isinstance(cache_create_raw, (int, float))
-                    and not isinstance(cache_create_raw, bool)
-                    else 0
-                )
+                cache_read_tokens, cache_creation_tokens = _cache_tokens_from_usage(usage_obj)
 
                 cost_usd = calculate_token_cost(
                     prompt_tokens=prompt_tokens,
@@ -460,26 +487,10 @@ async def call_llm(
                     usage = sum_usage([*truncated_usage, usage])
                 return content, usage
             except Exception as err:
-                err_str = str(err).lower()
-                is_rate_limit = (
-                    "429" in err_str or "rate limit" in err_str or "too many requests" in err_str
-                )
-                is_overloaded = (
-                    re.search(r"\b(500|502|503|504|529)\b", err_str) is not None
-                    or "service unavailable" in err_str
-                    or "bad gateway" in err_str
-                    or "internal server error" in err_str
-                    or "overloaded" in err_str
-                )
-                is_timeout = (
-                    "timeout" in err_str
-                    or "timed out" in err_str
-                    or isinstance(err, (asyncio.TimeoutError, TimeoutError))
-                )
-
                 last_error = err
+                retry_kind = _classify_llm_error(err)
 
-                if (is_rate_limit or is_overloaded or is_timeout) and attempt < max_retries:
+                if retry_kind == "transient" and attempt < max_retries:
                     base_backoff = config.LLM_BASE_BACKOFF_SECONDS
                     backoff_secs = base_backoff * (2**attempt) + random.uniform(0.1, 0.5)
                     logger.warning(
@@ -492,7 +503,7 @@ async def call_llm(
                     )
                     await asyncio.sleep(backoff_secs)
                     continue
-                if attempt < max_retries and "connection" in err_str:
+                if retry_kind == "connection" and attempt < max_retries:
                     backoff_secs = 1.0 + random.uniform(0.1, 0.4)
                     logger.warning(
                         "Connection error (%s) on '%s'. Retrying in %.2fs...",

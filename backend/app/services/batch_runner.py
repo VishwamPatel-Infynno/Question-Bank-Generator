@@ -41,16 +41,10 @@ from app.schemas import (
     is_question_active,
 )
 from app.services.batch_concurrency import (
-    _active_batch_tasks,
-    _batch_requests,
-    cancel_all_background_batches,
     cancel_background_batch,
-    get_active_batch_metrics,
     get_global_job_semaphore,
     get_stored_batch_request,
-    is_batch_running,
     register_batch_task,
-    stop_background_batch,
     store_batch_request,
     unregister_batch_task,
 )
@@ -61,11 +55,9 @@ from app.services.batch_resolution import (
     partition_questions_by_job,
 )
 from app.services.batch_worker import (
-    BATCH_THEMATIC_ANGLES,
     MAX_JOB_TRIALS,
     MAX_REFILL_CYCLES,
     QUESTIONS_PER_JOB,
-    _persist_job_question,
     _run_single_job,
     _run_single_job_refill,
 )
@@ -73,29 +65,15 @@ from app.services.batch_worker import (
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "BATCH_THEMATIC_ANGLES",
     "QUESTIONS_PER_JOB",
-    "_active_batch_tasks",
-    "_batch_requests",
     "_execute_batch_workflow",
     "_execute_in_set_refill",
-    "_persist_job_question",
     "_run_single_job",
     "_run_single_job_refill",
     "auto_resolve_batch_and_refill",
-    "cancel_all_background_batches",
-    "cancel_background_batch",
-    "get_active_batch_metrics",
-    "get_global_job_semaphore",
-    "get_stored_batch_request",
-    "is_batch_running",
     "launch_background_batch",
     "refill_batch_deficit",
-    "register_batch_task",
     "retry_incomplete_jobs_for_batch",
-    "stop_background_batch",
-    "store_batch_request",
-    "unregister_batch_task",
 ]
 
 

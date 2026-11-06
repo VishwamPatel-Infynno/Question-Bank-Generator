@@ -19,7 +19,7 @@ graph TD
 
     subgraph "Tier 2: Backend Pytest Engine"
         UnitTests[97 Deterministic Unit & Integration Tests across 20 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests (320 Total Backend Tests)]
+        LiveE2E[10 Live LLM API E2E Integration Tests (330 Total Backend Tests)]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -41,8 +41,8 @@ graph TD
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (90 frontend files, 100% ruff compliance across backend) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **310 passing tests across 53 modules** (~23-28s) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (320 total backend tests across 54 modules) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **320 passing tests across 54 modules** (~23-28s) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (330 total backend tests across 55 modules) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 90$ points |
 
@@ -79,8 +79,9 @@ backend/tests/
 ├── test_deterministic_gate.py        # Deterministic validator gate in the review loop, fail-closed reviewer/solver, parallel review and solve
 ├── test_engine_cleanup.py            # No leaked worker tasks when the workflow stream is closed early
 ├── test_engine_slices.py             # Pure engine pieces: run layout, slot ledger, diversity context, sibling collision, event payloads
+├── test_mock_fixture_table.py        # Snapshot of the seven canned mock drafts (section x passage/independent)
 ├── test_live_job_finalization.py     # Standalone runs always finalize the job (all-rejected, closed on `wo
-├── test_llm_call.py                  # call_llm: prompt caching marker, truncation retry, LLM slot release during backoff
+├── test_llm_call.py                  # call_llm: prompt caching marker, truncation retry, retry classifier, cache tokens, LLM slot release during backoff
 ├── test_logging_context.py           # Correlation ids on log records (batch, job, run, slot)
 ├── test_multi_batch_concurrency.py   # Global semaphores, rate limiting backoff, and metrics
 ├── test_offline_mode.py              # `OFFLINE_MODE` gating: no mocks without it, tagged runs with it, fai
@@ -104,17 +105,17 @@ backend/tests/
 ### 2.2 Test Suite Execution Commands & Execution Modes
 
 #### Execution Modes Breakdown
-- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 78 database-dependent tests, executing all 232 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`220 passed, 76 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 310 deterministic unit and integration tests execute across all 53 modules in ~23-28 seconds (10 live tests deselected).
+- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 78 database-dependent tests, executing all 242 algorithmic, schema, prompt builder, taxonomy sync, and token pricing unit tests in ~12 seconds (`220 passed, 76 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 320 deterministic unit and integration tests execute across all 54 modules in ~23-28 seconds (10 live tests deselected).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 320 backend tests across 54 test files.
+- **Total Suite**: 330 backend tests across 55 test files.
 
 ```bash
 # 1. Activate backend virtual environment
 source .venv/bin/activate
 
-# 2. Run all deterministic unit and integration tests across 53 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 232 pure unit tests pass and 78 DB tests cleanly skip
+# 2. Run all deterministic unit and integration tests across 54 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 242 pure unit tests pass and 78 DB tests cleanly skip
 # Note: ACTIVE_LLM_PROVIDER=deepinfra ensures deterministic offline mocking without calling live external LLMs
 ACTIVE_LLM_PROVIDER=deepinfra pytest backend/tests -v -m "not live_e2e"
 
@@ -141,7 +142,7 @@ PYTHONPATH=backend pytest backend/tests/test_api_questions.py -v
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
-### 2.3 Detailed Test Module Coverage (310 Deterministic Tests across 52 Modules / 320 Total Backend Tests)
+### 2.3 Detailed Test Module Coverage (320 Deterministic Tests across 52 Modules / 330 Total Backend Tests)
 
 1. **`test_additional_instructions.py` (3 tests)**:
    - `test_generation_request_additional_instructions`: Validates Pydantic serialization and round-trip payload persistence of educator instructions.
@@ -263,7 +264,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 21. **`test_openai.py` (8 tests)**: OpenAI provider detection, pricing, image-model handling, and branded (vendor-masked) `/api/config` and `/api/health` payloads.
 22. **`test_validators.py` (11 tests)**: Deterministic validator: option ids, key validity, single-choice, forbidden dashes and their automatic repair, all/none-of-the-above, passage rules, length-parity and distractor-coverage warnings.
 23. **`test_deterministic_gate.py` (9 tests)**: The review loop runs the validator before any LLM call (invalid drafts regenerate or reject without spending a review), reviewer and blind solver fail closed on provider errors and bad scores, generators never substitute mock questions for real failures, and review and solve run concurrently with both costs accounted for.
-24. **`test_llm_call.py` (4 tests)**: `call_llm` request construction (Anthropic `cache_control`, no stacked litellm retries), truncated-completion retry with a larger budget, and LLM slot release during backoff.
+24. **`test_llm_call.py` (6 tests)**: `call_llm` request construction (Anthropic `cache_control`, no stacked litellm retries), truncated-completion retry with a larger budget, and LLM slot release during backoff.
 25. **`test_engine_cleanup.py` (1 test)**: Closing the workflow stream early leaves no running worker or monitor tasks.
 26. **`test_recovery.py` (2 tests, DB)**: Startup reconciliation stops orphaned batches and their running jobs; `update_job_progress(clear=...)` resets fields explicitly.
 27. **`test_logging_context.py` (2 tests)**: Correlation ids (batch, job, run, slot) appear on log records, are inherited by child tasks, and do not leak back.
@@ -280,7 +281,8 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 38. **`test_config_docs.py` (2 tests)**: Every `Settings` field is present in `.env.example` and the setup guide, and `.env.example` has no malformed lines.
 39. **`test_shared_helpers.py` (6 tests)**: Shared helpers (`sum_usage` latency semantics, `mock_usage` pricing, single CARS helper) and a regression test that CARS and science passage prompts differ.
 40. **`test_engine_slices.py` (14 tests)**: The closure-free pieces of `engine.py`: `_resolve_run_layout` (binary passage mode, CARS always linked, caller ids kept), `SlotLedger` (per-attempt folding, call budget, run totals with the passage spend), diversity context and drafting messages, passing-threshold precedence, offline attempt state, sibling-collision detection, the event factory and the shared passage/complete payloads.
-41. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
+41. **`test_mock_fixture_table.py` (8 tests)**: Digest snapshot of the seven canned mock drafts in `agents/mock_drafts.py` (one per section and passage/independent variant) and the CARS passage-only rule, so the offline fixtures cannot drift when their representation changes.
+42. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
     - `test_e2e_health_and_db_connectivity`: Confirms health endpoint connectivity to live PostgreSQL and LiteLLM models.
     - `test_e2e_all_four_sections_metadata`: Verifies live metadata and taxonomy tree across all 4 AAMC sections.
     - `test_e2e_config_endpoint`: Validates live runtime model configuration and token rate parameters.
@@ -306,8 +308,8 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 ```
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
-- All **232 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **310 deterministic tests across 53 modules** execute and pass automatically in ~23-28 seconds.
+- All **242 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
+- Once PostgreSQL is started (`docker compose up -d`), all **320 deterministic tests across 54 modules** execute and pass automatically in ~23-28 seconds.
 
 ---
 
