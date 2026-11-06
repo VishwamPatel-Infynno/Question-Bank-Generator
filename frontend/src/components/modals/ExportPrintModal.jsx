@@ -13,11 +13,11 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { fetchQuestions } from '../../services/api';
-import { useFocusTrap, useExportActions } from '../../hooks';
+import { useFocusTrap, useExportActions, useRequestGuard } from '../../hooks';
 import { formatExamTime } from '../../utils';
 import { pickExportQuestions } from '../../utils/questionHelpers';
 import ExportPaperPreview from './ExportPaperPreview';
-import { EMPTY_ARRAY } from '../../constants';
+import { EMPTY_ARRAY, QUESTION_STATUS } from '../../constants';
 
 export default function ExportPrintModal({
   isOpen,
@@ -41,13 +41,18 @@ export default function ExportPrintModal({
   const [fetchedAll, setFetchedAll] = useState(null);
   const previewRef = useRef(null);
 
+  const guard = useRequestGuard();
   useEffect(() => {
-    if (hasActiveFilters) {
-      fetchQuestions({ status: 'in_bank' }).then(res => {
-        if (res?.questions) setFetchedAll(res.questions);
-      }).catch(() => {});
-    }
-  }, [hasActiveFilters]);
+    if (!hasActiveFilters) return;
+    // With filters on, the "all" scope needs the whole bank; only the newest request may
+    // write state, and the guard retires it when the dialog unmounts
+    const request = guard.begin();
+    fetchQuestions({ status: QUESTION_STATUS.IN_BANK }, request.signal)
+      .then((res) => {
+        if (request.isCurrent() && res?.questions) setFetchedAll(res.questions);
+      })
+      .catch(() => {});
+  }, [guard, hasActiveFilters]);
 
   // Compute active export dataset
   const bankPool = fetchedAll || allQuestions;

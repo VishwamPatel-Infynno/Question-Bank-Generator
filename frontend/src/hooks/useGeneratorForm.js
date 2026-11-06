@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { toggleSubtopicState } from '../utils/generatorFormState';
 
 const DEFAULT_GENERATOR_FORM = {
   selectedSection: 'chem_phys',
@@ -254,31 +255,7 @@ export function useGeneratorForm(initialValues = {}) {
   }, []);
 
   const toggleSubtopic = useCallback((subtopic) => {
-    setFormData(prev => {
-      if (
-        subtopic === 'All' ||
-        subtopic === 'Automatic' ||
-        subtopic === 'All Concepts in Topic' ||
-        subtopic === 'All Core Topics (Balanced Mix)' ||
-        subtopic === 'All High-Yield Topics (Balanced Mix)'
-      ) {
-        return {
-          ...prev,
-          selectedSubtopics: [],
-          selectedSubtopic: prev.selectedTopic ? `${prev.selectedTopic} (All Concepts)` : 'All High-Yield Topics (Balanced Mix)'
-        };
-      }
-      const current = prev.selectedSubtopics || [];
-      const exists = current.includes(subtopic);
-      const next = exists ? current.filter(s => s !== subtopic) : [...current, subtopic];
-      return {
-        ...prev,
-        selectedSubtopics: next,
-        selectedSubtopic: next.length === 0
-          ? (prev.selectedTopic ? `${prev.selectedTopic} (All Concepts)` : 'All High-Yield Topics (Balanced Mix)')
-          : next.join(', ')
-      };
-    });
+    setFormData((prev) => toggleSubtopicState(prev, subtopic));
   }, []);
 
   return {

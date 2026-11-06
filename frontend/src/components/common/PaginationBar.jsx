@@ -1,13 +1,7 @@
 import { Fragment } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import CustomSelect from './CustomSelect';
-
-const DEFAULT_PAGE_SIZE_OPTIONS = [
-  { value: 15, label: '15' },
-  { value: 30, label: '30' },
-  { value: 50, label: '50' },
-  { value: -1, label: 'All' }
-];
+import { PAGE_SIZE_OPTIONS, normalizePageSizeOptions } from '../../utils/pagination';
 
 /**
  * Reusable PaginationBar component for paginated lists and data tables.
@@ -20,7 +14,7 @@ const DEFAULT_PAGE_SIZE_OPTIONS = [
  * @param {string} [props.itemLabel='questions'] Label for items (e.g. 'questions', 'batches').
  * @param {function(number): void} props.onPageChange Callback when page number is selected.
  * @param {function(number): void} props.onPageSizeChange Callback when page size is changed.
- * @param {Array<{value: number, label: string}>} [props.pageSizeOptions] Available page size options.
+ * @param {Array<number|{value: number, label: string}>} [props.pageSizeOptions] Available page sizes (numbers or option objects; -1 = all).
  * @param {string} [props.className] Additional CSS class names.
  */
 export default function PaginationBar({
@@ -31,7 +25,7 @@ export default function PaginationBar({
   itemLabel = 'questions',
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
+  pageSizeOptions = PAGE_SIZE_OPTIONS,
   className = ''
 }) {
   if (totalItems <= 0) return null;
@@ -59,7 +53,7 @@ export default function PaginationBar({
               onPageSizeChange(Number(val));
               onPageChange(1);
             }}
-            options={pageSizeOptions}
+            options={normalizePageSizeOptions(pageSizeOptions)}
             searchable={false}
             className="pagination-size-select"
           />

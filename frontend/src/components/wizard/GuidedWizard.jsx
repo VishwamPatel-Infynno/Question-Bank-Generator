@@ -206,7 +206,7 @@ export default function GuidedWizard({
             onSelectUnit={(v) => update('selectedUnit', v)}
             selectedTopic={selectedTopic}
             onSelectTopic={(v) => update('selectedTopic', v)}
-            selectedSubtopic={(v) => update('selectedSubtopic', v)}
+            onSelectSubtopic={(v) => update('selectedSubtopic', v)}
             selectedSubtopics={selectedSubtopics}
             onToggleSubtopic={toggleSubtopic}
             presets={QUICK_PRESETS}

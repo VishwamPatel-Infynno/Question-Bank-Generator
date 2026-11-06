@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import { ChevronDown, Check, Search } from 'lucide-react';
 import { EMPTY_ARRAY, EMPTY_OBJECT } from '../../constants';
+import { nextEnabledIndex } from '../../utils/selectHelpers';
 
 /**
  * CustomSelect:
@@ -145,6 +146,8 @@ export default function CustomSelect({
       if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) {
         e.preventDefault();
         setIsOpen(true);
+        // same announcement as a click, so any other open menu closes
+        window.dispatchEvent(new CustomEvent('custom-select-open', { detail: selectId }));
       }
       return;
     }
@@ -159,17 +162,15 @@ export default function CustomSelect({
         break;
       case 'ArrowDown':
         e.preventDefault();
-        setHighlightedIndex(prev => {
-          const current = prev >= 0 ? prev : activeIndex;
-          return current < filteredOptions.length - 1 ? current + 1 : 0;
-        });
+        setHighlightedIndex((prev) =>
+          nextEnabledIndex(filteredOptions, prev >= 0 ? prev : activeIndex, 1)
+        );
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setHighlightedIndex(prev => {
-          const current = prev >= 0 ? prev : activeIndex;
-          return current > 0 ? current - 1 : filteredOptions.length - 1;
-        });
+        setHighlightedIndex((prev) =>
+          nextEnabledIndex(filteredOptions, prev >= 0 ? prev : activeIndex, -1)
+        );
         break;
       case 'Enter':
         e.preventDefault();
