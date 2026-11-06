@@ -44,7 +44,6 @@ export default function App() {
     handleNavigateToPassages,
     passagesResetSignal,
     // Data
-    sectionsData,
     backendStatus,
     activeBatchCount,
     validatedCount,
@@ -99,7 +98,6 @@ export default function App() {
             {viewMode === 'wizard' && (
               <GuidedWizard
                 generatorForm={generatorForm}
-                sectionsData={sectionsData}
                 onGenerateQuestions={handleGenerate}
                 isLaunchingBatch={isLaunchingBatch}
                 step={wizardStep}

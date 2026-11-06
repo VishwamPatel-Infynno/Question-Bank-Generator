@@ -92,7 +92,6 @@ export default function DeletePassageModal({
       maxWidth="520px"
       isProcessing={isDeleting}
       footer={footer}
-      ariaLabelledBy="delete-passage-title"
     >
       <div className="delete-passage-stack">
         {/* Passage Overview Card */}

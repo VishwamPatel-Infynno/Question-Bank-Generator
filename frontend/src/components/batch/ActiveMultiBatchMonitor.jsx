@@ -130,7 +130,7 @@ function ActiveMultiBatchMonitor({
 
         {/* Questions drafted */}
         <div className="batch-monitor-telemetry-card">
-          <Layers size={16} color="var(--infynno-cyan, #1E7ADF)" />
+          <Layers size={16} color="var(--infynno-cyan)" />
           <div>
             <div className="batch-monitor-metric-title">Questions Created</div>
             <div className="batch-monitor-metric-stat">
@@ -141,7 +141,7 @@ function ActiveMultiBatchMonitor({
 
         {/* Tokens consumed */}
         <div className="batch-monitor-telemetry-card">
-          <Coins size={16} color="var(--status-success, #10b981)" />
+          <Coins size={16} color="var(--status-success)" />
           <div>
             <div className="batch-monitor-metric-title">Usage &amp; Cost</div>
             <div className="batch-monitor-metric-stat">

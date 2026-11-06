@@ -100,11 +100,10 @@ export default function QuestionCardHeader({
             type="button"
             onClick={onToggleEditing}
             className="btn-secondary qcard-header-btn"
-            title="Edit question text (Press E)"
+            title={isEditing ? 'Discard the edits' : 'Edit question text'}
           >
             <Edit3 size={12} />
             <span>{isEditing ? 'Cancel' : 'Edit'}</span>
-            <span className="kbd-hint">E</span>
           </button>
         )}
       </div>

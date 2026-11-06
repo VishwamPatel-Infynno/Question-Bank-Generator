@@ -96,4 +96,3 @@ export function useFocusTrap({ isActive = true, onClose = null }) {
   return containerRef;
 }
 
-export default useFocusTrap;

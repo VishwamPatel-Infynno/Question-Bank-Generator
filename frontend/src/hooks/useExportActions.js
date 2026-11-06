@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { generateExamCsv, generateExamJson, generateExamHtmlDoc } from '../utils/exportUtils';
+import { generateExamCsv, generateExamJson, generateExamHtmlDoc } from '../utils/export';
 import { downloadTextFile } from '../utils/download';
 import { useCopyToClipboard } from './useCopyToClipboard';
 
@@ -102,4 +102,3 @@ export function useExportActions({ questions, paperMode, onShowToast }) {
   };
 }
 
-export default useExportActions;

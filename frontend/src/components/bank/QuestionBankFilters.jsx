@@ -125,7 +125,6 @@ export default function QuestionBankFilters({
             value={sortBy}
             onChange={(newSort) => setSortBy(newSort)}
             options={SORT_OPTIONS.map((opt) => ({ value: opt.id, label: opt.label }))}
-            searchable={false}
             align="right"
             className="qbank-filters-sort-select"
           />

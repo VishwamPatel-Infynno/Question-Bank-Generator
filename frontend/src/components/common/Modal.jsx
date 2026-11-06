@@ -19,7 +19,7 @@ import { useFocusTrap } from '../../hooks';
  * @param {boolean} [props.isProcessing=false] - When true, disables closing and dismiss interactions.
  * @param {React.ReactNode} [props.children] - Modal body content.
  * @param {React.ReactNode} [props.footer] - Optional modal footer content.
- * @param {string} [props.ariaLabelledBy='modal-dialog-title'] - Accessibility label ID.
+label ID.
  * @param {string} [props.className] - Optional extra class name for the card.
  * @param {Object} [props.cardStyle] - Optional inline style overrides for the card.
  */
@@ -35,8 +35,6 @@ export default function Modal({
   isProcessing = false,
   children,
   footer,
-  ariaLabelledBy = 'modal-dialog-title',
-  className = '',
   cardStyle = DEFAULT_CARD_STYLE
 }) {
   // While a request is running the dialog must not be dismissable (Escape included)
@@ -46,7 +44,7 @@ export default function Modal({
   });
   // Unique per instance so stacked dialogs never share a label id
   const uid = useId();
-  const labelId = ariaLabelledBy === 'modal-dialog-title' ? `modal-title-${uid}` : ariaLabelledBy;
+  const labelId = `modal-title-${uid}`;
 
   if (!isOpen) return null;
 
@@ -73,7 +71,7 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`modal-card-theme modal-card-base ${sizeClass || 'modal-md'} ${className}`.trim()}
+        className={`modal-card-theme modal-card-base ${sizeClass || 'modal-md'}`}
         onClick={(e) => e.stopPropagation()}
         style={{
           ...customMaxWidthStyle,

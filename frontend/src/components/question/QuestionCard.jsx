@@ -1,3 +1,4 @@
+import { useQuestionDraft } from '../../hooks/useQuestionDraft';
 import React, { useState, useMemo } from 'react';
 import { 
   ChevronDown, 
@@ -18,27 +19,13 @@ import QuestionInlineEditor from './QuestionInlineEditor';
 import { getEffectiveTrapInfo, calculateOptionSymmetry, countWords } from '../../utils';
 import { getCorrectAnswerIds, getReviewPillars, hasQuestionImage } from '../../utils';
 
-function QuestionCard({ 
-  question, 
-  isSaved = false, 
-  onApprove, 
-  onDiscard, 
-  onOpenAudit, 
-  onNextQuestion,
-  onUpdateQuestion 
-}) {
+function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion }) {
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'scorecard' | 'telemetry'
   const [showExplanation, setShowExplanation] = useState(true);
-  const [isApproving, setIsApproving] = useState(false);
 
   // Quick Inline Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
-  const [editedStem, setEditedStem] = useState(question?.question_stem || '');
-  const [editedStimulus, setEditedStimulus] = useState(question?.stimulus_text || '');
-  const [editedOptions, setEditedOptions] = useState(question?.options || []);
-  const [editedExplanation, setEditedExplanation] = useState(question?.explanation || '');
-  const [editedImageDescription, setEditedImageDescription] = useState(question?.image_description || '');
-  const [showStimulusField, setShowStimulusField] = useState(Boolean(question?.stimulus_text && question.stimulus_text.trim().length > 0));
+  const { draft, setDraftField, resetDraft, toQuestion } = useQuestionDraft(question);
 
   const effectiveTrapInfo = getEffectiveTrapInfo(question);
 
@@ -50,38 +37,21 @@ function QuestionCard({
     if (question.stage_outcomes?.option_symmetry) {
       return question.stage_outcomes.option_symmetry;
     }
-    const currentOptions = isEditing ? editedOptions : (question.options || []);
+    const currentOptions = isEditing ? draft.options : (question.options || []);
     return calculateOptionSymmetry(currentOptions);
-  }, [question, isEditing, editedOptions]);
+  }, [question, isEditing, draft.options]);
 
   const hasStimulus = Boolean(
     (question?.stimulus_text && question.stimulus_text.trim()) ||
-    (isEditing && (showStimulusField || (editedStimulus && editedStimulus.trim())))
+    (isEditing && (draft.showStimulusField || (draft.stimulus && draft.stimulus.trim())))
   );
 
   const hasImage = hasQuestionImage(question);
 
   if (!question) return null;
 
-  const handleApproveClick = async () => {
-    if (!onApprove || isApproving) return;
-    setIsApproving(true);
-    try {
-      await onApprove(question);
-    } finally {
-      setIsApproving(false);
-    }
-  };
-
   const handleSaveEdit = async () => {
-    const updated = {
-      ...question,
-      question_stem: editedStem,
-      stimulus_text: editedStimulus,
-      options: editedOptions,
-      explanation: editedExplanation,
-      image_description: editedImageDescription
-    };
+    const updated = toQuestion();
     try {
       if (onUpdateQuestion) await onUpdateQuestion(updated);
       setIsEditing(false);
@@ -92,12 +62,7 @@ function QuestionCard({
   };
 
   const handleCancelEdit = () => {
-    setEditedStem(question.question_stem);
-    setEditedStimulus(question.stimulus_text || '');
-    setEditedOptions(question.options || []);
-    setEditedExplanation(question.explanation || '');
-    setEditedImageDescription(question.image_description || '');
-    setShowStimulusField(Boolean(question.stimulus_text && question.stimulus_text.trim().length > 0));
+    resetDraft();
     setIsEditing(false);
   };
 
@@ -116,7 +81,7 @@ function QuestionCard({
         effectiveTrapInfo={effectiveTrapInfo}
         onOpenAudit={onOpenAudit}
         isEditing={isEditing}
-        onToggleEditing={() => setIsEditing(!isEditing)}
+        onToggleEditing={() => (isEditing ? handleCancelEdit() : setIsEditing(true))}
       />
 
       {/* Desk Tab Navigation */}
@@ -153,21 +118,21 @@ function QuestionCard({
           )}
 
           {/* Reading Passage (Stimulus) */}
-          {((question.stimulus_text && question.stimulus_text.trim()) || (isEditing && (showStimulusField || (editedStimulus && editedStimulus.trim())))) ? (
+          {((question.stimulus_text && question.stimulus_text.trim()) || (isEditing && (draft.showStimulusField || (draft.stimulus && draft.stimulus.trim())))) ? (
             <div className="passage-editorial vignette-editorial qcard-passage-box">
               <div className="qcard-passage-header">
                 <span className="qcard-passage-title">
                   Reading Passage
                 </span>
                 <span className="qcard-passage-words">
-                  ~{countWords(isEditing ? editedStimulus : question.stimulus_text)} words
+                  ~{countWords(isEditing ? draft.stimulus : question.stimulus_text)} words
                 </span>
               </div>
 
               {isEditing ? (
                 <textarea
-                  value={editedStimulus}
-                  onChange={(e) => setEditedStimulus(e.target.value)}
+                  value={draft.stimulus}
+                  onChange={(e) => setDraftField('stimulus', e.target.value)}
                   rows={6}
                   placeholder="Enter optional reading passage or context..."
                   className="qcard-passage-textarea"
@@ -183,8 +148,8 @@ function QuestionCard({
                   <VisualStimulusViewer
                     question={question}
                     isEditing={isEditing}
-                    editedDescription={editedImageDescription}
-                    onDescriptionChange={setEditedImageDescription}
+                    editedDescription={draft.imageDescription}
+                    onDescriptionChange={(v) => setDraftField('imageDescription', v)}
                   />
                 </div>
               )}
@@ -193,7 +158,7 @@ function QuestionCard({
             <div className="qcard-add-passage-wrap">
               <button
                 type="button"
-                onClick={() => setShowStimulusField(true)}
+                onClick={() => setDraftField('showStimulusField', true)}
                 className="btn-secondary qcard-add-passage-btn"
               >
                 + Add Reading Passage
@@ -206,8 +171,8 @@ function QuestionCard({
             <VisualStimulusViewer
               question={question}
               isEditing={isEditing}
-              editedDescription={editedImageDescription}
-              onDescriptionChange={setEditedImageDescription}
+              editedDescription={draft.imageDescription}
+              onDescriptionChange={(v) => setDraftField('imageDescription', v)}
             />
           )}
 
@@ -215,8 +180,8 @@ function QuestionCard({
           <div className="qcard-stem-wrap">
             {isEditing ? (
               <textarea
-                value={editedStem}
-                onChange={(e) => setEditedStem(e.target.value)}
+                value={draft.stem}
+                onChange={(e) => setDraftField('stem', e.target.value)}
                 rows={2}
                 className="qcard-stem-textarea"
               />
@@ -233,8 +198,8 @@ function QuestionCard({
             correctKeysList={correctKeysList}
             optionSymmetry={optionSymmetry}
             isEditing={isEditing}
-            editedOptions={editedOptions}
-            onEditedOptionsChange={setEditedOptions}
+            editedOptions={draft.options}
+            onEditedOptionsChange={(v) => setDraftField('options', v)}
           />
 
           {/* Explanation Accordion Toggle */}
@@ -263,8 +228,8 @@ function QuestionCard({
                     <span>Explanations</span>
                   </div>
                   <textarea
-                    value={editedExplanation}
-                    onChange={(e) => setEditedExplanation(e.target.value)}
+                    value={draft.explanation}
+                    onChange={(e) => setDraftField('explanation', e.target.value)}
                     rows={4}
                     className="qcard-explanation-textarea"
                   />
@@ -272,7 +237,6 @@ function QuestionCard({
               ) : (
                 <MentorExplanationView
                   explanation={question.explanation}
-                  options={question.options}
                   correctAnswerId={question.correct_answer_id}
                   primaryTrap={question.primary_trap || effectiveTrapInfo?.key}
                   likelyMistakePattern={question.likely_mistake_pattern}
@@ -294,14 +258,7 @@ function QuestionCard({
       )}
 
       {/* Bottom Action Bar */}
-      <QuestionCardFooter
-        question={question}
-        isSaved={isSaved}
-        isApproving={isApproving}
-        onApprove={handleApproveClick}
-        onDiscard={onDiscard}
-        onNextQuestion={onNextQuestion}
-      />
+      <QuestionCardFooter isSaved={isSaved} />
     </div>
   );
 }

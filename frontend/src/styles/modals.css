@@ -852,11 +852,6 @@
   gap: 14px;
 }
 
-.shared-passage-body.split-pane {
-  max-height: none;
-  overflow-y: visible;
-}
-
 .choice-option-content {
   flex: 1;
   padding-top: 2px;

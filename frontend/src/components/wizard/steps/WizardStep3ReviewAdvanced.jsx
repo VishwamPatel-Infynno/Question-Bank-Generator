@@ -22,7 +22,6 @@ export default function WizardStep3ReviewAdvanced({
   primaryTraps = EMPTY_ARRAY,
   onTogglePrimaryTrap,
   selectedSkill = '',
-  setSelectedSkill: _setSelectedSkill,
   selectedSubskill = '',
   setSelectedSubskill,
   selectedSubskills = EMPTY_ARRAY,
@@ -31,8 +30,6 @@ export default function WizardStep3ReviewAdvanced({
   setLikelyMistakePattern,
   likelyMistakePatterns = EMPTY_ARRAY,
   onToggleMistakePattern,
-  customMistakePattern = '',
-  setCustomMistakePattern: _setCustomMistakePattern,
   additionalInstructions = '',
   setAdditionalInstructions
 }) {
@@ -65,13 +62,12 @@ export default function WizardStep3ReviewAdvanced({
   }, [selectedSubskills, selectedSubskill]);
 
   const effectiveMistakes = useMemo(() => {
-    if (customMistakePattern) return [customMistakePattern];
     if (likelyMistakePatterns && likelyMistakePatterns.length > 0) return likelyMistakePatterns;
     if (likelyMistakePattern && likelyMistakePattern !== 'Automatic' && likelyMistakePattern !== 'None') {
       return [likelyMistakePattern];
     }
     return [];
-  }, [customMistakePattern, likelyMistakePatterns, likelyMistakePattern]);
+  }, [likelyMistakePatterns, likelyMistakePattern]);
 
   const isPassage = isCars || questionType === 'PASSAGE_BASED_MCQ';
 

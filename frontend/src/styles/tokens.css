@@ -9,16 +9,9 @@
   --font-mono: 'JetBrains Mono', monospace;
   --font-serif: 'Newsreader', Georgia, serif;
 
-  /* Official AAMC MCAT Section Signature Accents */
-  --mcat-chem-phys: #0284c7;
-  --mcat-cars: #e11d48;
-  --mcat-bio-biochem: #059669;
-  --mcat-psych-soc: #7c3aed;
-
   /* Stacking layers (lowest to highest): sticky bars, dropdowns, modals and toasts, full-screen overlays */
   --z-sticky: 50;
   --z-dropdown: 100;
-  --z-modal: 1000;
   --z-toast: 1000;
   --z-overlay: 9999;
 
@@ -72,12 +65,10 @@
   --bg-surface-elevated: #ffffff;
   --bg-surface-subtle: #f8fafc;
   --bg-surface-hover: #f1f5f9;
-  --bg-card: #ffffff;
 
   --border-light: #e8ecf2;
   --border-medium: #cbd5e1;
   --border-subtle: #f1f5f9;
-  --border-hairline: #f1f4f9;
   --border-brand: #93c5fd;
   --border-strong: #94a3b8;
 
@@ -85,7 +76,6 @@
   --text-secondary: #475569;
   --text-muted: #64748b;
   --text-dim: #94a3b8;
-  --text-disabled: #94a3b8;
 
   --brand-primary: #0284c7;
   --brand-hover: #0369a1;
@@ -94,7 +84,6 @@
   --brand-indigo: #4f46e5;
 
   --status-success: #059669;
-  --status-success-text: #059669;
   --success: #059669;
   --status-success-bg: #ecfdf5;
   --status-success-border: #a7f3d0;
@@ -127,13 +116,11 @@
   --bg-surface-elevated: #121826;
   --bg-surface-subtle: #0a0e18;
   --bg-surface-hover: #151c2c;
-  --bg-card: #0d121d;
 
   /* Hairline Crisp Dividers & Borders */
   --border-light: rgba(255, 255, 255, 0.06);
   --border-medium: rgba(255, 255, 255, 0.1);
   --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-hairline: rgba(255, 255, 255, 0.04);
   --border-brand: rgba(56, 189, 248, 0.25);
   --border-strong: rgba(255, 255, 255, 0.16);
 
@@ -142,7 +129,6 @@
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   --text-dim: #475569;
-  --text-disabled: #475569;
 
   /* Restrained Accents */
   --brand-primary: #38bdf8;
@@ -153,7 +139,6 @@
 
   /* Status Colors */
   --status-success: #10b981;
-  --status-success-text: #10b981;
   --success: #10b981;
   --status-success-bg: rgba(16, 185, 129, 0.06);
   --status-success-border: rgba(16, 185, 129, 0.22);

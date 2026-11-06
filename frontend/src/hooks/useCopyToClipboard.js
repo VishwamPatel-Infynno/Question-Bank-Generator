@@ -36,4 +36,3 @@ export function useCopyToClipboard(resetMs = 2000) {
   return { copiedKey, copy };
 }
 
-export default useCopyToClipboard;

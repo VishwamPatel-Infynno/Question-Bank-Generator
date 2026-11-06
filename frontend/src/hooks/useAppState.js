@@ -9,10 +9,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme } from './useTheme';
 import { useGeneratorForm } from './useGeneratorForm';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import { MCAT_SECTIONS_FALLBACK } from '../constants';
 import {
-  fetchSections,
-  fetchHealth,
   startBackgroundBatch,
   fetchBatches,
   fetchQuestionCounts
@@ -67,7 +64,6 @@ export function useAppState() {
   const [wizardStep, setWizardStep] = useState(1);
 
   // ─── Sections / Backend Status ────────────────────────────────────────────
-  const [sectionsData, setSectionsData] = useState([]);
   // null = still connecting, true = online, false = offline
   const [backendStatus, setBackendStatus] = useState(null);
   const [activeBatchCount, setActiveBatchCount] = useState(0);
@@ -114,24 +110,6 @@ export function useAppState() {
     setPassagesResetSignal((prev) => prev + 1);
   }, []);
 
-  // ─── Bootstrap: Health + Sections ─────────────────────────────────────────
-  useEffect(() => {
-    fetchHealth()
-      .then(() => setBackendStatus(true))
-      .catch(() => setBackendStatus(false));
-
-    fetchSections()
-      .then((data) => {
-        if (data && data.length > 0) {
-          setSectionsData(data);
-        } else {
-          setSectionsData(MCAT_SECTIONS_FALLBACK);
-        }
-      })
-      .catch(() => {
-        setSectionsData(MCAT_SECTIONS_FALLBACK);
-      });
-  }, []);
 
   // ─── Polling: Active Batch Count + Validated Questions ─────────────────────
   const activeBatchCountRef = useRef(activeBatchCount);
@@ -250,16 +228,11 @@ export function useAppState() {
         applySectionRules(generatorForm.formData, cfg.section, cfg.totalQuestions)),
       ...(cfg.difficulty && { difficulty: cfg.difficulty }),
       ...(cfg.totalQuestions !== undefined && { totalQuestions: cfg.totalQuestions }),
-      interactionType: 'single_choice',
-      ...(cfg.passageCount !== undefined && {
-        passageCount: cfg.passageCount,
-        passageRequired: cfg.passageCount > 0 ? 'Yes' : 'No'
-      }),
+      ...(cfg.passageCount !== undefined && { passageRequired: cfg.passageCount > 0 ? 'Yes' : 'No' }),
       ...(cfg.passageMode && {
         passageMode: cfg.passageMode,
         questionType: cfg.passageMode === 'single_passage' ? 'PASSAGE_BASED_MCQ' : 'DISCRETE_MCQ'
       }),
-      ...(cfg.passageQuestionCount !== undefined && { passageQuestionCount: cfg.passageQuestionCount }),
       ...(cfg.primaryTrap && { primaryTrap: cfg.primaryTrap })
     });
     showToast({
@@ -297,7 +270,6 @@ export function useAppState() {
     handleNavigateToPassages,
     passagesResetSignal,
     // Data
-    sectionsData,
     backendStatus,
     activeBatchCount,
     // Form

@@ -199,7 +199,6 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
                 passageText={q.stimulus_text}
                 questionCount={1}
                 diagramQuestion={q}
-                collapsible={false}
               />
             </div>
           )}
@@ -241,7 +240,6 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
               <MentorExplanationView
                 explanation={q.explanation}
                 isCompact={true}
-                options={q.options}
                 correctAnswerId={q.correct_answer_id}
                 primaryTrap={q.primary_trap}
                 likelyMistakePattern={q.likely_mistake_pattern}

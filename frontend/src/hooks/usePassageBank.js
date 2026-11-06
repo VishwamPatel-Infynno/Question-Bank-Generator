@@ -91,11 +91,6 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     }
   }, [guard, sectionFilter, debouncedSearch, onShowToast]);
 
-  const loadPassages = useCallback(
-    (isSilent = false) => performFetchPassages(isSilent),
-    [performFetchPassages]
-  );
-
   // Initial load and dependency-driven fetch on filter changes
   useEffect(() => {
     async function init() {
@@ -173,7 +168,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
       );
 
       // Refresh passages list
-      await loadPassages();
+      await performFetchPassages();
 
       if (onShowToast) {
         onShowToast({
@@ -226,7 +221,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
       setPassageToDelete(null);
 
       // Refresh catalog list
-      await loadPassages();
+      await performFetchPassages();
 
       // Trigger global navbar / app state counts refresh
       if (onRefreshCounts) {
@@ -294,7 +289,6 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     questionCounts,
     totalWordCount,
     avgWordCount,
-    loadPassages,
     // Filters & search
     searchQuery,
     setSearchQuery,
@@ -310,7 +304,6 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     selectedPassage,
     setSelectedPassage,
     selectedPassageQuestions,
-    setSelectedPassageQuestions,
     isLoadingDetail,
     // Actions
     handleSelectPassage,

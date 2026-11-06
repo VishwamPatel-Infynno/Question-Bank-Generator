@@ -426,16 +426,6 @@
   flex-wrap: wrap;
 }
 
-.qcard-footer-save-btn {
-  padding: 8px 18px;
-  font-size: 0.825rem;
-}
-
-.qcard-footer-discard-btn {
-  padding: 8px 14px;
-  font-size: 0.825rem;
-}
-
 .qcard-footer-saved-label {
   display: flex;
   align-items: center;
@@ -443,24 +433,6 @@
   color: var(--status-success);
   font-weight: 600;
   font-size: 0.825rem;
-}
-
-.qcard-footer-next-btn {
-  padding: 8px 16px;
-  font-size: 0.825rem;
-}
-
-.qcard-footer-kbd-save {
-  font-size: 0.6rem;
-  color: var(--text-on-accent);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.qcard-footer-kbd-next {
-  font-size: 0.6rem;
-  color: var(--text-on-accent);
-  border: none;
-  background: rgba(255, 255, 255, 0.2);
 }
 
 /* --- Inline Editor Strip (.qcard-edit-*) --- */
@@ -1052,13 +1024,6 @@
   box-shadow: var(--shadow-sm);
 }
 
-.shared-passage-card.is-split-pane {
-  max-height: calc(100vh - 120px);
-  overflow-y: auto;
-  position: sticky;
-  top: 88px;
-}
-
 .shared-passage-header {
   display: flex;
   align-items: flex-start;
@@ -1136,12 +1101,6 @@
   font-family: var(--font-mono);
   min-width: 32px;
   text-align: center;
-}
-
-.shared-passage-toggle-btn {
-  padding: 5px 12px;
-  font-size: 0.725rem;
-  gap: 6px;
 }
 
 .shared-passage-body {

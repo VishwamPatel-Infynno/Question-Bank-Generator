@@ -1,26 +1,13 @@
-import { EMPTY_OBJECT } from '../../constants';
-
 /**
  * Infynno Solutions LLP Official Vector Logo
  * Features the signature gradient #4F30B9 -> #335ACF -> #1E7ADF
  */
 
-export default function InfynnoLogo({
-  width = 34,
-  height = 22,
-  className = '',
-  style = EMPTY_OBJECT,
-  showText = false,
-  textColor = 'var(--text-primary)'
-}) {
+export default function InfynnoLogo({ width = 34, height = 22, showText = false }) {
   const gradientId = 'infynno-brand-gradient';
 
   return (
-    <div
-      className={`infynno-logo-root ${className}`.trim()}
-      style={style}
-      title="Infynno Solutions LLP - Infinite Innovations"
-    >
+    <div className="infynno-logo-root" title="Infynno Solutions LLP - Infinite Innovations">
       <svg
         width={width}
         height={height}
@@ -44,12 +31,7 @@ export default function InfynnoLogo({
         />
       </svg>
       {showText && (
-        <span
-          className="infynno-logo-text"
-          style={{ color: textColor }}
-        >
-          INFYNNO
-        </span>
+        <span className="infynno-logo-text">INFYNNO</span>
       )}
     </div>
   );

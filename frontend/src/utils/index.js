@@ -22,7 +22,7 @@ export {
   generateExamCsv,
   generateExamJson,
   generateExamHtmlDoc
-} from './exportUtils';
+} from './export';
 
 /** Cognitive rationale & distractor extraction */
 export {

@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { applySectionRules } from '../../utils/generatorFormState';
 import {
-  PACING_INFO,
   SECTION_METADATA,
   DIFFICULTY,
   DIFFICULTY_TIERS,
@@ -37,7 +36,6 @@ export default function GuidedWizard({
 
   const selectedSection = form.selectedSection || 'chem_phys';
   const selectedSubject = form.selectedSubject || '';
-  const selectedUnit = form.selectedUnit || '';
   const selectedTopic = form.selectedTopic || '';
   const selectedSubtopic = form.selectedSubtopic || '';
   const selectedSkill = form.selectedSkill || '';
@@ -52,7 +50,6 @@ export default function GuidedWizard({
   const likelyMistakePatterns = form.likelyMistakePatterns || [];
   const selectedSubskills = form.selectedSubskills || [];
   const selectedSubtopics = form.selectedSubtopics || [];
-  const customMistakePattern = form.customMistakePattern || '';
 
   const togglePrimaryTrap = generatorForm?.togglePrimaryTrap;
   const toggleSubskill = generatorForm?.toggleSubskill;
@@ -67,7 +64,6 @@ export default function GuidedWizard({
   const setAllowAiImages = generatorForm?.setAllowAiImages || ((v) => update('allowAiImages', v));
 
   const sectionMeta = SECTION_METADATA[selectedSection] || SECTION_METADATA.chem_phys;
-  const pacing = PACING_INFO[selectedSection] || PACING_INFO.chem_phys;
 
   // Section Selection handler
   const handleSelectSection = (sectionId) => {
@@ -80,8 +76,6 @@ export default function GuidedWizard({
         passageMode: 'single_passage',
         passageRequired: 'Yes',
         questionType: 'PASSAGE_BASED_MCQ',
-        passageQuestionCount: totalQuestions,
-        passageCount: totalQuestions === 50 ? 10 : 1
       });
     } else {
       updateFields({
@@ -180,20 +174,13 @@ export default function GuidedWizard({
           <WizardStep3ReviewAdvanced
             selectedSection={selectedSection}
             sectionMeta={sectionMeta}
-            pacing={pacing}
             setStep={setStep}
             selectedSubject={selectedSubject}
-            selectedUnit={selectedUnit}
             selectedTopic={selectedTopic}
             selectedSubtopic={selectedSubtopic}
-            selectedSubtopics={selectedSubtopics}
             difficulty={difficulty}
-            setDifficulty={setDifficulty}
             totalQuestions={totalQuestions}
-            setTotalQuestions={setGenerationTotal}
             questionType={questionType}
-            setQuestionType={setQuestionType}
-            passageMode={passageMode}
             allowAiImages={allowAiImages}
             setAllowAiImages={setAllowAiImages}
             COGNITIVE_TRAPS={COGNITIVE_TRAPS}
@@ -202,7 +189,6 @@ export default function GuidedWizard({
             primaryTraps={primaryTraps}
             onTogglePrimaryTrap={togglePrimaryTrap}
             selectedSkill={selectedSkill}
-            setSelectedSkill={(v) => update('selectedSkill', v)}
             selectedSubskill={selectedSubskill}
             setSelectedSubskill={(v) => update('selectedSubskill', v)}
             selectedSubskills={selectedSubskills}
@@ -211,8 +197,6 @@ export default function GuidedWizard({
             setLikelyMistakePattern={(v) => update('likelyMistakePattern', v)}
             likelyMistakePatterns={likelyMistakePatterns}
             onToggleMistakePattern={toggleMistakePattern}
-            customMistakePattern={customMistakePattern}
-            setCustomMistakePattern={(v) => update('customMistakePattern', v)}
             additionalInstructions={form.additionalInstructions || ''}
             setAdditionalInstructions={(v) => update('additionalInstructions', v)}
           />

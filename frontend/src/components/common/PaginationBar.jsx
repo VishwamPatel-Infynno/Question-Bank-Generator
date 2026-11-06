@@ -15,7 +15,6 @@ import { PAGE_SIZE_OPTIONS, normalizePageSizeOptions } from '../../utils/paginat
  * @param {function(number): void} props.onPageChange Callback when page number is selected.
  * @param {function(number): void} props.onPageSizeChange Callback when page size is changed.
  * @param {Array<number|{value: number, label: string}>} [props.pageSizeOptions] Available page sizes (numbers or option objects; -1 = all).
- * @param {string} [props.className] Additional CSS class names.
  */
 export default function PaginationBar({
   currentPage,
@@ -25,8 +24,7 @@ export default function PaginationBar({
   itemLabel = 'questions',
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = PAGE_SIZE_OPTIONS,
-  className = ''
+  pageSizeOptions = PAGE_SIZE_OPTIONS
 }) {
   if (totalItems <= 0) return null;
 
@@ -38,7 +36,7 @@ export default function PaginationBar({
     .filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1);
 
   return (
-    <div className={`pagination-bar ${className}`}>
+    <div className="pagination-bar">
       <div className="pagination-info">
         Showing <strong className="pagination-highlight">{startIndex}-{endIndex}</strong> of{' '}
         <strong className="pagination-highlight">{totalItems}</strong> {itemLabel}
@@ -54,7 +52,6 @@ export default function PaginationBar({
               onPageChange(1);
             }}
             options={normalizePageSizeOptions(pageSizeOptions)}
-            searchable={false}
             className="pagination-size-select"
           />
           <span>per page</span>

@@ -286,7 +286,6 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     searchInputRef,
     // Selection
     selectedIds,
-    setSelectedIds,
     allFilteredSelected,
     handleToggleSelect,
     handleSelectAll,

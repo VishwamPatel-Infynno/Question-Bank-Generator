@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
  * LiveStopwatch:
  * Decoupled, self-contained timer component that ticks without re-rendering parent components.
  */
-function LiveStopwatch({ isRunning, intervalMs = 200, style = null, className = '' }) {
+function LiveStopwatch({ isRunning }) {
   const [elapsedTime, setElapsedTime] = useState('0.0');
 
   useEffect(() => {
@@ -13,17 +13,15 @@ function LiveStopwatch({ isRunning, intervalMs = 200, style = null, className = 
       const startTime = Date.now();
       interval = setInterval(() => {
         setElapsedTime(((Date.now() - startTime) / 1000).toFixed(1));
-      }, intervalMs);
+      }, 200);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, intervalMs]);
+  }, [isRunning]);
 
   return (
-    <span style={style} className={className}>
-      {elapsedTime}s
-    </span>
+    <span>{elapsedTime}s</span>
   );
 }
 

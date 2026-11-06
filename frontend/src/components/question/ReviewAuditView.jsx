@@ -79,7 +79,6 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
       icon={iconElement}
       maxWidth="820px"
       footer={footer}
-      ariaLabelledBy="audit-modal-title"
     >
       <div className="audit-modal-body">
         {/* Overall Score Banner */}

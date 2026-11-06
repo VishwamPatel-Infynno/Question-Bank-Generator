@@ -52,7 +52,7 @@ export function toggleSubtopicState(prev, subtopic) {
  * figures and its own skill list; the science sections re-enable AI figures. Used by the wizard's
  * section picker and by the hero presets so both paths apply the same rules.
  */
-export function applySectionRules(form, sectionId, totalQuestions = form?.totalQuestions || 50) {
+export function applySectionRules(form, sectionId) {
   const firstSkill = getSkillsForSection(sectionId)[0];
   const common = {
     selectedSection: sectionId,
@@ -72,8 +72,6 @@ export function applySectionRules(form, sectionId, totalQuestions = form?.totalQ
       passageMode: 'single_passage',
       passageRequired: 'Yes',
       questionType: 'PASSAGE_BASED_MCQ',
-      passageQuestionCount: totalQuestions,
-      passageCount: totalQuestions,
       requireImage: false,
       allowAiImages: false,
       requirePassageImage: false,

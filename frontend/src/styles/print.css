@@ -159,7 +159,7 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   max-height: 440px;
   overflow-y: auto;
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-family: var(--font-sans);
 }
 
 [data-theme="dark"] .exam-paper-sheet {
@@ -298,7 +298,7 @@
   padding: 10px 12px;
   margin-bottom: 10px;
   font-size: 0.8rem;
-  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+  font-family: var(--font-serif);
   line-height: 1.5;
   color: #1e293b;
 }
@@ -353,7 +353,7 @@
 
 .exam-paper-option-bubble {
   color: #94a3b8;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-weight: 700;
   flex-shrink: 0;
   line-height: 1.45;
@@ -409,7 +409,7 @@
 }
 
 .exam-paper-key-badge {
-  background: var(--status-success, #10b981);
+  background: var(--status-success);
   color: #ffffff;
   font-weight: 700;
   padding: 1px 6px;

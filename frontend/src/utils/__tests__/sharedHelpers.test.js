@@ -128,9 +128,6 @@ describe('buildBatchPayload', () => {
     primaryTraps: [],
     likelyMistakePattern: 'Automatic',
     likelyMistakePatterns: [],
-    customMistakePattern: '',
-    contentDomains: [],
-    contentDomain: '',
     allowAiImages: true,
     requireImage: false,
     additionalInstructions: '  '
@@ -162,8 +159,7 @@ describe('buildBatchPayload', () => {
       allowAiImages: false,
       selectedSubtopics: ['Rate laws', 'Catalysis'],
       primaryTraps: ['Extreme_Language'],
-      contentDomains: ['1A', '1B'],
-      customMistakePattern: 'my pattern'
+      likelyMistakePatterns: ['Unit confusion', 'Sign error']
     });
     expect(p).toMatchObject({
       subtopic: 'Rate laws, Catalysis',
@@ -171,9 +167,7 @@ describe('buildBatchPayload', () => {
       passage_count: 0,
       passage_question_count: undefined,
       primary_trap: 'Extreme_Language',
-      likely_mistake_pattern: 'my pattern',
-      content_domains: ['1A', '1B'],
-      content_domain: '1A, 1B',
+      likely_mistake_pattern: 'Unit confusion, Sign error',
       allow_ai_images: false,
       require_image: false,
       require_passage_image: false,

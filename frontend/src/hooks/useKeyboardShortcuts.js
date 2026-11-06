@@ -1,16 +1,6 @@
 import { useEffect } from 'react';
 
-export function useKeyboardShortcuts({
-  onGenerate,
-  onApprove,
-  onDiscard,
-  onToggleEdit,
-  onToggleTheme,
-  onFocusSearch,
-  onEscape,
-  onNextQuestion,
-  onPrevQuestion
-}) {
+export function useKeyboardShortcuts({ onGenerate, onToggleTheme, onFocusSearch, onEscape }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
@@ -54,63 +44,9 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      // Key: A -> Approve Candidate
-      if (e.key.toLowerCase() === 'a' && !e.metaKey && !e.ctrlKey) {
-        if (onApprove) {
-          e.preventDefault();
-          onApprove();
-        }
-        return;
-      }
-
-      // Key: D -> Discard Candidate
-      if (e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey) {
-        if (onDiscard) {
-          e.preventDefault();
-          onDiscard();
-        }
-        return;
-      }
-
-      // Key: E -> Quick Edit
-      if (e.key.toLowerCase() === 'e' && !e.metaKey && !e.ctrlKey) {
-        if (onToggleEdit) {
-          e.preventDefault();
-          onToggleEdit();
-        }
-        return;
-      }
-
-      // Key: J or ArrowRight -> Next Staged Question
-      if ((e.key.toLowerCase() === 'j' || e.key === 'ArrowRight') && !e.metaKey && !e.ctrlKey) {
-        if (onNextQuestion) {
-          e.preventDefault();
-          onNextQuestion();
-          return;
-        }
-      }
-
-      // Key: K or ArrowLeft -> Previous Staged Question
-      if ((e.key.toLowerCase() === 'k' || e.key === 'ArrowLeft') && !e.metaKey && !e.ctrlKey) {
-        if (onPrevQuestion) {
-          e.preventDefault();
-          onPrevQuestion();
-          return;
-        }
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    onGenerate,
-    onApprove,
-    onDiscard,
-    onToggleEdit,
-    onToggleTheme,
-    onFocusSearch,
-    onEscape,
-    onNextQuestion,
-    onPrevQuestion
-  ]);
+  }, [onGenerate, onToggleTheme, onFocusSearch, onEscape]);
 }

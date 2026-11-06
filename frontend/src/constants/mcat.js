@@ -247,7 +247,6 @@ export const formatDifficulty = (diff) =>
 export const getDifficultyBadgeClass = (diff) =>
   DIFFICULTY_BADGES[normalizeDifficulty(diff) ?? DIFFICULTY.MEDIUM];
 
-export * from './mcatTraps';
 
 /**
  * Score cut-offs (exclusive) used when a question has no explicit status. They mirror the

@@ -81,7 +81,6 @@ export default function ConfirmationModal({
       maxWidth="480px"
       isProcessing={isProcessing}
       footer={footer}
-      ariaLabelledBy="confirm-modal-title"
     >
       <div
         id="confirm-modal-desc"

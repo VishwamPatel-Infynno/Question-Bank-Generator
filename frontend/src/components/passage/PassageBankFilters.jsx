@@ -88,7 +88,6 @@ export default function PassageBankFilters({
             value={sortBy}
             onChange={(newSort) => setSortBy(newSort)}
             options={SORT_OPTIONS.map((opt) => ({ value: opt.id, label: opt.label }))}
-            searchable={false}
             align="right"
             className="passage-bank-sort-select"
           />

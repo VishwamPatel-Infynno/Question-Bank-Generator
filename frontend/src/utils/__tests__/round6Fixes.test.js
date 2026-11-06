@@ -53,7 +53,6 @@ describe('applySectionRules', () => {
     expect(next.allowAiImages).toBe(false);
     expect(next.requireImage).toBe(false);
     expect(next.passageMode).toBe('single_passage');
-    expect(next.passageQuestionCount).toBe(20);
     expect(next.selectedSkill).toMatch(/^CARS/);
   });
 

@@ -12,7 +12,6 @@ import {
   extractDistractorLines
 } from '../../utils';
 import { FormattedText } from '../common';
-import { EMPTY_ARRAY } from '../../constants';
 
 /**
  * MentorExplanationView
@@ -26,7 +25,6 @@ import { EMPTY_ARRAY } from '../../constants';
 export default function MentorExplanationView({
   explanation = '',
   isCompact = false,
-  _options = EMPTY_ARRAY,
   correctAnswerId = '',
   primaryTrap = null,
   likelyMistakePattern = null

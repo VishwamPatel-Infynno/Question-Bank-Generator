@@ -13,7 +13,6 @@ export function useQuestionBank() {
   const [loadError, setLoadError] = useState(null);
   const [sectionFilter, setSectionFilter] = useState('');
   const [diffFilter, setDiffFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState(QUESTION_STATUS.IN_BANK);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery);
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'score_desc' | 'score_asc' | 'difficulty'
@@ -31,7 +30,7 @@ export function useQuestionBank() {
         section: sectionFilter || undefined,
         difficulty: diffFilter || undefined,
         search: debouncedSearch || undefined,
-        status: statusFilter || QUESTION_STATUS.IN_BANK,
+        status: QUESTION_STATUS.IN_BANK,
         sort_by: sortBy || 'newest',
         slim: true
       },
@@ -58,7 +57,7 @@ export function useQuestionBank() {
           setLoading(false);
         }
       });
-  }, [guard, sectionFilter, diffFilter, statusFilter, debouncedSearch, sortBy, refreshCount]);
+  }, [guard, sectionFilter, diffFilter, debouncedSearch, sortBy, refreshCount]);
 
   const loadQuestions = useCallback(() => {
     setLoadError(null);
@@ -67,10 +66,9 @@ export function useQuestionBank() {
   }, []);
 
   const handleDelete = useCallback(
-    async (id, e) => {
-      if (e) e.stopPropagation();
+    async (id) => {
       await deleteQuestion(id);
-      await loadQuestions();
+      loadQuestions();
     },
     [loadQuestions]
   );
@@ -113,7 +111,6 @@ export function useQuestionBank() {
   return {
     questions,
     rawQuestions,
-    rawQuestionsCount: rawQuestions.length,
     repoStats,
     loading,
     loadError,
@@ -121,8 +118,6 @@ export function useQuestionBank() {
     setSectionFilter,
     diffFilter,
     setDiffFilter,
-    statusFilter,
-    setStatusFilter,
     searchQuery,
     setSearchQuery,
     sortBy,

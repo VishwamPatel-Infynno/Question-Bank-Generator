@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
-import { ChevronDown, Check, Search } from 'lucide-react';
-import { EMPTY_ARRAY, EMPTY_OBJECT } from '../../constants';
+import { ChevronDown, Check } from 'lucide-react';
+import { EMPTY_ARRAY } from '../../constants';
 import { nextEnabledIndex } from '../../utils/selectHelpers';
 
 /**
@@ -11,17 +11,13 @@ import { nextEnabledIndex } from '../../utils/selectHelpers';
  * - id: string
  * - value: any
  * - onChange: (value: any) => void
- * - options: Array<{ value: any, label: string, description?: string, icon?: React.ReactNode, badge?: string, disabled?: boolean }>
+ * - options: Array<{ value: any, label: string, disabled?: boolean }>
  * - placeholder?: string
  * - label?: string
- * - icon?: React.ReactNode (leading icon on trigger)
- * - badge?: string (badge on trigger)
  * - disabled?: boolean
- * - searchable?: boolean (defaults to true if options.length > 5)
  * - size?: 'sm' | 'md'
- * - style?: React.CSSProperties
- * - menuStyle?: React.CSSProperties
  * - align?: 'left' | 'right'
+ * - className?: string
  */
 
 export default function CustomSelect({
@@ -31,13 +27,8 @@ export default function CustomSelect({
   options = EMPTY_ARRAY,
   placeholder = 'Select option...',
   label,
-  icon,
-  badge,
   disabled = false,
-  searchable = undefined,
   size = 'md',
-  style = EMPTY_OBJECT,
-  menuStyle = EMPTY_OBJECT,
   align = 'left',
   className = ''
 }) {
@@ -45,36 +36,22 @@ export default function CustomSelect({
   const selectId = id || generatedId;
   const listboxId = `${selectId}-listbox`;
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
-  const searchInputRef = useRef(null);
   const listboxRef = useRef(null);
 
   // Find currently selected option
   const selectedOption = options.find(opt => String(opt.value) === String(value));
 
-  // Determine if search should be enabled
-  const isSearchable = searchable !== undefined ? searchable : options.length > 5;
-
-  // Filter options based on search query
-  const filteredOptions = options.filter(opt => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    const matchLabel = opt.label?.toLowerCase().includes(q);
-    const matchDesc = opt.description?.toLowerCase().includes(q);
-    const matchBadge = opt.badge?.toLowerCase().includes(q);
-    return matchLabel || matchDesc || matchBadge;
-  });
+  const filteredOptions = options;
 
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
         setIsOpen(false);
-        setSearchQuery('');
         setHighlightedIndex(-1);
       }
     }
@@ -91,7 +68,6 @@ export default function CustomSelect({
     function handleOtherOpen(e) {
       if (e.detail !== selectId) {
         setIsOpen(false);
-        setSearchQuery('');
         setHighlightedIndex(-1);
       }
     }
@@ -100,17 +76,6 @@ export default function CustomSelect({
       window.removeEventListener('custom-select-open', handleOtherOpen);
     };
   }, [selectId]);
-
-  // Focus search input when opening
-  useEffect(() => {
-    if (isOpen && isSearchable) {
-      setTimeout(() => {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus();
-        }
-      }, 50);
-    }
-  }, [isOpen, isSearchable]);
 
   // Determine active highlighted index (derived, avoiding cascading renders)
   const selectedIdx = filteredOptions.findIndex(opt => String(opt.value) === String(value));
@@ -132,7 +97,6 @@ export default function CustomSelect({
     if (opt.disabled) return;
     onChange(opt.value);
     setIsOpen(false);
-    setSearchQuery('');
     setHighlightedIndex(-1);
     if (triggerRef.current) {
       triggerRef.current.focus();
@@ -156,7 +120,6 @@ export default function CustomSelect({
       case 'Escape':
         e.preventDefault();
         setIsOpen(false);
-        setSearchQuery('');
         setHighlightedIndex(-1);
         if (triggerRef.current) triggerRef.current.focus();
         break;
@@ -189,7 +152,6 @@ export default function CustomSelect({
     <div
       ref={containerRef}
       className={`custom-select-container ${className}`.trim()}
-      style={style}
       onKeyDown={handleKeyDown}
     >
       {/* Trigger Button */}
@@ -207,8 +169,7 @@ export default function CustomSelect({
           if (!disabled) {
             const next = !isOpen;
             setIsOpen(next);
-            setSearchQuery('');
-            if (next) {
+                if (next) {
               window.dispatchEvent(new CustomEvent('custom-select-open', { detail: selectId }));
             }
           }
@@ -216,21 +177,9 @@ export default function CustomSelect({
         className={`custom-select-trigger ${isOpen ? 'active' : ''} ${isSmall ? 'size-sm' : 'size-md'} ${!selectedOption ? 'placeholder' : ''}`}
       >
         <div className="custom-select-trigger-content">
-          {(icon || selectedOption?.icon) && (
-            <span className="custom-select-trigger-icon">
-              {selectedOption?.icon || icon}
-            </span>
-          )}
-
           <span className="custom-select-trigger-label">
             {selectedOption ? selectedOption.label : placeholder}
           </span>
-
-          {(badge || selectedOption?.badge) && (
-            <span className="badge-minimal custom-select-trigger-badge">
-              {selectedOption?.badge || badge}
-            </span>
-          )}
         </div>
 
         <ChevronDown
@@ -247,34 +196,10 @@ export default function CustomSelect({
           role="listbox"
           tabIndex={-1}
           className={`custom-select-popover ${isSmall ? 'size-sm' : 'size-md'} ${align === 'right' ? 'align-right' : 'align-left'}`}
-          style={menuStyle}
         >
-          {/* Optional Search Filter Header */}
-          {isSearchable && (
-            <div className="custom-select-search-box">
-              <Search size={13} color="var(--text-muted)" />
-              <input
-                ref={searchInputRef}
-                id={`${selectId}-search`}
-                name={`${selectId}-search`}
-                type="text"
-                aria-label="Filter options"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="custom-select-search-input"
-              />
-            </div>
-          )}
-
           {/* Options Scroll Container */}
           <div className="custom-select-options-list">
-            {filteredOptions.length === 0 ? (
-              <div className="custom-select-empty">
-                No matching options
-              </div>
-            ) : (
-              filteredOptions.map((opt, idx) => {
+            {filteredOptions.map((opt, idx) => {
                 const isSelected = String(opt.value) === String(value);
                 const isHighlighted = idx === activeIndex;
 
@@ -301,30 +226,7 @@ export default function CustomSelect({
                     className={optClass}
                   >
                     <div className="custom-select-option-content">
-                      {opt.icon && (
-                        <span className="custom-select-option-icon">
-                          {opt.icon}
-                        </span>
-                      )}
-
-                      <div className="custom-select-option-text">
-                        <div className="custom-select-option-header">
-                          <span className="custom-select-option-label">
-                            {opt.label}
-                          </span>
-                          {opt.badge && (
-                            <span className="badge-minimal custom-select-option-badge">
-                              {opt.badge}
-                            </span>
-                          )}
-                        </div>
-
-                        {opt.description && (
-                          <span className="custom-select-option-desc">
-                            {opt.description}
-                          </span>
-                        )}
-                      </div>
+                      <span className="custom-select-option-label">{opt.label}</span>
                     </div>
 
                     {isSelected && (
@@ -337,8 +239,7 @@ export default function CustomSelect({
                     )}
                   </div>
                 );
-              })
-            )}
+              })}
           </div>
         </div>
       )}
