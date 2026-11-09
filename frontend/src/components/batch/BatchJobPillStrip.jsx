@@ -1,4 +1,3 @@
-import React from 'react';
 import { Check } from 'lucide-react';
 import { resolveQuestionStatus } from '../../utils';
 import { QUESTION_STATUS } from '../../constants';

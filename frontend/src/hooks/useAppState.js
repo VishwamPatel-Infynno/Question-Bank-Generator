@@ -32,21 +32,26 @@ import { getSectionShortLabel } from '../constants/mcat';
  *   setViewMode: (mode: 'hero' | 'wizard') => void,
  *   wizardStep: number,
  *   setWizardStep: (step: number) => void,
+ *   handleGoHome: () => void,
  *   handleNavigateToGenerator: () => void,
  *   handleNavigateToWizard: (step?: number) => void,
  *   handleNavigateToPassages: () => void,
+ *   handleNavigateToBank: () => void,
+ *   handleNavigateToBatches: () => void,
+ *   handleNavigateToValidated: () => void,
  *   passagesResetSignal: number,
- *   sectionsData: Array<any>,
- *   backendStatus: boolean | null,  (null while the first check is pending)
+ *   backendStatus: boolean | null,
  *   activeBatchCount: number,
  *   generatorForm: ReturnType<typeof useGeneratorForm>,
  *   auditQuestion: any,
  *   setAuditQuestion: (q: any) => void,
+ *   handleCloseAudit: () => void,
  *   toasts: Array<any>,
  *   showToast: (opts: { type?: string, title: string, message?: string, duration?: number }) => void,
  *   dismissToast: (id: string) => void,
  *   handleGenerate: () => void,
  *   handleApplyPreset: (cfg: any) => void,
+ *   handleApplyPresetAndNavigate: (cfg: any) => void,
  *   validatedCount: number,
  *   refreshCounts: () => void,
  *   isLaunchingBatch: boolean
@@ -69,6 +74,9 @@ export function useAppState() {
 
   // ─── Modals & Background Actions ──────────────────────────────────────────
   const [auditQuestion, setAuditQuestion] = useState(null);
+  const handleCloseAudit = useCallback(() => {
+    setAuditQuestion(null);
+  }, []);
   const [isLaunchingBatch, setIsLaunchingBatch] = useState(false);
 
   // ─── Toast Notifications ──────────────────────────────────────────────────
@@ -84,6 +92,11 @@ export function useAppState() {
   }, []);
 
   // ─── Navigation Helpers ───────────────────────────────────────────────────
+  const handleGoHome = useCallback(() => {
+    setActiveTab('generator');
+    setViewMode('hero');
+  }, []);
+
   const handleNavigateToGenerator = useCallback(() => {
     setActiveTab('generator');
     setViewMode('wizard');
@@ -91,9 +104,22 @@ export function useAppState() {
   }, []);
 
   const handleNavigateToWizard = useCallback((step = 1) => {
+    const targetStep = typeof step === 'number' ? step : 1;
     setActiveTab('generator');
     setViewMode('wizard');
-    setWizardStep(step);
+    setWizardStep(targetStep);
+  }, []);
+
+  const handleNavigateToBank = useCallback(() => {
+    setActiveTab('bank');
+  }, []);
+
+  const handleNavigateToBatches = useCallback(() => {
+    setActiveTab('batches');
+  }, []);
+
+  const handleNavigateToValidated = useCallback(() => {
+    setActiveTab('validated');
   }, []);
 
   // Passages tab navigation signal to return to catalog even when viewing a passage
@@ -165,6 +191,14 @@ export function useAppState() {
     });
   }, [updateFields, showToast, generatorForm.formData]);
 
+  const handleApplyPresetAndNavigate = useCallback(
+    (cfg) => {
+      handleApplyPreset(cfg);
+      handleNavigateToWizard(1);
+    },
+    [handleApplyPreset, handleNavigateToWizard]
+  );
+
   // ─── Keyboard Shortcuts ────────────────────────────────────────────────────
   useKeyboardShortcuts({
     // Only on the wizard's final review step: elsewhere the shortcut would silently launch a
@@ -174,7 +208,7 @@ export function useAppState() {
         ? handleGenerate
         : undefined,
     onToggleTheme: toggleTheme,
-    onEscape: () => { if (auditQuestion) setAuditQuestion(null); }
+    onEscape: handleCloseAudit
   });
 
   return {
@@ -188,9 +222,13 @@ export function useAppState() {
     setViewMode,
     wizardStep,
     setWizardStep,
+    handleGoHome,
     handleNavigateToGenerator,
     handleNavigateToWizard,
     handleNavigateToPassages,
+    handleNavigateToBank,
+    handleNavigateToBatches,
+    handleNavigateToValidated,
     passagesResetSignal,
     // Data
     backendStatus,
@@ -200,6 +238,7 @@ export function useAppState() {
     // Modals
     auditQuestion,
     setAuditQuestion,
+    handleCloseAudit,
     // Toasts
     toasts,
     showToast,
@@ -207,6 +246,7 @@ export function useAppState() {
     // Handlers
     handleGenerate,
     handleApplyPreset,
+    handleApplyPresetAndNavigate,
     // Counts
     validatedCount,
     refreshCounts: refreshGlobalCounts,

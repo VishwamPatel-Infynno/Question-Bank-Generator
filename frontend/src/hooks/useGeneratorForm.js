@@ -28,6 +28,22 @@ const DEFAULT_GENERATOR_FORM = {
   requirePassageImage: true
 };
 
+/**
+ * Manages the multi-step question-generation form state.
+ *
+ * @param {Partial<typeof DEFAULT_GENERATOR_FORM>} [initialValues] - Optional overrides for the default form values.
+ * @returns {{
+ *   formData: typeof DEFAULT_GENERATOR_FORM,
+ *   updateField: (key: string, value: any) => void,
+ *   updateFields: (fields: Partial<typeof DEFAULT_GENERATOR_FORM>) => void,
+ *   setGenerationTotal: (total: 5 | 50) => void,
+ *   setAllowAiImages: (allowed: boolean) => void,
+ *   togglePrimaryTrap: (trapId: string) => void,
+ *   toggleSubskill: (subskill: string) => void,
+ *   toggleMistakePattern: (patternId: string) => void,
+ *   toggleSubtopic: (subtopic: string) => void,
+ * }}
+ */
 export function useGeneratorForm(initialValues = {}) {
   const [formData, setFormData] = useState(() => ({
     ...DEFAULT_GENERATOR_FORM,

@@ -9,6 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app.api.utils import or_404
 from app.core.config import config
 from app.repositories import (
     batch_update_question_status,
@@ -103,16 +104,9 @@ async def get_question_counts():
     return await get_question_status_counts()
 
 
-def _or_404(value: Any, detail: str = "Question not found") -> Any:
-    """Answers 404 when a lookup or a targeted mutation found nothing."""
-    if not value:
-        raise HTTPException(status_code=404, detail=detail)
-    return value
-
-
 async def _require_question(question_id: str) -> Question:
     """Loads a question or answers 404 (the repeated get-or-404 of this module)."""
-    return _or_404(await get_question_by_id(question_id))
+    return or_404(await get_question_by_id(question_id), "Question not found")
 
 
 @router.get("/questions/{question_id}")
@@ -212,7 +206,7 @@ async def batch_approve_and_save_questions(questions: list[Question]) -> dict[st
 @router.delete("/questions/{question_id}")
 async def remove_question(question_id: str) -> dict[str, Any]:
     """Deletes a question by primary key ID."""
-    _or_404(await delete_question(question_id))
+    or_404(await delete_question(question_id), "Question not found")
     return {"success": True}
 
 
@@ -227,7 +221,7 @@ async def remove_questions_batch(payload: BatchDeleteRequest) -> dict[str, Any]:
 @router.delete("/questions/{question_id}/permanent")
 async def purge_single_question(question_id: str) -> dict[str, Any]:
     """Permanently deletes a single question by ID from the database."""
-    _or_404(await hard_delete_question(question_id))
+    or_404(await hard_delete_question(question_id), "Question not found")
     logger.info("Permanently purged question %s from database.", question_id)
     return {"success": True}
 
@@ -243,7 +237,7 @@ async def purge_questions_batch_endpoint(payload: BatchDeleteRequest) -> dict[st
 @router.post("/questions/{question_id}/restore")
 async def restore_single_question(question_id: str) -> dict[str, Any]:
     """Restores a soft-deleted question and its associated passage back to active status."""
-    restored = _or_404(await restore_question(question_id))
+    restored = or_404(await restore_question(question_id), "Question not found")
     logger.info("Restored question %s to active status.", question_id)
     return {"success": True, "question": restored.model_dump()}
 
@@ -263,7 +257,7 @@ async def update_single_status(
 ) -> dict[str, Any]:
     """Update single question lifecycle status."""
     new_status = payload.status
-    _or_404(await update_question_status(question_id, new_status))
+    or_404(await update_question_status(question_id, new_status), "Question not found")
     return {"success": True, "question_id": question_id, "status": new_status}
 
 
@@ -273,7 +267,7 @@ async def override_question_duplicate_endpoint(question_id: str) -> dict[str, An
     Admin/Reviewer override endpoint: marks a question's duplicate alert as manually overridden
     and updates its status to 'in_bank'.
     """
-    updated_q = _or_404(await override_question_duplicate(question_id))
+    updated_q = or_404(await override_question_duplicate(question_id), "Question not found")
     logger.info("Duplicate alert manually overridden for Question %s by reviewer.", question_id)
     return {"success": True, "question": updated_q.model_dump()}
 

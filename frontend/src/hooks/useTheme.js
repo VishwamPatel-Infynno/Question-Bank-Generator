@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
 
+/**
+ * Hook for managing application light/dark theme with localStorage persistence.
+ *
+ * @returns {{
+ *   theme: 'light' | 'dark',
+ *   toggleTheme: () => void,
+ * }}
+ */
 export function useTheme() {
   const [theme, setTheme] = useState(() => {
     try {

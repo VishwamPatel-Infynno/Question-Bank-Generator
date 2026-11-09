@@ -3,6 +3,15 @@ import { useState } from 'react';
 /**
  * The Question Bank's two delete flows (one question, the selection) behind one confirm dialog:
  * same toasts, same busy flag, different action and wording.
+ *
+ * @param {Object} options
+ * @param {(opts: object) => void} options.openConfirmModal - Confirmation modal trigger.
+ * @param {() => void} options.closeConfirmModal - Confirmation modal closer.
+ * @param {(toast: { type?: string, title: string, message?: string }) => void} [options.onShowToast] - Toast notification dispatcher.
+ * @returns {{
+ *   isDeleting: boolean,
+ *   confirmDeletion: (args: { count: number, action: () => Promise<any>, successMessage: string }) => void
+ * }} Bank deletion status and trigger method.
  */
 export function useBankDeletion({ openConfirmModal, closeConfirmModal, onShowToast }) {
   const [isDeleting, setIsDeleting] = useState(false);

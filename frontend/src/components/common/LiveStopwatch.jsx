@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 
 /**
  * LiveStopwatch:
@@ -25,4 +25,4 @@ function LiveStopwatch({ isRunning }) {
   );
 }
 
-export default React.memo(LiveStopwatch);
+export default memo(LiveStopwatch);

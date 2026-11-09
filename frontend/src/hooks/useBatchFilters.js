@@ -4,7 +4,21 @@ import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 
 /**
  * Filter state and derived lists for the batch activity view.
+ *
  * @param {Array<object>} batches - All loaded batches
+ * @returns {{
+ *   scopeFilter: 'all' | 'mini' | 'full',
+ *   setScopeFilter: (scope: 'all' | 'mini' | 'full') => void,
+ *   statusFilter: string,
+ *   setStatusFilter: (status: string) => void,
+ *   sectionFilter: string,
+ *   setSectionFilter: (section: string) => void,
+ *   searchQuery: string,
+ *   setSearchQuery: (query: string) => void,
+ *   searchInputRef: any,
+ *   activeBatchesList: Array<object>,
+ *   filteredBatches: Array<object>
+ * }} Filter states and derived filtered/active lists.
  */
 export function useBatchFilters(batches) {
   const [scopeFilter, setScopeFilter] = useState('all'); // 'all' | 'mini' | 'full'

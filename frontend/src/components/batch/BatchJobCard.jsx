@@ -1,4 +1,3 @@
-import React from 'react';
 import { FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   computeJobQuestionCounts,

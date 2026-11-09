@@ -1,4 +1,3 @@
-import React from 'react';
 import { Database, Sparkles, RotateCcw } from 'lucide-react';
 import { QUESTION_STATUS } from '../../constants';
 

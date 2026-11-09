@@ -1,5 +1,20 @@
 import { useEffect } from 'react';
 
+/**
+ * Global keyboard shortcuts listener.
+ *
+ * Supported shortcuts:
+ * - Escape: Trigger modal or view dismiss action
+ * - Cmd+Enter / Ctrl+Enter: Trigger generation action
+ * - 't' / 'T': Toggle UI light/dark theme (disabled in form inputs)
+ * - '/': Focus active search bar (disabled in form inputs)
+ *
+ * @param {Object} [options]
+ * @param {() => void} [options.onGenerate] - Callback invoked when Cmd/Ctrl+Enter is pressed.
+ * @param {() => void} [options.onToggleTheme] - Callback invoked when 't' is pressed.
+ * @param {() => void} [options.onFocusSearch] - Callback invoked when '/' is pressed.
+ * @param {() => void} [options.onEscape] - Callback invoked when Escape key is pressed.
+ */
 export function useKeyboardShortcuts({ onGenerate, onToggleTheme, onFocusSearch, onEscape }) {
   useEffect(() => {
     const handleKeyDown = (e) => {

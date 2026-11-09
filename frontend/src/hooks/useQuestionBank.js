@@ -6,6 +6,32 @@ import { formatQuestionForCopy } from '../utils/questionHelpers';
 import { fetchQuestions, deleteQuestion } from '../services/api';
 import { DIFFICULTY, QUESTION_STATUS, normalizeDifficulty } from '../constants';
 
+/**
+ * Custom hook encapsulating the official Question Bank state, server querying,
+ * in-flight request cancellation, in-memory sorting, and copy/delete operations.
+ *
+ * @returns {{
+ *   questions: Array<object>,
+ *   rawQuestions: Array<object>,
+ *   repoStats: { total_tokens: number, total_cost_usd: number, total_count?: number, bank_total_count?: number },
+ *   loading: boolean,
+ *   loadError: string | null,
+ *   sectionFilter: string,
+ *   setSectionFilter: (section: string) => void,
+ *   diffFilter: string,
+ *   setDiffFilter: (difficulty: string) => void,
+ *   searchQuery: string,
+ *   setSearchQuery: (query: string) => void,
+ *   sortBy: 'newest' | 'score_desc' | 'score_asc' | 'difficulty',
+ *   setSortBy: (sort: 'newest' | 'score_desc' | 'score_asc' | 'difficulty') => void,
+ *   copiedId: any,
+ *   loadQuestions: () => void,
+ *   handleDelete: (id: string) => Promise<void>,
+ *   handleCopy: (q: object, e?: any) => void,
+ *   handleUpdate: (updatedQuestion: object) => void,
+ *   avgScore: number
+ * }} Question bank state, stats, sorting and handler methods.
+ */
 export function useQuestionBank() {
   const [rawQuestions, setRawQuestions] = useState([]);
   const [repoStats, setRepoStats] = useState({ total_tokens: 0, total_cost_usd: 0 });

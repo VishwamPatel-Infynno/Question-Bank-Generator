@@ -1,4 +1,3 @@
-import React from 'react';
 import { Layers, BookOpen, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { formatCostUsd, formatTime, formatTokenCount } from '../../utils';
 import { LiveStopwatch } from '../common';

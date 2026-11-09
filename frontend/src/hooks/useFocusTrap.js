@@ -7,13 +7,17 @@ const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
- * useFocusTrap:
  * WCAG-compliant keyboard focus trap for modal dialogs and drawers.
  *
  * - Traps Tab and Shift+Tab cycles strictly inside the referenced container.
  * - Auto-focuses the first focusable child upon mounting.
  * - Restores focus to the triggering element upon unmount.
  * - Listens for Escape key to close the dialog.
+ *
+ * @param {Object} [options]
+ * @param {boolean} [options.isActive=true] - Whether the focus trap is currently engaged.
+ * @param {(() => void)|null} [options.onClose=null] - Optional close callback fired on Escape.
+ * @returns {any} Ref to attach to the container element.
  */
 export function useFocusTrap({ isActive = true, onClose = null }) {
   const containerRef = useRef(null);

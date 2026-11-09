@@ -25,6 +25,10 @@ const FORMATS = {
  * @param {Array<object>} args.questions - Questions being exported
  * @param {'student'|'studypack'} args.paperMode - Print layout
  * @param {(toast: object) => void} [args.onShowToast]
+ * @returns {{
+ *   formats: Record<string, { label: string, content: string, copied: boolean, download: () => void, copy: () => Promise<void> }>,
+ *   printPaper: () => void
+ * }} Formatted exports and paper print action.
  */
 export function useExportActions({ questions, paperMode, onShowToast }) {
   const { copiedKey, copy } = useCopyToClipboard();

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { applySectionRules } from '../../utils/generatorFormState';
 import { SECTION_METADATA, DIFFICULTY, SECTION_IDS } from '../../constants';
 import {

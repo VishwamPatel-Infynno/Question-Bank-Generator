@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import {
   Navbar,
   ToastContainer,
@@ -36,12 +36,15 @@ export default function App() {
     activeTab,
     setActiveTab,
     viewMode,
-    setViewMode,
     wizardStep,
     setWizardStep,
+    handleGoHome,
     handleNavigateToGenerator,
     handleNavigateToWizard,
     handleNavigateToPassages,
+    handleNavigateToBank,
+    handleNavigateToBatches,
+    handleNavigateToValidated,
     passagesResetSignal,
     // Data
     backendStatus,
@@ -53,13 +56,14 @@ export default function App() {
     // Modals
     auditQuestion,
     setAuditQuestion,
+    handleCloseAudit,
     // Toasts
     toasts,
     showToast,
     dismissToast,
     // Handlers
     handleGenerate,
-    handleApplyPreset,
+    handleApplyPresetAndNavigate,
     isLaunchingBatch
   } = useAppState();
 
@@ -75,10 +79,7 @@ export default function App() {
         validatedCount={validatedCount}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onGoHome={() => {
-          setActiveTab('generator');
-          setViewMode('hero');
-        }}
+        onGoHome={handleGoHome}
       />
 
       <main className="app-main-content">
@@ -86,12 +87,9 @@ export default function App() {
           <>
             {viewMode === 'hero' && (
               <HeroLanding
-                onGetStarted={() => handleNavigateToWizard(1)}
-                onOpenBank={() => setActiveTab('bank')}
-                onApplyPreset={(cfg) => {
-                  handleApplyPreset(cfg);
-                  handleNavigateToWizard(1);
-                }}
+                onGetStarted={handleNavigateToWizard}
+                onOpenBank={handleNavigateToBank}
+                onApplyPreset={handleApplyPresetAndNavigate}
               />
             )}
 
@@ -111,10 +109,10 @@ export default function App() {
           <ErrorBoundary fallbackLabel="Batch Progress">
             <Suspense fallback={<LazyLoadingSpinner label="Loading Batch Progress..." />}>
               <BatchActivityView
-                onOpenAudit={(q) => setAuditQuestion(q)}
-                onNavigateToBank={() => setActiveTab('bank')}
-                onNavigateToValidated={() => setActiveTab('validated')}
-                onNavigateToWizard={() => handleNavigateToWizard(1)}
+                onOpenAudit={setAuditQuestion}
+                onNavigateToBank={handleNavigateToBank}
+                onNavigateToValidated={handleNavigateToValidated}
+                onNavigateToWizard={handleNavigateToWizard}
                 onShowToast={showToast}
               />
             </Suspense>
@@ -125,10 +123,10 @@ export default function App() {
           <ErrorBoundary fallbackLabel="Review Queue">
             <Suspense fallback={<LazyLoadingSpinner label="Loading Review Queue..." />}>
               <AiValidatedQuestionsView
-                onOpenAudit={(q) => setAuditQuestion(q)}
-                onNavigateToBank={() => setActiveTab('bank')}
-                onNavigateToBatches={() => setActiveTab('batches')}
-                onNavigateToWizard={() => handleNavigateToWizard(1)}
+                onOpenAudit={setAuditQuestion}
+                onNavigateToBank={handleNavigateToBank}
+                onNavigateToBatches={handleNavigateToBatches}
+                onNavigateToWizard={handleNavigateToWizard}
                 onShowToast={showToast}
                 onRefreshCounts={refreshCounts}
               />
@@ -141,7 +139,7 @@ export default function App() {
             <Suspense fallback={<LazyLoadingSpinner label="Loading Question Bank..." />}>
               <QuestionBankView
                 onShowToast={showToast}
-                onNavigateToWizard={() => handleNavigateToWizard(1)}
+                onNavigateToWizard={handleNavigateToWizard}
               />
             </Suspense>
           </ErrorBoundary>
@@ -153,7 +151,7 @@ export default function App() {
               <PassageBankView
                 resetSignal={passagesResetSignal}
                 onShowToast={showToast}
-                onNavigateToWizard={() => handleNavigateToWizard(1)}
+                onNavigateToWizard={handleNavigateToWizard}
                 onRefreshCounts={refreshCounts}
               />
             </Suspense>
@@ -170,7 +168,7 @@ export default function App() {
         <Suspense fallback={null}>
           <ReviewAuditView
             question={auditQuestion}
-            onClose={() => setAuditQuestion(null)}
+            onClose={handleCloseAudit}
           />
         </Suspense>
       )}

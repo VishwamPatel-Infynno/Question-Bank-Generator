@@ -5,6 +5,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.api.utils import or_404
 from app.repositories import (
     delete_passage,
     get_passage_by_id,
@@ -34,9 +35,7 @@ async def list_passages(
 @router.get("/passages/{passage_id}")
 async def get_single_passage(passage_id: str) -> dict[str, Any]:
     """Retrieves a single reading passage with its linked questions."""
-    p = await get_passage_by_id(passage_id)
-    if not p:
-        raise HTTPException(status_code=404, detail="Passage not found")
+    p = or_404(await get_passage_by_id(passage_id), "Passage not found")
 
     linked_questions = await get_questions(passage_id=passage_id)
     return {
@@ -68,7 +67,5 @@ async def remove_passage(passage_id: str) -> dict[str, Any]:
 @router.post("/passages/{passage_id}/restore")
 async def restore_single_passage(passage_id: str) -> dict[str, Any]:
     """Admin endpoint to restore a soft-deleted passage record."""
-    success = await restore_passage(passage_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Passage not found")
+    or_404(await restore_passage(passage_id), "Passage not found")
     return {"success": True, "restored_id": passage_id}

@@ -215,7 +215,7 @@ Question Bank Generator/
 │   │   ├── test_api_questions.py               # Question bank API: CRUD, approval, status lifecycle, pagination
 │   │   ├── test_api_security.py                # Optional shared-secret gate and request input limits
 │   │   ├── test_authoring_standards.py         # One source of truth for authoring numbers; DDL helper that never locks migrated tables
-│   │   ├── test_backend_polish.py              # Difficulty alias filtering, OpenAPI generation and the narrowed JSON parsing
+│   │   ├── test_config_and_pricing_polish.py   # Difficulty alias filtering, OpenAPI generation and the narrowed JSON parsing
 │   │   ├── test_batch_aggregate_lock.py        # Concurrent refreshes of one batch must serialize and stay consistent
 │   │   ├── test_batch_autonomous_retry.py      # Autonomous 3-trials policy, trial count persistence and in-flight retries
 │   │   ├── test_batch_dedup_hard_delete.py     # Hard-delete duplicate purge during batch deduplication and completion guards
@@ -250,7 +250,7 @@ Question Bank Generator/
 │   │   ├── test_question_status_refill.py      # Status enums, active question helpers and deficit calculations
 │   │   ├── test_recovery.py                    # Startup recovery: orphaned running jobs must not stay 'running' forever
 │   │   ├── test_request_secrets.py             # Client-supplied API keys must never be persisted or returned
-│   │   ├── test_round6_backend_fixes.py        # Regression tests for the round-6 backend bug fixes
+│   │   ├── test_in_flight_pool_and_dedup.py    # Regression tests for in-flight deduplication pool and batch finalization
 │   │   ├── test_schemas.py                     # Pydantic schema validation tests
 │   │   ├── test_shared_helpers.py              # Shared helpers extracted during cleanup keep their exact semantics
 │   │   ├── test_soft_delete_batch_integrity.py # Tests

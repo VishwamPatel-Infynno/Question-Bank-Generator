@@ -23,6 +23,20 @@ import { useConfirmModal } from './useConfirmModal';
  * @param {Function} deps.setExpandedBatchIds
  * @param {Function} [deps.onShowToast]
  * @param {() => void} [deps.onNavigateToBank]
+ * @returns {{
+ *   handleStopBatch: (batchId: string) => Promise<void>,
+ *   handleRetryBatch: (batchId: string) => Promise<void>,
+ *   handleCancelAllBatches: () => Promise<void>,
+ *   handleDeleteBatch: (e: any, batchId: string) => void,
+ *   handleSaveQuestionToBank: (question: any) => Promise<void>,
+ *   handleRestoreQuestion: (question: any) => Promise<void>,
+ *   stoppingBatchIds: Record<string, boolean>,
+ *   retryingBatchIds: Record<string, boolean>,
+ *   isCancellingAll: boolean,
+ *   isDeletingBatch: boolean,
+ *   confirmModal: object,
+ *   closeConfirmModal: () => void
+ * }} Batch and question mutation methods with loading states.
  */
 export function useBatchMutations({
   loadBatches,

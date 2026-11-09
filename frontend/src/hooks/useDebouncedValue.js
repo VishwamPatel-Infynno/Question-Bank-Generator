@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 
-/** `value` as it was `delayMs` ago (unchanged input returns the same value immediately). */
+/**
+ * Tracks and delays updating a value until a specified debounce interval has elapsed.
+ *
+ * @template T
+ * @param {T} value - The input value to debounce.
+ * @param {number} [delayMs=250] - Debounce delay in milliseconds.
+ * @returns {T} The debounced value.
+ */
 export function useDebouncedValue(value, delayMs = 250) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { countWords } from '../../utils';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';

@@ -12,6 +12,14 @@ const draftFrom = (question) => ({
 /**
  * The editable copy of a question's text fields: one state object, one setter per field, and a
  * reset that returns to the saved question (used by Cancel).
+ *
+ * @param {object} question - Source question object to clone into draft state.
+ * @returns {{
+ *   draft: { stem: string, stimulus: string, options: Array<any>, explanation: string, imageDescription: string, showStimulusField: boolean },
+ *   setDraftField: (key: string, value: any) => void,
+ *   resetDraft: () => void,
+ *   toQuestion: () => object
+ * }} Draft state and mutator methods.
  */
 export function useQuestionDraft(question) {
   const [draft, setDraft] = useState(() => draftFrom(question));

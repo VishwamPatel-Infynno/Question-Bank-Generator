@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
 # Suppress remote model price map fetch and telemetry to guarantee instant startup and offline resilience
 os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
@@ -68,6 +69,11 @@ class Settings(BaseSettings):
     _override_cost_input: float | None = PrivateAttr(default=None)
     _override_cost_output: float | None = PrivateAttr(default=None)
 
+    @staticmethod
+    def _is_canonical_value(value: Any, *canonical: Any) -> bool:
+        """True when *value* is None or matches one of the provider-default canonical values."""
+        return value is None or value in canonical
+
     @property
     def active_provider_key(self) -> str:
         """Normalized active text LLM provider identifier."""
@@ -91,7 +97,8 @@ class Settings(BaseSettings):
 
     @DEFAULT_TEXT_MODEL.setter
     def DEFAULT_TEXT_MODEL(self, value: str | None) -> None:
-        if value is None or value in (
+        if self._is_canonical_value(
+            value,
             self.ANTHROPIC_MODEL,
             self.DEEPINFRA_MODEL,
             self.OPENAI_MODEL,
@@ -113,7 +120,8 @@ class Settings(BaseSettings):
 
     @COST_PER_MILLION_INPUT_TOKENS.setter
     def COST_PER_MILLION_INPUT_TOKENS(self, value: float | None) -> None:
-        if value is None or value in (
+        if self._is_canonical_value(
+            value,
             self.ANTHROPIC_COST_PER_MILLION_INPUT_TOKENS,
             self.DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS,
             self.OPENAI_COST_PER_MILLION_INPUT_TOKENS,
@@ -135,7 +143,8 @@ class Settings(BaseSettings):
 
     @COST_PER_MILLION_OUTPUT_TOKENS.setter
     def COST_PER_MILLION_OUTPUT_TOKENS(self, value: float | None) -> None:
-        if value is None or value in (
+        if self._is_canonical_value(
+            value,
             self.ANTHROPIC_COST_PER_MILLION_OUTPUT_TOKENS,
             self.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS,
             self.OPENAI_COST_PER_MILLION_OUTPUT_TOKENS,

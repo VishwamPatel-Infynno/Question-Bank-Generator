@@ -18,7 +18,14 @@ export const BATCH_LIFECYCLE_STAGES = [
  *
  * @param {Object} batch - GenerationBatch object.
  * @param {Object|null} [detail] - Detailed batch records including jobs and questions.
- * @returns {Object} Stage information object.
+ * @returns {{
+ *   activeStep: number,
+ *   stageBadge: string,
+ *   stageDescription: string,
+ *   isAuditing: boolean,
+ *   isRefilling: boolean,
+ *   hasEverRefilled: boolean,
+ * }} Stage information object.
  */
 export function getBatchStageInfo(batch, detail) {
   const isCompleted = batch.status === BATCH_STATUS.COMPLETED;

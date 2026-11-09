@@ -1,6 +1,10 @@
 /** Pure helpers for presenting and exporting questions. */
 
-/** Plain-text version of a question for the clipboard. */
+/**
+ * Plain-text version of a question for the clipboard.
+ * @param {object} q - Question record.
+ * @returns {string} Plain-text representation of the question.
+ */
 export function formatQuestionForCopy(q) {
   return (
     `[AAMC MCAT - ${q.section_label || q.section}] (${q.difficulty})\n` +
@@ -17,6 +21,7 @@ export function formatQuestionForCopy(q) {
  * - 'filtered' while filters are active: the filtered list
  * - anything else (including an empty selection): the whole bank pool
  * @param {{scope: string, selectedIds: string[], bankPool: object[], filteredQuestions: object[], hasActiveFilters: boolean}} args
+ * @returns {Array<object>} Selected question records.
  */
 export function pickExportQuestions({
   scope,
@@ -36,6 +41,8 @@ export function pickExportQuestions({
 /**
  * The correct option ids of a question, upper-cased and trimmed. Uses `correct_answer_ids` when
  * it is a non-empty list, else splits the comma-separated `correct_answer_id`.
+ * @param {object} q - Question record.
+ * @returns {string[]} List of correct uppercase option keys.
  */
 export function getCorrectAnswerIds(q) {
   const ids =
@@ -45,18 +52,32 @@ export function getCorrectAnswerIds(q) {
   return ids.map((k) => String(k).trim().toUpperCase()).filter(Boolean);
 }
 
-/** True when `optionId` is one of the question's correct ids (case-insensitive). */
+/**
+ * True when `optionId` is one of the question's correct ids (case-insensitive).
+ * @param {object} q - Question record.
+ * @param {string} optionId - Option letter (e.g. 'A').
+ * @returns {boolean} Whether the option is correct.
+ */
 export function isCorrectOption(q, optionId) {
   return getCorrectAnswerIds(q).includes(String(optionId ?? '').trim().toUpperCase());
 }
 
-/** The correct ids joined for display ('A, C'), or `fallback` when none is recorded. */
+/**
+ * The correct ids joined for display ('A, C'), or `fallback` when none is recorded.
+ * @param {object} q - Question record.
+ * @param {string} [fallback=''] - Fallback string when no correct answer is recorded.
+ * @returns {string} Formatted answer display string.
+ */
 export function formatCorrectAnswers(q, fallback = '') {
   const ids = getCorrectAnswerIds(q);
   return ids.length ? ids.join(', ') : fallback;
 }
 
-/** True when the question (or its shared passage) carries an image or vector diagram. */
+/**
+ * True when the question (or its shared passage) carries an image or vector diagram.
+ * @param {object} q - Question record.
+ * @returns {boolean} Whether the question has visual stimulus.
+ */
 export function hasQuestionImage(q) {
   const { svg, url } = getQuestionVisual(q);
   return Boolean(svg || url);
@@ -65,6 +86,8 @@ export function hasQuestionImage(q) {
 /**
  * The visual attached to a question: its own figure first, then the figure recorded in the
  * image stage, then the shared passage's figure. Every field is `''` when absent.
+ * @param {object} q - Question record.
+ * @returns {{ svg: string, url: string, description: string }}
  */
 export function getQuestionVisual(q) {
   const own = q || {};
@@ -78,7 +101,11 @@ export function getQuestionVisual(q) {
   };
 }
 
-/** The four 25-point reviewer pillars (score null when the rubric is missing). */
+/**
+ * The four 25-point reviewer pillars (score null when the rubric is missing).
+ * @param {object} [review] - Question review rubric object.
+ * @returns {Array<{ label: string, score: number|null, max: number, color: string }>}
+ */
 export function getReviewPillars(review) {
   return [
     { label: 'Scientific Style', score: review?.authenticity_score ?? null, max: 25, color: 'var(--brand-primary)' },
@@ -91,6 +118,15 @@ export function getReviewPillars(review) {
 /**
  * Splits a question's recorded cost into the visual part (only what the engine recorded for the
  * image stage) and the cognitive remainder, plus the per-stage timings that carry a duration.
+ * @param {object} q - Question record.
+ * @returns {{
+ *   totalCost: number,
+ *   hasVisual: boolean,
+ *   visualCost: number,
+ *   cognitiveCost: number,
+ *   stageTimings: Array<object>,
+ *   totalDurationMs: number
+ * }}
  */
 export function getAuditCostBreakdown(q) {
   const totalCost = Number(q?.cost_usd || 0);
@@ -110,7 +146,12 @@ export function getAuditCostBreakdown(q) {
   };
 }
 
-/** Case-insensitive search over stem, subtopic, explanation and passage text. */
+/**
+ * Case-insensitive search over stem, subtopic, explanation and passage text.
+ * @param {Array<object>} questions - Questions list to filter.
+ * @param {string} query - Search query string.
+ * @returns {Array<object>} Filtered questions matching the query.
+ */
 export function filterQuestionsByText(questions, query) {
   const q = String(query ?? '').trim().toLowerCase();
   if (!q) return questions;

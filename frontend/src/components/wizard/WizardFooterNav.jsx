@@ -1,4 +1,3 @@
-import React from 'react';
 import { ArrowLeft, ArrowRight, Sparkles, Zap } from 'lucide-react';
 import { STEP_CONFIG as DEFAULT_STEP_CONFIG } from './wizardConstants';
 

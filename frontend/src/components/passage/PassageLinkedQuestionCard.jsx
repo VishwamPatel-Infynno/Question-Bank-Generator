@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { CheckCircle2, Edit3, X } from 'lucide-react';
 import { formatDifficulty, getDifficultyBadgeClass } from '../../constants/mcat';
 import { getEffectiveTrapInfo, isCorrectOption } from '../../utils';

@@ -1,4 +1,4 @@
-"""Regression tests for the round-6 backend bug fixes."""
+"""Tests for in-flight question deduplication pool and batch finalization."""
 
 import pathlib
 import uuid

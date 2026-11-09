@@ -6,6 +6,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.security import limit_active_batches, limit_generation_requests
+from app.api.utils import or_404
 from app.core.config import config
 from app.repositories import (
     batch_update_question_status,
@@ -45,16 +46,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Generation Batches"])
 
 
-def _or_404(value: Any, detail: str) -> Any:
-    """Answers 404 when a lookup or a targeted mutation found nothing."""
-    if not value:
-        raise HTTPException(status_code=404, detail=detail)
-    return value
-
-
 async def _require_batch(batch_id: str) -> GenerationBatch:
     """Loads a batch or answers 404 (the repeated get-or-404 of this module)."""
-    return _or_404(await get_batch_by_id(batch_id), "Batch not found")
+    return or_404(await get_batch_by_id(batch_id), "Batch not found")
 
 
 @router.post(
@@ -195,7 +189,7 @@ async def delete_single_batch(batch_id: str) -> dict[str, Any]:
     """Deletes a generation batch and cascades delete to jobs and questions."""
     await stop_background_batch(batch_id)
     forget_batch_request(batch_id)
-    _or_404(await delete_batch(batch_id), "Batch not found")
+    or_404(await delete_batch(batch_id), "Batch not found")
     return {"success": True, "message": f"Batch {batch_id} deleted successfully."}
 
 

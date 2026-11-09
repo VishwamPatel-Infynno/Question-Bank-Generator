@@ -1,5 +1,5 @@
 import { useQuestionDraft } from '../../hooks/useQuestionDraft';
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -269,4 +269,4 @@ function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion 
   );
 }
 
-export default React.memo(QuestionCard);
+export default memo(QuestionCard);
