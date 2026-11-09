@@ -16,7 +16,7 @@ from app.main import app
 from httpx import ASGITransport, AsyncClient
 
 
-def is_postgres_available(timeout: float = 1.0) -> bool:
+def is_postgres_available(timeout: float = 3.0) -> bool:
     """Probes whether PostgreSQL is listening AND accepts the configured credentials."""
     db_url = config.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
     parsed = urlparse(db_url)

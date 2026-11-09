@@ -50,3 +50,4 @@ try {
   // Always exit cleanly
 }
 process.exit(0);
+
