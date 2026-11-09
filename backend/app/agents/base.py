@@ -28,10 +28,13 @@ def _get_litellm() -> Any:
     """Imports litellm on first use (it is slow to import and not needed to boot or run tests)."""
     global _litellm_module
     if _litellm_module is None:
+        os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
+        os.environ.setdefault("LITELLM_TELEMETRY", "False")
         import litellm
 
         litellm.suppress_debug_info = True
         litellm.drop_params = True
+        litellm.local_model_cost_map = True
         _litellm_module = litellm
     return _litellm_module
 

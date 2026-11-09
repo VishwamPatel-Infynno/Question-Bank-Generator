@@ -183,20 +183,27 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
     if allow_visuals:
         if req.require_image:
             user_prompt += (
-                "\nMANDATORY VISUAL STIMULUS REQUIREMENT:\n"
-                "- This question MUST incorporate and directly test an accompanying visual stimulus, figure, or illustration as required by the context "
-                "(e.g. anatomical/organ system illustration, cellular pathway, laboratory experimental apparatus, data plot, biochemical mechanism, "
-                "reaction coordinate, electrical circuit, ray optics setup, or behavioral/psychological test paradigm).\n"
-                "- In your question stem, directly refer to the visual figure (e.g., 'As shown in the diagram...', 'Based on the figure below...', 'In the experiment depicted...').\n"
-                "- Strictly set 'image_needed': true and write a vivid, detailed description of the visual in 'image_prompt_or_type'.\n"
+                "\nMANDATORY VISUAL STIMULUS & MEDICAL IMAGING REQUIREMENT:\n"
+                "- This question MUST incorporate and directly test an accompanying medical image, clinical figure, or scientific illustration. "
+                "The visual stimulus should reflect realistic medical and scientific scenarios across supported modalities:\n"
+                "  1. Diagnostic Radiology: Plain radiographs (chest/bone X-rays), contrast/non-contrast CT scans, MRI (T1, T2, FLAIR), or ultrasound/echocardiograms.\n"
+                "  2. Histopathology: High-magnification light microscopy of tissue biopsies stained with Hematoxylin & Eosin (H&E), cytology smears, or specialized stains.\n"
+                "  3. Gross Anatomy & Dissections: True-to-life anatomical cadaveric dissections or clinical specimens (cardiac anatomy, circle of Willis, organ systems, neuroanatomy, vasculature).\n"
+                "  4. Cellular Electron Microscopy: Transmission or scanning electron micrographs (TEM/SEM) displaying subcellular organelles (mitochondrial cristae, rough ER, nuclear pores, sarcomeres, synaptic junctions).\n"
+                "  5. Physiological Traces: Standard clinical 12-lead ECG rhythm strips on pink/red millimeter grid paper, cardiac action potential curves, or spirometry flow loops.\n"
+                "  6. Clinical Pathology: Diagnostic clinical photography (dermatological manifestations, retinal fundoscopic exam findings).\n"
+                "  7. Scientific & Biochemical Diagrams: Reaction mechanisms, metabolic cycles, Lineweaver-Burk kinetic plots, optics, or circuit diagrams.\n"
+                "- In your question stem, directly refer to the visual figure (e.g., 'As shown in the radiograph...', 'In the histopathology slide below...', 'Based on the electron micrograph...', 'As depicted in the figure...').\n"
+                "- Strictly set 'image_needed': true and write a vivid, clinically accurate description of the visual in 'image_prompt_or_type' specifying the exact modality, tissue/organ, view/plane, staining (e.g. H&E stain), or imaging parameters.\n"
             )
         else:
             user_prompt += (
-                "\nVISUAL STIMULUS DISCRETION:\n"
-                "- Visual stimuli are ENABLED. If this question benefits from any accompanying visual stimulus (such as an experimental apparatus, "
-                "biological or anatomical diagram, physiological process, optical ray diagram, electrical circuit, metabolic pathway, Lineweaver-Burk or kinetic plot, "
-                "gel electrophoresis blot, molecular structure, reaction mechanism, or psychological test stimulus) to solve, "
-                "set 'image_needed': true and provide a detailed visual description in 'image_prompt_or_type'.\n"
+                "\nVISUAL STIMULUS & MEDICAL IMAGING DISCRETION:\n"
+                "- Visual stimuli and medical images are ENABLED. If this question benefits from any accompanying medical image or scientific stimulus to solve, "
+                "set 'image_needed': true and provide a detailed clinical or scientific visual description in 'image_prompt_or_type'.\n"
+                "- Supported modalities include Diagnostic Radiology (X-rays, CT, MRI), Histopathology (H&E biopsy slides, cytology), Gross Anatomy & Dissections, "
+                "Cellular Electron Microscopy (TEM/SEM), Physiological Traces (12-lead ECG strips, action potentials), Clinical Pathology (dermatology, fundoscopy), "
+                "or Scientific Figures (biochemical pathways, kinetic plots, reaction mechanisms).\n"
                 "- If the question is purely conceptual, numerical, or fully solvable from text alone, set 'image_needed': false and 'image_prompt_or_type': null."
             )
     else:

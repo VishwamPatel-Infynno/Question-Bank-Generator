@@ -142,6 +142,12 @@ class QuestionDraft(TaxonomyFields):
     image_prompt_or_type: str | None = Field(
         None, description="Visual description, chart type, or SVG geometry description"
     )
+    visual_medical_category: str | None = Field(
+        None, description="e.g. radiology, histology, gross_anatomy, cellular_microscopy"
+    )
+    visual_clinical_description: str | None = Field(
+        None, description="Detailed radiological or histopathological clinical description"
+    )
     primary_trap: str | None = Field(
         None, description="Primary cognitive distractor trap used (e.g. Scope_Shift, Out_of_Scope)"
     )
@@ -243,6 +249,12 @@ class Question(TaxonomyFields):
     )
     passage_questions: int | None = Field(None, description="Number of passage questions e.g. 3, 4")
     visual_type: str | None = Field("None", description="e.g. None, SVG_Diagram, AI_FLUX_Image")
+    visual_medical_category: str | None = Field(
+        None, description="e.g. radiology, histology, gross_anatomy, cellular_microscopy"
+    )
+    visual_clinical_description: str | None = Field(
+        None, description="Detailed radiological or histopathological clinical description"
+    )
 
     # Deduplication & Collision Metadata
     duplicate_info: DuplicateInfo | None = Field(

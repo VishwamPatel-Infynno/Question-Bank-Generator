@@ -128,6 +128,17 @@ async def _step_matrix_columns(conn) -> None:
         text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS visual_type VARCHAR(64);")
     )
     await conn.execute(
+        text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS visual_medical_category VARCHAR(64);")
+    )
+    await conn.execute(
+        text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS visual_clinical_description TEXT;")
+    )
+    await conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_questions_visual_medical_category ON questions (visual_medical_category);"
+        )
+    )
+    await conn.execute(
         text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS mcat_scaled_score INTEGER;")
     )
     await conn.execute(

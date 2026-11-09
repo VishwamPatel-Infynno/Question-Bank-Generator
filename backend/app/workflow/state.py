@@ -12,6 +12,8 @@ class AgentWorkflowState(TypedDict, total=False):
     image_url: str | None
     image_svg: str | None
     image_description: str | None
+    visual_medical_category: str | None
+    visual_clinical_description: str | None
     final_question: dict[str, Any] | None
     rejection_data: dict[str, Any] | None
     status: str

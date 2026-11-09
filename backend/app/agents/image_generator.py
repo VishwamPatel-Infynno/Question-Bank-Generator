@@ -14,6 +14,10 @@ from typing import Any
 
 import httpx
 
+from app.agents.medical_imaging import (
+    detect_medical_modality,
+    synthesize_medical_prompt,
+)
 from app.core.config import config
 from app.schemas import GenerationRequest, QuestionDraft
 
@@ -347,11 +351,24 @@ async def generate_image_stimulus(
             draft.image_prompt_or_type
             or f"AAMC MCAT educational exam visual stimulus for {req.section.value}: {draft.question_stem}"
         )
-        openai_prompt = (
-            f"High-quality educational test figure, scientific illustration, or medical diagram on clean white background, high contrast, "
-            f"clear professional labeling for AAMC MCAT exam: {prompt_for_image}"
+        section_val = req.section.value if hasattr(req.section, "value") else str(req.section)
+        topic_val = req.subtopic or getattr(draft, "topic", "") or ""
+        stem_val = draft.question_stem or ""
+
+        modality = detect_medical_modality(
+            prompt_text=prompt_for_image,
+            section=section_val,
+            topic=topic_val,
+            question_stem=stem_val,
         )
-        logger.info("Generating OpenAI image with %s (%sx%s)...", model_id, width, height)
+        openai_prompt = synthesize_medical_prompt(prompt_for_image, modality)
+        logger.info(
+            "Generating OpenAI image with %s [%s] (%sx%s)...",
+            model_id,
+            modality.value.upper(),
+            width,
+            height,
+        )
 
         res = await call_openai_image_api(
             prompt=openai_prompt,
@@ -380,6 +397,8 @@ async def generate_image_stimulus(
                 height=height,
                 cost_formula=cost_formula,
                 type="ai_generated_image",
+                modality=modality.value,
+                medical_modality=modality.value,
             )
             return (img_data, None, prompt_for_image, usage_dict)
 
@@ -391,6 +410,8 @@ async def generate_image_stimulus(
             0.0,
             error="Failed to generate visual stimulus after retries.",
             type="error",
+            modality=modality.value,
+            medical_modality=modality.value,
         )
         return (None, None, prompt_for_image, failure_usage)
 
@@ -414,12 +435,24 @@ async def generate_image_stimulus(
         draft.image_prompt_or_type
         or f"AAMC MCAT educational exam visual stimulus for {req.section.value}: {draft.question_stem}"
     )
-    flux_prompt = (
-        f"High-quality educational test figure, scientific illustration, or medical diagram on clean white background, high contrast, "
-        f"clear professional labeling for AAMC MCAT exam: {prompt_for_image}"
+    section_val = req.section.value if hasattr(req.section, "value") else str(req.section)
+    topic_val = req.subtopic or getattr(draft, "topic", "") or ""
+    stem_val = draft.question_stem or ""
+
+    modality = detect_medical_modality(
+        prompt_text=prompt_for_image,
+        section=section_val,
+        topic=topic_val,
+        question_stem=stem_val,
     )
+    flux_prompt = synthesize_medical_prompt(prompt_for_image, modality)
     logger.info(
-        "Generating DeepInfra AI image with %s (%sx%s, %s iters)...", model_id, width, height, iters
+        "Generating DeepInfra AI image with %s [%s] (%sx%s, %s iters)...",
+        model_id,
+        modality.value.upper(),
+        width,
+        height,
+        iters,
     )
 
     res = await call_deepinfra_flux(
@@ -455,6 +488,8 @@ async def generate_image_stimulus(
             iters=iters,
             cost_formula=cost_formula,
             type="ai_generated_image",
+            modality=modality.value,
+            medical_modality=modality.value,
         )
         return (img_data, None, prompt_for_image, usage_dict)
 
@@ -467,5 +502,7 @@ async def generate_image_stimulus(
         0.0,
         error="Failed to generate visual stimulus after retries.",
         type="error",
+        modality=modality.value,
+        medical_modality=modality.value,
     )
     return (None, None, prompt_for_image, failure_usage)

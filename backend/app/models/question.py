@@ -115,6 +115,10 @@ class QuestionModel(Base):
     )
     passage_questions: Mapped[int | None] = mapped_column(Integer, nullable=True)
     visual_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    visual_medical_category: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
+    visual_clinical_description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # MCAT-specific scoring & AAMC Skill attributes
     mcat_scaled_score: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)

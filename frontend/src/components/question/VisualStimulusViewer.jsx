@@ -1,5 +1,5 @@
 import { getQuestionVisual } from '../../utils';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCopyToClipboard } from '../../hooks';
 import {
   Maximize2,
@@ -12,9 +12,10 @@ import SafeSvg from '../common/SafeSvg';
 
 /**
  * VisualStimulusViewer:
- * Publication-grade renderer for AAMC MCAT visual stimulus diagrams (Vector SVG & Dedicated AI Illustrations).
- * Supports inline display, compact list thumbnail mode, click-to-zoom lightbox modal,
- * and inline description editing in Quick Edit mode.
+ * Publication-grade renderer for AAMC MCAT visual stimulus diagrams & medical images
+ * (Radiology X-ray/CT/MRI, Histopathology H&E, Gross Anatomy, Cellular Electron Microscopy,
+ * Physiological ECG Traces, Clinical Pathology, and Vector SVGs).
+ * Features modality badging, high-contrast viewing, and click-to-zoom fullscreen inspection.
  */
 export default function VisualStimulusViewer({
   question = null,
@@ -39,14 +40,102 @@ export default function VisualStimulusViewer({
   const imageUrl = directImageUrl || visual.url || null;
   const rawDescription = isEditing
     ? (editedDescription ?? directImageDescription ?? question?.image_description ?? '')
-    : (directImageDescription || visual.description);
+    : (directImageDescription || visual.description || question?.visual_clinical_description || '');
+
+  const isSvg = Boolean(svgContent);
+
+  // Intelligent Medical Modality Classification & Visual Metadata
+  const detectedModality = useMemo(() => {
+    const explicit = (
+      question?.visual_medical_category ||
+      question?.image_modality ||
+      question?.stage_outcomes?.visual_stimulus?.modality ||
+      question?.stage_outcomes?.passage_visual_stimulus?.modality ||
+      ''
+    ).toLowerCase();
+
+    if (explicit) return explicit;
+
+    const textToScan = `${rawDescription} ${question?.question_stem || ''}`.toLowerCase();
+    if (/\b(x-ray|xray|radiograph|radiography|chest film|ct scan|computed tomography|mri|magnetic resonance|t1|t2|flair|ultrasound|sonogram|fluoroscopy|pet scan|hounsfield|axial slice|coronal section)\b/i.test(textToScan)) {
+      return 'radiology';
+    }
+    if (/\b(histolog|histopatholog|h&e|hematoxylin|eosin|biopsy|tissue section|micrograph|stained slide|epitheli|endotheli|glomerul|intercalated disc|sarcomere|myocyte|squamous|columnar|cuboidal|cytoarchitect|cytolog|smear)\b/i.test(textToScan)) {
+      return 'histology';
+    }
+    if (/\b(gross anatom|anatomical dissection|cadaver|organ system|organ dissection|circle of willis|brachial plexus|mediastinum|coronary arter|cranial nerve|netter|medical atlas|gross specimen)\b/i.test(textToScan)) {
+      return 'gross_anatomy';
+    }
+    if (/\b(electron microscop|electron micrograph|tem\b|sem\b|transmission electron|scanning electron|ultrastructur|mitochondri.*cristae|endoplasmic reticulum|golgi apparatus|synaptic vesicle|cilia axoneme)\b/i.test(textToScan)) {
+      return 'cellular_microscopy';
+    }
+    if (/\b(ecg\b|ekg\b|electrocardiogram|rhythm strip|lead ii|lead [iv]|p wave|qrs|t wave|action potential|depolarization trace|eeg\b|spirometr|flow-volume loop)\b/i.test(textToScan)) {
+      return 'physiology_trace';
+    }
+    if (/\b(clinical presentation|clinical photograph|dermatolog|skin lesion|erythema|melanoma|rash|ophthalmolog|fundoscop|retinal photograph|optic disc|jaundice|cyanosis)\b/i.test(textToScan)) {
+      return 'clinical_pathology';
+    }
+    return isSvg ? 'svg_diagram' : 'scientific_diagram';
+  }, [question, rawDescription, isSvg]);
+
+  const modalityMeta = useMemo(() => {
+    switch (detectedModality) {
+      case 'radiology':
+        return {
+          label: 'Radiology (X-Ray / CT / MRI)',
+          badgeStyle: { background: 'rgba(59, 130, 246, 0.16)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.32)' },
+          isDarkContainer: true,
+        };
+      case 'histology':
+        return {
+          label: 'Histopathology (H&E)',
+          badgeStyle: { background: 'rgba(236, 72, 153, 0.16)', color: '#f472b6', border: '1px solid rgba(236, 72, 153, 0.32)' },
+          isDarkContainer: false,
+        };
+      case 'gross_anatomy':
+        return {
+          label: 'Gross Anatomy Specimen',
+          badgeStyle: { background: 'rgba(245, 158, 11, 0.16)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.32)' },
+          isDarkContainer: false,
+        };
+      case 'cellular_microscopy':
+        return {
+          label: 'Electron Microscopy (TEM/SEM)',
+          badgeStyle: { background: 'rgba(168, 85, 247, 0.16)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.32)' },
+          isDarkContainer: true,
+        };
+      case 'physiology_trace':
+        return {
+          label: 'Physiology / ECG Trace',
+          badgeStyle: { background: 'rgba(239, 68, 68, 0.16)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.32)' },
+          isDarkContainer: false,
+        };
+      case 'clinical_pathology':
+        return {
+          label: 'Clinical Pathology Photograph',
+          badgeStyle: { background: 'rgba(16, 185, 129, 0.16)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.32)' },
+          isDarkContainer: false,
+        };
+      case 'svg_diagram':
+        return {
+          label: 'SVG Vector Diagram',
+          badgeStyle: {},
+          isDarkContainer: false,
+        };
+      default:
+        return {
+          label: isSvg ? 'SVG Vector Diagram' : 'Scientific Figure',
+          badgeStyle: {},
+          isDarkContainer: false,
+        };
+    }
+  }, [detectedModality, isSvg]);
 
   if (!svgContent && !imageUrl) {
     return null;
   }
 
-  const isSvg = Boolean(svgContent);
-  const visualType = isSvg ? 'SVG Vector Diagram' : 'Scientific Figure';
+  const visualType = modalityMeta.label;
 
   const handleCopySvg = (e) => {
     e?.stopPropagation();
@@ -93,7 +182,10 @@ export default function VisualStimulusViewer({
               {headerTitle || 'Figure / Diagram'}
             </span>
             {badgeExtra}
-            <span className="badge badge-purple stimulus-type-badge">
+            <span
+              className="badge badge-purple stimulus-type-badge"
+              style={modalityMeta.badgeStyle}
+            >
               {visualType}
             </span>
           </div>

@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
+
+# Suppress remote model price map fetch and telemetry to guarantee instant startup and offline resilience
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
+os.environ.setdefault("LITELLM_TELEMETRY", "False")
 
 from pydantic import PrivateAttr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict

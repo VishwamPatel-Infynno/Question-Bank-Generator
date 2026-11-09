@@ -388,6 +388,10 @@ async def image_node(state: AgentWorkflowState) -> dict[str, Any]:
     logger.info("Executing Image Generator Agent...")
     img_url, img_svg, img_desc, usage = await generate_image_stimulus(draft, req)
 
+    visual_category = None
+    if usage and isinstance(usage, dict) and "details" in usage:
+        visual_category = usage["details"].get("medical_modality") or usage["details"].get("modality")
+
     # Accumulate image generation cost and itemized breakdown
     current_cost = state.get("total_cost_usd", 0.0)
     image_cost = usage.get("cost_usd", 0.0) if usage else 0.0
@@ -409,6 +413,8 @@ async def image_node(state: AgentWorkflowState) -> dict[str, Any]:
         "image_url": img_url,
         "image_svg": img_svg,
         "image_description": img_desc,
+        "visual_medical_category": visual_category,
+        "visual_clinical_description": img_desc,
         "active_agent": "Image Generator",
         "status": "image_generated",
         "total_cost_usd": new_total_cost,
@@ -516,6 +522,10 @@ async def finalize_node(state: AgentWorkflowState) -> dict[str, Any]:
         passage_id=req.passage_id,
         passage_questions=req.passage_questions,
         visual_type=req.visual_type or "None",
+        visual_medical_category=state.get("visual_medical_category")
+        or getattr(draft, "visual_medical_category", None),
+        visual_clinical_description=state.get("visual_clinical_description")
+        or state.get("image_description"),
         aamc_skill=draft.aamc_skill or req.aamc_skill,
         subject=req.subject or getattr(draft, "subject", None),
         unit=req.unit or getattr(draft, "unit", None),
