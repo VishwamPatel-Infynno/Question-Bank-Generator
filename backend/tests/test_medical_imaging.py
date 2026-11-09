@@ -154,6 +154,7 @@ def test_synthesize_medical_prompt_legacy_strip():
 @pytest.mark.asyncio
 async def test_generate_image_stimulus_modality_integration(monkeypatch):
     """Verifies generate_image_stimulus detects modality and populates usage details."""
+    monkeypatch.setattr(config, "ACTIVE_IMAGE_PROVIDER", "deepinfra")
     monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "mock_key")
 
     captured_prompt = None
@@ -200,3 +201,56 @@ async def test_generate_image_stimulus_modality_integration(monkeypatch):
     assert usage is not None
     assert usage["details"]["modality"] == "radiology"
     assert usage["details"]["medical_modality"] == "radiology"
+
+
+@pytest.mark.asyncio
+async def test_generate_image_stimulus_modality_integration_openai(monkeypatch):
+    """Verifies generate_image_stimulus detects modality and populates usage details when using OpenAI."""
+    monkeypatch.setattr(config, "ACTIVE_IMAGE_PROVIDER", "openai")
+    monkeypatch.setattr(config, "OPENAI_API_KEY", "mock_key")
+
+    captured_prompt = None
+
+    async def mock_call_openai(prompt, width, height, api_key, model=None, quality="auto"):
+        nonlocal captured_prompt
+        captured_prompt = prompt
+        return ("data:image/png;base64,MOCK_DATA_OPENAI", 0.020)
+
+    import app.agents.image_generator as img_gen_mod
+
+    monkeypatch.setattr(img_gen_mod, "call_openai_image_api", mock_call_openai)
+
+    draft = QuestionDraft(
+        stimulus_text="Clinical vignette about a cardiac patient.",
+        question_stem="Which structure is indicated in the chest radiograph?",
+        options=[
+            OptionChoice(id="A", text="Option A"),
+            OptionChoice(id="B", text="Option B"),
+            OptionChoice(id="C", text="Option C"),
+            OptionChoice(id="D", text="Option D"),
+        ],
+        correct_answer_id="A",
+        explanation="Option A is correct.",
+        image_needed=True,
+        image_prompt_or_type="Posteroanterior chest X-ray demonstrating cardiomegaly and pulmonary edema",
+    )
+    req = GenerationRequest(
+        section=MCATSection.BIO_BIOCHEM,
+        subtopic="Cardiovascular Physiology",
+        difficulty=Difficulty.MEDIUM,
+        allow_ai_images=True,
+    )
+
+    img_data, img_svg, img_desc, usage = await generate_image_stimulus(draft, req)
+
+    assert img_data == "data:image/png;base64,MOCK_DATA_OPENAI"
+    assert img_svg is None
+    assert "cardiomegaly" in img_desc
+    assert captured_prompt is not None
+    assert "dark/black background" in captured_prompt
+    assert "PACS radiology workstation" in captured_prompt
+
+    assert usage is not None
+    assert usage["details"]["modality"] == "radiology"
+    assert usage["details"]["medical_modality"] == "radiology"
+
