@@ -484,6 +484,10 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = 60
     DB_POOL_RECYCLE: int = 1800
 
+    # LiteLLM Configuration (Offline resilience, instant startup, no remote cost fetch, no telemetry)
+    LITELLM_LOCAL_MODEL_COST_MAP: str = "True"
+    LITELLM_TELEMETRY: str = "False"
+
     model_config = SettingsConfigDict(
         env_file=[str(Path(__file__).resolve().parent.parent.parent.parent / ".env"), ".env"],
         extra="allow",
@@ -491,3 +495,5 @@ class Settings(BaseSettings):
 
 
 config = Settings()
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", config.LITELLM_LOCAL_MODEL_COST_MAP)
+os.environ.setdefault("LITELLM_TELEMETRY", config.LITELLM_TELEMETRY)

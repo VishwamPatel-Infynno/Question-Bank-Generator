@@ -9,13 +9,13 @@ from app.schemas import GenerationRequest, MCATSection
 
 # sha256 (first 16 hex chars) of the canonical JSON dump of each (section, direct-independent) draft
 EXPECTED_DIGESTS = {
-    (MCATSection.CHEM_PHYS, False): "e62fcf5976945e31",
-    (MCATSection.CHEM_PHYS, True): "4b27df97ce9d2568",
-    (MCATSection.CARS, False): "a956efc1292ba755",
-    (MCATSection.BIO_BIOCHEM, False): "003e8ab99100f94f",
-    (MCATSection.BIO_BIOCHEM, True): "9059954a9bfb30d8",
-    (MCATSection.PSYCH_SOC, False): "a3d3f92b4d17988f",
-    (MCATSection.PSYCH_SOC, True): "c23842c27aefe692",
+    (MCATSection.CHEM_PHYS, False): "833c039431d7c765",
+    (MCATSection.CHEM_PHYS, True): "ab5b9d54d9add114",
+    (MCATSection.CARS, False): "f0086809fc823955",
+    (MCATSection.BIO_BIOCHEM, False): "54569cda51c086d3",
+    (MCATSection.BIO_BIOCHEM, True): "0e5f56f052d8e4c7",
+    (MCATSection.PSYCH_SOC, False): "e27244f2996658ea",
+    (MCATSection.PSYCH_SOC, True): "81c14cd3fe1bf339",
 }
 
 

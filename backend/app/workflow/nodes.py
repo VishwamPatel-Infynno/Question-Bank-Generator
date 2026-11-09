@@ -390,7 +390,9 @@ async def image_node(state: AgentWorkflowState) -> dict[str, Any]:
 
     visual_category = None
     if usage and isinstance(usage, dict) and "details" in usage:
-        visual_category = usage["details"].get("medical_modality") or usage["details"].get("modality")
+        visual_category = usage["details"].get("medical_modality") or usage["details"].get(
+            "modality"
+        )
 
     # Accumulate image generation cost and itemized breakdown
     current_cost = state.get("total_cost_usd", 0.0)
@@ -476,6 +478,10 @@ async def finalize_node(state: AgentWorkflowState) -> dict[str, Any]:
         "passage_id": req.passage_id,
         "passage_questions": req.passage_questions,
         "visual_type": req.visual_type or "None",
+        "visual_medical_category": state.get("visual_medical_category")
+        or getattr(draft, "visual_medical_category", None),
+        "visual_clinical_description": state.get("visual_clinical_description")
+        or state.get("image_description"),
         "image_svg": state.get("image_svg"),
         "image_url": state.get("image_url"),
         "image_description": state.get("image_description"),

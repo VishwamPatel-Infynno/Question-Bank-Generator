@@ -30,7 +30,7 @@ cp .env.example .env
 
 ### Configuration Variables Reference
 
-The system defines 67 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
+The system defines 69 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
 
 | Variable | Type | Default Value | Description |
 | :--- | :--- | :--- | :--- |
@@ -104,6 +104,8 @@ The system defines 67 configuration fields in `backend/app/core/config.py` (`Set
 | `IMAGE_WIDTH` | `integer` | `1024` | Default width for FLUX diagrams |
 | `IMAGE_HEIGHT` | `integer` | `1024` | Default height for FLUX diagrams |
 | `IMAGE_ITERS` | `integer` | `0` | Inference step iterations (0 for flat-rate models) |
+| `LITELLM_LOCAL_MODEL_COST_MAP` | `string` | `True` | Suppress remote model price map fetch to guarantee instant startup and offline resilience |
+| `LITELLM_TELEMETRY` | `string` | `False` | Disable LiteLLM telemetry and phone-home network requests |
 
 > [!NOTE]
 > `COST_PER_MILLION_INPUT_TOKENS` and `COST_PER_MILLION_OUTPUT_TOKENS` are dynamic `@property` getters with setters in `backend/app/core/config.py`: unset, they resolve to the active provider's rates (`DEEPINFRA_*`, `ANTHROPIC_*` or `OPENAI_*`); the setters allow programmatic overrides in tests. `FAST_MODEL_CASCADE` and `DEFAULT_IMAGE_MODEL` are read-only properties derived from the active providers.

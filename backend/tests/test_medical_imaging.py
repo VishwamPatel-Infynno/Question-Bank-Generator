@@ -253,4 +253,3 @@ async def test_generate_image_stimulus_modality_integration_openai(monkeypatch):
     assert usage is not None
     assert usage["details"]["modality"] == "radiology"
     assert usage["details"]["medical_modality"] == "radiology"
-

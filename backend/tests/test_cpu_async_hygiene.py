@@ -124,10 +124,18 @@ def test_litellm_is_not_imported_until_used():
         "assert 'litellm' not in sys.modules, 'eager litellm import';"
         "assert b.litellm is sys.modules['litellm']"
     )
+    env = {"PYTHONPATH": str(BACKEND), "OFFLINE_MODE": "true", "PATH": ""}
+    if sys.platform == "win32":
+        import os
+
+        system_root = os.environ.get("SYSTEMROOT", r"C:\Windows")
+        env["SYSTEMROOT"] = system_root
+        env["PATH"] = str(Path(system_root) / "System32")
+
     out = subprocess.run(
         [sys.executable, "-c", code],
         cwd=BACKEND,
-        env={"PYTHONPATH": str(BACKEND), "OFFLINE_MODE": "true", "PATH": ""},
+        env=env,
         capture_output=True,
         text=True,
     )
