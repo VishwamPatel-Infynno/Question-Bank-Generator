@@ -23,6 +23,7 @@ export default function BatchFiltersBar({
           <input
             ref={searchInputRef}
             type="text"
+            aria-label="Search batches by ID, section, or topic"
             placeholder="Search batches (Press /)..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -53,6 +54,7 @@ export default function BatchFiltersBar({
         <select
           value={sectionFilter}
           onChange={(e) => onSectionFilterChange(e.target.value)}
+          aria-label="Filter batches by section"
           className="batch-filter-select"
         >
           <option value="all">All Sections</option>

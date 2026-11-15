@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     ACTIVE_LLM_PROVIDER: str = "deepinfra"
 
     # Active Image Provider: 'openai' or 'deepinfra'
-    ACTIVE_IMAGE_PROVIDER: str = "openai"
+    ACTIVE_IMAGE_PROVIDER: str = "deepinfra"
 
     # PostgreSQL Database URL
     DATABASE_URL: str = "postgresql+asyncpg://mcat_user:mcat_password@localhost:5432/mcat_db"

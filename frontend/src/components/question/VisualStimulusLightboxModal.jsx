@@ -21,6 +21,7 @@ import {
  * @param {string|null} [props.imageUrl] - Image URL.
  * @param {string} [props.rawDescription] - Figure description / caption.
  * @param {string} [props.visualType] - Label for diagram type badge.
+ * @param {string} [props.badgeClass] - Semantic CSS badge class for visual modality.
  * @param {() => void} [props.onCopySvg] - Copy SVG callback.
  * @param {boolean} [props.copiedSvg] - Copy confirmation state.
  * @returns {JSX.Element|null}
@@ -32,6 +33,7 @@ function VisualStimulusLightboxModal({
   imageUrl = null,
   rawDescription = '',
   visualType = 'Figure',
+  badgeClass = 'badge-purple',
   onCopySvg = null,
   copiedSvg = false
 }) {
@@ -84,7 +86,7 @@ function VisualStimulusLightboxModal({
           <span className="lightbox-header-title">
             Figure Inspector
           </span>
-          <span className="badge badge-purple lightbox-type-badge">
+          <span className={`badge ${badgeClass} lightbox-type-badge`}>
             {visualType}
           </span>
           <span className="lightbox-zoom-indicator">
@@ -99,6 +101,7 @@ function VisualStimulusLightboxModal({
             onClick={handleZoomIn}
             className="btn-secondary lightbox-btn"
             title="Zoom in (+25%)"
+            aria-label="Zoom in (+25%)"
           >
             <ZoomIn size={13} />
             <span>Zoom In</span>
@@ -109,6 +112,7 @@ function VisualStimulusLightboxModal({
             onClick={handleZoomOut}
             className="btn-secondary lightbox-btn"
             title="Zoom out (-25%)"
+            aria-label="Zoom out (-25%)"
           >
             <ZoomOut size={13} />
             <span>Zoom Out</span>
@@ -119,6 +123,7 @@ function VisualStimulusLightboxModal({
             onClick={handleResetZoom}
             className="btn-secondary lightbox-btn"
             title="Reset zoom to 100%"
+            aria-label="Reset zoom to 100%"
           >
             <RotateCcw size={13} />
             <span>Reset</span>
@@ -130,6 +135,7 @@ function VisualStimulusLightboxModal({
               onClick={onCopySvg}
               className="btn-secondary lightbox-btn"
               title="Copy SVG markup"
+              aria-label="Copy SVG markup"
             >
               {copiedSvg ? <Check size={13} color="var(--status-success)" /> : <FileCode size={13} />}
               <span>{copiedSvg ? 'Copied' : 'Copy SVG'}</span>
@@ -141,6 +147,7 @@ function VisualStimulusLightboxModal({
             onClick={handleClose}
             className="btn-secondary lightbox-btn"
             title="Close lightbox (Esc)"
+            aria-label="Close figure inspector (Esc)"
           >
             <X size={14} />
             <span>Close</span>

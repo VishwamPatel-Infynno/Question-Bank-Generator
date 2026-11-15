@@ -158,6 +158,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
             onClick={() => onSelectQuestion(q)}
             className="btn-secondary qbank-table-action-btn"
             title="Open question in editorial desk inspector"
+            aria-label="Open question in editorial desk inspector"
           >
             <Eye size={13} /> Open
           </button>
@@ -167,6 +168,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
             onClick={() => onToggleExpand(isExpanded ? null : q.id)}
             className="btn-secondary qbank-table-action-icon"
             title={isExpanded ? 'Collapse preview' : 'Expand preview inline'}
+            aria-label={isExpanded ? 'Collapse preview' : 'Expand preview inline'}
             aria-expanded={isExpanded}
           >
             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -177,6 +179,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
             onClick={(e) => onCopy(q, e)}
             className="btn-secondary qbank-table-action-icon"
             title="Copy formatted question text"
+            aria-label="Copy formatted question text"
           >
             {isCopied ? <Check size={14} color="var(--status-success)" /> : <Copy size={14} />}
           </button>
@@ -186,6 +189,7 @@ const QuestionBankCardRow = memo(function QuestionBankCardRow({
             onClick={(e) => onDelete(q.id, e)}
             className="btn-danger qbank-table-action-icon"
             title="Delete question"
+            aria-label="Delete question"
           >
             <Trash2 size={14} />
           </button>

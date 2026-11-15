@@ -83,49 +83,49 @@ export default function VisualStimulusViewer({
       case 'radiology':
         return {
           label: 'Radiology (X-Ray / CT / MRI)',
-          badgeStyle: { background: 'rgba(59, 130, 246, 0.16)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.32)' },
+          badgeClass: 'badge-cyan',
           isDarkContainer: true,
         };
       case 'histology':
         return {
           label: 'Histopathology (H&E)',
-          badgeStyle: { background: 'rgba(236, 72, 153, 0.16)', color: '#f472b6', border: '1px solid rgba(236, 72, 153, 0.32)' },
+          badgeClass: 'badge-purple',
           isDarkContainer: false,
         };
       case 'gross_anatomy':
         return {
           label: 'Gross Anatomy Specimen',
-          badgeStyle: { background: 'rgba(245, 158, 11, 0.16)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.32)' },
+          badgeClass: 'badge-amber',
           isDarkContainer: false,
         };
       case 'cellular_microscopy':
         return {
           label: 'Electron Microscopy (TEM/SEM)',
-          badgeStyle: { background: 'rgba(168, 85, 247, 0.16)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.32)' },
+          badgeClass: 'badge-indigo',
           isDarkContainer: true,
         };
       case 'physiology_trace':
         return {
           label: 'Physiology / ECG Trace',
-          badgeStyle: { background: 'rgba(239, 68, 68, 0.16)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.32)' },
+          badgeClass: 'badge-rose',
           isDarkContainer: false,
         };
       case 'clinical_pathology':
         return {
           label: 'Clinical Pathology Photograph',
-          badgeStyle: { background: 'rgba(16, 185, 129, 0.16)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.32)' },
+          badgeClass: 'badge-emerald',
           isDarkContainer: false,
         };
       case 'svg_diagram':
         return {
           label: 'SVG Vector Diagram',
-          badgeStyle: {},
+          badgeClass: 'badge-purple',
           isDarkContainer: false,
         };
       default:
         return {
           label: isSvg ? 'SVG Vector Diagram' : 'Scientific Figure',
-          badgeStyle: {},
+          badgeClass: 'badge-neutral',
           isDarkContainer: false,
         };
     }
@@ -183,8 +183,7 @@ export default function VisualStimulusViewer({
             </span>
             {badgeExtra}
             <span
-              className="badge badge-purple stimulus-type-badge"
-              style={modalityMeta.badgeStyle}
+              className={`badge ${modalityMeta.badgeClass} stimulus-type-badge`}
             >
               {visualType}
             </span>
@@ -198,6 +197,7 @@ export default function VisualStimulusViewer({
                 onClick={handleCopySvg}
                 className="btn-secondary stimulus-tool-btn"
                 title="Copy raw SVG vector markup to clipboard"
+                aria-label="Copy raw SVG vector markup to clipboard"
               >
                 {copiedSvg ? <Check size={11} color="var(--status-success)" /> : <Copy size={11} />}
                 <span>{copiedSvg ? 'Copied' : 'Copy SVG'}</span>
@@ -209,6 +209,7 @@ export default function VisualStimulusViewer({
               onClick={() => setIsLightboxOpen(true)}
               className="btn-secondary stimulus-tool-btn"
               title="Expand diagram to fullscreen inspect mode"
+              aria-label="Expand diagram to fullscreen inspect mode"
             >
               <Maximize2 size={11} />
               <span>Fullscreen</span>
@@ -221,8 +222,17 @@ export default function VisualStimulusViewer({
         {/* Visual Render Container (Always Light-Themed for Standard Psychometric Contrast) */}
         <div
           onClick={() => setIsLightboxOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsLightboxOpen(true);
+            }
+          }}
           className="stimulus-stage-light"
-          title="Click to expand full resolution diagram"
+          role="button"
+          tabIndex={0}
+          title="Click or press Enter to expand full resolution diagram"
+          aria-label="Click or press Enter to expand full resolution diagram"
         >
           {isSvg ? (
             <SafeSvg className="stimulus-svg-wrap" svg={svgContent} />
@@ -268,6 +278,7 @@ export default function VisualStimulusViewer({
         imageUrl={imageUrl}
         rawDescription={rawDescription}
         visualType={visualType}
+        badgeClass={modalityMeta.badgeClass}
         onCopySvg={handleCopySvg}
         copiedSvg={copiedSvg}
       />

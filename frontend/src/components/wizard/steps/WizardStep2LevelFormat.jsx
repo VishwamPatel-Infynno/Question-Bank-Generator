@@ -46,7 +46,7 @@ export default function WizardStep2LevelFormat({
             return (
               <WizardChoiceCard key={tier.id} selected={isSelected} onSelect={() => setDifficulty?.(tier.id)}>
                 <div className="wizard-tier-title-row">
-                  <span className={`wizard-tier-dot tier-${tier.id.toLowerCase()}`} />
+                  <span className={`wizard-tier-dot tier-${tier.id.toLowerCase()}`} aria-hidden="true" />
                   {tier.title}
                 </div>
               </WizardChoiceCard>

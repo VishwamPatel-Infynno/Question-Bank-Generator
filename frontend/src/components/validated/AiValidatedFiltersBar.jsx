@@ -25,6 +25,7 @@ export default function AiValidatedFiltersBar({
           <input
             ref={searchInputRef}
             type="text"
+            aria-label="Search questions by text, passage, or topic"
             placeholder="Search questions (Press /)..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -36,6 +37,7 @@ export default function AiValidatedFiltersBar({
         <select
           value={sectionFilter}
           onChange={(e) => onSectionFilterChange(e.target.value)}
+          aria-label="Filter questions by section"
           className="validated-filters-select"
         >
           <option value="">All Sections</option>

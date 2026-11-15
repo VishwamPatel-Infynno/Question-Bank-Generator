@@ -51,7 +51,7 @@ async def with_keepalive(
 
 
 @router.post("/generate", dependencies=[Depends(limit_generation_requests)])
-async def generate_mcat_question(req: GenerationRequest):
+async def generate_mcat_question(req: GenerationRequest) -> StreamingResponse:
     """
     Triggers the multi-agent workflow (Generator -> Reviewer -> Re-Generator -> Image Generator)
     and streams live progress events via Server-Sent Events (SSE).

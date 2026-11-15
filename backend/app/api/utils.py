@@ -12,4 +12,3 @@ def or_404(value: Any, detail: str = "Not found") -> Any:
     if not value:
         raise HTTPException(status_code=404, detail=detail)
     return value
-

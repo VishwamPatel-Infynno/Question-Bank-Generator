@@ -301,6 +301,11 @@
   background: var(--bg-surface-hover);
 }
 
+.wizard-tier-card:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
 .wizard-tier-card.selected {
   border-color: var(--brand-primary);
   background: var(--brand-light);
@@ -582,6 +587,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  gap: 8px;
 }
 
 .wizard-tier-card-title-group {
@@ -708,10 +715,6 @@
 
 .wizard-count-card {
   padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
 }
 
 .wizard-count-label {
@@ -1041,17 +1044,22 @@
 }
 
 .wizard-tier-dot.tier-foundational,
-.wizard-tier-dot.tier-easy {
+.wizard-tier-dot.tier-easy,
+.wizard-tier-dot.tier-low {
   background-color: var(--status-success);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.45);
 }
 
 .wizard-tier-dot.tier-standard,
 .wizard-tier-dot.tier-medium {
   background-color: var(--status-warning);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.45);
 }
 
 .wizard-tier-dot.tier-advanced,
-.wizard-tier-dot.tier-hard {
+.wizard-tier-dot.tier-hard,
+.wizard-tier-dot.tier-high {
   background-color: var(--status-danger);
+  box-shadow: 0 0 6px rgba(244, 63, 94, 0.45);
 }
 

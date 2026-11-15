@@ -77,6 +77,10 @@ export default function BatchJobCard({
             type="button"
             onClick={() => onToggleExpand && onToggleExpand(job.id)}
             className="btn-secondary batch-job-toggle-btn"
+            aria-expanded={isExpanded}
+            aria-label={isExpanded
+              ? 'Hide questions in this set'
+              : `View ${jobQuestions.length} questions in this set`}
           >
             <FileText size={12} />
             <span>

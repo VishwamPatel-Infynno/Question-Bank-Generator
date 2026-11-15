@@ -15,7 +15,7 @@ export default function WizardChoiceCard({ selected = false, onSelect, className
     >
       <div className="wizard-tier-card-content">
         {children}
-        {selected && <CheckCircle2 size={14} color="var(--brand-primary)" />}
+        {selected && <CheckCircle2 size={14} color="var(--brand-primary)" style={{ flexShrink: 0 }} />}
       </div>
     </button>
   );

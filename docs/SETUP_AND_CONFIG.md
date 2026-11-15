@@ -43,7 +43,7 @@ The system defines 69 configuration fields in `backend/app/core/config.py` (`Set
 | `DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS` | `float` | `0.20` | Input price for the DeepInfra model: standard $0.20 / 1M (cached input is costed at 3%, i.e. $0.006). DeepInfra also lists a 51% promo, $0.098 in / $0.294 out, with no end date: set both values to cost at the promo |
 | `DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS` | `float` | `0.60` | Output price for the DeepInfra model: standard $0.60 / 1M (promo $0.294) |
 | `DATABASE_URL` | `string` | `postgresql+asyncpg://mcat_user:mcat_password@localhost:5432/mcat_db` | Async SQLAlchemy PostgreSQL connection string |
-| `ACTIVE_IMAGE_PROVIDER` | `string` | `openai` | Image engine: `openai` or `deepinfra`. Note: the code default is `openai` while `.env.example` ships `deepinfra`; set it explicitly |
+| `ACTIVE_IMAGE_PROVIDER` | `string` | `deepinfra` | Image engine: `deepinfra` or `openai`. |
 | `DEEPINFRA_IMAGE_MODEL` | `string` | `black-forest-labs/FLUX-2-klein-4b` | DeepInfra image model for visual stimuli |
 | `DEEPINFRA_IMAGE_COST_PER_UNIT` | `float` | `0.014` | FLUX-2-klein price per 1024x1024 image, scaled by (width/1024) x (height/1024); DeepInfra's reported cost is preferred when a response carries one |
 | `OPENAI_API_KEY` | `string` | `""` | OpenAI API authorization key |
