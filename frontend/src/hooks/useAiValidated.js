@@ -116,11 +116,12 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     init();
   }, [performFetchValidated]);
 
-  // Filtered in-memory questions by search query (strictly preserving score > 90 benchmark)
+  // Filtered in-memory questions by search query (preserving canonical benchmark > 80)
   const filteredQuestions = useMemo(() => {
-    const validQuestions = questions.filter(
-      (item) => (item.final_score || 0) > SCORE_CUTOFFS.aiValidatedAbove
-    );
+    const validQuestions = questions.filter((item) => {
+      const score = item.final_score ?? 100;
+      return score > SCORE_CUTOFFS.passingAbove;
+    });
     return filterQuestionsByText(validQuestions, debouncedSearch);
   }, [questions, debouncedSearch]);
 

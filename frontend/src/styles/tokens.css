@@ -80,6 +80,8 @@
   --brand-light: #f0f9ff;
   --brand-glow: 0 0 0 2px rgba(2, 132, 199, 0.25);
   --brand-indigo: #4f46e5;
+  --brand-indigo-bg: #eef2ff;
+  --brand-indigo-border: #c7d2fe;
 
   --status-success: #059669;
   --success: #059669;
@@ -93,10 +95,14 @@
   --status-danger: #e11d48;
   --status-danger-bg: #fff1f2;
   --status-danger-border: #fecdd3;
+  --status-danger-hover-bg: rgba(225, 29, 72, 0.12);
 
   --status-purple: #7c3aed;
   --status-purple-bg: #f5f3ff;
   --status-purple-border: #ddd6fe;
+
+  --bg-backdrop: rgba(15, 23, 42, 0.45);
+  --bg-backdrop-heavy: rgba(5, 8, 15, 0.88);
 
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
@@ -134,6 +140,8 @@
   --brand-light: rgba(56, 189, 248, 0.08);
   --brand-glow: 0 0 0 2px rgba(56, 189, 248, 0.25);
   --brand-indigo: #818cf8;
+  --brand-indigo-bg: rgba(99, 102, 241, 0.1);
+  --brand-indigo-border: rgba(99, 102, 241, 0.25);
 
   /* Status Colors */
   --status-success: #10b981;
@@ -148,10 +156,14 @@
   --status-danger: #f43f5e;
   --status-danger-bg: rgba(244, 63, 94, 0.06);
   --status-danger-border: rgba(244, 63, 94, 0.22);
+  --status-danger-hover-bg: rgba(244, 63, 94, 0.14);
 
   --status-purple: #8b5cf6;
   --status-purple-bg: rgba(139, 92, 246, 0.06);
   --status-purple-border: rgba(139, 92, 246, 0.22);
+
+  --bg-backdrop: rgba(8, 12, 20, 0.72);
+  --bg-backdrop-heavy: rgba(5, 8, 15, 0.88);
 
   /* Restrained Elevation */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.2);

@@ -33,7 +33,7 @@ Routers contain no SQL and no business logic. Repositories own every query and c
 
 ## Behavioral invariants that tests protect
 - Soft delete: delete sets `is_deleted = true` and must NOT decrement a batch's `actual_count`; restore via `POST /api/questions/{id}/restore`; soft-deleting a passage cascades to its questions.
-- Batch questions stay `batch_only` until the batch completes, then items scoring above 90 are atomically promoted to `ai_validated`. Never let in-progress questions reach the review queue.
+- Batch questions stay `batch_only` until the batch completes, then items scoring above 80 (`PASSING_SCORE_THRESHOLD`) are atomically promoted to `ai_validated`. Never let in-progress questions reach the review queue.
 - Autonomous retry: at most 3 trials per set; manual retry returns HTTP 400 once exhausted.
 - Global job concurrency is bounded by semaphores in `services/batch_concurrency.py`; do not spawn unbounded LLM tasks. The global LLM semaphore is held only during the API call in `agents/base.py`.
 - Startup/shutdown: `main.py` lifespan stops batches gracefully and disposes the engine; `reconcile_interrupted_batches` stops orphaned batches and marks their `pending`/`running` jobs `stopped` (still retryable).

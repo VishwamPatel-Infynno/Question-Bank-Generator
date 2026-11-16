@@ -35,6 +35,7 @@ export default function WizardStep3ReviewAdvanced({ generatorForm, sectionMeta =
   const onToggleSubskill = generatorForm?.toggleSubskill;
   const onToggleMistakePattern = generatorForm?.toggleMistakePattern;
   const setPrimaryTrap = (v) => update?.('primaryTrap', v);
+  const setSelectedSkill = (v) => update?.('selectedSkill', v);
   const setSelectedSubskill = (v) => update?.('selectedSubskill', v);
   const setLikelyMistakePattern = (v) => update?.('likelyMistakePattern', v);
   const setAdditionalInstructions = (v) => update?.('additionalInstructions', v);
@@ -144,6 +145,9 @@ export default function WizardStep3ReviewAdvanced({ generatorForm, sectionMeta =
         effectiveTraps={effectiveTraps}
         onTogglePrimaryTrap={onTogglePrimaryTrap}
         setPrimaryTrap={setPrimaryTrap}
+        availableSkills={availableSkills}
+        selectedSkill={selectedSkill}
+        setSelectedSkill={setSelectedSkill}
         availableSubskills={availableSubskills}
         effectiveSubskills={effectiveSubskills}
         onToggleSubskill={onToggleSubskill}

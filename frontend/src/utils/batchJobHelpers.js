@@ -15,7 +15,7 @@ export function resolveQuestionStatus(q) {
   if (q.status) return q.status;
   const score = q.final_score ?? 95;
   if (score > SCORE_CUTOFFS.aiValidatedAbove) return QUESTION_STATUS.AI_VALIDATED;
-  if (score > SCORE_CUTOFFS.batchAbove) return QUESTION_STATUS.BATCH_ONLY;
+  if (score >= SCORE_CUTOFFS.batchAtOrAbove) return QUESTION_STATUS.BATCH_ONLY;
   return QUESTION_STATUS.BELOW_THRESHOLD;
 }
 
@@ -57,7 +57,7 @@ export function hasJobDiagram(jobQuestions = []) {
 }
 
 /**
- * Sorts job questions: kept questions (>85) first, then below threshold (<=85).
+ * Sorts job questions: kept questions first, then below threshold.
  * Discarded questions are excluded.
  */
 export function sortJobQuestions(jobQuestions = []) {

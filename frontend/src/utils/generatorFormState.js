@@ -1,4 +1,4 @@
-import { SECTION_IDS, getSkillsForSection } from '../constants/mcat';
+import { SECTION_IDS } from '../constants/mcat';
 
 /**
  * Pure state updates for the generator form (used by useGeneratorForm). Each function takes the
@@ -53,7 +53,6 @@ export function toggleSubtopicState(prev, subtopic) {
  * section picker and by the hero presets so both paths apply the same rules.
  */
 export function applySectionRules(form, sectionId) {
-  const firstSkill = getSkillsForSection(sectionId)[0];
   const common = {
     selectedSection: sectionId,
     selectedSubject: '',
@@ -62,13 +61,14 @@ export function applySectionRules(form, sectionId) {
     selectedTopicName: '',
     selectedSubtopic: 'All Core Topics (Balanced Mix)',
     selectedSubtopics: [],
-    selectedSubskill: firstSkill?.subskills?.[0] || '',
+    selectedSkill: 'Automatic',
+    selectedSubskill: '',
     selectedSubskills: []
   };
   if (sectionId === SECTION_IDS.CARS) {
     return {
       ...common,
-      selectedSkill: firstSkill?.id || 'CARS1',
+      selectedSkill: 'Automatic',
       passageMode: 'single_passage',
       passageRequired: 'Yes',
       questionType: 'PASSAGE_BASED_MCQ',
@@ -80,7 +80,7 @@ export function applySectionRules(form, sectionId) {
   }
   return {
     ...common,
-    selectedSkill: firstSkill?.id || 'S1',
+    selectedSkill: 'Automatic',
     allowAiImages: true,
     requireImage: true,
     requirePassageImage: true,

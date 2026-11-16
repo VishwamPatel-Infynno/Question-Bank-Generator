@@ -1,17 +1,15 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Save,
   Trash2,
   BookOpen,
-  Layers,
-  ChevronLeft,
-  ChevronRight
+  Layers
 } from 'lucide-react';
 import { EMPTY_ARRAY, getSectionBadgeClass, getSectionShortLabel, SECTION_IDS } from '../../constants';
 import { countWords } from '../../utils';
 import PassageVisualStimulusEditor from './PassageVisualStimulusEditor';
-import PassageLinkedQuestionCard from './PassageLinkedQuestionCard';
+import PassageQuestionsCarousel from './PassageQuestionsCarousel';
 
 /**
  * PassageEditorialDesk
@@ -41,58 +39,13 @@ export default function PassageEditorialDesk({
 
   // UI state
   const [isSaving, setIsSaving] = useState(false);
-  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
-  const [editingQuestionId, setEditingQuestionId] = useState(null);
 
   // Dynamic Word Count
   const liveWordCount = useMemo(() => {
     return countWords(text);
   }, [text]);
 
-  // Safe question index calculation
   const totalQuestions = questions.length;
-  const safeIndex = totalQuestions > 0 ? Math.min(Math.max(0, activeQuestionIndex), totalQuestions - 1) : 0;
-  const activeQuestion = totalQuestions > 0 ? questions[safeIndex] : null;
-
-  // Question navigation handlers
-  const goToPrev = () => {
-    if (totalQuestions <= 1) return;
-    setActiveQuestionIndex((prev) => (prev > 0 ? prev - 1 : totalQuestions - 1));
-    setEditingQuestionId(null);
-  };
-
-  const goToNext = () => {
-    if (totalQuestions <= 1) return;
-    setActiveQuestionIndex((prev) => (prev < totalQuestions - 1 ? prev + 1 : 0));
-    setEditingQuestionId(null);
-  };
-
-  // Keyboard navigation shortcuts (ArrowLeft / ArrowRight)
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (totalQuestions <= 1) return;
-      const activeEl = document.activeElement;
-      const isInput =
-        activeEl &&
-        (activeEl.tagName === 'INPUT' ||
-          activeEl.tagName === 'TEXTAREA' ||
-          activeEl.isContentEditable);
-      if (isInput) return;
-
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        setActiveQuestionIndex((prev) => (prev > 0 ? prev - 1 : totalQuestions - 1));
-        setEditingQuestionId(null);
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        setActiveQuestionIndex((prev) => (prev < totalQuestions - 1 ? prev + 1 : 0));
-        setEditingQuestionId(null);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [totalQuestions]);
 
   const handleDiscardImage = () => {
     setImageUrl('');
@@ -122,20 +75,6 @@ export default function PassageEditorialDesk({
       console.error('Passage save failed:', err);
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleSaveQuestion = async (updatedQ) => {
-    if (!onUpdateQuestion) {
-      setEditingQuestionId(null);
-      return;
-    }
-    try {
-      await onUpdateQuestion(updatedQ);
-      setEditingQuestionId(null);
-    } catch (err) {
-      // the hook toasts the failure; leave the editor open with the user's changes
-      console.error('Linked question save failed:', err);
     }
   };
 
@@ -255,72 +194,10 @@ export default function PassageEditorialDesk({
         </div>
 
         {/* ── RIGHT COLUMN: Linked Questions Carousel ───────────────────── */}
-        <div className="passage-desk-right-col">
-          {/* Header with Stepper Carousel */}
-          <div className="passage-desk-carousel-header">
-            <div className="passage-desk-header-title">
-              <Layers size={16} color="var(--brand-primary)" />
-              <h3>
-                Linked Questions ({totalQuestions})
-              </h3>
-            </div>
-
-            {totalQuestions > 0 && (
-              <div className="passage-desk-stepper">
-                <button
-                  type="button"
-                  onClick={goToPrev}
-                  disabled={totalQuestions <= 1}
-                  className="btn-secondary passage-desk-stepper-btn"
-                  title="Previous Question (Left Arrow ←)"
-                >
-                  <ChevronLeft size={14} />
-                  <span>Prev</span>
-                </button>
-
-                <span className="passage-desk-stepper-badge">
-                  Question {safeIndex + 1} of {totalQuestions}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={goToNext}
-                  disabled={totalQuestions <= 1}
-                  className="btn-secondary passage-desk-stepper-btn"
-                  title="Next Question (Right Arrow →)"
-                >
-                  <span>Next</span>
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Active Question Card / Empty State */}
-          {totalQuestions === 0 ? (
-            <div className="passage-desk-empty-state">
-              <Layers size={32} className="passage-desk-empty-icon" />
-              <h4 className="passage-desk-empty-title">
-                No Questions Linked Yet
-              </h4>
-              <p className="passage-desk-empty-desc">
-                This reading passage currently has no questions linked to it in the Question Bank. You can generate passage-based questions in the Generator Studio.
-              </p>
-            </div>
-          ) : (
-            <PassageLinkedQuestionCard
-              key={activeQuestion.id}
-              question={activeQuestion}
-              index={safeIndex}
-              totalQuestions={totalQuestions}
-              isEditing={editingQuestionId === activeQuestion.id}
-              onToggleEdit={() =>
-                setEditingQuestionId(editingQuestionId === activeQuestion.id ? null : activeQuestion.id)
-              }
-              onSaveQuestion={handleSaveQuestion}
-            />
-          )}
-        </div>
+        <PassageQuestionsCarousel
+          questions={questions}
+          onUpdateQuestion={onUpdateQuestion}
+        />
       </div>
     </div>
   );

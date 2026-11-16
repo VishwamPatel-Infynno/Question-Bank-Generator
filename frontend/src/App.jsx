@@ -64,7 +64,9 @@ export default function App() {
     // Handlers
     handleGenerate,
     handleApplyPresetAndNavigate,
-    isLaunchingBatch
+    isLaunchingBatch,
+    newlyLaunchedBatch,
+    setNewlyLaunchedBatch
   } = useAppState();
 
   return (
@@ -114,6 +116,8 @@ export default function App() {
                 onNavigateToValidated={handleNavigateToValidated}
                 onNavigateToWizard={handleNavigateToWizard}
                 onShowToast={showToast}
+                newlyLaunchedBatch={newlyLaunchedBatch}
+                onClearNewlyLaunchedBatch={() => setNewlyLaunchedBatch(null)}
               />
             </Suspense>
           </ErrorBoundary>

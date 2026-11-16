@@ -10,9 +10,15 @@ describe('resolveQuestionStatus', () => {
 
   it('derives a status from the score using the shared cut-offs', () => {
     expect(resolveQuestionStatus({ final_score: 91 })).toBe('ai_validated');
-    expect(resolveQuestionStatus({ final_score: 90 })).toBe('batch_only');
-    expect(resolveQuestionStatus({ final_score: 86 })).toBe('batch_only');
-    expect(resolveQuestionStatus({ final_score: 85 })).toBe('below_threshold');
+    expect(resolveQuestionStatus({ final_score: 81 })).toBe('ai_validated');
+    expect(resolveQuestionStatus({ final_score: 80 })).toBe('batch_only');
+    expect(resolveQuestionStatus({ final_score: 76 })).toBe('batch_only');
+    expect(resolveQuestionStatus({ final_score: 75 })).toBe('batch_only');
+    expect(resolveQuestionStatus({ final_score: 70 })).toBe('batch_only');
+    expect(resolveQuestionStatus({ final_score: 69 })).toBe('below_threshold');
+    expect(resolveQuestionStatus({ final_score: 65 })).toBe('below_threshold');
+    expect(resolveQuestionStatus({ final_score: 64 })).toBe('below_threshold');
+    expect(resolveQuestionStatus({ final_score: 50 })).toBe('below_threshold');
   });
 
   it('treats a missing question as below threshold', () => {

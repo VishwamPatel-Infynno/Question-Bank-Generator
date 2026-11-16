@@ -53,7 +53,7 @@ describe('applySectionRules', () => {
     expect(next.allowAiImages).toBe(false);
     expect(next.requireImage).toBe(false);
     expect(next.passageMode).toBe('single_passage');
-    expect(next.selectedSkill).toMatch(/^CARS/);
+    expect(next.selectedSkill).toBe('Automatic');
   });
 
   it('a science section re-enables AI figures and resets the topic selection', () => {

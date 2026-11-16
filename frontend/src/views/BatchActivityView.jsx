@@ -30,7 +30,9 @@ export default function BatchActivityView({
   onNavigateToBank,
   onNavigateToValidated,
   onNavigateToWizard,
-  onShowToast
+  onShowToast,
+  newlyLaunchedBatch,
+  onClearNewlyLaunchedBatch
 }) {
   const {
     batches,
@@ -70,7 +72,12 @@ export default function BatchActivityView({
     isDeletingBatch,
     confirmModal,
     closeConfirmModal
-  } = useBatchActivity({ onShowToast, onNavigateToBank });
+  } = useBatchActivity({
+    onShowToast,
+    onNavigateToBank,
+    newlyLaunchedBatch,
+    onClearNewlyLaunchedBatch
+  });
 
   // ─── Pagination ────────────────────────────────────────────────────────────
   const {

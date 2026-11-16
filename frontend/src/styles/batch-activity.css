@@ -53,9 +53,9 @@
 }
 
 .batch-monitor-active-badge {
-  background: rgba(51, 90, 207, 0.15);
+  background: var(--brand-light);
   color: var(--brand-primary);
-  border: 1px solid rgba(51, 90, 207, 0.3);
+  border: 1px solid var(--border-brand);
   border-radius: 20px;
   font-size: 0.7rem;
   font-weight: 700;
@@ -187,17 +187,17 @@
 }
 
 .batch-monitor-stage-tag.active {
-  background: rgba(51, 90, 207, 0.1);
+  background: var(--brand-light);
   color: var(--brand-primary);
 }
 
 .batch-monitor-stage-tag.queued {
-  background: rgba(245, 158, 11, 0.1);
+  background: var(--status-warning-bg);
   color: var(--status-warning);
 }
 
 .batch-monitor-stage-tag.done {
-  background: rgba(16, 185, 129, 0.1);
+  background: var(--status-success-bg);
   color: var(--status-success);
 }
 
@@ -296,7 +296,7 @@
   background: linear-gradient(90deg, var(--infynno-violet) 0%, var(--infynno-blue) 50%, var(--infynno-cyan) 100%);
   border-radius: 4px;
   transition: width 0.5s ease;
-  box-shadow: 0 0 10px rgba(79, 48, 185, 0.4);
+  box-shadow: 0 0 10px var(--brand-ring);
 }
 
 .batch-monitor-batches-strip {

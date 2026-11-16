@@ -68,13 +68,13 @@ async def test_strict_rejection_routing_when_score_le_90():
     )
     draft = get_mock_draft(req)
 
-    # Reviewer score of 82 (<= 90) at maximum iteration attempt (3)
+    # Reviewer score of 60 (< config.BATCH_PASSING_SCORE_THRESHOLD) at maximum iteration attempt (3)
     rev_failing = ReviewScore(
-        authenticity_score=20,
-        clarity_score=20,
-        distractor_score=20,
-        explanation_score=22,
-        total_score=82,
+        authenticity_score=15,
+        clarity_score=15,
+        distractor_score=15,
+        explanation_score=15,
+        total_score=60,
         strengths=["Good topic"],
         weaknesses=["Distractor A is trivial"],
         recommendations=["Improve Distractor A"],
@@ -95,8 +95,74 @@ async def test_strict_rejection_routing_when_score_le_90():
     # Executing reject_node must produce rejection diagnostic payload without persisting
     reject_res = await reject_node(state_failing)
     assert reject_res["status"] == "rejected_below_threshold"
-    assert reject_res["rejection_data"]["final_score"] == 82
+    assert reject_res["rejection_data"]["final_score"] == 60
     assert "reason" in reject_res["rejection_data"]
+
+
+async def test_route_after_review_good_quality_accepted_at_max_trials():
+    """Verify that score <= threshold routes to regenerator on iterations < max_attempts,
+    and on iteration == max_attempts, score >= (threshold - 10) is accepted as Good Quality."""
+    from app.core.config import config
+    from app.schemas import Difficulty, GenerationRequest, MCATSection
+
+    req = GenerationRequest(
+        section=MCATSection.CARS, difficulty=Difficulty.MEDIUM, passage_required="No"
+    )
+    draft = get_mock_draft(req)
+
+    # Score 75 (<= 80 but >= 70, which is threshold - 10)
+    rev_mid = ReviewScore(
+        authenticity_score=19,
+        clarity_score=19,
+        distractor_score=18,
+        explanation_score=19,
+        total_score=75,
+        strengths=["Good question style"],
+    )
+
+    # Iteration 1: must try to get score > threshold by routing to regenerator
+    state_iter1 = {
+        "request": req.model_dump(),
+        "current_draft": draft.model_dump(),
+        "current_review": rev_mid.model_dump(),
+        "iteration_count": 1,
+    }
+    assert route_after_review(state_iter1) == "regenerator"
+
+    # Iteration 2: still tries to get score > threshold
+    state_iter2 = {
+        "request": req.model_dump(),
+        "current_draft": draft.model_dump(),
+        "current_review": rev_mid.model_dump(),
+        "iteration_count": 2,
+    }
+    assert route_after_review(state_iter2) == "regenerator"
+
+    # Iteration 3 (max_attempts): 75 is >= 70 (threshold - 10), so it is accepted as Good Quality!
+    state_iter3 = {
+        "request": req.model_dump(),
+        "current_draft": draft.model_dump(),
+        "current_review": rev_mid.model_dump(),
+        "iteration_count": config.MAX_REGENERATION_ATTEMPTS,
+    }
+    assert route_after_review(state_iter3) in ["image_generator", "finalize"]
+
+    # Iteration 3 with score < 70 (e.g. 60) must route to reject
+    rev_low = ReviewScore(
+        authenticity_score=15,
+        clarity_score=15,
+        distractor_score=15,
+        explanation_score=15,
+        total_score=60,
+        strengths=["Needs work"],
+    )
+    state_iter3_low = {
+        "request": req.model_dump(),
+        "current_draft": draft.model_dump(),
+        "current_review": rev_low.model_dump(),
+        "iteration_count": config.MAX_REGENERATION_ATTEMPTS,
+    }
+    assert route_after_review(state_iter3_low) == "reject"
 
 
 async def test_section_image_guard_routing():

@@ -82,11 +82,25 @@ async def review_question(
         else (draft.primary_trap or "Author Diagnosed AAMC Trap")
     )
 
-    passage_note = (
-        f"Yes ({passage_words_text(is_cars(req.section))}; judge length against this band)"
-        if req.is_passage_active
-        else "No (standalone question: no passage expected)"
-    )
+    has_shared_passage = bool(req.shared_stimulus and req.shared_stimulus.strip())
+    has_passage = bool(draft.stimulus_text and draft.stimulus_text.strip())
+    passage_words = len(draft.stimulus_text.split()) if draft.stimulus_text else 0
+    if has_shared_passage:
+        passage_note = (
+            f"Shared Passage Set ({passage_words} words; pre-established shared passage across set — "
+            "audit the question's passage linkage, NOT the shared passage's length or style)"
+        )
+        stimulus_label = "Background Reading Passage (Shared Across Set - REFERENCE ONLY; DO NOT score or deduct points for passage content, length, or style):"
+    elif req.is_passage_active and has_passage:
+        passage_note = (
+            f"Yes ({passage_words_text(is_cars(req.section))}; evaluate linkage to question)"
+        )
+        stimulus_label = "Background Reading Passage (REFERENCE ONLY; evaluate question's data linkage, DO NOT deduct points for passage prose):"
+    else:
+        passage_note = "No (standalone question: no passage expected)"
+        stimulus_label = "Stimulus (Discrete Question - No passage expected):"
+
+    target_benchmark = int(req.passing_threshold or config.PASSING_SCORE_THRESHOLD)
 
     user_prompt = f"""Review the following candidate AAMC MCAT Multiple Choice Question:
 
@@ -96,12 +110,13 @@ Metadata:
 - Target Difficulty: {req.difficulty.value}
 - Interaction Format: {req.interaction_type or "single_choice"}
 - Target Trap to Audit: {target_trap}
-- Passage Type: {passage_note}
+- Passage Status: {passage_note}
+- Target Passing Benchmark: {target_benchmark}/100 (Aim: 100/100 Full Score on First Pass)
 - Iteration Attempt: {iteration}
 
---- CANDIDATE QUESTION ---
-Stimulus:
-{draft.stimulus_text}
+--- CANDIDATE QUESTION UNDER AUDIT ---
+{stimulus_label}
+{draft.stimulus_text if draft.stimulus_text else "(None - Standalone Question)"}
 
 Question Stem:
 {draft.question_stem}
@@ -115,7 +130,12 @@ Correct Answer Key(s):
 Explanation:
 {draft.explanation}
 --------------------------
-Evaluate this question thoroughly and return your 100-point rubric breakdown as JSON."""
+AUDIT INSTRUCTIONS:
+- The 4 scoring pillars evaluate SOLELY the question item: Question Stem, Options, Key, and Explanation.
+- DO NOT critique or deduct points from any pillar for the background reading passage.
+- If option word counts are within parity, Option Symmetry is satisfied; do NOT penalize options for minor stylistic phrasing.
+- Award the full score of 25 points per pillar (100/100 total) when the item satisfies all requirements with no identifiable psychometric defects.
+Evaluate the candidate question and return your 100-point rubric breakdown as JSON."""
 
     try:
         # One validated call: invalid JSON/scores get a single informed repair (both calls billed);

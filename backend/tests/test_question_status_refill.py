@@ -89,22 +89,33 @@ def test_batch_refill_deficit_calculation_with_discarded_questions():
 def test_determine_question_status():
     """
     Validates determine_question_status across boundary conditions:
-    - Standalone runs: > 90 -> 'ai_validated', 86-90 -> 'batch_only', <= 85 -> 'below_threshold'
-    - In-progress batches: > 85 -> 'batch_only' (withheld), <= 85 -> 'below_threshold'
+    - Standalone runs: > 80 -> 'ai_validated', 70 <= score <= 80 -> 'batch_only', < 70 -> 'below_threshold'
+    - In-progress batches: >= 70 -> 'batch_only' (withheld), < 70 -> 'below_threshold'
     """
     # Standalone / completed runs (is_in_progress_batch=False)
     assert determine_question_status(95) == "ai_validated"
-    assert determine_question_status(91) == "ai_validated"
-    assert determine_question_status(90) == "batch_only"
-    assert determine_question_status(88) == "batch_only"
-    assert determine_question_status(85) == "below_threshold"
-    assert determine_question_status(70) == "below_threshold"
+    assert determine_question_status(85) == "ai_validated"
+    assert determine_question_status(81) == "ai_validated"
+    assert determine_question_status(80) == "batch_only"
+    assert determine_question_status(76) == "batch_only"
+    assert determine_question_status(75) == "batch_only"
+    assert determine_question_status(70) == "batch_only"
+    assert determine_question_status(69) == "below_threshold"
+    assert determine_question_status(65) == "below_threshold"
+    assert determine_question_status(64) == "below_threshold"
+    assert determine_question_status(50) == "below_threshold"
     assert determine_question_status(None) == "below_threshold"
 
     # In-progress batch runs (is_in_progress_batch=True)
     assert determine_question_status(95, is_in_progress_batch=True) == "batch_only"
-    assert determine_question_status(90, is_in_progress_batch=True) == "batch_only"
-    assert determine_question_status(86, is_in_progress_batch=True) == "batch_only"
-    assert determine_question_status(85, is_in_progress_batch=True) == "below_threshold"
+    assert determine_question_status(85, is_in_progress_batch=True) == "batch_only"
+    assert determine_question_status(81, is_in_progress_batch=True) == "batch_only"
+    assert determine_question_status(80, is_in_progress_batch=True) == "batch_only"
+    assert determine_question_status(76, is_in_progress_batch=True) == "batch_only"
+    assert determine_question_status(75, is_in_progress_batch=True) == "batch_only"
+    assert determine_question_status(70, is_in_progress_batch=True) == "batch_only"
+    assert determine_question_status(69, is_in_progress_batch=True) == "below_threshold"
+    assert determine_question_status(65, is_in_progress_batch=True) == "below_threshold"
+    assert determine_question_status(64, is_in_progress_batch=True) == "below_threshold"
     assert determine_question_status(50, is_in_progress_batch=True) == "below_threshold"
     assert determine_question_status(None, is_in_progress_batch=True) == "below_threshold"

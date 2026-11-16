@@ -58,14 +58,14 @@ body {
   font-size: 0.825rem;
   padding: 8px 16px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--border-light);
   cursor: pointer;
   box-shadow: 0 2px 8px var(--brand-ring);
   transition: var(--transition-ui);
 }
 
 .btn-primary:hover:not(:disabled) {
-  box-shadow: 0 4px 16px rgba(51, 90, 207, 0.35);
+  box-shadow: 0 4px 16px var(--brand-ring);
   transform: translateY(-1px);
   filter: brightness(1.06);
 }
@@ -165,7 +165,7 @@ body {
   font-size: 0.825rem;
   padding: 8px 16px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-light);
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: var(--transition-ui);
@@ -193,7 +193,7 @@ body {
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: rgba(244, 63, 94, 0.14);
+  background: var(--status-danger-hover-bg);
 }
 
 /* Refined Minimalist Badges & Pills */
@@ -209,7 +209,7 @@ body {
 }
 
 .badge-cyan { background: var(--brand-light); color: var(--brand-primary); border: 1px solid var(--border-brand); }
-.badge-indigo { background: rgba(99, 102, 241, 0.1); color: var(--brand-indigo); border: 1px solid rgba(99, 102, 241, 0.2); }
+.badge-indigo { background: var(--brand-indigo-bg); color: var(--brand-indigo); border: 1px solid var(--brand-indigo-border); }
 .badge-emerald { background: var(--status-success-bg); color: var(--status-success); border: 1px solid var(--status-success-border); }
 .badge-amber { background: var(--status-warning-bg); color: var(--status-warning); border: 1px solid var(--status-warning-border); }
 .badge-purple { background: var(--status-purple-bg); color: var(--status-purple); border: 1px solid var(--status-purple-border); }
@@ -306,8 +306,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .choice-option-card.is-correct {
-  background: rgba(16, 185, 129, 0.05);
-  border-color: rgba(16, 185, 129, 0.35);
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
 }
 
 .choice-letter-badge {
@@ -349,7 +349,7 @@ input:focus, select:focus, textarea:focus {
 .modal-backdrop-theme {
   position: fixed;
   inset: 0;
-  background-color: rgba(8, 12, 20, 0.72);
+  background-color: var(--bg-backdrop);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   z-index: var(--z-overlay);
@@ -358,10 +358,6 @@ input:focus, select:focus, textarea:focus {
   justify-content: center;
   padding: 20px;
   animation: fadeIn 0.15s ease-out;
-}
-
-[data-theme="light"] .modal-backdrop-theme {
-  background-color: rgba(15, 23, 42, 0.45);
 }
 
 .modal-card-theme {
@@ -435,7 +431,7 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-surface-elevated);
   color: var(--text-primary);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-xs);
   border: 1px solid var(--border-light);
 }
 

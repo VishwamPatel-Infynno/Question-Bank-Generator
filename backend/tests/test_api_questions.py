@@ -8,6 +8,7 @@ from app.api.v1.questions import (
     purge_questions_batch_endpoint,
     purge_single_question,
 )
+from app.core.config import config
 from app.repositories import (
     delete_question,
     get_questions,
@@ -311,7 +312,7 @@ async def test_question_status_lifecycle_and_counts():
         ],
         correct_answer_id="B",
         explanation="Text analysis tone",
-        final_score=90,  # 90 is <= 90, so it must NOT pass strict >90 ai_validated check
+        final_score=config.PASSING_SCORE_THRESHOLD,  # <= threshold, so it must NOT pass strict > threshold ai_validated check
         status="ai_validated",
     )
 
@@ -320,13 +321,13 @@ async def test_question_status_lifecycle_and_counts():
     await save_question(q3)
     await save_question(q4)
 
-    # Verify filtering: ai_validated strictly returns final_score > 90
+    # Verify filtering: ai_validated strictly returns final_score > threshold
     validated_qs = await get_questions(status="ai_validated")
     assert any(q.id == uid1 for q in validated_qs)
     assert not any(q.id == uid2 for q in validated_qs)
     assert not any(q.id == uid3 for q in validated_qs)
     assert not any(q.id == uid4 for q in validated_qs), (
-        "Questions with score <= 90 must not appear in ai_validated query!"
+        f"Questions with score <= {config.PASSING_SCORE_THRESHOLD} must not appear in ai_validated query!"
     )
 
     batch_only_qs = await get_questions(status="batch_only")

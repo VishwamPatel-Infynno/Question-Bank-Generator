@@ -11,7 +11,7 @@ import {
   Tag,
   Target
 } from 'lucide-react';
-import { formatDifficulty, getSectionBadgeClass, getSectionShortLabel } from '../../constants/mcat';
+import { formatAamcSkill, formatDifficulty, getSectionBadgeClass, getSectionShortLabel } from '../../constants/mcat';
 import {
   countWords,
   getEffectiveTrapInfo,
@@ -67,9 +67,9 @@ function AiValidatedQuestionCard({
           {q.aamc_skill && (
             <span
               className="badge badge-cyan validated-card-skill-tag"
-              title={`AAMC Reasoning Skill: ${q.aamc_skill}`}
+              title={`AAMC Reasoning Skill: ${formatAamcSkill(q.aamc_skill)}`}
             >
-              {q.aamc_skill}
+              {formatAamcSkill(q.aamc_skill)}
             </span>
           )}
           {q.likely_mistake_pattern && (
@@ -91,11 +91,6 @@ function AiValidatedQuestionCard({
         </div>
 
         <div className="validated-card-header-right">
-          {q.mcat_scaled_score && (
-            <span className="badge qbank-mcat-badge validated-card-score-pill">
-              MCAT {q.mcat_scaled_score}
-            </span>
-          )}
           <span className="validated-score-pill">
             <Sparkles size={11} />
             Score {q.final_score}/100

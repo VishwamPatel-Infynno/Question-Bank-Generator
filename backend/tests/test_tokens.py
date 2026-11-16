@@ -104,11 +104,11 @@ async def test_max_tokens_settings_and_config_endpoint():
     from app.api.v1.config import get_runtime_settings
 
     assert config.DEFAULT_MAX_TOKENS == 3000
-    assert config.REVIEWER_MAX_TOKENS == 1800
+    assert config.REVIEWER_MAX_TOKENS == 3000
 
     settings_data = await get_runtime_settings()
     assert settings_data["default_max_tokens"] == 3000
-    assert settings_data["reviewer_max_tokens"] == 1800
+    assert settings_data["reviewer_max_tokens"] == 3000
     # The endpoint must reflect whatever the settings are (a developer's .env may override the
     # defaults, CI has no .env), so compare with the live config instead of literals
     assert settings_data["default_temperature"] == config.DEFAULT_TEMPERATURE
@@ -156,7 +156,7 @@ async def test_call_llm_effective_max_tokens_and_temperature(monkeypatch):
         max_tokens=config.REVIEWER_MAX_TOKENS,
     )
     assert len(captured_kwargs) == 2
-    assert captured_kwargs[1]["max_tokens"] == 1800
+    assert captured_kwargs[1]["max_tokens"] == 3000
     assert captured_kwargs[1]["temperature"] == 0.1
 
 

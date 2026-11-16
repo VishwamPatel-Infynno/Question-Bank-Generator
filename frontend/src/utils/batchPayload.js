@@ -31,6 +31,7 @@ export function buildBatchPayload(form) {
 
   const isPassageMode = passageMode === 'single_passage';
   const isVisualsPermitted = Boolean(allowAiImages || requireImage);
+  const isSkillAutomatic = !selectedSkill || selectedSkill === 'Automatic' || selectedSkill === 'All';
 
   return {
     section: selectedSection,
@@ -38,7 +39,7 @@ export function buildBatchPayload(form) {
     unit: selectedUnit || undefined,
     topic: selectedTopic || undefined,
     subtopic: joinOr(selectedSubtopics, selectedSubtopic),
-    aamc_skill: selectedSkill || undefined,
+    aamc_skill: isSkillAutomatic ? 'Automatic' : selectedSkill,
     subskill: joinOr(selectedSubskills, selectedSubskill || undefined),
     question_type: questionType || (isPassageMode ? 'PASSAGE_BASED_MCQ' : 'DISCRETE_MCQ'),
     difficulty,

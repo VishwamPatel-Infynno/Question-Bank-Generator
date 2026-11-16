@@ -15,6 +15,7 @@ from app.agents.standards import (
     is_cars,
 )
 from app.schemas import (
+    AAMC_REASONING_SKILLS,
     MCAT_SECTION_LABELS,
     GenerationRequest,
     QuestionDraft,
@@ -67,6 +68,14 @@ def _build_generator_user_prompt(
 
     user_prompt = f"""Generate an official-caliber AAMC MCAT Multiple Choice Question with 4 options (A, B, C, D) and exactly ONE correct answer.
 
+MANDATE FOR FIRST-PASS EXCELLENCE (AIM FOR FULL SCORE 100/100):
+Construct this question to achieve a perfect 100 out of 100 on the official 100-point AAMC evaluation rubric on this initial attempt:
+- Authenticity & Scientific Register: 25/25 (Indistinguishable from official AAMC medical exams)
+- Clarity & Scientific Soundness: 25/25 (Unambiguous stem, completely sound premises)
+- Distractor Quality & Option Symmetry: 25/25 (All 4 options strictly within length parity, parallel grammar, sophisticated cognitive traps, zero giveaways)
+- Explanation & Solution Rigor: 25/25 (Irrefutable step-by-step proof for key, all 3 distractors individually refuted with trap explanations in alphabetical order)
+Ensure the draft is publication-ready immediately so it earns a top passing score on the very first pass.
+
 Section: {section_name}"""
     if req.subject:
         user_prompt += f"\nSubject: {req.subject}"
@@ -83,8 +92,12 @@ Section: {section_name}"""
         "longer, more qualified, or more detailed than any distractor."
     )
 
-    if req.aamc_skill:
-        user_prompt += f"\nAAMC Reasoning Skill: {req.aamc_skill}"
+    if req.aamc_skill and req.aamc_skill.lower() not in ("automatic", "all", "none"):
+        skill_desc = AAMC_REASONING_SKILLS.get(req.aamc_skill)
+        if skill_desc:
+            user_prompt += f"\nAAMC Reasoning Skill: {req.aamc_skill} ({skill_desc})"
+        else:
+            user_prompt += f"\nAAMC Reasoning Skill: {req.aamc_skill}"
     if req.subskill:
         user_prompt += f"\nGranular Subskill Focus: {req.subskill}"
     if req.combination_id:
@@ -218,6 +231,14 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
         "- The correct option MUST NOT be the longest choice or the most qualified/hedged statement.\n"
         "- Use parallel grammatical syntax across all choices (identical part of speech and structural format).\n"
         "- Ensure distractors represent authentic, highly plausible cognitive reasoning traps."
+    )
+
+    user_prompt += (
+        "\nEXPLANATION & DISTRACTOR MANDATE:\n"
+        "- Exactly ONE option is the correct answer. Ambiguous or multiple keys are strictly prohibited.\n"
+        "- In the explanation, write in clear, accessible, student-friendly language so that any learner can easily understand the rationale without confusion.\n"
+        "- First provide step-by-step proof for why the single correct option is right.\n"
+        "- Under 'Why Other Options are Incorrect (Distractor & Trap Breakdown):', you MUST provide a separate, dedicated explanation for ALL THREE other options (all 3 distractors) strictly in alphabetical order (Option A, then Option B, then Option C, then Option D as applicable). Do not omit or combine any distractor."
     )
 
     if fused:

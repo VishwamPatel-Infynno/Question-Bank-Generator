@@ -72,9 +72,9 @@ graph LR
 
 | Status Pillar | Foreground Token | Dark BG / Border | Light BG / Border | Semantic Role |
 | :--- | :--- | :--- | :--- | :--- |
-| **Pass / Success** | `--status-success` (`#10b981`) | `rgba(16,185,129,0.06)` / `0.22` | `#ecfdf5` / `#a7f3d0` | Psychometric Score > 90, Approved |
+| **Pass / Success** | `--status-success` (`#10b981`) | `rgba(16,185,129,0.06)` / `0.22` | `#ecfdf5` / `#a7f3d0` | Psychometric Score > 80, Approved |
 | **Warning / Caution** | `--status-warning` (`#f59e0b`) | `rgba(245,158,11,0.06)` / `0.22` | `#fffbeb` / `#fde68a` | Remediation in progress, Borderline draft |
-| **Reject / Danger** | `--status-danger` (`#f43f5e`) | `rgba(244,63,94,0.06)` / `0.22` | `#fff1f2` / `#fecdd3` | Score <= 90 after 3 cycles, Discarded draft |
+| **Reject / Danger** | `--status-danger` (`#f43f5e`) | `rgba(244,63,94,0.06)` / `0.22` | `#fff1f2` / `#fecdd3` | Score <= 80 after 3 cycles (batch < 70), Discarded draft |
 | **Cognitive Trap** | `--status-purple` (`#8b5cf6`) | `rgba(139,92,246,0.06)` / `0.22` | `#f5f3ff` / `#ddd6fe` | Distractor analysis, trap rationalization |
 
 ---
@@ -161,7 +161,7 @@ Streamlined 3-step authoring workflow:
 
 ### 4.3 Editorial Review Desk & AI-Validated Triage (`AiValidatedQuestionsView.jsx`, `QuestionCard.jsx`)
 - **Top Metadata Strip**: Displays section badge, difficulty chip, dual score pills (AAMC Scaled Score `118-132` + 100-pt Audit Score), AAMC Skill badge (SIRS 1-4 / CARS 1-3), cumulative token/cost telemetry, and a dedicated **Primary Cognitive Trap Badge Chip** (`rgba(139, 92, 246, 0.12)` background, purple border, `Tag` icon).
-- **Withholding Queue Flow**: Batches hold incomplete or in-flight questions in `batch_only` status. Once a batch completes, questions passing the $\ge 90$ rubric standard atomically advance to `ai_validated` and appear in the review queue.
+- **Withholding Queue Flow**: Batches hold incomplete or in-flight questions in `batch_only` status. Once a batch completes, questions passing the $> 80$ rubric standard atomically advance to `ai_validated` and appear in the review queue.
 - **Option Badges**: Standard 4 circular `A`, `B`, `C`, `D` pills that highlight emerald on correct answers and crimson on incorrect distractors with clear checkmark/cross indicators.
 - **Distractor Rationalization Drawers**: Collapsible cards detailing the exact psychometric reason why each wrong option constitutes a realistic cognitive trap.
 - **Inline Editor (`QuestionInlineEditor.jsx`)**: Live editable fields allowing educators to adjust stem text, key letters, or explanation proofs before committing to the canonical question bank.
@@ -214,7 +214,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 
 ### 4.9 Top-Level Application Views & Authoring Workflows
 1. **Question Studio Landing & Guided Wizard (`HeroLanding.jsx`, `GuidedWizard.jsx`)**: The primary authoring portal (`activeTab: 'generator'`), switching smoothly between the minimalist welcome canvas (`HeroLanding.jsx` in `viewMode: 'hero'`) with instant section presets and the streamlined 3-step authoring wizard (`GuidedWizard.jsx` in `viewMode: 'wizard'`). Live generation dispatches 1-job 5-Question Sets or 10-job 50-Question Batches directly to background worker pools with real-time telemetry streaming into the Review Queue (`AiValidatedQuestionsView.jsx`) and Batch Progress dashboard (`BatchActivityView.jsx`) (Navigation Tab: `Create Questions`).
-2. **AI Validated Questions View (`AiValidatedQuestionsView.jsx`)**: Dedicated review deck for items generated in background batches that passed the >90 quality threshold, supporting one-click individual or bulk publishing into the primary Question Bank (Navigation Tab: `Review Queue`).
+2. **AI Validated Questions View (`AiValidatedQuestionsView.jsx`)**: Dedicated review deck for items generated in background batches that passed the >80 quality threshold, supporting one-click individual or bulk publishing into the primary Question Bank (Navigation Tab: `Review Queue`).
 3. **Question Bank View (`QuestionBankView.jsx`, `QuestionBankTable.jsx`)**: Full-featured searchable, filterable repository strictly consolidated on the canonical **Editorial Cards** view. Legacy table grid mode and view-switcher toolbar controls have been deprecated and removed, dedicating the entire layout to high-density reading cards with inline editing, multi-format CSV/JSON exports, bulk deletion, lifecycle status updates, and repository-wide token analytics (Navigation Tab: `Question Bank`).
 4. **Batch Activity View (`BatchActivityView.jsx`)**: Live and historical monitor displaying running batch jobs, per-job question counts, status indicators, and background worker progress. Features dedicated scope filtering (`All Batches`, `Mini-Batches [1 Job]`, `Full Sections [10 Jobs]`) and visual badges distinguishing 1-job mini-batches from 10-job full mock sections (Navigation Tab: `Batch Progress`).
 5. **Passage Bank View (`PassageBankView.jsx`)**: Full-featured reading passage stimuli repository and editorial workspace. Provides search by passage narrative or concept, section filtering (with instant return-to-catalog reset on tab navigation), and the interactive **Passage Editorial Desk** (`PassageEditorialDesk.jsx`). Supports in-place editing of passage text and metadata, attachment or discarding of figures (`PassageVisualStimulusEditor.jsx`), inspection of all linked questions (`PassageLinkedQuestionCard.jsx`), and dedicated cascade passage deletion with linked question removal via hoisted `DeletePassageModal` (Navigation Tab: `Passage Bank`).
@@ -373,7 +373,7 @@ To ensure the product feels thoughtfully crafted by human educators rather than 
   - *Discard*
   - *Edit Question*
 - **Score Decoupling & Streamlined UI Copy**:
-  - Internal rubric score ranges (`>90`, `86-90`) are removed from user-facing badges, stats bars, and cards to keep the UI clean and student-focused.
+  - Internal rubric score ranges (`>80`, `70-80`) are removed from user-facing badges, stats bars, and cards to keep the UI clean and student-focused.
   - Telemetry badges show clean status labels (*Ready for Review*, *In Bank*, *Auto-Retrying (X/3)*, *3/3 Trials Exhausted*) without internal score math cluttering the visual hierarchy.
   - Unused or noisy auxiliary counters (such as *Discarded* or *Needs Polish* counters on review desks) are pruned in favor of direct actionable items with permanent purge confirmation.
 - **Tone of Voice**: Professional, clear, direct, and unpretentious editor voice (seasoned pre-med instructor explaining concepts to colleagues and students without AI filler or marketing hype).

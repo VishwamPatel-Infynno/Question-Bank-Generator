@@ -33,13 +33,13 @@ def evaluate_heuristically(
 ) -> ReviewScore:
     """Provides authentic mock evaluation for test suites and offline resilience."""
     if iteration == 1:
-        # Intentionally scores 88 (<= 90) on iteration 1 to activate Re-Generator loop in tests
+        # Intentionally scores 70 (<= PASSING_SCORE_THRESHOLD) on iteration 1 to activate Re-Generator loop in tests
         return ReviewScore(
-            authenticity_score=22,
-            clarity_score=23,
-            distractor_score=21,
-            explanation_score=22,
-            total_score=88,
+            authenticity_score=17,
+            clarity_score=18,
+            distractor_score=17,
+            explanation_score=18,
+            total_score=70,
             strengths=[
                 (
                     "Authentic experimental research vignette conforming to AAMC MCAT standards"

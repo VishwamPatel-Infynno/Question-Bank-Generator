@@ -31,7 +31,7 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-sm);
-  background: rgba(79, 48, 185, 0.1);
+  background: var(--brand-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,14 +80,14 @@
 }
 
 .stepper-step.completed {
-  background: rgba(16, 185, 129, 0.06);
-  border-color: rgba(16, 185, 129, 0.25);
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
 }
 
 .stepper-step.active {
-  background: rgba(79, 48, 185, 0.08);
-  border-color: rgba(79, 48, 185, 0.35);
-  box-shadow: 0 0 12px rgba(79, 48, 185, 0.15);
+  background: var(--brand-light);
+  border-color: var(--border-brand);
+  box-shadow: var(--brand-glow);
 }
 
 .stepper-step.pending {
@@ -120,7 +120,7 @@
 .stepper-step.active .stepper-icon-pill {
   background: var(--brand-primary);
   color: var(--text-on-brand);
-  box-shadow: 0 0 8px rgba(79, 48, 185, 0.6);
+  box-shadow: 0 0 8px var(--brand-ring);
 }
 
 .stepper-step.pending .stepper-icon-pill {
@@ -194,21 +194,21 @@
 }
 
 .job-q-pill.done {
-  background: rgba(16, 185, 129, 0.1);
+  background: var(--status-success-bg);
   color: var(--status-success);
-  border-color: rgba(16, 185, 129, 0.28);
+  border-color: var(--status-success-border);
 }
 
 .job-q-pill.in-bank {
-  background: rgba(16, 185, 129, 0.16);
+  background: var(--status-success-bg);
   color: var(--status-success);
-  border-color: rgba(16, 185, 129, 0.4);
+  border-color: var(--status-success-border);
 }
 
 .job-q-pill.active {
-  background: rgba(51, 90, 207, 0.14);
+  background: var(--brand-light);
   color: var(--brand-primary);
-  border-color: rgba(51, 90, 207, 0.35);
+  border-color: var(--border-brand);
   box-shadow: 0 0 6px var(--brand-ring);
 }
 
@@ -231,15 +231,15 @@
 }
 
 .worker-queue-badge.active-slot {
-  background: rgba(51, 90, 207, 0.14);
+  background: var(--brand-light);
   color: var(--brand-primary);
-  border-color: rgba(51, 90, 207, 0.3);
+  border-color: var(--border-brand);
 }
 
 .worker-queue-badge.queued {
-  background: rgba(245, 158, 11, 0.1);
+  background: var(--status-warning-bg);
   color: var(--status-warning);
-  border-color: rgba(245, 158, 11, 0.25);
+  border-color: var(--status-warning-border);
 }
 
 /* ==========================================================================
@@ -258,13 +258,13 @@
 }
 
 .batch-outcome-card.completed {
-  background: var(--success-tint);
-  border-color: rgba(16, 185, 129, 0.25);
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
 }
 
 .batch-outcome-card.warning {
-  background: rgba(245, 158, 11, 0.08);
-  border-color: rgba(245, 158, 11, 0.25);
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
 }
 
 .batch-outcome-card.stopped {

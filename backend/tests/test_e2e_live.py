@@ -45,7 +45,7 @@ async def test_e2e_health_and_db_connectivity():
                 data["cost_per_million_output"] == config.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS
             )
 
-        assert data["passing_threshold"] == 90
+        assert data["passing_threshold"] == config.PASSING_SCORE_THRESHOLD
         assert data["max_regenerations"] == 3
 
 
@@ -91,7 +91,7 @@ async def test_e2e_config_endpoint():
             assert cfg["has_deepinfra_key"] is True
             assert cfg["cost_per_million_input"] == config.DEEPINFRA_COST_PER_MILLION_INPUT_TOKENS
             assert cfg["cost_per_million_output"] == config.DEEPINFRA_COST_PER_MILLION_OUTPUT_TOKENS
-        assert cfg["passing_threshold"] == 90
+        assert cfg["passing_threshold"] == config.PASSING_SCORE_THRESHOLD
         assert cfg["current_image_cost_usd"] == 0.014
 
 

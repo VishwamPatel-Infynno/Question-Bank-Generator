@@ -135,37 +135,39 @@ The generator calibrates questions into 3 difficulty tiers across the authoring 
 
 ---
 
-## 6. Calibrated AAMC Scaled Score Mapping
+## 6. 100-Point 4-Pillar Psychometric Audit Calibration & First-Pass 100/100 Directive
 
-Internal 100-point psychometric audit scores are mathematically calibrated to the official AAMC scaled score ranges:
-- **Individual Section Scale**: `118` to `132` (Median: `125`)
-- **Composite Examination Scale**: `472` to `528` (Median: `500`)
+Every question candidate is evaluated against a 100-point psychometric audit structured across four equal 25-point pillars:
 
-| 100-Point Audit Score | AAMC Section Scaled Score | Percentile Rank | Classification |
-| :---: | :---: | :---: | :--- |
-| **98 - 100** | **132** | **99th+ Percentile** | Elite / Perfect Calibration |
-| **96 - 97** | **131** | **98th - 99th Percentile** | Exceptional Standard Bank |
-| **94 - 95** | **130** | **96th - 97th Percentile** | Outstanding / Competitive MD |
-| **92 - 93** | **129** | **92nd - 95th Percentile** | Superior Psychometric Validity |
-| **91** | **128** | **87th - 91st Percentile** | Minimum Accepted Standard |
-| **$\le$ 90** | **$\le$ 127** | **$<$ 86th Percentile** | **Fails Quality Gate (Remediation Required)** |
+| Pillar | Focus & Standards | Max Points |
+| :--- | :--- | :---: |
+| **1. Authenticity & Tone** | Medical school curriculum alignment, authentic clinical/research vignettes, scientific precision, and AAMC tone authenticity. | **25** |
+| **2. Clarity & Scientific Logic** | Unambiguous question stem, sound deductive logic, rigorous chemical/biological mechanisms, and avoidance of AI artifacts. | **25** |
+| **3. Distractor Traps & Symmetry** | Strictly 4 options, mathematical length parity (within 3 words or 20% of average), parallel grammar, and authentic AAMC cognitive distractor traps. | **25** |
+| **4. Explanation Rigor** | 3-part pedagogical rationale (why correct key is incontrovertible, itemized flaws for each of the 3 distractors, and cognitive trap defense advice). | **25** |
+
+### 6.1 First-Pass 100/100 Excellence Directive
+- **Generator Mandate**: The question generator agent (`generator.py` and `prompt_builder.py`) is explicitly instructed to author items aiming for a perfect score of **100 out of 100** on the initial pass (25/25 across all four pillars).
+- **Reviewer Calibration**: The independent reviewer agent (`reviewer.py`) awards full points (25 in each pillar) whenever an item meets all requirements with zero concrete flaws, removing artificial score dampening. Candidate items that achieve flawless science, length parity, and exhaustive explanations receive their earned top scores on the first pass itself without unnecessary refinement cycles.
 
 ---
 
-## 7. Two-Tier Quality Threshold Model & Quality Gates
+## 7. Quality Threshold Model & Quality Gates
 
-The system enforces a calibrated two-tier quality evaluation framework that balances uncompromising question-bank admission with high-throughput batch evaluation:
+The system enforces a strict psychometric quality evaluation framework governed by a single canonical threshold in `.env:L81` (`PASSING_SCORE_THRESHOLD = 80`):
 
-### 7.1 Tier 1: Question Bank & AI Validated Admission Gate (`PASSING_SCORE_THRESHOLD = 90`)
-- **Benchmark**: Score **$> 90$ Points** on the 100-point rubric.
-- **Rule**: Individual question candidates must achieve $> 90$ to qualify for admission into the permanent **Question Bank** or promotion to the **AI Validated Questions** workspace (`status = 'ai_validated'`).
-- **Remediation**: Any question scoring $\le 90$ points is automatically rejected by the gate and routed through autonomous remediation (`regenerator.py`).
-- **Circuit Breaker**: Items failing to achieve $> 90$ after the maximum allowed cycles (`MAX_REGENERATION_ATTEMPTS = 3`) are discarded permanently and never admitted into the database repository.
+### 7.1 Dynamic Three-Tier Threshold Model
+1. **High Quality (`score > 80`)**:
+   - Items scoring $> 80$ on the 100-point rubric qualify for promotion to the **AI Validated Questions** workspace (`status = 'ai_validated'`) and direct admission into the **Question Bank** (`status = 'in_bank'`).
+2. **Good Quality (`70 <= score <= 80`)**:
+   - Automatically derived via `config.BATCH_PASSING_SCORE_THRESHOLD = PASSING_SCORE_THRESHOLD - 10 = 70`.
+   - Items scoring between 70 and 80 remain safely in `batch_only` status within active or completed batches as solid, high-yield practice items.
+3. **Needs Polish (`score < 70`)**:
+   - Items scoring $< 70$ are flagged as `below_threshold` and routed through autonomous remediation.
 
-### 7.2 Tier 2: Batch Activity Run Evaluation Gate (`BATCH_PASSING_SCORE_THRESHOLD = 85`)
-- **Benchmark**: Score **$> 85$ Points** across aggregate batch jobs.
-- **Rule**: High-throughput multi-job batches (e.g. 50-question mock sections across 10 parallel jobs) evaluate overall job health using the 85-point benchmark.
-- **Batch Acceptance**: Jobs whose questions achieve an average quality score $\ge 85$ are marked as passing batch jobs (`status = 'completed'`), while sub-85 drafts are flagged for targeted review or remediation (`status = 'below_threshold'`).
+### 7.2 3-Trial Quality Optimization Workflow (`routes.py`)
+- **Attempts 1 & 2**: When a candidate scores $\le 80$, the workflow routes the draft to the **Regenerator** agent to repair specific distractor flaws or deepen rationale proofs, actively striving to exceed 80.
+- **Attempt 3 (Final Trial)**: If the item achieves `score >= 70` after 3 cycles, it is accepted into the batch as Good Quality (`"image_generator"` / `"finalize"`). Only items that fail to achieve 70 points across all 3 trials are halted and rejected (`"reject"`).
 
 ---
 

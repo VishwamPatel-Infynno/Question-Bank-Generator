@@ -37,8 +37,11 @@ async def readiness_check():
     return JSONResponse(body, status_code=200 if ready else 503)
 
 
+_DEFAULT_REQUEST: Any = None
+
+
 @router.get("/health")
-async def health_check(request: Request = None) -> dict[str, Any]:
+async def health_check(request: Request = _DEFAULT_REQUEST) -> dict[str, Any]:
     """Health check reporting database status, exam standard, and active pricing."""
     db_status = await check_db_health()
     # Masked payload for external HTTP requests (protecting competitive IP from competitors)

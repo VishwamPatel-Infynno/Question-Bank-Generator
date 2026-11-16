@@ -423,11 +423,14 @@ async def call_llm(
             "max_tokens": effective_max_tokens,
             "request_timeout": max(60.0, effective_max_tokens / 25),
             "num_retries": 0,  # retries are handled once, by the loop below
+            "drop_params": True,
         }
         if resolved_key:
             kwargs["api_key"] = resolved_key
         if config.is_anthropic_model(candidate):
             kwargs["thinking"] = {"type": "disabled"}
+            if pricing.is_haiku_5_5(candidate):
+                kwargs.pop("temperature", None)
 
         max_retries = config.LLM_MAX_RETRIES
         # Usage of truncated completions that were retried: those calls were billed too

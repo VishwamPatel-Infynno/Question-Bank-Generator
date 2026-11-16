@@ -4,6 +4,8 @@ from app.agents.validators import (
     blocking,
     format_violations,
     has_forbidden_dash,
+    normalize_draft_distractors,
+    order_distractors_in_explanation,
     sanitize_dashes,
     sanitize_draft_dashes,
     validate_question_draft,
@@ -132,3 +134,42 @@ def test_unaddressed_distractor_warns():
 def test_format_violations_lists_codes():
     v = validate_question_draft(_draft(correct_answer_id="E", correct_answer_ids=["E"]))
     assert "[invalid_key]" in format_violations(v)
+
+
+def test_order_distractors_in_explanation_sorts_alphabetically():
+    raw_expl = (
+        "Why Option C is Correct:\n"
+        "Direct scientific proof.\n\n"
+        "Why Other Options are Incorrect (Distractor & Trap Breakdown):\n"
+        "- Option D is INCORRECT (Out of Scope): D explanation.\n"
+        "- Option A is INCORRECT (Distortion): A explanation.\n"
+        "- Option B is INCORRECT (Calculation Slip): B explanation."
+    )
+    reordered = order_distractors_in_explanation(raw_expl)
+    assert (
+        reordered == "Why Option C is Correct:\n"
+        "Direct scientific proof.\n\n"
+        "Why Other Options are Incorrect (Distractor & Trap Breakdown):\n"
+        "- Option A is INCORRECT (Distortion): A explanation.\n"
+        "- Option B is INCORRECT (Calculation Slip): B explanation.\n"
+        "- Option D is INCORRECT (Out of Scope): D explanation."
+    )
+
+
+def test_normalize_draft_distractors_reorders_in_place():
+    draft = _draft(
+        explanation=(
+            "Why Option B is Correct:\n"
+            "B is right.\n\n"
+            "Why Other Options are Incorrect:\n"
+            "- Option D: D explanation.\n"
+            "- Option C: C explanation.\n"
+            "- Option A: A explanation."
+        )
+    )
+    changed = normalize_draft_distractors(draft)
+    assert changed is True
+    assert (
+        "- Option A: A explanation.\n- Option C: C explanation.\n- Option D: D explanation."
+        in draft.explanation
+    )

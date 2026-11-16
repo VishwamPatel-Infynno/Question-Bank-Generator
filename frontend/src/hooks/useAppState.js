@@ -78,6 +78,7 @@ export function useAppState() {
     setAuditQuestion(null);
   }, []);
   const [isLaunchingBatch, setIsLaunchingBatch] = useState(false);
+  const [newlyLaunchedBatch, setNewlyLaunchedBatch] = useState(null);
 
   // ─── Toast Notifications ──────────────────────────────────────────────────
   const [toasts, setToasts] = useState([]);
@@ -144,7 +145,7 @@ export function useAppState() {
     const isQuickSet = totalQuestions === 5;
 
     try {
-      await startBackgroundBatch(payload);
+      const response = await startBackgroundBatch(payload);
       showToast({
         type: 'success',
         title: isQuickSet ? '5-Question Quick Set Launched' : '50-Question Exam Batch Launched',
@@ -152,6 +153,12 @@ export function useAppState() {
           ? 'Generating 5 practice questions in the background.'
           : 'Generating 50 questions across 10 jobs in the background.'
       });
+      if (response?.batch) {
+        setNewlyLaunchedBatch({
+          batch: response.batch,
+          jobs: response.jobs || []
+        });
+      }
       setActiveTab('batches');
       refreshGlobalCounts();
     } catch (err) {
@@ -250,6 +257,8 @@ export function useAppState() {
     // Counts
     validatedCount,
     refreshCounts: refreshGlobalCounts,
-    isLaunchingBatch
+    isLaunchingBatch,
+    newlyLaunchedBatch,
+    setNewlyLaunchedBatch
   };
 }

@@ -36,10 +36,9 @@ export default function BatchQuestionItem({
 
   const status = resolveQuestionStatus(question);
   const finalScore = question.final_score ?? 95;
-  const isBelowThreshold = status === QUESTION_STATUS.BELOW_THRESHOLD || finalScore <= SCORE_CUTOFFS.batchAbove;
+  const isBelowThreshold = status === QUESTION_STATUS.BELOW_THRESHOLD || (status !== QUESTION_STATUS.BATCH_ONLY && finalScore < SCORE_CUTOFFS.batchAtOrAbove);
 
-  const scoreTierClass =
-    finalScore > SCORE_CUTOFFS.aiValidatedAbove ? 'high' : finalScore > SCORE_CUTOFFS.batchAbove ? 'mid' : 'low';
+  const scoreTierClass = finalScore > SCORE_CUTOFFS.passingAbove ? 'high' : (finalScore >= SCORE_CUTOFFS.batchAtOrAbove ? 'mid' : 'low');
 
   return (
     <div className={`batch-qitem ${isBelowThreshold ? 'below-threshold' : ''}`}>
@@ -83,7 +82,7 @@ export default function BatchQuestionItem({
 
               {status === QUESTION_STATUS.BELOW_THRESHOLD && (
                 <span className="batch-qitem-tag below">
-                  <AlertCircle size={11} /> Needs Polish (&le;85)
+                  <AlertCircle size={11} /> Needs Polish
                 </span>
               )}
             </>

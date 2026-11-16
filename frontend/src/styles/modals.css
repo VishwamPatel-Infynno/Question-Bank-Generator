@@ -391,7 +391,7 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal-header-wrap {
@@ -469,7 +469,8 @@
   width: 34px;
   height: 34px;
   border-radius: var(--radius-sm);
-  background-color: rgba(244, 63, 94, 0.18);
+  background-color: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-border);
   color: var(--status-danger);
   display: flex;
   align-items: center;
@@ -497,7 +498,8 @@
 }
 
 .delete-passage-confirm-btn.deleting {
-  background-color: rgba(244, 63, 94, 0.6);
+  background-color: var(--status-danger);
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -585,8 +587,8 @@
 .delete-passage-warning-box {
   padding: 12px 14px;
   border-radius: var(--radius-md);
-  background-color: rgba(244, 63, 94, 0.08);
-  border: 1px solid rgba(244, 63, 94, 0.25);
+  background-color: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-border);
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -601,7 +603,7 @@
 .delete-passage-error-box {
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  background-color: rgba(244, 63, 94, 0.1);
+  background-color: var(--status-danger-bg);
   border: 1px solid var(--status-danger);
   color: var(--status-danger);
   font-size: 0.8rem;
@@ -619,20 +621,20 @@
 }
 
 .confirm-modal-icon-wrap.danger {
-  background: rgba(244, 63, 94, 0.1);
-  border: 1px solid rgba(244, 63, 94, 0.3);
+  background: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-border);
   color: var(--status-danger);
 }
 
 .confirm-modal-icon-wrap.warning {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning-border);
   color: var(--status-warning);
 }
 
 .confirm-modal-icon-wrap.info {
-  background: rgba(51, 90, 207, 0.1);
-  border: 1px solid rgba(51, 90, 207, 0.3);
+  background: var(--brand-light);
+  border: 1px solid var(--border-brand);
   color: var(--brand-primary);
 }
 
@@ -679,8 +681,8 @@
   margin-top: 16px;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
-  background: rgba(244, 63, 94, 0.08);
-  border: 1px solid rgba(244, 63, 94, 0.2);
+  background: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-border);
   font-size: 0.78rem;
   color: var(--status-danger);
   display: flex;
@@ -877,7 +879,7 @@
 }
 
 .formatted-trap-highlight {
-  background: rgba(245, 158, 11, 0.16);
+  background: var(--status-warning-bg);
   color: var(--status-warning);
   border: 1px solid var(--status-warning-border);
   border-radius: 3px;

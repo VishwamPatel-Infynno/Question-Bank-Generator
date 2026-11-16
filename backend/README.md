@@ -27,6 +27,7 @@ backend/
 │   │       └── health.py     # Database connectivity & system health checks
 │   ├── workflow/            # Orchestration Layer (async workflow engine)
 │   │   ├── engine.py        # Core streaming execution engine & event emitters
+│   │   ├── engine_layout.py # Run layout, SlotLedger & SSE event formatting
 │   │   ├── review_loop.py   # Deterministic gate, reviewer, Blind-Solver and remediation loop for one draft
 │   │   ├── passage_prep.py  # Per-item requests, diagram requirement, shared passage & visual drafting
 │   │   ├── dedup_inflight.py # Duplicate detection vs. DB pool, staged siblings and in-flight drafts
@@ -39,7 +40,7 @@ backend/
 │   │   ├── blind_solver.py  # Blind-solver dual-validation candidate verification agent (fail-closed)
 │   │   ├── validators.py    # Free deterministic structural validators & dash repair, run before LLM review
 │   │   ├── reviewer.py      # 100-point 4-pillar psychometric auditor agent
-│   │   ├── regenerator.py   # Autonomous remediation agent (<= 90 score trigger)
+│   │   ├── regenerator.py   # Autonomous remediation agent (<= 80 score trigger)
 │   │   ├── option_balancer.py # Mathematical option length balancing (±15%) & anti-guessability
 │   │   ├── image_generator.py # FLUX-2-klein-4b neural visual & SVG vector generator
 │   │   ├── prompt_builder.py # User prompt assembly & cross-item diversity calibration
@@ -54,6 +55,8 @@ backend/
 │   ├── repositories/        # Data Access Layer (DAL)
 │   │   ├── _filters.py            # Shared soft-delete clauses (active_question_clause, active_passage_clause)
 │   │   ├── question_repository.py # Clean CRUD, soft-deletion, restoration, duplicate overrides, reference queries, hybrid FTS & token analytics
+│   │   ├── mappers.py             # Pydantic <-> SQLAlchemy pure model mapping functions
+│   │   ├── query_builders.py      # Shared SQLAlchemy query filters, difficulty aliases & deferred loading
 │   │   ├── batch_repository.py    # Staged batch run queries & persistence
 │   │   ├── job_repository.py      # Background worker job state tracking
 │   │   └── passage_repository.py  # Shared stimulus reading passage queries, soft-deletion, and cascade question removal
@@ -155,7 +158,7 @@ graph TD
     Gate -->|Blocking defect| NodeRegen[Remediation Node]
     Gate -->|Clean| NodeRev[Independent Reviewer Node]
     NodeRev --> Solver[Blind Solver Node]
-    Solver --> ScoreCheck{Score > 90 & key confirmed?}
+    Solver --> ScoreCheck{Score > 80 & key confirmed?}
     ScoreCheck -->|Yes & Needs Diagram| NodeImg[AI Image Node]
     ScoreCheck -->|Yes & Text Only| NodeFin[Finalize & Persist Node]
     NodeImg --> NodeFin
@@ -170,13 +173,13 @@ graph TD
 ```
 
 - **Fused Draft-and-Critique Entry Point**: Drafts question and generates immediate 100-point self-critique in a single pass (`fused_generator_node`), combining drafting and self-critique in one inference round-trip; the independent reviewer and blind solver still audit every draft by default (`ALWAYS_INDEPENDENT_REVIEW`).
-- **Passing Threshold**: A question candidate must score **$> 90$** out of 100 on the standardized rubric to be approved for publication (`config.passes_quality_gate`).
+- **Passing Threshold**: A question candidate must score **$> 80$** out of 100 on the standardized rubric to be approved for publication (`config.passes_quality_gate`, default `PASSING_SCORE_THRESHOLD=80`).
 - **Deterministic Gate & Fail-Closed Checks**: Before any LLM review, `validators.py` checks structure and repairs forbidden dashes. The Reviewer runs first and the Blind Solver after it by default (`PARALLEL_REVIEW_AND_SOLVE=true` runs them concurrently); both raise `QualityCheckUnavailableError` rather than passing an item they could not check. Mock fixtures are used only when no credentials are configured.
 - **Option Symmetry & Anti-Guessability**: Generator and Reviewer enforce word count parity (within 3 words, or 20% of the average for longer options) across all 4 options ($A, B, C, D$), parallel grammar, and balanced qualifiers to eliminate test-wiseness guessing cues.
 - **Anti-AI Formatting Standard**: Strictly forbids em dashes, en dashes, or double hyphens; standard single hyphens (`-`) only.
 - **3-Part Structured Mentor Explanations**: Renders pedagogical explanations across three specialized visual cards: Core Intuition & Proof, Itemized Distractor Analysis, and Primary Cognitive Trap Spotlight.
-- **Autonomous Remediation**: If score $\le 90$, the Remediation node (`regenerator.py`) digests the exact weaknesses and distractor recommendations, attempting repairs for up to 3 cycles.
-- **Strict Quality Gate**: If score remains $\le 90$ after 3 attempts, the candidate is discarded immediately, preserving question bank integrity.
+- **Autonomous Remediation**: If score $\le 80$, the Remediation node (`regenerator.py`) digests the exact weaknesses and distractor recommendations, attempting repairs for up to 3 cycles.
+- **Strict Quality Gate**: If score remains $\le 80$ after 3 attempts (or $< 70$ in background batches), the candidate is discarded immediately, preserving question bank integrity.
 
 ---
 
@@ -238,8 +241,8 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (353 deterministic tests across 55 modules)
-# Smart auto-skip: 275 pure unit tests pass offline, 78 DB-dependent tests skip cleanly if PostgreSQL is offline
+# Run all unit and integration tests (384 deterministic tests across 59 modules, 394 total backend tests)
+# Smart auto-skip: 299 pure unit tests pass offline, 78 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 

@@ -14,6 +14,9 @@ export default function WizardAdvancedSettings({
   effectiveTraps = EMPTY_ARRAY,
   onTogglePrimaryTrap,
   setPrimaryTrap,
+  availableSkills = EMPTY_ARRAY,
+  selectedSkill = 'Automatic',
+  setSelectedSkill,
   availableSubskills = EMPTY_ARRAY,
   effectiveSubskills = EMPTY_ARRAY,
   onToggleSubskill,
@@ -83,11 +86,47 @@ export default function WizardAdvancedSettings({
             </div>
           </div>
 
-          {/* Subskills Selection */}
-          {availableSubskills.length > 0 && (
+          {/* AAMC Reasoning Skills Selection */}
+          {availableSkills && availableSkills.length > 0 && (
             <div>
               <div className="wizard-advanced-section-title">
-                Reasoning Skills
+                AAMC Reasoning Skills
+              </div>
+              <div className="wizard-chips-list">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSkill?.('Automatic')}
+                  className={`wizard-filter-chip ${(!selectedSkill || selectedSkill === 'Automatic' || selectedSkill === 'All') ? 'active' : ''}`}
+                >
+                  {(!selectedSkill || selectedSkill === 'Automatic' || selectedSkill === 'All') && (
+                    <CheckCircle2 size={11} />
+                  )}
+                  <span>Automatic (All Skills Covered)</span>
+                </button>
+
+                {availableSkills.map((sk) => {
+                  const isSkillActive = selectedSkill === sk.id || selectedSkill === sk.name;
+                  return (
+                    <button
+                      key={sk.id}
+                      type="button"
+                      onClick={() => setSelectedSkill?.(isSkillActive ? 'Automatic' : sk.id)}
+                      className={`wizard-filter-chip ${isSkillActive ? 'active' : ''}`}
+                    >
+                      {isSkillActive && <CheckCircle2 size={11} />}
+                      <span>{sk.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Granular Subskills Selection when a specific skill is chosen */}
+          {selectedSkill && selectedSkill !== 'Automatic' && selectedSkill !== 'All' && availableSubskills.length > 0 && (
+            <div>
+              <div className="wizard-advanced-section-title">
+                Granular Subskills
               </div>
               <div className="wizard-chips-list">
                 <button
@@ -99,7 +138,7 @@ export default function WizardAdvancedSettings({
                   className={`wizard-filter-chip ${effectiveSubskills.length === 0 ? 'active' : ''}`}
                 >
                   {effectiveSubskills.length === 0 && <CheckCircle2 size={11} />}
-                  <span>All Skills</span>
+                  <span>All Subskills</span>
                 </button>
 
                 {availableSubskills.map((subsk) => {

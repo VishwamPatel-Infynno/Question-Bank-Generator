@@ -161,3 +161,94 @@ async def test_cancelled_batch_does_not_promote_questions():
 
     q_in_db = await get_question_by_id(q_id)
     assert q_in_db.status == "batch_only"
+
+
+async def test_completed_batch_retains_questions_in_batch_only_window():
+    """Verify that scores > PASSING_SCORE_THRESHOLD are promoted to ai_validated,
+    while scores >= (PASSING_SCORE_THRESHOLD - 10) and <= PASSING_SCORE_THRESHOLD remain in batch_only."""
+    batch_id = str(uuid.uuid4())
+    job_id = str(uuid.uuid4())
+    q_high_id = str(uuid.uuid4())
+    q_mid_id = str(uuid.uuid4())
+
+    batch = GenerationBatch(
+        id=batch_id,
+        section="chem_phys",
+        subtopic="Thermodynamics",
+        difficulty="medium",
+        passage_mode="independent",
+        target_count=2,
+        actual_count=2,
+        total_jobs=1,
+        completed_jobs=0,
+        failed_jobs=0,
+        status="in_progress",
+    )
+    await save_batch(batch)
+
+    job = GenerationJob(
+        id=job_id,
+        batch_id=batch_id,
+        job_number=1,
+        status="running",
+        target_count=2,
+        actual_count=2,
+    )
+    await save_job(job)
+
+    opts = [
+        OptionChoice(id="A", text="Option A"),
+        OptionChoice(id="B", text="Option B"),
+        OptionChoice(id="C", text="Option C"),
+        OptionChoice(id="D", text="Option D"),
+    ]
+    # High score question (85 > 80): should be promoted to ai_validated upon batch completion
+    q_high = Question(
+        id=q_high_id,
+        section="chem_phys",
+        section_label="Chemical and Physical Foundations",
+        subtopic="Thermodynamics",
+        difficulty="medium",
+        batch_id=batch_id,
+        job_id=job_id,
+        question_stem="What is Gibbs free energy?",
+        options=opts,
+        correct_answer_id="A",
+        explanation="Delta G explanation",
+        final_score=85,
+        status="batch_only",
+    )
+    # Mid score question (70: 65 <= 70 <= 75): should REMAIN in batch_only
+    q_mid = Question(
+        id=q_mid_id,
+        section="chem_phys",
+        section_label="Chemical and Physical Foundations",
+        subtopic="Thermodynamics",
+        difficulty="medium",
+        batch_id=batch_id,
+        job_id=job_id,
+        question_stem="What is standard enthalpy?",
+        options=opts,
+        correct_answer_id="B",
+        explanation="Delta H explanation",
+        final_score=70,
+        status="batch_only",
+    )
+    await save_question(q_high)
+    await save_question(q_mid)
+
+    # Complete the batch and promote
+    batch_obj = await get_batch_by_id(batch_id)
+    assert batch_obj is not None
+    batch_obj.completed_jobs = 1
+    batch_obj.status = "completed"
+    await save_batch(batch_obj)
+
+    promoted_count = await promote_completed_batch_questions(batch_id)
+    assert promoted_count == 1  # Only q_high is promoted!
+
+    q_high_db = await get_question_by_id(q_high_id)
+    assert q_high_db.status == "ai_validated"
+
+    q_mid_db = await get_question_by_id(q_mid_id)
+    assert q_mid_db.status == "batch_only"  # Remains in batch_only!

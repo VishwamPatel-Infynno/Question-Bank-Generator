@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AAMC_REASONING_SKILLS,
   DIFFICULTY,
+  formatAamcSkill,
   formatDifficulty,
   getDifficultyBadgeClass,
   getSectionBadgeClass,
@@ -83,5 +85,35 @@ describe('difficulty display helpers', () => {
   it('treat unknown levels as medium', () => {
     expect(formatDifficulty('???')).toBe('Medium');
     expect(getDifficultyBadgeClass(undefined)).toBe('badge-amber');
+  });
+});
+
+describe('formatAamcSkill', () => {
+  it('has valid dictionary entries for official skills', () => {
+    expect(Object.keys(AAMC_REASONING_SKILLS).length).toBeGreaterThan(0);
+    expect(AAMC_REASONING_SKILLS.Skill_2).toBe('Scientific Reasoning and Problem-Solving');
+  });
+
+  it('maps raw internal codes to exact human-readable AAMC reasoning skill names', () => {
+    expect(formatAamcSkill('Skill_1')).toBe('Knowledge of Scientific Concepts and Principles');
+    expect(formatAamcSkill('Skill_2')).toBe('Scientific Reasoning and Problem-Solving');
+    expect(formatAamcSkill('Skill_3')).toBe('Reasoning About Research Design and Execution');
+    expect(formatAamcSkill('Skill_4')).toBe('Data-Based and Statistical Reasoning');
+    expect(formatAamcSkill('CARS_Skill_1')).toBe('Foundations of Comprehension');
+    expect(formatAamcSkill('CARS_Skill_2')).toBe('Reasoning Within the Text');
+    expect(formatAamcSkill('CARS_Skill_3')).toBe('Reasoning Beyond the Text');
+  });
+
+  it('supports space-separated and short code aliases', () => {
+    expect(formatAamcSkill('Skill 2')).toBe('Scientific Reasoning and Problem-Solving');
+    expect(formatAamcSkill('S2')).toBe('Scientific Reasoning and Problem-Solving');
+    expect(formatAamcSkill('CARS2')).toBe('Reasoning Within the Text');
+  });
+
+  it('handles null, undefined, empty, and fallback gracefully', () => {
+    expect(formatAamcSkill('')).toBe('');
+    expect(formatAamcSkill(null)).toBe('');
+    expect(formatAamcSkill(undefined, 'Fallback')).toBe('Fallback');
+    expect(formatAamcSkill('Custom Skill Name')).toBe('Custom Skill Name');
   });
 });

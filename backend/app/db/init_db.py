@@ -521,21 +521,20 @@ async def _step_fk_question_job(conn) -> None:
 
 
 async def _step_reconcile_question_status(conn) -> None:
-    """Reconcile question status for the two-tier quality thresholds."""
-    # 6. Reconcile question status for the two-tier quality thresholds. The numbers come from
+    """Reconcile question status for the quality threshold."""
+    # Reconcile question status for the quality threshold. The numbers come from
     # config (never literals) so this SQL cannot drift from determine_question_status:
-    # > PASSING -> ai_validated, (BATCH, PASSING] -> batch_only, <= BATCH -> below_threshold.
+    # > PASSING -> ai_validated, > BATCH_PASSING and <= PASSING -> batch_only, <= BATCH_PASSING -> below_threshold.
     thresholds = {
         "passing": int(config.PASSING_SCORE_THRESHOLD),
-        "batch": int(config.BATCH_PASSING_SCORE_THRESHOLD),
+        "batch_passing": int(config.BATCH_PASSING_SCORE_THRESHOLD),
     }
     await conn.execute(
         text(
             """
             UPDATE questions
             SET status = 'batch_only'
-            WHERE status = 'ai_validated'
-              AND final_score > :batch AND final_score <= :passing;
+            WHERE status = 'ai_validated' AND final_score <= :passing AND final_score >= :batch_passing;
             """
         ),
         thresholds,
@@ -545,7 +544,7 @@ async def _step_reconcile_question_status(conn) -> None:
             """
             UPDATE questions
             SET status = 'below_threshold'
-            WHERE status = 'ai_validated' AND final_score <= :batch;
+            WHERE status IN ('ai_validated', 'batch_only') AND final_score < :batch_passing;
             """
         ),
         thresholds,

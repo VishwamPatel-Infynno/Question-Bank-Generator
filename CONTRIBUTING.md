@@ -45,7 +45,7 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (353 deterministic unit & integration tests across 55 modules; 275 pass offline, 78 DB tests skip cleanly without PostgreSQL; 363 total backend tests)
+# 1. Backend pytest suite (384 deterministic unit & integration tests across 59 modules; 282 pass offline, 102 DB tests run cleanly with PostgreSQL; 394 total backend tests including 10 live LLM E2E tests)
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 
 # 2. Backend Python linter and formatting checks (E, W, F, I, UP, B, C4, SIM, RET, G004, ASYNC, PT, RUF)
@@ -57,7 +57,7 @@ pnpm --dir frontend lint
 
 # 4. Frontend production build (compiles cleanly via Vite 8)
 pnpm --dir frontend build
-pnpm --dir frontend run test        # Vitest unit tests for the pure helpers
+pnpm --dir frontend run test        # Vitest unit tests (118 passed across 13 test files)
 pnpm run lint:all                   # ruff (backend) + oxlint (frontend)
 pnpm run test:all                   # pytest (backend) + Vitest (frontend)
 pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
@@ -67,11 +67,11 @@ pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
 
 ## 📐 Multi-Agent Architectural Principles
 
-1. **Strict Quality Threshold**: Questions scoring $\le 90$ must be regenerated up to 3 times by the Re-Generator agent. If still below 90, the workflow must halt and reject the question from the Question Bank. Always compare through `config.passes_quality_gate()` / `config.PASSING_SCORE_THRESHOLD`; never hardcode 90.
+1. **Strict Quality Threshold**: Questions scoring $\le 80$ must be regenerated up to 3 times by the Re-Generator agent. If still below 80, the workflow must halt and reject the question from the Question Bank. Always compare through `config.passes_quality_gate()` / `config.PASSING_SCORE_THRESHOLD`; never hardcode the threshold number.
    - **Fail Closed**: A question is never accepted unchecked. Reviewer and Blind Solver errors raise `QualityCheckUnavailableError`; mock/heuristic fixtures are used only in offline mode (`LLMNotConfiguredError`, no credentials). Tests that simulate offline mode must raise `LLMNotConfiguredError`.
    - **Deterministic First**: `agents/validators.py` structural checks (4 unique options, valid key, forbidden dashes, ...) run before any LLM review.
 2. **Blind-Solver Dual Validation**: Every candidate question is solved blindly without knowing the author's key or explanation. Any key discrepancy or confidence $< 88\%$ triggers automatic remediation to ensure question keys are incontrovertible.
-3. **Review Queue Withholding Guarantee**: Questions produced during background batches are held safely in `batch_only` status while the batch is in progress to prevent partial/draft questions from leaking into the reviewer queue. High-scoring items (>90) are atomically promoted to `ai_validated` upon batch completion.
+3. **Review Queue Withholding Guarantee**: Questions produced during background batches are held safely in `batch_only` status while the batch is in progress to prevent partial/draft questions from leaking into the reviewer queue. High-scoring items (> 80) are atomically promoted to `ai_validated` upon batch completion.
 4. **Soft-Deletion & Batch Integrity**: Calling delete on questions sets `is_deleted = true` without decrementing batch progress metrics (`actual_count`), ensuring generation monitoring history remains intact. Questions and linked passages can be restored via `POST /api/questions/{id}/restore`. Soft-deleting a passage cascade-updates all associated questions.
 5. **Autonomous 3-Trials Retry Policy**: Background batch runs execute in-flight replenishment retries up to 3 trials per set (`trial_count <= 3`). Manual retry controls are strictly reserved as "Resume Sets" for manually paused runs under 3 trials, returning HTTP 400 when all trials are exhausted.
 6. **Custom Authoring Instructions Enforcement**: Educator directives (`additional_instructions`) supplied via Step 3 must be injected into prompt builders with high-priority pedagogical mandate across passage drafting, question drafting, and remediation critique cycles.
@@ -80,13 +80,13 @@ pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
    - Anthropic: Claude Haiku 5.5 ($0.10 in / $0.50 out per 1M), Claude 3.5 Sonnet, Claude 3 Opus, and prompt cache read/write rates.
    - Image: FLUX-2-klein $0.014 per image (scaled by $(\text{width}/1024) \times (\text{height}/1024)$); gpt-image-2.5-flare is token-billed from the returned usage.
 8. **Modular Layer Separation**:
-   - Routing: `backend/app/api/v1/` (39 endpoint operations)
+   - Routing: `backend/app/api/v1/` (40 endpoint operations)
    - Business/Agent Logic: `backend/app/agents/` (Generator, Blind Solver, Reviewer, Regenerator, Visuals)
    - Data Access Layer: `backend/app/repositories/`
    - Database Entities: `backend/app/models/`
    - Background Services: `backend/app/services/` (`batch_runner.py` with global job semaphores)
    - Frontend: Top-level views (`views/`) with feature-based component directories (`wizard/`, `question/`, `passage/`, `bank/`, `batch/`, `validated/`, `layout/`, `modals/`, `common/`) and centralized hooks/constants.
-9. **Multi-Agent Pipeline & Cognitive Fusion**: Step 01 fuses item authoring and 100-point rubric self-critique (`Drafting & Review`) into a single pass. Step 02 executes independent dual validation (`Answer Check`). Step 03 executes remediation (`Question Polish`) for drafts scoring $\le 90$ or failing verification, while Step 04 renders visual stimuli (`Figures & Diagrams`).
+9. **Multi-Agent Pipeline & Cognitive Fusion**: Step 01 fuses item authoring and 100-point rubric self-critique (`Drafting & Review`) into a single pass calibrated to aim for a perfect 100/100 score on first pass. Step 02 executes independent dual validation (`Answer Check`). Step 03 executes remediation (`Question Polish`) for drafts scoring $\le 80$ or failing verification, while Step 04 renders visual stimuli (`Figures & Diagrams`).
 10. **AAMC Dual Split-Pane Reading Mode**: Ensures dense scientific research passages and CARS essays are presented side-by-side with sticky scrolling and synchronized candidate review.
 11. **Option Symmetry & Anti-AI Standard**: Enforce option length parity (within 3 words, or 20% of the average for longer options; `agents/standards.py`) across strictly 4 options ($A, B, C, D$) and single hyphens (`-`) only; em dashes (`—`) and en dashes (`–`) are strictly forbidden across prompts and generation output.
 

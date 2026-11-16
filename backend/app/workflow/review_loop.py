@@ -11,6 +11,7 @@ from app.agents.validators import (
     Violation,
     blocking,
     format_violations,
+    normalize_draft_distractors,
     sanitize_draft_dashes,
     validate_question_draft,
 )
@@ -74,7 +75,9 @@ def _apply_deterministic_gate(state: AgentWorkflowState) -> list[Violation]:
     findings. Blocking findings must be remediated before any LLM review is spent on the draft.
     """
     draft = QuestionDraft(**state["current_draft"])
-    if sanitize_draft_dashes(draft):
+    changed = sanitize_draft_dashes(draft)
+    changed = normalize_draft_distractors(draft) or changed
+    if changed:
         state["current_draft"] = draft.model_dump()
     # Passage text is owned by the shared-passage pipeline, so passage rules are not checked here.
     # Offline mock fixtures are canned and cannot be repaired, so they are exempt from the
@@ -276,10 +279,11 @@ async def _run_question_review_loop(
 
         # Step 1: Run Reviewer if fused self-review is absent or unverified
         if not state.get("fused_self_passed"):
+            review_threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
             rev_start_evt = make_event(
                 event_type="agent_start",
                 agent_name="Quality Reviewer",
-                message=f"Reviewing draft {idx + 1}/{total_qty} (Round {iteration}) against 90+ quality standards...",
+                message=f"Reviewing draft {idx + 1}/{total_qty} (Round {iteration}) against {review_threshold}+ quality standards...",
                 data={
                     "index": idx + 1,
                     "total": total_qty,

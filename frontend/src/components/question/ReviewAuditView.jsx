@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { CheckCircle, AlertTriangle, ShieldCheck, Sparkles, Target, Zap, Image as ImageIcon } from 'lucide-react';
 import { Modal } from '../common';
 import PillarBars from './PillarBars';
+import AuditMetricsGrid from './AuditMetricsGrid';
+import AuditStageBreakdown from './AuditStageBreakdown';
+import AuditIterationTimeline from './AuditIterationTimeline';
 import {
   getEffectiveTrapInfo,
   formatTokenCount,
   formatCostUsd,
-  formatDurationMs,
   getAuditCostBreakdown,
   getReviewPillars
 } from '../../utils';
@@ -56,7 +58,7 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
     : null;
   const { hasVisual, totalCost, visualCost, cognitiveCost, stageTimings, totalDurationMs } =
     getAuditCostBreakdown(question);
-  const isHighQuality = question.final_score > SCORE_CUTOFFS.aiValidatedAbove;
+  const isHighQuality = question.final_score > SCORE_CUTOFFS.passingAbove;
   const metrics = [
     { label: 'INPUT TOKENS', tone: 'brand', value: formatTokenCount(question.prompt_tokens) },
     { label: 'OUTPUT TOKENS', tone: 'indigo', value: formatTokenCount(question.completion_tokens) },
@@ -103,7 +105,7 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
           </div>
           <div className="audit-score-right">
             <span
-              className={`badge ${question.final_score > SCORE_CUTOFFS.aiValidatedAbove ? 'badge-emerald' : 'badge-amber'} audit-score-badge`}
+              className={`badge ${question.final_score > SCORE_CUTOFFS.passingAbove ? 'badge-emerald' : 'badge-amber'} audit-score-badge`}
             >
               {isHighQuality ? 'Passed' : 'Needs Polish'}
             </span>
@@ -125,48 +127,18 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
           </div>
 
           {/* Metric Cards Grid */}
-          <div className="audit-metrics-grid">
-            {metrics.map((m) => (
-              <div key={m.label} className="audit-metric-card">
-                <div className="audit-metric-label">{m.label}</div>
-                <div className={`audit-metric-value ${m.tone}`}>{m.value}</div>
-              </div>
-            ))}
-          </div>
+          <AuditMetricsGrid metrics={metrics} />
 
-          {totalCost > 0 && (
-            <div className="audit-cost-breakdown">
-              <div className="audit-cost-breakdown-details">
-                <span>
-                  <strong className="audit-engine-title">Cognitive Engine:</strong>{' '}
-                  {formatCostUsd(cognitiveCost)} ({formatTokenCount(question.total_tokens)} tokens)
-                </span>
-                {hasVisual && (
-                  <span>
-                    <strong className="audit-engine-title">Visual Engine:</strong>{' '}
-                    {formatCostUsd(visualCost)} (High-Precision Figure)
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {stageTimings.length > 0 && (
-            <div className="audit-cost-breakdown">
-              <div className="audit-cost-breakdown-details">
-                <span>
-                  <strong className="audit-engine-title">Pipeline latency:</strong>{' '}
-                  {formatDurationMs(totalDurationMs)} model time
-                </span>
-                {stageTimings.map((entry, idx) => (
-                  <span key={`${entry.agent}-${entry.iteration}-${idx}`}>
-                    {entry.agent}
-                    {entry.iteration > 1 ? ` (v${entry.iteration})` : ''}: {formatDurationMs(entry.duration_ms)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Engine & Latency Stage Breakdown */}
+          <AuditStageBreakdown
+            totalCost={totalCost}
+            cognitiveCost={cognitiveCost}
+            visualCost={visualCost}
+            hasVisual={hasVisual}
+            totalTokens={question.total_tokens}
+            stageTimings={stageTimings}
+            totalDurationMs={totalDurationMs}
+          />
         </div>
 
         {/* 4 Pillars Breakdown */}
@@ -287,28 +259,7 @@ export default function ReviewAuditView({ question: initialQuestion, onClose }) 
         )}
 
         {/* Iterations Evolution Timeline */}
-        {history.length > 1 && (
-          <div className="audit-section-block">
-            <h4 className="audit-section-title">
-              Refinement History
-            </h4>
-            <div className="audit-history-timeline">
-              {history.map((h, idx) => (
-                <div key={h.iteration || `history-${idx}`} className="audit-history-item">
-                  <div className="audit-history-row">
-                    <span className="badge badge-cyan">Round {h.iteration}</span>
-                    <span className="audit-history-score">
-                      Score: {h.review?.total_score || 'N/A'}/100
-                    </span>
-                  </div>
-                  <span className="audit-history-status">
-                    {h.review?.passed ? '✓ Met High Quality' : 'Polished in Refinement Round'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <AuditIterationTimeline history={history} />
       </div>
     </Modal>
   );

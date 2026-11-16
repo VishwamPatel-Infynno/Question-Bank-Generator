@@ -82,7 +82,14 @@ async function request(path, { method = 'GET', body, signal = null, context } = 
 
 export const fetchHealth = () => request('/health', { context: 'Health check' });
 
-export const fetchSections = () => request('/sections', { context: 'Fetch sections' });
+export const fetchConfig = (signal = null) =>
+  request('/config', { signal, context: 'Fetch runtime configuration' });
+
+export const fetchSections = (signal = null) =>
+  request('/sections', { signal, context: 'Fetch sections' });
+
+export const fetchTaxonomy = (signal = null) =>
+  request('/taxonomy', { signal, context: 'Fetch AAMC taxonomy' });
 
 export const fetchQuestions = (params = {}, signal = null) =>
   request(withQuery('/questions', params), { signal, context: 'Fetch questions' });

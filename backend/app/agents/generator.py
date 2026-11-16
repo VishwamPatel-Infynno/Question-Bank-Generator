@@ -36,6 +36,7 @@ from app.agents.option_balancer import balance_and_shuffle_options
 from app.agents.prompt_builder import _build_generator_user_prompt, educator_instruction_block
 from app.agents.prompts import FUSED_GENERATOR_SYSTEM_PROMPT, GENERATOR_SYSTEM_PROMPT
 from app.agents.standards import is_cars, passage_words_text
+from app.agents.validators import order_distractors_in_explanation
 from app.core.config import config
 from app.schemas import (
     KNOWN_VISUAL_TYPES,
@@ -226,11 +227,10 @@ def _parse_question_draft_data(data: dict, req: GenerationRequest) -> QuestionDr
     effective_mistake = _detect_mistake_pattern(data, req)
     effective_stimulus = _resolve_effective_stimulus(data, req)
 
-    aamc_skill = (
-        data.get("aamc_skill")
-        or req.aamc_skill
-        or ("CARS_Skill_1" if is_cars(req.section) else "Skill_2")
-    )
+    if req.aamc_skill and req.aamc_skill.lower() not in ("automatic", "all", "none"):
+        aamc_skill = req.aamc_skill
+    else:
+        aamc_skill = data.get("aamc_skill") or ("CARS1" if is_cars(req.section) else "Skill_2")
 
     return QuestionDraft(
         stimulus_text=effective_stimulus,
@@ -238,7 +238,7 @@ def _parse_question_draft_data(data: dict, req: GenerationRequest) -> QuestionDr
         options=options,
         correct_answer_id=correct_id_str,
         correct_answer_ids=keys_list,
-        explanation=explanation,
+        explanation=order_distractors_in_explanation(explanation),
         primary_trap=primary_trap,
         aamc_skill=aamc_skill,
         subject=req.subject,
@@ -299,7 +299,7 @@ Target Length: {target_length}.
 STANDARDS FOR AAMC MCAT PASSAGES:
 1. Formal, intellectual scholarly register using precise American English scientific or academic vocabulary.
 2. Structured in 3 to 5 coherent paragraphs.
-3. Substantive experimental or biomedical study detailing a research hypothesis, experimental methods (e.g. assays, Western blots, kinetic measurements, reaction vessels), observed quantitative data or findings, and conclusions.
+3. Substantive experimental or biomedical study detailing a research premise, experimental methods (e.g. assays, Western blots, kinetic measurements, reaction vessels), observed quantitative data, and observations. DO NOT state overarching final conclusions or test answers directly in the passage; present empirical observations and data clearly so questions can evaluate scientific reasoning.
 4. Provides rich material for multiple distinct reasoning questions evaluating AAMC skills.
 5. EXPERIMENTAL & SCHOLARLY VISUAL STIMULUS REQUIREMENT (FIGURE 1):
    - Because visual stimuli are enabled for this passage, the study MUST describe and reference a central figure, chart, experimental setup, or diagram labeled as "Figure 1" (e.g., Figure 1: Experimental apparatus schematic, anatomical diagram, Western blot / gel electrophoresis, Lineweaver-Burk kinetic plot, reaction mechanism, or metabolic pathway).
@@ -323,7 +323,7 @@ Target Length: {target_length}.
 STANDARDS FOR AAMC MCAT PASSAGES:
 1. Formal, intellectual scholarly register using precise American English scientific or academic vocabulary.
 2. Structured in 3 to 5 coherent paragraphs.
-3. {"For CARS: Dense scholarly argument in philosophy, ethics, cultural theory, or social sciences. Expresses a distinct thesis, contrasting critical viewpoints, and authorial attitude. Strictly avoid scientific jargon." if cars else "For Sciences: Substantive experimental or biomedical study detailing a research hypothesis, experimental methods (e.g. assays, Western blots, kinetic measurements), observed quantitative data or findings, and conclusions."}
+3. {"For CARS: Dense scholarly argument in philosophy, ethics, cultural theory, or social sciences. Expresses a distinct thesis, contrasting critical viewpoints, and authorial attitude. Strictly avoid scientific jargon." if cars else "For Sciences: Substantive experimental or biomedical study detailing a research premise, experimental methods (e.g. assays, Western blots, kinetic measurements), observed quantitative data, and observations without front-loading final conclusions."}
 4. Provides rich material for multiple distinct reasoning questions evaluating AAMC skills.
 5. DO NOT include questions, choices, or answers in this output. Output ONLY the pure reading passage text."""
 

@@ -74,6 +74,13 @@ AAMC_REASONING_SKILLS = {
     "Skill_2": "Scientific Reasoning and Problem Solving",
     "Skill_3": "Reasoning About the Design and Execution of Research",
     "Skill_4": "Data-based and Statistical Reasoning",
+    "S1": "Knowledge of Scientific Concepts and Principles",
+    "S2": "Scientific Reasoning and Problem Solving",
+    "S3": "Reasoning About the Design and Execution of Research",
+    "S4": "Data-based and Statistical Reasoning",
+    "CARS1": "Foundations of Comprehension",
+    "CARS2": "Reasoning Within the Text",
+    "CARS3": "Reasoning Beyond the Text",
     "CARS_Skill_1": "Foundations of Comprehension",
     "CARS_Skill_2": "Reasoning Within the Text",
     "CARS_Skill_3": "Reasoning Beyond the Text",
@@ -142,13 +149,10 @@ def calculate_mcat_scaled_score(audit_total: int, difficulty: str = "medium") ->
     elif audit_total >= 88:
         base_sec = 128 if is_hard else 127
         percentile = "88th Percentile (Competitive)"
-    elif audit_total >= 82:
-        base_sec = 126
-        percentile = "72nd Percentile (Solid)"
-    elif audit_total >= 75:
+    elif audit_total >= 80:
         base_sec = 125
         percentile = "50th Percentile (Median)"
-    elif audit_total >= 65:
+    elif audit_total >= 70:
         base_sec = 123
         percentile = "35th Percentile"
     else:

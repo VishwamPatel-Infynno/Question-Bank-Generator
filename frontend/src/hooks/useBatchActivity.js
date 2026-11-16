@@ -12,22 +12,63 @@ import { useBatchMutations } from './useBatchMutations';
  * @param {Object} options
  * @param {(toast: { type?: string, title: string, message?: string, action?: any }) => void} [options.onShowToast]
  * @param {() => void} [options.onNavigateToBank]
+ * @param {Object} [options.newlyLaunchedBatch]
+ * @param {() => void} [options.onClearNewlyLaunchedBatch]
  * @returns {Object} Batch activity state and actions
  */
-export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
-  const [batches, setBatches] = useState([]);
-  const [loading, setLoading] = useState(true);
+export function useBatchActivity({
+  onShowToast,
+  onNavigateToBank,
+  newlyLaunchedBatch,
+  onClearNewlyLaunchedBatch
+} = {}) {
+  const [batches, setBatches] = useState(() => (newlyLaunchedBatch?.batch ? [newlyLaunchedBatch.batch] : []));
+  const [loading, setLoading] = useState(() => !newlyLaunchedBatch?.batch);
   const [loadError, setLoadError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeCount, setActiveCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(() => (newlyLaunchedBatch?.batch ? 1 : 0));
 
   // Multi-expand batch details cache: Set of expanded batch IDs
-  const [expandedBatchIds, setExpandedBatchIds] = useState(new Set());
-  const [batchDetails, setBatchDetails] = useState({});
+  const [expandedBatchIds, setExpandedBatchIds] = useState(
+    () => (newlyLaunchedBatch?.batch ? new Set([newlyLaunchedBatch.batch.id]) : new Set())
+  );
+  const [batchDetails, setBatchDetails] = useState(() =>
+    newlyLaunchedBatch?.batch
+      ? { [newlyLaunchedBatch.batch.id]: { batch: newlyLaunchedBatch.batch, jobs: newlyLaunchedBatch.jobs || [] } }
+      : {}
+  );
   const [loadingDetails, setLoadingDetails] = useState({});
 
   // Expanded job within the expanded batches: { [jobId]: boolean }
-  const [expandedJobIds, setExpandedJobIds] = useState({});
+  const [expandedJobIds, setExpandedJobIds] = useState(() => {
+    const firstJobId = newlyLaunchedBatch?.jobs?.[0]?.id;
+    return firstJobId ? { [firstJobId]: true } : {};
+  });
+
+  // Track prev prop for render-time state adjustment if prop changes while mounted
+  const [prevLaunchedBatch, setPrevLaunchedBatch] = useState(newlyLaunchedBatch);
+  if (newlyLaunchedBatch && newlyLaunchedBatch !== prevLaunchedBatch) {
+    setPrevLaunchedBatch(newlyLaunchedBatch);
+    const { batch, jobs = [] } = newlyLaunchedBatch;
+    setBatches((prev) => (prev.some((b) => b.id === batch.id) ? prev : [batch, ...prev]));
+    setActiveCount((prev) => Math.max(1, prev + 1));
+    setExpandedBatchIds((prev) => new Set([...prev, batch.id]));
+    setBatchDetails((prev) => ({
+      ...prev,
+      [batch.id]: { batch, jobs }
+    }));
+    if (jobs.length > 0) {
+      setExpandedJobIds((prev) => ({ ...prev, [jobs[0].id]: true }));
+    }
+    setLoading(false);
+  }
+
+  // Clear parent launch buffer when this view unmounts
+  useEffect(() => {
+    return () => {
+      onClearNewlyLaunchedBatch?.();
+    };
+  }, [onClearNewlyLaunchedBatch]);
 
   // Auto-refresh control
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -58,22 +99,30 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
       abortRef.current?.abort();
       abortRef.current = controller;
       const data = await fetchBatches({}, controller.signal);
-      setBatches((prev) => reuseUnchangedBatches(prev, data.batches || []));
+      const fetchedBatches = data.batches || [];
+      setBatches((prev) => reuseUnchangedBatches(prev, fetchedBatches));
       setActiveCount(data.active_running_batches || 0);
 
+      // Auto-expand the running batch if none are expanded yet
+      let currentExpanded = Array.from(expandedBatchIdsRef.current);
+      if (currentExpanded.length === 0) {
+        const runningBatch = fetchedBatches.find((b) => b.status === BATCH_STATUS.IN_PROGRESS);
+        if (runningBatch) {
+          currentExpanded = [runningBatch.id];
+          setExpandedBatchIds(new Set(currentExpanded));
+        }
+      }
+
       // Re-fetch details for any expanded batches that are in progress atomically
-      const expandedIds = Array.from(expandedBatchIdsRef.current);
-      // ...plus any that just left in_progress, so the card shows the final state instead of the
-      // last in-progress snapshot.
       const previousStatus = lastStatusRef.current;
-      const inProgressIds = expandedIds.filter((bId) => {
-        const matchingBatch = data.batches?.find((b) => b.id === bId);
+      const inProgressIds = currentExpanded.filter((bId) => {
+        const matchingBatch = fetchedBatches.find((b) => b.id === bId);
         if (!matchingBatch) return false;
         return (
           matchingBatch.status === BATCH_STATUS.IN_PROGRESS || previousStatus.get(bId) === BATCH_STATUS.IN_PROGRESS
         );
       });
-      lastStatusRef.current = new Map((data.batches || []).map((b) => [b.id, b.status]));
+      lastStatusRef.current = new Map(fetchedBatches.map((b) => [b.id, b.status]));
 
       if (inProgressIds.length > 0) {
         const results = await Promise.allSettled(
@@ -125,13 +174,14 @@ export function useBatchActivity({ onShowToast, onNavigateToBank } = {}) {
     let ignore = false;
     async function init() {
       if (!ignore) {
-        await performFetchBatches(true);
+        await performFetchBatches(false);
       }
     }
     init();
     return () => {
       ignore = true;
       abortRef.current?.abort();
+      fetchInFlightRef.current = false;
     };
   }, [performFetchBatches]);
 

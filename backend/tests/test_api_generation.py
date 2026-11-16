@@ -194,7 +194,7 @@ async def test_single_passage_multi_question_set(monkeypatch):
     for q in questions:
         assert q["passage_id"] == shared_passage_id
         assert q["stimulus_text"] == shared_passage_text
-        assert q["final_score"] > 90
+        assert q["final_score"] > config.PASSING_SCORE_THRESHOLD
         if q["interaction_type"] == "single_choice":
             single_count += 1
 

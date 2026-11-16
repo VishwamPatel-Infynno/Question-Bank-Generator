@@ -31,7 +31,7 @@ The **Infynno MCAT Question Bank Generator v2.0** solves these challenges with f
 - **Fused Draft-and-Critique Cognitive Engine**: Authors the scenario, symmetric options, and mentor explanation while simultaneously self-scoring the item across a standardized 100-point rubric in a single unified round-trip. Every draft is then independently audited by a separate reviewer and a blind solver.
 - **Blind-Solver Dual-Validation Safeguard**: Acts as an algorithmic test candidate, solving the drafted question completely blind without access to the author's answer key or explanation. Any discrepancy in the answer key or low confidence ($< 88\%$) instantly forces the item into remediation, eliminating false keys and ambiguous stems before human review.
 - **AAMC Dual Split-Pane Reading Mode**: Provides an authentic side-by-side split reading canvas for passage sets. The left pane anchors the dense research passage with sticky scrolling, while the right pane presents candidate stems, options, and rationales with independent vertical navigation.
-- **Autonomous Remediation & Strict Quality Gate (>90 Points)**: Items scoring $\le 90$ undergo up to three cycles of independent auditing and remediation. Unrepaired items are discarded and never committed to the database.
+- **Autonomous Remediation & Quality Gate (80/70 Points)**: Items scoring $\le 80$ undergo up to three cycles of independent auditing and remediation. Items scoring $> 80$ are promoted to the AI Validated review queue, items scoring between 70 and 80 are retained as Good Quality in batches, and items unable to reach 70 after 3 attempts are rejected.
 
 ---
 
@@ -89,18 +89,20 @@ graph TD
     Engine --> Worker5[Worker Question 5]
 
     subgraph "Per-Item Autonomous Quality Workflow"
-        Worker1 --> Fused[Fused Draft & Self-Critique]
-        Fused -->|Score > 90| ImageGen[Vector/SVG Engine]
-        Fused -->|Score <= 90| Remediation[Remediation Loop]
+        Worker1 --> Fused[Fused Draft & 100-pt Audit]
+        Fused -->|Score > 80| ImageGen[Vector/SVG Engine]
+        Fused -->|Score <= 80| Remediation[Remediation Loop]
         Remediation --> Auditor[Independent Auditor]
-        Auditor -->|Pass > 90| ImageGen
-        Auditor -->|Fail <= 90 & Max Cycles| Reject[Strict Quality Gate Reject]
+        Auditor -->|Pass > 80| ImageGen
+        Auditor -->|70 <= Pass <= 80 & Max Cycles| BatchOnly[Accept as Good Quality (Batch Only)]
+        Auditor -->|Fail < 70 & Max Cycles| Reject[Strict Quality Gate Reject]
         ImageGen --> Staged[Staged in Review Deck]
     end
 ```
 
-### 4.1 Fused Draft-and-Critique Cognitive Engine (`fused_generator_node`)
+### 4.1 Fused Draft-and-Critique Cognitive Engine (`fused_generator_node`) & First-Pass 100/100 Mandate
 - Crafts high-yield clinical or scientific scenarios, 4 symmetric options ($A, B, C, D$), and 3-card mentor explanations.
+- Guided by an explicit **First-Pass 100/100 Excellence Directive**: the question writer aims for full 25 points across all four pillars on the initial draft itself.
 - Simultaneously generates a 100-point self-critique object in a single inference call. By default the independent reviewer and blind solver still audit every draft (`ALWAYS_INDEPENDENT_REVIEW`), running concurrently to save time.
 - Strictly forbids em dashes (`—`) and enforces option word count symmetry (within 3 words, or 20% for longer options).
 
@@ -110,19 +112,21 @@ graph TD
 - Requires both **answer key agreement** and **$\ge 88\%$ confidence**. If the blind solver selects a different option or confidence is low, the item is automatically redirected to remediation to remove ambiguity.
 
 ### 4.3 Independent Senior Psychometric Auditor (`reviewer.py`)
-- Engaged if a draft scores $\le 90$, fails blind-solver verification, or has undergone remediation.
+- Engaged if a draft scores $\le 80$, fails blind-solver verification, or has undergone remediation.
 - Evaluates four 25-point pillars:
   1. *MCAT Authenticity & Scientific Rigor* (0-25)
   2. *Clarity & Logical Soundness* (0-25)
   3. *Distractor Trap Quality & Anti-Guessability* (0-25)
   4. *Explanation & Key Rigor* (0-25)
+- Calibrated to award full 25 points per pillar when an item meets all requirements with zero flaws.
 
 ### 4.4 Autonomous Remediation Engine (`regenerator.py`)
 - Repairs identified distractor weaknesses, equalizes option lengths, and sharpens pedagogical proofs.
 - Loops up to 3 cycles before triggering the deterministic rejection circuit breaker.
 
-### 4.5 Strict Quality Gate Benchmark ($> 90$ Points)
-- Any item unable to achieve $> 90$ points after 3 cycles is completely rejected and excluded from the Question Bank.
+### 4.5 Configurable Quality Gate Benchmark (`PASSING_SCORE_THRESHOLD = 80`)
+- Controlled directly via `.env:L81` (`PASSING_SCORE_THRESHOLD=80`), with derived batch threshold `BATCH_PASSING_SCORE_THRESHOLD=70`.
+- Items scoring $> 80$ are promoted to the AI Validated review queue. Items scoring between 70 and 80 are accepted into the batch as Good Quality questions. Any item unable to achieve at least 70 points after 3 cycles is completely rejected.
 
 ---
 
@@ -149,7 +153,7 @@ $$\text{Total Cost (DeepInfra)} = \left(\frac{\text{Input Tokens}}{1{,}000{,}000
 - **Repository Observability**: The Question Bank header displays accumulated input tokens, output tokens, total execution time, and cumulative investment across the entire repository.
 - **Enterprise Multi-Batch Concurrency & Resiliency**:
   - The background batch runner operates under global worker semaphores (`4 concurrent jobs`, `10 concurrent LLM calls`) ensuring safe execution without API rate limit bottlenecks.
-  - **Review Queue Withholding Guarantee**: Questions produced during background batches are held safely in `batch_only` status while the batch is in progress. The "Ready for Review" queue remains clean of incomplete or draft items until the batch cleanly completes, at which point questions with `final_score > 90` are atomically promoted to `ai_validated`. Cancelled or stopped batches retain questions in `batch_only` so educators never review partial runs.
+  - **Review Queue Withholding Guarantee**: Questions produced during background batches are held safely in `batch_only` status while the batch is in progress. The "Ready for Review" queue remains clean of incomplete or draft items until the batch cleanly completes, at which point questions with `final_score > config.PASSING_SCORE_THRESHOLD` (80) are atomically promoted to `ai_validated`. Cancelled or stopped batches retain questions in `batch_only` so educators never review partial runs.
   - **1-Click Batch Stop**: Educators can pause a 50-question mock run at any time without losing items already generated and validated.
   - **Autonomous In-Flight 3-Trials Retry Policy**: If candidate questions fail quality thresholds during a run, background jobs automatically execute in-flight replenishment retries up to **3 max trials per set**. Active jobs broadcast live `AUTO-RETRYING (X/3)` telemetry badges, transitioning to `3/3 TRIALS EXHAUSTED` when trials are completed.
   - **Controlled "Resume Sets" Resumption**: Manual retry buttons are hidden during generation and eliminated for completed or failed runs. Batches stopped manually mid-run display a clear **"Resume Sets"** button, allowing educators to resume paused sets that have trials remaining (`trial_count < 3`). Retrying exhausted runs is blocked with an explicit error message.
@@ -157,7 +161,7 @@ $$\text{Total Cost (DeepInfra)} = \left(\frac{\text{Input Tokens}}{1{,}000{,}000
 - **Dedicated Application Views**: Seamlessly navigate between:
   1. **Create Questions (`HeroLanding.jsx`, `GuidedWizard.jsx`)**: Interactive question studio featuring the welcome canvas with instant section presets and the streamlined 3-Step Guided Wizard dispatching to background worker pools.
   2. **Batch Progress (`BatchActivityView.jsx`)**: Real-time monitor tracking running batch jobs, per-job question counts, status indicators, and background worker progress. Features **Dual-Track Progress Indication**: an aggregate progress bar tracking overall batch completion alongside per-set **5-Question Progress Strips** with discrete slot pills (`✓ Q1` ready for review in emerald, `✓ Q1` in bank in purple, pulsing `● Q2` actively generating, and dashed `Q3` pending slot).
-  3. **Review Queue (`AiValidatedQuestionsView.jsx`)**: High-quality items (>90 points) awaiting one-click educator publishing into the Question Bank. Score labels are streamlined to clean status badges, and obsolete Discarded/Needs Polish counters are pruned.
+  3. **Review Queue (`AiValidatedQuestionsView.jsx`)**: High-quality items (>80 points) awaiting one-click educator publishing into the Question Bank. Score labels are streamlined to clean status badges, and obsolete Discarded/Needs Polish counters are pruned.
   4. **Question Bank (`QuestionBankView.jsx`)**: Primary verified repository strictly presented in high-density **Editorial Cards** (with search, multi-factor filtering, in-place inline editing, bulk deletion, and PDF/CSV/JSON export; legacy table grid mode removed).
   5. **Passage Bank (`PassageBankView.jsx`)**: Comprehensive repository of reading passages and research narratives. Features the interactive **Passage Editorial Desk** for live editing of passage content, attaching and previewing figures/diagrams (`PassageVisualStimulusEditor.jsx`), reviewing all linked practice questions (`PassageLinkedQuestionCard.jsx`), and dedicated passage deletion with linked question cascade removal via `DeletePassageModal`, preserving historical batch execution progress intact.
 

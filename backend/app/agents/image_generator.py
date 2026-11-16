@@ -159,9 +159,13 @@ async def call_openai_image_api(
         "prompt": prompt,
         "n": 1,
         "size": f"{width}x{height}",
-        "response_format": "b64_json",
     }
-    if "dall-e-3" in model_id:
+    # DALL-E models support and require response_format="b64_json" for direct base64 payloads;
+    # modern gpt-image models (e.g. gpt-image-2.5-flare) reject "response_format" and return
+    # b64_json by default.
+    if "dall-e" in model_id.lower():
+        payload["response_format"] = "b64_json"
+    if "dall-e-3" in model_id.lower():
         payload["quality"] = quality
 
     async def attempt_once(client: httpx.AsyncClient) -> tuple[str | None, float | None]:
@@ -187,7 +191,8 @@ async def call_openai_image_api(
             item = data["data"][0]
             b64 = item.get("b64_json")
             if b64:
-                img_data = f"data:image/png;base64,{b64}" if not b64.startswith("data:") else b64
+                fmt = data.get("output_format") or "png"
+                img_data = f"data:image/{fmt};base64,{b64}" if not b64.startswith("data:") else b64
                 return (img_data, calculated_cost)
             if item.get("url"):
                 return (item.get("url"), calculated_cost)

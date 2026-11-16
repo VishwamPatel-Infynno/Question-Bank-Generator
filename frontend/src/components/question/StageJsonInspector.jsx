@@ -41,7 +41,7 @@ export default function StageJsonInspector({ question }) {
         audit_id: question.review_rubric?.audit_id,
         evaluated_at: question.review_rubric?.evaluated_at,
         total_score: question.final_score,
-        passed: question.final_score > SCORE_CUTOFFS.aiValidatedAbove,
+        passed: question.final_score > SCORE_CUTOFFS.passingAbove,
         authenticity_score: 24,
         clarity_score: 24,
         distractor_score: 23,
@@ -94,7 +94,7 @@ export default function StageJsonInspector({ question }) {
         final_score: question.final_score,
         correct_answer_id: question.correct_answer_id,
         compute_units: question.total_tokens,
-        quality_status: question.final_score > SCORE_CUTOFFS.aiValidatedAbove ? 'High Quality' : 'Passed Benchmark',
+        quality_status: question.final_score > SCORE_CUTOFFS.passingAbove ? 'High Quality' : 'Needs Polish',
         created_at: question.created_at
       }
     }

@@ -169,7 +169,7 @@ def _build_attempt_request(
             "run_id": job.id,
             "batch_id": batch_id,
             "job_id": job.id,
-            "passing_threshold": config.BATCH_PASSING_SCORE_THRESHOLD,
+            "passing_threshold": base_req.passing_threshold or config.PASSING_SCORE_THRESHOLD,
             "questions_to_generate": questions_to_generate,
             "passage_mode": "single_passage" if is_passage_mode else "independent",
             "passage_required": "Yes" if is_passage_mode else "No",

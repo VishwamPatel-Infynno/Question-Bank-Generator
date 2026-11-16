@@ -57,7 +57,7 @@ The system defines 69 configuration fields in `backend/app/core/config.py` (`Set
 | `OPENAI_IMAGE_COST_PER_UNIT` | `float` | `0.02` | Fallback estimate for one 1024x1024 OpenAI image, used only when a response has no usage |
 | `DEEPINFRA_API_KEY` | `string` | `""` | DeepInfra API authorization key |
 | `MAX_REGENERATION_ATTEMPTS`| `integer`| `3` | Maximum remediation loops before Quality Gate reject |
-| `PASSING_SCORE_THRESHOLD` | `integer`| `90` | Minimum score required to pass individual psychometric gate (Tier 1) |
+| `PASSING_SCORE_THRESHOLD` | `integer`| `80` | Minimum score required to pass psychometric quality gate (> 80) across individual and batch generation |
 | `ALWAYS_INDEPENDENT_REVIEW` | `boolean` | `true` | Always run the independent Reviewer, even when the generator's own self-critique passes |
 | `MAX_LLM_CALLS_PER_SLOT` | `integer` | `16` | Hard cap on LLM calls spent on one question slot across all attempts (drafts, duplicate rewrites, regenerations, review and solve samples). When reached the slot stops with a rejection instead of spending more; `0` disables the cap |
 | `BLIND_SOLVER_MODEL` | `string` | `""` | Optional dedicated model for the Blind Solver so it is independent of the generator (empty = the request's model); the client's `api_key` is never sent to it |
@@ -72,9 +72,8 @@ The system defines 69 configuration fields in `backend/app/core/config.py` (`Set
 | `MAX_REQUEST_BODY_MB` | `integer` | `25` | Largest accepted request body in megabytes; larger requests get HTTP 413 (`0` disables). The bundled `frontend/nginx.conf` enforces the same `client_max_body_size` in front of the API |
 | `LOG_FORMAT` | `string` | `text` | `text` or `json`; lines carry batch, job, run and slot ids for correlation |
 | `LLM_MAX_TOKENS_CEILING` | `integer` | `8000` | Upper bound when a truncated completion is retried with a larger token budget |
-| `BATCH_PASSING_SCORE_THRESHOLD` | `integer`| `85` | Benchmark score required for batch activity run acceptance (Tier 2) |
 | `DEFAULT_MAX_TOKENS` | `integer`| `3000` | Default maximum completion token budget for generator nodes |
-| `REVIEWER_MAX_TOKENS` | `integer`| `1800` | Maximum completion token budget for 100-point psychometric reviewer |
+| `REVIEWER_MAX_TOKENS` | `integer`| `3000` | Maximum completion token budget for 100-point psychometric reviewer |
 | `COST_PER_MILLION_INPUT_TOKENS` | `float` | Dynamic | Dynamic property mapping to the active provider's configured input price (DeepInfra $0.20 standard / Anthropic $0.10 / OpenAI $0.15); rates for a specific model always follow that model's provider |
 | `COST_PER_MILLION_OUTPUT_TOKENS`| `float` | Dynamic | Dynamic property mapping to the active provider's configured output price (DeepInfra $0.60 standard / Anthropic $0.50 / OpenAI $0.60) |
 | `DEFAULT_TEMPERATURE` | `float` | `0.2` | Global default sampling temperature for call_llm |
@@ -222,7 +221,7 @@ This verifies:
 - Pydantic schema validation across all 4 official AAMC MCAT sections and custom authoring instructions.
 - Reviewer 100-point rubric evaluation and remediation routing logic.
 - Blind-Solver dual-validation agent agreement and discrepancy re-routing.
-- Strict Quality Gate halt and rejection payload generation when score $\le 90$.
+- Strict Quality Gate halt and rejection payload generation when score $\le 80$.
 - Batch question withholding (`batch_only` during execution) and atomic promotion (`promote_completed_batch_questions`).
 - Global worker pool semaphores, LLM rate-limiting backoff, and multi-batch concurrency.
 - Programmatic SVG vector diagram rendering and XML validation.

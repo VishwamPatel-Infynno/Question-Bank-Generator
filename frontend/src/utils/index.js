@@ -26,7 +26,9 @@ export {
 
 /** Cognitive rationale & distractor extraction */
 export {
-  extractDistractorLines
+  DISTRACTOR_HEADER_REGEX,
+  extractDistractorLines,
+  parseMentorExplanation
 } from './explanationHelpers';
 
 /** Anti-guessability option length and balance checks */
@@ -68,3 +70,10 @@ export { buildBatchPayload } from './batchPayload';
 
 /** Browser file download helper */
 export { downloadTextFile } from './download';
+
+/** Visual stimulus modality detection & presentation metadata */
+export {
+  detectVisualModality,
+  getModalityMetadata
+} from './visualHelpers';
+

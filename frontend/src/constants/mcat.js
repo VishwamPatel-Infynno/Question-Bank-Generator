@@ -271,13 +271,63 @@ export const formatDifficulty = (diff) =>
 export const getDifficultyBadgeClass = (diff) =>
   DIFFICULTY_BADGES[normalizeDifficulty(diff) ?? DIFFICULTY.MEDIUM];
 
+/**
+ * Official AAMC Reasoning Skills dictionary mapping internal codes
+ * to exact human-readable skill designations across Science and CARS sections.
+ */
+export const AAMC_REASONING_SKILLS = Object.freeze({
+  Skill_1: 'Knowledge of Scientific Concepts and Principles',
+  Skill_2: 'Scientific Reasoning and Problem-Solving',
+  Skill_3: 'Reasoning About Research Design and Execution',
+  Skill_4: 'Data-Based and Statistical Reasoning',
+  'Skill 1': 'Knowledge of Scientific Concepts and Principles',
+  'Skill 2': 'Scientific Reasoning and Problem-Solving',
+  'Skill 3': 'Reasoning About Research Design and Execution',
+  'Skill 4': 'Data-Based and Statistical Reasoning',
+  S1: 'Knowledge of Scientific Concepts and Principles',
+  S2: 'Scientific Reasoning and Problem-Solving',
+  S3: 'Reasoning About Research Design and Execution',
+  S4: 'Data-Based and Statistical Reasoning',
+  CARS_Skill_1: 'Foundations of Comprehension',
+  CARS_Skill_2: 'Reasoning Within the Text',
+  CARS_Skill_3: 'Reasoning Beyond the Text',
+  'CARS Skill 1': 'Foundations of Comprehension',
+  'CARS Skill 2': 'Reasoning Within the Text',
+  'CARS Skill 3': 'Reasoning Beyond the Text',
+  CARS1: 'Foundations of Comprehension',
+  CARS2: 'Reasoning Within the Text',
+  CARS3: 'Reasoning Beyond the Text'
+});
 
 /**
- * Score cut-offs (exclusive) used when a question has no explicit status. They mirror the
- * backend's PASSING_SCORE_THRESHOLD (90) and BATCH_PASSING_SCORE_THRESHOLD (85); keep one copy
- * here so the review queue and the batch views never disagree.
+ * Resolves a raw skill identifier (e.g. 'Skill_2', 'CARS_Skill_2', 'S2')
+ * into its official human-readable AAMC reasoning skill name.
+ *
+ * @param {string} skillId - Raw skill code or identifier
+ * @param {string} [fallback=''] - Optional fallback if empty
+ * @returns {string} Exact human-readable skill name
  */
-export const SCORE_CUTOFFS = Object.freeze({ aiValidatedAbove: 90, batchAbove: 85 });
+export function formatAamcSkill(skillId, fallback = '') {
+  if (!skillId) return fallback;
+  const raw = String(skillId).trim();
+  if (AAMC_REASONING_SKILLS[raw]) return AAMC_REASONING_SKILLS[raw];
+  const normalized = raw.replace(/\s+/g, '_');
+  if (AAMC_REASONING_SKILLS[normalized]) return AAMC_REASONING_SKILLS[normalized];
+  return raw;
+}
+
+
+/**
+ * Score cut-offs (exclusive) used when a question has no explicit status. It mirrors the
+ * backend's canonical PASSING_SCORE_THRESHOLD (80) and derived BATCH_PASSING_SCORE_THRESHOLD (70 = 80 - 10);
+ * keep one copy here so the review queue and the batch views never disagree.
+ */
+export const SCORE_CUTOFFS = Object.freeze({
+  passingAbove: 80,
+  aiValidatedAbove: 80,
+  batchAtOrAbove: 70,
+  batchAbove: 69
+});
 
 /** Batch lifecycle statuses as the API returns them (mirrors backend BatchStatus). */
 export const BATCH_STATUS = Object.freeze({

@@ -5,7 +5,7 @@
 
 An enterprise autonomous AI application for generating, quality-reviewing, and creating high-quality exam questions for the official **AAMC MCAT** (Medical College Admission Test).
 
-Engineered by **[Infynno Solutions LLP](https://infynno.com/)**, powered by a **3-Step AI Pipeline**, **FastAPI**, **React 19**, and **PostgreSQL 16**, featuring a modern single-canvas studio, live team tracker, batch staging, AAMC SIRS reasoning skills, calibrated scaled scoring (118–132 per section / 472–528 composite), and strict 90+ score quality standard.
+Engineered by **[Infynno Solutions LLP](https://infynno.com/)**, powered by a **3-Step AI Pipeline**, **FastAPI**, **React 19**, and **PostgreSQL 16**, featuring a modern single-canvas studio, live team tracker, batch staging, AAMC SIRS reasoning skills, 100-point 4-pillar psychometric evaluation with First-Pass 100/100 calibration, and a unified 80/70 quality threshold.
 
 ---
 
@@ -19,12 +19,12 @@ For deep-dive technical specifications, architecture diagrams, API schemas, and 
 | **[Client System & Workflow Guide (docs/CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md)](docs/CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md)** | **Primary Client Deliverable**: End-to-end operational walkthrough, 3-step wizard, 2 calibrated generation scopes (5 Questions [1 Job] and 50 Questions [10 Jobs]), Low/Medium/High difficulty tiers, Blind-Solver safeguard, Deduplication & Editorial Override workflow, AAMC Split-Pane reading mode, canonical Editorial Cards Question Bank, mentor explanations, and token transparency. |
 | **[UI/UX Design System (DESIGN.md)](DESIGN.md)** | Authoritative design tokens, dual obsidian/alabaster themes, streamlined 3-step wizard with decomposed summary/advanced drawers, decomposed QuestionCard components, Duplicate Comparison Modal, AAMC Dual Split-Pane reading mode, accessible modal focus-trapping contracts (`Modal`, `ConfirmationModal`, `DeletePassageModal`), live batch retry telemetry (`AUTO-RETRYING X/3`), typography scale, component contracts, accessibility criteria (WCAG AA), and micro-animations. |
 | **[Architecture & Multi-Agent Workflow](docs/ARCHITECTURE.md)** | Complete workflow diagrams, 3-step pipeline specifications, Blind-Solver Dual Validation, Deduplication & Anti-Collision Subsystem, Strict Quality Gate, Two-Tier quality threshold model, global worker semaphores, background batch runner with 3-trial retries, SSE pipeline, and PostgreSQL 16 ERD. |
-| **[REST & SSE API Reference](docs/API.md)** | Complete FastAPI endpoint documentation (39 endpoint operations), deduplication, duplicate clustering, auto-resolve & refill endpoints, question restoration (`/restore`), permanent purges (`/permanent`, `/purge-batch`), batch generation schemas, 3-trial batch controls (`/stop`, `/retry`, `/cancel-all`), SSE event stream contracts, filter parameters, and cURL examples. |
-| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 353 passing deterministic unit/integration tests across 55 modules (363 total backend tests), 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
+| **[REST & SSE API Reference](docs/API.md)** | Complete FastAPI endpoint documentation (40 endpoint operations), deduplication, duplicate clustering, auto-resolve & refill endpoints, question restoration (`/restore`), permanent purges (`/permanent`, `/purge-batch`), batch generation schemas, 3-trial batch controls (`/stop`, `/retry`, `/cancel-all`), Prometheus `/metrics` exposition, SSE event stream contracts, filter parameters, and cURL examples. |
+| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 384 passing deterministic unit/integration tests across 59 modules (394 total backend tests), 118 frontend tests across 13 test files, 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
 | **[Token Usage & Cost Tracking](docs/TOKEN_TRACKING.md)** | Verified rate cards per model: DeepInfra DeepSeek ($0.20 in / $0.60 out per 1M tokens standard), Anthropic Claude Haiku 5.5 ($0.10 in / $0.50 out with tiers and prompt-cache rates), OpenAI gpt-4o-mini, and token-billed gpt-image-2.5-flare images, exact mathematical cost formulas, multi-agent accumulation, and UI observability. |
 | **[Installation, Setup & Deployment](docs/SETUP_AND_CONFIG.md)** | Step-by-step setup, Docker PostgreSQL 16 guide, environment variables reference (67 Settings fields), database duplicate cleanup (`pnpm run db:clean-duplicates`), predev port cleanup, production deployment, linters, and troubleshooting. |
-| **[MCAT Psychometric Rubric & Standards](docs/MCAT_RUBRIC.md)** | Official 4 AAMC sections standards, 100-point 4-pillar evaluation rubric, Blind-Solver algorithmic verification, $> 90$ quality benchmark, calibrated scaled score (118-132), and cognitive distractor trap engineering. |
-| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `review_loop.py`, `passage_prep.py`, `dedup_inflight.py`, `live_job_store.py`, `nodes.py`), Blind-Solver agent, services, repositories, 3-trial retry engine, testing (363 tests across 56 modules: 353 offline-capable, 10 live), and seeding scripts. |
+| **[MCAT Psychometric Rubric & Standards](docs/MCAT_RUBRIC.md)** | Official 4 AAMC sections standards, 100-point 4-pillar evaluation rubric (25 pts per pillar), First-Pass 100/100 Calibration Directive, Blind-Solver algorithmic verification, unified 80/70 quality thresholds, and cognitive distractor trap engineering. |
+| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `engine_layout.py`, `review_loop.py`, `passage_prep.py`, `dedup_inflight.py`, `live_job_store.py`, `nodes.py`), Blind-Solver agent, services, repositories (`mappers.py`, `query_builders.py`), 3-trial retry engine, testing (394 tests across 60 modules: 384 deterministic, 10 live), and seeding scripts. |
 | **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directory (`wizard/`, `question/`, `batch/`, `modals/`, `common/`), top-level views, hooks, predev port cleaner, and local development instructions. |
 
 ---
@@ -34,14 +34,15 @@ For deep-dive technical specifications, architecture diagrams, API schemas, and 
 ### 1. Fused Cognitive Architecture with Strict Quality Gate
 ```mermaid
 graph LR
-    FusedGen[Fused Draft & Self-Critique] -->|Score > 90 (~40% Faster)| ImageGen[Stimulus & Diagram]
-    FusedGen -->|Score > 90 & Text Only| Finalize[Admin Review Desk]
-    FusedGen -->|Score <= 90| Regenerator[Remediation Engine]
+    FusedGen[Fused Draft & 100-pt Audit] -->|Score > 80 (High Quality)| ImageGen[Stimulus & Diagram]
+    FusedGen -->|Score > 80 & Text Only| Finalize[Ready for Review Queue]
+    FusedGen -->|Score <= 80| Regenerator[Remediation Engine]
     Regenerator --> Reviewer[Independent Auditor]
-    Reviewer -->|Score <= 90 & Cycles < 3| Regenerator
-    Reviewer -->|Score <= 90 & Cycles = 3| Reject[Strict Quality Gate Reject]
-    Reviewer -->|Score > 90| ImageGen
-    Reviewer -->|Score > 90 & Text Only| Finalize
+    Reviewer -->|Score <= 80 & Cycles < 3| Regenerator
+    Reviewer -->|70 <= Score <= 80 & Cycles = 3| FinalizeBatch[Accept into Batch Only (Good Quality)]
+    Reviewer -->|Score < 70 & Cycles = 3| Reject[Strict Quality Gate Reject]
+    Reviewer -->|Score > 80| ImageGen
+    Reviewer -->|Score > 80 & Text Only| Finalize
     ImageGen --> Finalize
 ```
 - **Fused Draft-and-Critique Cognitive Engine (`generator.py` / `fused_generator_node`)**: Merges item authoring and 100-point psychometric self-critique into a single unified inference round-trip, combining drafting and self-critique in one inference round-trip; the independent reviewer and blind solver still audit every draft by default (`ALWAYS_INDEPENDENT_REVIEW`).
@@ -52,11 +53,11 @@ graph LR
   - **Card 2: Why Other Options are Incorrect** (Amber / Warning styling): Features individual itemized sub-cards for every incorrect distractor, dissecting the exact flaw, tempting misconception, and disqualifying factor.
   - **Card 3: Primary Cognitive Trap Spotlight** (Purple / Violet styling): Highlights the dominant cognitive failure mode, explaining the precise psychological error mechanism and providing a student defense strategy to neutralize the trap under real exam conditions.
 - **Automatic (Smart AI Choice) Cognitive Trap Engine**: Supports 8 curated AAMC MCAT cognitive trap categories (`Out_of_Scope`, `Distortion_Opposite`, `Outside_Knowledge_in_CARS`, `Extreme_Language`, `Correlation_vs_Causation`, `Calculation_Formula_Trap`, `Half_Right_False_Premise`, `Scope_Shift`) alongside a default `"Automatic"` mode. In Smart AI mode, the generator agent analyzes the scientific research study or CARS passage, options, and distractors to intelligently select the most fitting trap, which is tracked in `primary_trap`, saved to PostgreSQL, and displayed as a top-strip purple badge chip on candidate cards and repository views.
-- **AAMC Scaled Score Calibration Engine**: Automatically calibrates internal 100-point psychometric audit scores into official AAMC scaled scores (`118–132` section scale, `472–528` composite scale) and percentile ranks (`99th+ Percentile (Elite)` down to `50th Percentile`).
+- **100-Point 4-Pillar Psychometric Audit & First-Pass 100/100 Directive**: Evaluates candidate questions across four rigorous 25-point pillars (*Authenticity & Tone*, *Clarity & Scientific Logic*, *Distractor Traps & Symmetry*, *Explanation Rigor*). The generator is explicitly mandated to aim for a perfect 100/100 on the initial draft, and the reviewer awards full points when all criteria are met without artificial dampening.
 - **AAMC Scientific Inquiry & Reasoning Skills (SIRS)**: Integrates official AAMC SIRS skills (Skill 1: Knowledge of Scientific Concepts, Skill 2: Scientific Reasoning and Problem-solving, Skill 3: Reasoning About Design and Execution of Research, Skill 4: Data-based and Statistical Reasoning) and CARS Reasoning Skills (Foundations of Comprehension, Reasoning Within the Text, Reasoning Beyond the Text).
-- **Independent Psychometric Auditor (`reviewer.py`)**: Independently audits candidate items whenever the initial draft scores $\le 90$ or after remediation across 4 equal 25-point pillars (*Authenticity & Tone*, *Clarity & Scientific Logic*, *Distractor Traps*, *Explanation & Key Accuracy*).
-- **Remediation Engine Agent (`regenerator.py`)**: Automatically triggered when score $\le 90$. Digests the exact weaknesses and recommendations to repair borderline distractors and expand step-by-step proofs up to 3 iterations.
-- **Strict Quality Gate**: If a question fails to score $> 90$ after reaching maximum attempts (`MAX_REGENERATION_ATTEMPTS = 3`), the workflow halts immediately. Bypasses image generation and discards the candidate to protect repository integrity.
+- **Independent Psychometric Auditor (`reviewer.py`)**: Independently audits candidate items whenever the initial draft scores $\le 80$ or after remediation across 4 equal 25-point pillars (*Authenticity & Tone*, *Clarity & Scientific Logic*, *Distractor Traps*, *Explanation & Key Accuracy*).
+- **Remediation Engine Agent (`regenerator.py`)**: Automatically triggered when score $\le 80$. Digests the exact weaknesses and recommendations to repair borderline distractors and expand step-by-step proofs up to 3 iterations.
+- **Strict Quality Gate**: If a question fails to reach the batch threshold ($70$ points) after maximum attempts (`MAX_REGENERATION_ATTEMPTS = 3`), the workflow halts immediately. Bypasses image generation and discards the candidate to protect repository integrity.
 - **Stimulus & Diagram Agent (`image_generator.py`)**: Renders clean programmatic SVG vector diagrams for metabolic pathways, reaction mechanisms, optics, and experimental charts, with fallback support for AI visual generators (strictly disabled for CARS).
 
 ### 2. Dual First-Class AI Inference & Precision Cost Accounting
@@ -312,7 +313,7 @@ Question Bank Generator/
 │       │   ├── option_balancer.py # Mathematical option length balancing (±15%)
 │       │   ├── prompt_builder.py# User prompt assembly & cross-item calibration
 │       │   ├── prompts.py       # Centralized system prompts & rubrics
-│       │   ├── regenerator.py   # Autonomous remediation engine agent (<= 90 trigger)
+│       │   ├── regenerator.py   # Autonomous remediation engine agent (<= 80 trigger)
 │       │   ├── reviewer.py      # Question Reviewer Agent (100-pt rubric)
 │       │   └── __init__.py
 │       ├── workflow/            # Multi-agent workflow engine
@@ -351,7 +352,7 @@ Question Bank Generator/
         ├── styles/              # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print)
         ├── views/               # Top-level screen views (Code-split with React.lazy)
         │   ├── index.js         # Centralized views index
-        │   ├── AiValidatedQuestionsView.jsx # Dedicated AI Validated (>90) quality bank
+        │   ├── AiValidatedQuestionsView.jsx # Dedicated AI Validated (>80) quality bank
         │   ├── BatchActivityView.jsx      # Batch job lifecycle monitor
         │   ├── PassageBankView.jsx        # Passage stimuli repository & editorial desk
         │   └── QuestionBankView.jsx       # Question Bank search, filter, and export

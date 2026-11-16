@@ -29,6 +29,7 @@ from app.agents.mock_fixtures import improve_draft_heuristically
 from app.agents.prompt_builder import educator_instruction_block, format_options
 from app.agents.prompts import REGENERATOR_SYSTEM_PROMPT
 from app.agents.standards import OPTION_PARITY_TEXT, is_cars
+from app.agents.validators import order_distractors_in_explanation
 from app.core.config import config
 from app.schemas import (
     MCAT_SECTION_LABELS,
@@ -74,7 +75,8 @@ async def regenerate_question(
     if instruction_block:
         instruction_block += "\n"
 
-    user_prompt = f"""The following candidate MCAT question received a score of {review.total_score}/100 and needs to be re-generated to score > 90.
+    target_score = int(req.passing_threshold or config.PASSING_SCORE_THRESHOLD)
+    user_prompt = f"""The following candidate MCAT question received a score of {review.total_score}/100 and needs to be re-generated to score > {target_score}.
 
 Section: {section_name}
 Subtopic: {req.subtopic or "General"}
@@ -106,8 +108,13 @@ Actionable Recommendations:
 {recommendations_text}
 ---------------------------------------
 CRITICAL REMEDIATION MANDATE:
-1. Equalize option lengths: Count the words in every option. All 4 options MUST be {OPTION_PARITY_TEXT}. Do NOT make the correct key longer or more hedged than the distractors.
-2. Output format: "options" MUST be a JSON list of 4 objects with "id" and "text" string fields.
+1. Exactly ONE single correct answer: Ensure there is exactly one indisputably correct answer among options A-D. Multiple or ambiguous keys are strictly prohibited.
+2. Complete 3-distractor explanation in accessible language: The explanation must be written in clear, student-friendly language so that any learner can understand the concepts easily without confusion. Provide a step-by-step proof for the single correct key AND individual breakdowns for ALL THREE other options (all 3 distractors) under 'Why Other Options are Incorrect (Distractor & Trap Breakdown):', strictly in alphabetical order (Option A, then Option B, then Option C, then Option D as applicable).
+3. Equalize option lengths: Count the words in every option. All 4 options MUST be {OPTION_PARITY_TEXT}. Do NOT make the correct key longer or more hedged than the distractors.
+4. Avoid 3-vs-1 polarity outliers: Ensure all 4 options share parallel sentence structure, length, and polarity (never have 3 options negative and 1 positive).
+5. Step-by-step proof: Provide an indisputable, cohesive step-by-step proof in the explanation without referring to prior drafts or earlier iterations.
+6. Passage text is fixed: Do NOT attempt to rewrite the reading passage; focus solely on the question stem, options, and explanation.
+7. Output format: "options" MUST be a JSON list of 4 objects with "id" and "text" string fields.
 
 Please re-generate and refine this question to resolve all weaknesses and produce a publication-grade AAMC MCAT question. Output valid JSON only."""
 
@@ -141,7 +148,7 @@ Please re-generate and refine this question to resolve all weaknesses and produc
             options=options,
             correct_answer_id=correct_id_str,
             correct_answer_ids=keys_list,
-            explanation=_require_text(data, "explanation"),
+            explanation=order_distractors_in_explanation(_require_text(data, "explanation")),
             image_needed=image_allowed and bool(data.get("image_needed", draft.image_needed)),
             image_prompt_or_type=data.get("image_prompt_or_type") or draft.image_prompt_or_type,
             # Metadata describes the question's design, not this rewrite: carry it over

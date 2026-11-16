@@ -59,6 +59,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `GET` | `/api/config` | Retrieves active model configuration, runtime parameters, and pricing constants |
 | `GET` | `/api/sections` | Returns official AAMC MCAT sections, syllabus hierarchy, skills, and pacing |
 | `GET` | `/api/taxonomy` | Returns the complete official AAMC Dependent Taxonomy JSON tree |
+| `GET` | `/metrics`, `/api/metrics` | Real-time Prometheus/OpenMetrics text exposition endpoint (concurrency, status counts, token burn, HTTP traffic) |
 
 ---
 
@@ -95,7 +96,7 @@ Accept: text/event-stream
   "run_id": "d81f668e-c768-45b7-9fb6-ba1ee2bdbba3",
   "batch_id": null,
   "auto_save": false,
-  "passing_threshold": 90
+  "passing_threshold": 80
 }
 ```
 
@@ -123,7 +124,7 @@ Accept: text/event-stream
 | `run_id` | `string` | No | Auto UUID4 | Execution run UUID4 |
 | `batch_id` | `string` | No | `null` | Optional batch identifier grouping questions |
 | `auto_save` | `boolean` | No | `false` | Auto-persist to DB (`false` retains Admin Review Gate) |
-| `passing_threshold` | `integer` | No | `90` | Quality benchmark passing threshold score (defaults to 90; 85 for batch jobs) |
+| `passing_threshold` | `integer` | No | `80` | Quality benchmark passing threshold score (defaults to config.PASSING_SCORE_THRESHOLD = 80; config.BATCH_PASSING_SCORE_THRESHOLD = 70 for batch jobs) |
 | `model_name` | `string` | No | Gateway Default | Model identifier override |
 | `api_key` | `string` | No | `null` | Ephemeral API key override |
 
@@ -173,7 +174,7 @@ Lists saved questions from the Question Bank repository with optional filtering,
       "subtopic": "Thermodynamics & Reaction Kinetics",
       "difficulty": "medium",
       "status": "in_bank",
-      "mcat_scaled_score": 130,
+      "mcat_scaled_score": null,
       "aamc_skill": "Skill 2: Scientific Reasoning and Problem-solving",
       "question_stem": "Under physiological conditions, which thermodynamic parameter governs the spontaneous folding of a globular protein?",
       "options": [
@@ -590,7 +591,7 @@ Restores a soft-deleted question back to active status (`is_deleted = false`, `d
     "status": "in_bank",
     "is_deleted": false,
     "deleted_at": null,
-    "mcat_scaled_score": 130,
+    "mcat_scaled_score": null,
     "aamc_skill": "Skill 2: Scientific Reasoning and Problem-solving",
     "question_stem": "Under physiological conditions, which thermodynamic parameter governs the spontaneous folding of a globular protein?",
     "options": [
@@ -1110,7 +1111,7 @@ Evaluates system status, database connectivity, active text reasoning model, neu
   "has_anthropic_key": false,
   "has_deepinfra_key": true,
   "max_regenerations": 3,
-  "passing_threshold": 90,
+  "passing_threshold": 80,
   "cost_per_million_input": 0.2,
   "cost_per_million_output": 0.6,
   "image_width": 1024,
@@ -1139,8 +1140,7 @@ Retrieves active runtime engine configuration, active provider (`deepinfra` or `
     "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017"
   ],
   "max_regenerations": 3,
-  "passing_threshold": 90,
-  "batch_passing_threshold": 85,
+  "passing_threshold": 80,
   "default_max_tokens": 3000,
   "reviewer_max_tokens": 1800,
   "default_temperature": 0.2,
@@ -1222,6 +1222,59 @@ Returns the raw taxonomy document: `schema_version`, `exam`, `selection_flow`, `
 
 ---
 
+### 3.34 Prometheus & OpenMetrics Telemetry
+`GET /metrics` and `GET /api/metrics`
+
+Native zero-dependency Prometheus/OpenMetrics exposition endpoint for real-time observability. Exposes application health, database connectivity, background batch concurrency limits, active worker jobs, question repository distributions, cumulative token and micro-cost consumption, and HTTP request counters and latencies with normalized route paths.
+
+#### Response (`200 OK`, `text/plain; version=0.0.4; charset=utf-8`)
+```text
+# HELP mcat_up Operational status of the MCAT Question Bank application (1 = up).
+# TYPE mcat_up gauge
+mcat_up 1
+# HELP mcat_database_connected Database connection state (1 = connected, 0 = disconnected).
+# TYPE mcat_database_connected gauge
+mcat_database_connected 1
+# HELP mcat_offline_mode Application offline mode configuration flag.
+# TYPE mcat_offline_mode gauge
+mcat_offline_mode 0
+# HELP mcat_batches_active Number of active running background generation batches.
+# TYPE mcat_batches_active gauge
+mcat_batches_active 0
+# HELP mcat_worker_jobs_active Number of currently executing worker jobs.
+# TYPE mcat_worker_jobs_active gauge
+mcat_worker_jobs_active 0
+# HELP mcat_global_max_concurrent_jobs Maximum permitted parallel background jobs.
+# TYPE mcat_global_max_concurrent_jobs gauge
+mcat_global_max_concurrent_jobs 4
+# HELP mcat_global_max_concurrent_llm_calls Maximum permitted simultaneous LLM inference calls.
+# TYPE mcat_global_max_concurrent_llm_calls gauge
+mcat_global_max_concurrent_llm_calls 10
+# HELP mcat_questions_total Total question count categorized by repository status.
+# TYPE mcat_questions_total gauge
+mcat_questions_total{status="total"} 42
+mcat_questions_total{status="in_bank"} 30
+mcat_questions_total{status="ai_validated"} 8
+mcat_questions_total{status="batch_only"} 4
+mcat_questions_total{status="discarded"} 0
+# HELP mcat_tokens_consumed_total Total tokens consumed across all agent generations.
+# TYPE mcat_tokens_consumed_total counter
+mcat_tokens_consumed_total 128450
+# HELP mcat_inference_cost_usd_total Cumulative LLM and image inference spend in USD.
+# TYPE mcat_inference_cost_usd_total counter
+mcat_inference_cost_usd_total 0.054210
+# HELP mcat_http_requests_total Total number of HTTP requests processed by endpoint and status.
+# TYPE mcat_http_requests_total counter
+mcat_http_requests_total{endpoint="/api/sections",method="GET",status="200"} 12
+mcat_http_requests_total{endpoint="/api/questions/{id}",method="GET",status="200"} 4
+# HELP mcat_http_request_duration_seconds Total execution time spent processing HTTP requests in seconds.
+# TYPE mcat_http_request_duration_seconds summary
+mcat_http_request_duration_seconds_sum{endpoint="/api/sections",method="GET"} 0.048120
+mcat_http_request_duration_seconds_count{endpoint="/api/sections",method="GET"} 12
+```
+
+---
+
 ## 4. Question Lifecycle Statuses & Review Queue Withholding
 
 Every generated question item transitions through explicit, strictly guarded states defined in `QuestionStatus`:
@@ -1229,8 +1282,8 @@ Every generated question item transitions through explicit, strictly guarded sta
 ```mermaid
 stateDiagram-v2
     [*] --> InProgressLiveOrBatch: Question Generating
-    InProgressLiveOrBatch --> WithheldDraft: Score > 85 (Stored as batch_only)
-    InProgressLiveOrBatch --> BelowThreshold: Score <= 85 (stored as below_threshold)
+    InProgressLiveOrBatch --> WithheldDraft: Score >= 70 (Stored as batch_only)
+    InProgressLiveOrBatch --> BelowThreshold: Score < 70 (stored as below_threshold)
     
     state WithheldDraft {
         [*] --> WithholdingGuard: exclude_in_progress_batch=True
@@ -1241,8 +1294,8 @@ stateDiagram-v2
     CompletedBatch --> PromotedReview: promote_completed_batch_questions()
     
     state PromotedReview {
-        ScoreGt90: score > 90 -> ai_validated (Ready for Review)
-        Score86to90: 85 < score <= 90 -> remains batch_only
+        ScoreGt80: score > 80 -> ai_validated (Ready for Review)
+        Score70to80: 70 <= score <= 80 -> remains batch_only (Good Quality)
     }
     
     PromotedReview --> InBank: Educator Approves (POST /api/questions)
@@ -1256,10 +1309,10 @@ stateDiagram-v2
 
 | Status | Persistence Level | Description |
 | :--- | :--- | :--- |
-| **`batch_only`** | Batch Storage | Active generation withholding status. Staged questions with score $> 85$ stay in `batch_only` while a batch is in progress to prevent partial/draft questions from leaking into the reviewer queue. Promoted to `ai_validated` only upon clean batch completion. |
-| **`ai_validated`** | Review Queue | Questions that achieved a score $> 90$ through autonomous generation and blind-solver dual validation, whose parent batch has completed. Visible in the "Ready for Review" workspace tab. |
+| **`batch_only`** | Batch Storage | Active generation withholding status. Staged questions with score $\ge 70$ stay in `batch_only` while a batch is in progress to prevent partial/draft questions from leaking into the reviewer queue. Promoted to `ai_validated` upon clean batch completion if score $> 80$; remains `batch_only` (Good Quality) if between 70 and 80. |
+| **`ai_validated`** | Review Queue | Questions that achieved a score $> 80$ (`config.PASSING_SCORE_THRESHOLD`) through autonomous generation and blind-solver dual validation, whose parent batch has completed or that were authored in standalone runs. Visible in the "Ready for Review" workspace tab. |
 | **`in_bank`** | Published Bank | Authoritative, published questions approved by an educator or admin. Included in all production exports, test assemblies, and study packs. |
-| **`below_threshold`** | Rejected Audit | Questions scoring $\le 85$ that failed remediation after 3 regeneration cycles. Preserved in audit telemetry but excluded from review queues. |
+| **`below_threshold`** | Rejected Audit | Questions scoring $< 70$ that failed remediation after 3 regeneration cycles. Preserved in audit telemetry but excluded from review queues. |
 | **`discarded`** | Archive | Questions archived or deleted during duplicate cluster resolution or dismissed by educators. Excluded from active count aggregations. |
 | **`approved`** | Published Bank | Alias/variant of approved questions persisted directly into bank storage. |
 | **`rejected_below_threshold`** | Audit History | Legacy audit status for items rejected at the psychometric quality gate. |
@@ -1267,7 +1320,7 @@ stateDiagram-v2
 
 ### Withholding & Promotion Safeguards
 - **In-Progress Guard**: `GET /api/questions` and `GET /api/questions/counts` strictly filter out questions belonging to batches where `status == 'in_progress'`.
-- **Atomic Promotion**: When a batch completes, `promote_completed_batch_questions(batch_id)` executes an atomic SQL update promoting questions with `final_score > 90` to `ai_validated`.
+- **Atomic Promotion**: When a batch completes, `promote_completed_batch_questions(batch_id)` executes an atomic SQL update promoting questions with `final_score > 80` to `ai_validated`.
 - **Failure Safety**: If a batch is stopped or cancelled, questions remain in `batch_only` status and never transition to `ai_validated`, ensuring educators only review batches that finished completely.
 
 ### Soft-Deletion & Batch Integrity Safeguards

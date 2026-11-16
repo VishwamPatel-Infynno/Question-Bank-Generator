@@ -27,34 +27,50 @@ def route_after_review(state: AgentWorkflowState) -> str:
     threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
     max_attempts = config.MAX_REGENERATION_ATTEMPTS
 
-    # Strict Quality Gate check
+    # Quality Gate check:
+    # Try to get the score strictly greater than threshold on iterations < max_attempts
     if score <= threshold:
         if iteration < max_attempts:
             logger.info(
-                "Score %s <= %s and iteration %s < %s. Routing to Re-Generator.",
+                "Score %s <= %s and iteration %s < %s. Routing to Re-Generator to try for > %s.",
                 score,
                 threshold,
                 iteration,
                 max_attempts,
+                threshold,
             )
             return "regenerator"
-        logger.warning(
-            "Score %s <= %s after max attempts (%s). Strict Quality Gate: Halting workflow.",
-            score,
-            threshold,
-            max_attempts,
-        )
-        return "reject"
 
-    # Passing score (> 90): check if image generation is required
+        # After max_attempts (3 trials):
+        # If score >= (threshold - 10), accept it into the Good Quality batch retention window (batch_only)
+        # Otherwise, if score < (threshold - 10), halt and reject.
+        batch_hold_threshold = threshold - 10
+        if score >= batch_hold_threshold:
+            logger.info(
+                "Score %s <= %s but >= %s after %s attempts. Accepted as Good Quality.",
+                score,
+                threshold,
+                batch_hold_threshold,
+                iteration,
+            )
+        else:
+            logger.warning(
+                "Score %s < %s after max attempts (%s). Strict Quality Gate: Halting workflow.",
+                score,
+                batch_hold_threshold,
+                max_attempts,
+            )
+            return "reject"
+
+    # Passing score (> threshold or accepted Good Quality at max attempts): check if image generation is required
     req_raw = state["request"]
     req = req_raw if isinstance(req_raw, GenerationRequest) else GenerationRequest(**req_raw)
     current_draft = state.get("current_draft") or {}
     requires_image = _is_image_required(req, current_draft)
 
     if requires_image:
-        logger.info("Score %s > %s. Routing to Image Generator.", score, threshold)
+        logger.info("Score %s. Routing to Image Generator.", score)
         return "image_generator"
 
-    logger.info("Score %s > %s. Routing to Finalize.", score, threshold)
+    logger.info("Score %s. Routing to Finalize.", score)
     return "finalize"

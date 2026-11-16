@@ -416,7 +416,21 @@ class Settings(BaseSettings):
 
     # Multi-Agent Workflow Parameters
     MAX_REGENERATION_ATTEMPTS: int = 3
-    PASSING_SCORE_THRESHOLD: int = 90
+    PASSING_SCORE_THRESHOLD: int = 80
+
+    @property
+    def BATCH_PASSING_SCORE_THRESHOLD(self) -> int:
+        """Batch-only retention threshold: questions scoring >= (PASSING_SCORE_THRESHOLD - 10) remain in batch_only."""
+        return self.PASSING_SCORE_THRESHOLD - 10
+
+    def passes_quality_gate(self, score: float | int | None) -> bool:
+        """Single source of truth for the Tier-1 quality gate: score must be strictly above threshold."""
+        return score is not None and score > self.PASSING_SCORE_THRESHOLD
+
+    def passes_batch_quality_gate(self, score: float | int | None) -> bool:
+        """Single source of truth for batch gate: score must be strictly above batch threshold."""
+        return score is not None and score > self.BATCH_PASSING_SCORE_THRESHOLD
+
     # Duplicate detection: engine/batch thresholds and the (stricter) on-demand API threshold
     DUPLICATE_HARD_THRESHOLD: float = 0.75
     DUPLICATE_SOFT_THRESHOLD: float = 0.60
@@ -444,10 +458,9 @@ class Settings(BaseSettings):
     PARALLEL_REVIEW_AND_SOLVE: bool = False
     # Mark static system prompts cacheable for providers that need an explicit marker (Anthropic).
     ENABLE_PROMPT_CACHING: bool = True
-    BATCH_PASSING_SCORE_THRESHOLD: int = 85
     DEFAULT_MAX_TOKENS: int = 3000
     LLM_MAX_TOKENS_CEILING: int = 8000  # Upper bound when retrying a truncated completion
-    REVIEWER_MAX_TOKENS: int = 1800
+    REVIEWER_MAX_TOKENS: int = 3000
 
     # Strict Temperature Parameters for High Instruction Fidelity
     DEFAULT_TEMPERATURE: float = 0.2
@@ -458,10 +471,6 @@ class Settings(BaseSettings):
     REGENERATOR_TEMPERATURE: float = 0.2
     REVIEWER_TEMPERATURE: float = 0.1
     BLIND_SOLVER_TEMPERATURE: float = 0.1
-
-    def passes_quality_gate(self, score: float | int | None) -> bool:
-        """Single source of truth for the Tier-1 quality gate: score must be strictly above threshold."""
-        return score is not None and score > self.PASSING_SCORE_THRESHOLD
 
     def get_effective_cascade(self, primary_model: str | None = None) -> list[str]:
         """Returns candidate models for fallback, aware of the active provider."""

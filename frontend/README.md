@@ -14,7 +14,7 @@ The frontend provides an intuitive, real-time command canvas for AAMC MCAT quest
 - **2 Calibrated Generation Scopes**:
   - **5 Questions**: 1 Single Job background worker drafting on a shared passage or discrete set (~35-50s) streamed into the AI Validated Bank and Batch Activity Desk with live telemetry.
   - **50 Questions**: Enterprise background multi-job batch (10 concurrent jobs x 5 questions) with automatic AI validation and in-place slot replenishment.
-- **Review Queue Withholding Guarantee**: Questions generated during background batches are held in `batch_only` status while the batch is running to keep the "Ready for Review" queue clean of incomplete drafts. Upon clean batch completion, high-scoring questions (>90) are atomically promoted to `ai_validated`.
+- **Review Queue Withholding Guarantee**: Questions generated during background batches are held in `batch_only` status while the batch is running to keep the "Ready for Review" queue clean of incomplete drafts. Upon clean batch completion, high-scoring questions (>80) are atomically promoted to `ai_validated`.
 - **Live Background Batch Activity & Telemetry**: Real-time batch and worker job monitoring dashboard displaying live progress, per-job question cards, duplicate audit clusters, and manual or automated in-place refills.
 - **AI-Validated Editorial Review Desk**: High-speed triage desk where educators inspect, inline-edit, discard, or approve validated questions into the canonical Question Bank.
 - **Question Quality & Cost Breakdown**: Comprehensive 100-point 4-pillar quality check with itemized token tracking and micro-dollar cost calculations.
@@ -38,6 +38,7 @@ frontend/src/
 │   ├── bank/
 │   │   ├── index.js              # Question bank barrel export
 │   │   ├── QuestionBankFilters.jsx # Section, difficulty (Low/Medium/High), and search filters
+│   │   ├── QuestionBankCardRow.jsx # Decomposed high-density question card row
 │   │   └── QuestionBankTable.jsx # Canonical Editorial Cards view, batch selection, and actions
 │   ├── batch/
 │   │   ├── index.js              # Batch barrel export
@@ -46,7 +47,10 @@ frontend/src/
 │   │   ├── BatchEmptyState.jsx   # Decomposed zero-state canvas for batch activity
 │   │   ├── BatchFiltersBar.jsx   # Section, status, and search filters
 │   │   ├── BatchHeaderBanner.jsx # Decomposed top summary banner for active batch metrics
-│   │   ├── BatchJobCard.jsx      # Per-set worker card with 5-question visual progress strip (in-bank, done, active, pending) & autonomous retry telemetry
+│   │   ├── BatchJobCard.jsx      # Per-set worker card with 5-question visual progress strip
+│   │   ├── BatchJobTelemetryBadges.jsx # Live telemetry badges (in-progress, completed, needs polish)
+│   │   ├── BatchOutcomeCard.jsx  # Final batch outcome and completion summary card
+│   │   ├── BatchQuestionActions.jsx # Decomposed question row actions
 │   │   ├── BatchQuestionItem.jsx # Staged question item with review modal
 │   │   └── BatchStatsHeader.jsx  # High-level aggregate batch statistics
 │   ├── common/
@@ -76,9 +80,13 @@ frontend/src/
 │   │   ├── PassageBankTable.jsx  # Passage stimuli repository cards & question sets
 │   │   ├── PassageEditorialDesk.jsx # Reading passage editor & preview desk
 │   │   ├── PassageLinkedQuestionCard.jsx # Linked question card within passage editorial desk
+│   │   ├── PassageQuestionsCarousel.jsx # Decomposed questions carousel for linked passages
 │   │   └── PassageVisualStimulusEditor.jsx # Passage diagram & figure attachment editor
 │   ├── question/
 │   │   ├── index.js              # Question review desk barrel export
+│   │   ├── AuditIterationTimeline.jsx # Refinement rounds timeline for quality modal
+│   │   ├── AuditMetricsGrid.jsx  # Key audit score metrics cards grid
+│   │   ├── AuditStageBreakdown.jsx # Model latency and cost breakdown by pipeline stage
 │   │   ├── MentorExplanationView.jsx # 3-card mentor explanation view (Intuition, Distractors, Trap)
 │   │   ├── QuestionCard.jsx      # Primary student practice & review card orchestrator
 │   │   ├── QuestionCardFooter.jsx# Decomposed footer with token metrics, cost in USD & actions

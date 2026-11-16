@@ -140,7 +140,7 @@ async def save_batch(batch: GenerationBatch) -> GenerationBatch:
 async def _execute_promote_batch_questions(
     session: AsyncSession, batch_id: str, timestamp: datetime | None = None
 ) -> int:
-    """Updates qualifying batch_only questions (score > threshold) to ai_validated within an active session."""
+    """Updates qualifying batch_only questions (score >= threshold) to ai_validated within an active session."""
     ts = timestamp or datetime.now(UTC)
     promote_stmt = (
         update(QuestionModel)

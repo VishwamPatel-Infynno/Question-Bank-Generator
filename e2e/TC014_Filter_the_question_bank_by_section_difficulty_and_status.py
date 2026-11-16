@@ -68,7 +68,7 @@ async def run_test():
         # Assert: Verify the displayed question matches the selected section, difficulty, and status filters.
         (
             await expect(page.locator("#root").nth(0)).to_contain_text(
-                "Chemical and Physical Foundations of Biological Systems \u2022 Protons, neutrons, and electrons \u2022 medium 95 /100 MCAT 129 Skill 2 Approved",
+                "Chemical and Physical Foundations of Biological Systems \u2022 Protons, neutrons, and electrons \u2022 medium 95 /100 Skill 2 Approved",
                 timeout=15000,
             ),
             "Verify the displayed question matches the selected section, difficulty, and status filters.",

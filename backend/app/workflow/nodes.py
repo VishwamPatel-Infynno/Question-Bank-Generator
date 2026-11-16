@@ -27,6 +27,7 @@ from app.schemas import (
     QuestionDraft,
     ReviewScore,
     TokenUsage,
+    determine_question_status,
 )
 from app.workflow.state import AgentWorkflowState
 
@@ -302,9 +303,11 @@ async def regenerator_node(state: AgentWorkflowState) -> dict[str, Any]:
     review = ReviewScore(**state["current_review"])
     next_iteration = state.get("iteration_count", 1) + 1
 
+    threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
     logger.info(
-        "Executing Question Re-Generator Agent (Score %s <= 90 -> Iteration %s)...",
+        "Executing Question Re-Generator Agent (Score %s <= %s -> Iteration %s)...",
         review.total_score,
+        threshold,
         next_iteration,
     )
     new_draft, usage = await regenerate_question(draft, review, req, next_iteration)
@@ -349,7 +352,7 @@ async def reject_node(state: AgentWorkflowState) -> dict[str, Any]:
     passing_threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
 
     logger.warning(
-        "Strict Quality Gate: Question rejected. Score: %s/100 <= %s after %s attempts. NOT saving to Question Bank repository.",
+        "Strict Quality Gate: Question rejected. Score: %s/100 < %s after %s attempts. NOT saving to Question Bank repository.",
         final_score,
         passing_threshold,
         iteration,
@@ -493,9 +496,15 @@ async def finalize_node(state: AgentWorkflowState) -> dict[str, Any]:
         "option_symmetry": symmetry,
     }
 
+    score_val = review.total_score if review else 95
+    determined_status = determine_question_status(
+        score_val, is_in_progress_batch=bool(req.batch_id)
+    )
+
     final_q = Question(
         run_id=req.run_id,
         batch_id=req.batch_id,
+        status=determined_status,
         section=req.section.value,
         section_label=section_label,
         subtopic=req.subtopic or "Core Syllabus",

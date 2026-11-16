@@ -26,13 +26,8 @@ function BatchOutcomeCard({
           <div className="batch-outcome-icon success">
             <CheckCircle2 size={22} />
           </div>
-          <div>
-            <div className="batch-outcome-title">
-              All {actualTotal} Questions Successfully Generated &amp; Verified
-            </div>
-            <div className="batch-outcome-subtitle">
-              Questions passed the &ge; 90 quality standard and are staged in your Review Queue ready for review or publishing.
-            </div>
+          <div className="batch-outcome-title">
+            All {actualTotal} Questions Successfully Generated &amp; Verified
           </div>
         </div>
         <div className="batch-outcome-actions">

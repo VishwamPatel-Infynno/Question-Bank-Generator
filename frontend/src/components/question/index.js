@@ -10,4 +10,8 @@ export { default as SharedPassageCard } from './SharedPassageCard';
 export { default as VisualStimulusViewer } from './VisualStimulusViewer';
 export { default as VisualStimulusLightboxModal } from './VisualStimulusLightboxModal';
 export { default as MentorExplanationView } from './MentorExplanationView';
+export { default as PillarBars } from './PillarBars';
+export { default as AuditMetricsGrid } from './AuditMetricsGrid';
+export { default as AuditStageBreakdown } from './AuditStageBreakdown';
+export { default as AuditIterationTimeline } from './AuditIterationTimeline';
 // Note: ReviewAuditView is loaded dynamically via React.lazy in App.jsx to preserve bundle splitting

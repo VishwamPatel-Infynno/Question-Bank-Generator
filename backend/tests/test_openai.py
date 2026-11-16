@@ -145,14 +145,15 @@ async def test_openai_image_generator_success(monkeypatch):
 
 
 async def test_call_openai_image_api_network_mock(monkeypatch):
-    """Verifies call_openai_image_api correctly posts to OpenAI endpoint and parses b64_json."""
+    """Verifies call_openai_image_api correctly posts to OpenAI endpoint without response_format for gpt-image models."""
     import httpx
+
+    captured_payloads = []
 
     async def mock_post(self, url, *args, **kwargs):
         assert "api.openai.com/v1/images/generations" in url
         payload = kwargs.get("json", {})
-        assert payload.get("model") == "gpt-image-2.5-flare"
-        assert payload.get("response_format") == "b64_json"
+        captured_payloads.append(payload)
         return make_json_response(
             {
                 "created": 1720000000,
@@ -176,6 +177,23 @@ async def test_call_openai_image_api_network_mock(monkeypatch):
     )
     assert img_data is not None
     assert img_data.startswith("data:image/png;base64,")
+    assert captured_payloads[0].get("model") == "gpt-image-2.5-flare"
+    # gpt-image models reject response_format
+    assert "response_format" not in captured_payloads[0]
+
+    # Test DALL-E model sends response_format and quality
+    dalle_img, _ = await call_openai_image_api(
+        prompt="Cell diagram",
+        width=1024,
+        height=1024,
+        api_key="sk-mock-key",
+        model="dall-e-3",
+        quality="hd",
+    )
+    assert dalle_img is not None
+    assert captured_payloads[1].get("model") == "dall-e-3"
+    assert captured_payloads[1].get("response_format") == "b64_json"
+    assert captured_payloads[1].get("quality") == "hd"
 
 
 async def test_api_config_and_health_branded_masking(monkeypatch):

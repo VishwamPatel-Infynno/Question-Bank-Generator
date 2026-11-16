@@ -72,7 +72,7 @@ export default function BatchJobTelemetryBadges({
           )}
           {belowCount > 0 && (
             <span className="batch-job-tag below">
-              {belowCount} Needs Polish (&le;85)
+              {belowCount} Needs Polish
             </span>
           )}
           {deletedCount > 0 && (

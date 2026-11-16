@@ -26,13 +26,13 @@ graph TD
         Par --> NodeRev[Independent Psychometric Auditor]
         Par --> NodeBlind[Blind-Solver Dual Validation Agent]
 
-        NodeRev -->|Audit Score <= 90 & Iteration < 3| NodeRegen
-        NodeRev -->|Score <= 90 & Iteration >= 3| NodeReject
+        NodeRev -->|Audit Score <= 80 & Iteration < 3| NodeRegen
+        NodeRev -->|Score <= 80 & Iteration >= 3| NodeReject
         NodeBlind -->|Discrepancy OR Confidence < 88% & Iteration < 3| NodeRegen
         NodeBlind -->|Discrepancy OR Confidence < 88% & Iteration >= 3| NodeReject
         NodeRegen --> NodeVal
 
-        NodeRev -->|Score > 90 AND Solver verified| NodeVis{Needs Visual?}
+        NodeRev -->|Score > 80 AND Solver verified| NodeVis{Needs Visual?}
         NodeBlind --> NodeVis
         NodeVis -->|Yes| NodeImg[Infynno Visual & Vector Engine]
         NodeVis -->|No| NodeFin[Finalize & Staging Node]
@@ -67,7 +67,7 @@ Both engines strictly enforce model parameter constraints (`GENERATOR_TEMPERATUR
 
 ## 2. Multi-Agent Quality-Gated Workflow
 
-The workflow enforces a strict psychometric quality contract. A question **must score higher than 90 out of 100** on the psychometric rubric and pass **Blind-Solver independent validation** to be approved for publication.
+The workflow enforces a strict psychometric quality contract. A question **must score higher than 80 out of 100** on the psychometric rubric (with background batches retaining items $\ge 70$) and pass **Blind-Solver independent validation** to be approved for publication.
 
 ### 2.1 Workflow State Diagram
 
@@ -97,7 +97,7 @@ stateDiagram-v2
 
     state GateRouter <<choice>>
     ReviewJoin --> GateRouter
-    GateRouter --> Regenerator: Score <= 90 OR solver discrepancy/confidence < 88% (Cycles < 3)
+    GateRouter --> Regenerator: Score <= 80 OR solver discrepancy/confidence < 88% (Cycles < 3)
     GateRouter --> StrictQualityGate: Same failure at Cycles == 3
     Regenerator --> Validator: Remediated draft (Cycle + 1)
 
@@ -113,14 +113,13 @@ stateDiagram-v2
     CompletedEnd --> [*]
 ```
 
-### 2.3 Two-Tier Quality Threshold Architecture
+### 2.3 Unified Quality Threshold Architecture
 
-The system implements a calibrated two-tier quality threshold model to ensure uncompromising individual question bank admission while enabling resilient high-throughput batch evaluation:
+The system implements a unified psychometric quality threshold model to ensure uncompromising question quality across both live single sessions and batch generation jobs:
 
-| Tier | Governing Threshold | Scope & Application | System Consequence |
+| Gate | Governing Threshold | Scope & Application | System Consequence |
 | :--- | :---: | :--- | :--- |
-| **Tier 1: Question Bank & AI Validated Gate** | **$> 90$ Points**<br>`PASSING_SCORE_THRESHOLD = 90` | Applied to every candidate question drafted in live sessions or batch workers. | Questions scoring $> 90$ qualify for admission into the permanent **Question Bank** or the dedicated **AI Validated** repository (`status = 'ai_validated'`). Candidate items scoring $\le 90$ must be remediated or discarded. |
-| **Tier 2: Batch Activity Run Evaluation Gate** | **$> 85$ Points**<br>`BATCH_PASSING_SCORE_THRESHOLD = 85` | Applied across aggregate generation jobs in multi-job background batches (e.g. 10 jobs x 5 questions = 50 total). | Jobs achieving an aggregate question quality $\ge 85$ are marked as passing batch runs (`status = 'completed'`). Jobs with sub-85 averages are highlighted for instructor review or targeted retry. |
+| **Quality Gate** | **$> 80$ Points**<br>`PASSING_SCORE_THRESHOLD = 80` | Applied uniformly to every candidate question drafted in live sessions or batch workers. | Questions scoring $> 80$ qualify for admission into the permanent **Question Bank** or promotion to the dedicated **AI Validated** repository (`status = 'ai_validated'`). Candidate items scoring $\le 80$ are remediated or discarded. |
 
 ---
 
@@ -143,7 +142,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
   - **Fallback Trap Detection**: If `primary_trap` is omitted or unpopulated, `generator.py` and `nodes.py` run regex taxonomy matching against the explanation text to extract and assign the trap automatically.
   - **Immediate Self-Critique Object**: Evaluates Authenticity, Clarity, Distractor Traps, and Explanation Rigor.
 - **Review Routing**:
-  - The self-critique is an honest, evidence-based pre-check (points are deducted for every named flaw; scores are not scripted). With `ALWAYS_INDEPENDENT_REVIEW=true` (default) the independent Auditor and the Blind Solver audit every draft regardless of the self-score. Setting it to `false` restores the legacy shortcut where a self-score above 90 skips the Auditor.
+  - The self-critique is an honest, evidence-based pre-check (points are deducted for every named flaw; scores are not scripted). With `ALWAYS_INDEPENDENT_REVIEW=true` (default) the independent Auditor and the Blind Solver audit every draft regardless of the self-score. Setting it to `false` restores the legacy shortcut where a self-score above 80 skips the Auditor.
   - A draft that fails the Deterministic Validator never reaches an LLM reviewer: it is regenerated with the exact findings, or rejected once attempts are exhausted.
 - **Custom Authoring Instructions Priority**:
   - Accepts educator-specified pedagogical directives (`additional_instructions`) from `GenerationRequest` via Guided Wizard Step 3.
@@ -177,14 +176,14 @@ The system coordinates specialized autonomous engines with a deterministic quali
   3. *Distractor Trap Quality & Anti-Guessability* (0-25 points) - Docks 5-8 points if option length disparity $\ge 20\%$.
   4. *Explanation & Key Rigor* (0-25 points)
 - **Quality Benchmark**:
-  - Passing Score: **$> 90$** points ($91 - 100$).
-  - Failing Score: **$\le 90$** points ($0 - 90$).
+  - Passing Score: **$> 80$** points ($81 - 100$).
+  - Failing Score: **$\le 80$** points ($0 - 80$).
 - **Strict Parsing**: Every pillar score must be present and within 0-25. Missing or out-of-range scores no longer default to a passing value; the call is retried once and then fails closed with `QualityCheckUnavailableError`.
 - **Output**: Returns numerical pillar scores, observed strengths, specific weaknesses, and actionable remediation instructions.
 - **Inference Gateway**: High-throughput enterprise reasoning model (Temperature: `0.1` for objective, deterministic evaluation).
 
 ### 3.4 Autonomous Remediation Engine (`regenerator.py`)
-- **Mission**: Triggered exclusively when the score is $\le 90$ or blind solver fails. It digests the exact critique, distractor deficiencies, dissenting blind-solver rationales, and recommendations to repair the draft.
+- **Mission**: Triggered exclusively when the score is $\le 80$ or blind solver fails. It digests the exact critique, distractor deficiencies, dissenting blind-solver rationales, and recommendations to repair the draft.
 - **Rules**:
   - Fixes borderline ambiguities, equalizes option lengths, and sharpens distractor plausibility.
   - Deepens step-by-step rationales explaining why the key is incontrovertible and why every distractor fails.
@@ -192,7 +191,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
 - **Inference Gateway**: High-throughput enterprise reasoning model (Temperature: `0.2` for disciplined remediation).
 
 ### 3.5 Strict Quality Gate (`reject_node` in `app/workflow/nodes.py`)
-- **Mission**: Deterministic circuit breaker. If a candidate draft fails to exceed 90 points after reaching the maximum permitted remediation cycles (`MAX_REGENERATION_ATTEMPTS = 3`), the workflow halts immediately.
+- **Mission**: Deterministic circuit breaker. If a candidate draft fails to exceed 80 points after reaching the maximum permitted remediation cycles (`MAX_REGENERATION_ATTEMPTS = 3`), the workflow halts immediately.
 - **Safety Guarantee**:
   - **Bypasses Image Generation**: Prevents wasted computation and unnecessary token expenses.
   - **Discards from Database**: Zero substandard questions enter the PostgreSQL repository.
@@ -299,7 +298,7 @@ class AgentWorkflowState(TypedDict, total=False):
 ### 4.1 State Accumulation Pattern
 At each node execution, token consumption from the LLM response is unpacked and added to cumulative state counters:
 1. `fused_generator_node`: Accumulates single-pass authoring and 100-point self-critique tokens, appending `Question Writer & Reviewer` entry to `agent_usage_breakdown`.
-2. `regenerator_node`: Accumulates remediation tokens if initial score $\le 90$ and appends `Question Improver` entry.
+2. `regenerator_node`: Accumulates remediation tokens if initial score $\le 80$ and appends `Question Improver` entry.
 3. `reviewer_node`: Accumulates independent audit tokens during remediation cycles and records usage in `iterations_history`.
 4. `image_node`: Accumulates visual stimulus synthesis tokens / compute units for `Diagram & Chart Maker`.
 5. `finalize_node`: Binds final accumulated totals and itemized breakdown directly into the `Question` schema for database persistence.
@@ -319,7 +318,7 @@ The backend utilizes an asynchronous worker pool managed by [`backend/app/servic
 
 1. **5 Questions (1 Single Job)**:
    - Dispatches a single background worker job comprising 5 questions linked to a shared reading passage (or 5 discretes).
-   - Generates and self-audits within ~35-50s, streaming real-time status and automatically staging passing items (`score > 90`) into the **AI Validated** bank (`status = 'ai_validated'`).
+   - Generates and self-audits within ~35-50s, streaming real-time status and automatically staging passing items (`score > 80`) into the **AI Validated** bank (`status = 'ai_validated'`).
 2. **50 Questions (10 Parallel Jobs)**:
    - Enterprise background batch spawning 10 parallel jobs (5 questions each) across the global worker pool.
    - Automatically provisions shared passages per job, coordinates concurrent inference calls under rate-limit semaphores, and dynamically aggregates batch completion metrics.
@@ -442,16 +441,17 @@ stateDiagram-v2
     QuestionGenerating --> WithheldStatus: Question Evaluated
     state WithheldStatus {
         direction LR
-        ScoreOver85: score > 85 (batch_only)
-        ScoreUnder85: score <= 85 (below_threshold)
+        ScoreOver80: score > 80 (batch_only during in-progress run)
+        ScoreGoodQuality: 70 <= score <= 80 (batch_only / Good Quality)
+        ScoreUnder70: score < 70 (below_threshold / Needs Polish)
     }
     WithheldStatus --> WithheldStatus: Withheld from Review Queue (exclude_in_progress_batch=True)
     WithheldStatus --> BatchCompleted: All Jobs Finish Successfully
     BatchCompleted --> AtomicPromotion: promote_completed_batch_questions()
     state AtomicPromotion {
         direction LR
-        PromotedToReview: score > 90 -> ai_validated
-        RetainedBatchOnly: 85 < score <= 90 -> batch_only
+        PromotedToReview: score > 80 -> ai_validated
+        RetainedBatchOnly: 70 <= score <= 80 -> batch_only
     }
     WithheldStatus --> BatchFailedOrCancelled: Batch Stopped / Cancelled
     BatchFailedOrCancelled --> RetainedWithheld: Questions stay in batch_only (No Promotion)
@@ -462,16 +462,16 @@ stateDiagram-v2
     Discarded --> InBank: Restore Question
 ```
 
-- **`batch_only`**: Active withholding status. Questions generated during live sessions or background batches are saved in `batch_only` (if score $> 85$) while the parent batch is running. This strictly prevents incomplete batches or intermediate drafts from leaking into the educator's "Ready for Review" queue.
-- **`ai_validated`**: Background batch questions that cleared the 90+ quality gate (`score > 90`) whose parent batch has successfully completed (`status == 'completed'`). Atomically promoted by `promote_completed_batch_questions` and visible in the educator's review queue.
+- **`batch_only`**: Active withholding and good-quality status. Candidate questions generated during in-progress batches (scoring $\ge 70$) are saved in `batch_only` while the parent batch is running. This strictly prevents incomplete batches from leaking into the educator's "Ready for Review" queue. Upon batch completion, items scoring $> 80$ are promoted to `ai_validated`, while items scoring between 70 and 80 remain safely in `batch_only` as Good Quality questions.
+- **`ai_validated`**: Questions that cleared the quality gate (`score > 80`, controlled via `.env:L81` `PASSING_SCORE_THRESHOLD=80`) whose parent batch has successfully completed (`status == 'completed'`) or that were generated in standalone runs. Atomically promoted by `promote_completed_batch_questions` and visible in the educator's review queue.
 - **`in_bank`**: Formally approved questions published in the primary searchable Question Bank repository.
-- **`below_threshold`**: Drafts that failed to achieve >85 points after remediation cycles (flagged or discarded).
+- **`below_threshold`**: Drafts that failed to achieve the 70-point batch threshold (`score < 70`) after 3 remediation cycles (flagged as "Needs Polish").
 - **`discarded`**: Archived or rejected items removed from active question banks or resolved during duplicate clustering.
 
 ### 5.4 Canonical Status Determination, Withholding Guards & Batch Idempotency
 
 1. **Review Queue Withholding Safeguard**:
-   During active batch execution, candidate questions scoring $> 85$ are saved with `status = 'batch_only'`. All repository search and count queries ([`backend/app/repositories/question_repository.py`](../backend/app/repositories/question_repository.py)) enforce an active subquery guard:
+   During active batch execution, candidate questions scoring $\ge 70$ are saved with `status = 'batch_only'`. All repository search and count queries ([`backend/app/repositories/question_repository.py`](../backend/app/repositories/question_repository.py)) enforce an active subquery guard:
    ```python
    in_progress_batches = select(GenerationBatchModel.id).where(
        GenerationBatchModel.status == "in_progress"
@@ -487,8 +487,8 @@ stateDiagram-v2
 
 2. **Atomic Batch Promotion (`promote_completed_batch_questions`)**:
    Implemented in [`backend/app/repositories/batch_repository.py`](../backend/app/repositories/batch_repository.py), this function runs atomically when a batch concludes and transitions to `"completed"` or `"partially_completed"`:
-   - High-scoring questions (`final_score > 90`) in `batch_only` are promoted to `ai_validated` (making them immediately available in the educator's review queue).
-   - Questions scoring between 86 and 90 (`85 < final_score <= 90`) remain in `batch_only` for historical inspection.
+   - High-scoring questions (`final_score > config.PASSING_SCORE_THRESHOLD = 80`) in `batch_only` are promoted to `ai_validated` (making them immediately available in the educator's review queue).
+   - Questions scoring between 70 and 80 (`70 <= final_score <= 80`) remain in `batch_only` for historical inspection.
    - If a batch is actively stopped, cancelled, or aborted mid-run, `promote_completed_batch_questions` is bypassed entirely, safely retaining questions in `batch_only` without polluting review queues.
 
 3. **Dynamic Job Allocation & Exact Target Count Guarantees**:
@@ -572,7 +572,7 @@ erDiagram
         VARCHAR(32) status "in_bank | ai_validated | below_threshold | discarded"
         BOOLEAN is_deleted "Soft-delete flag preserving batch progress"
         VARCHAR(64) deleted_at "ISO-8601 UTC deletion timestamp"
-        INTEGER mcat_scaled_score "Calibrated scaled score (118-132)"
+        INTEGER mcat_scaled_score "Legacy optional scaled score (omitted in active UI)"
         VARCHAR(128) aamc_skill "AAMC SIRS (Skill 1-4) or CARS Skill"
         TEXT stimulus_text "Clinical passage or context scenario"
         TEXT question_stem "Core question prompt"
@@ -582,7 +582,7 @@ erDiagram
         TEXT image_url "Optional external diagram URL"
         TEXT image_svg "Programmatic inline SVG markup"
         TEXT image_description "Accessibility alt text"
-        INTEGER final_score "Reviewer score (> 90)"
+        INTEGER final_score "100-point 4-pillar audit score (> 80 passing)"
         JSONB review_rubric "4-pillar scores, strengths, remediation"
         INTEGER iteration_count "Cycles executed (1-3)"
         JSONB iterations_history "Full evolutionary diff log"
@@ -676,7 +676,37 @@ graph TD
 
 ---
 
-## 8. Frontend Domain-Driven Architecture
+## 8. Prometheus & OpenMetrics Telemetry Subsystem
+
+The application features a native, zero-dependency Prometheus/OpenMetrics exposition engine (`app/services/metrics.py`) and plain ASGI telemetry middleware (`app/middleware/telemetry.py`) serving real-time metrics at root `/metrics` and `/api/metrics`:
+
+```mermaid
+flowchart LR
+    Scraper[Prometheus / Grafana Agent] -->|GET /metrics| Endpoint[Prometheus Exporter]
+    Client[Web Client] -->|API Requests| PlainASGI[TelemetryMiddleware]
+    
+    subgraph Observability Engine
+        PlainASGI -->|Record latency & status| InMem[TelemetryStore In-Memory Counters]
+        Endpoint --> Collector[render_prometheus_metrics]
+        Collector --> InMem
+        Collector --> Concurrency[get_active_batch_metrics]
+        Collector --> DAL[get_repository_metrics]
+        Collector --> Health[check_db_health]
+    end
+    
+    Collector -->|text/plain 0.0.4| Scraper
+```
+
+### 8.1 Key Telemetry Dimensions
+1. **System & Database Health**: `mcat_up`, `mcat_database_connected`, `mcat_offline_mode`.
+2. **Background Concurrency Semaphores**: `mcat_batches_active`, `mcat_worker_jobs_active`, `mcat_global_max_concurrent_jobs`, `mcat_global_max_concurrent_llm_calls`.
+3. **Repository Status Distribution**: `mcat_questions_total{status="in_bank"}`, `ai_validated`, `batch_only`, `discarded`.
+4. **Token Burn & Financial Ledger**: `mcat_tokens_consumed_total`, `mcat_inference_cost_usd_total`.
+5. **HTTP Traffic & Latencies**: `mcat_http_requests_total{endpoint="...",method="...",status="..."}` and `mcat_http_request_duration_seconds{endpoint="...",method="..."}`. Dynamic paths with UUIDs or integers are normalized (e.g. `/api/questions/{id}`) to prevent time-series cardinality explosions.
+
+---
+
+## 9. Frontend Domain-Driven Architecture
 
 The frontend follows an enterprise domain-driven component architecture split into top-level views, specialized domain components, and centralized hooks:
 
@@ -684,7 +714,7 @@ The frontend follows an enterprise domain-driven component architecture split in
 frontend/src/
 ├── views/                        # Top-level application view screens (code-split)
 │   ├── index.js                  # Views barrel export
-│   ├── AiValidatedQuestionsView.jsx # Dedicated AI Validated (>90) quality review desk
+│   ├── AiValidatedQuestionsView.jsx # Dedicated AI Validated (>80) quality review desk
 │   ├── BatchActivityView.jsx     # Live & historical batch monitoring dashboard
 │   ├── PassageBankView.jsx       # Reading passages repository & editorial desk
 │   └── QuestionBankView.jsx      # Verified Question Bank view & editorial cards

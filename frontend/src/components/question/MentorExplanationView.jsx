@@ -6,11 +6,7 @@ import {
   Target
 } from 'lucide-react';
 
-import {
-  resolveTrapInfo,
-  detectTrapFromText,
-  extractDistractorLines
-} from '../../utils';
+import { parseMentorExplanation } from '../../utils';
 import { FormattedText } from '../common';
 
 /**
@@ -29,94 +25,10 @@ export default function MentorExplanationView({
   primaryTrap = null,
   likelyMistakePattern = null
 }) {
-  const parsed = useMemo(() => {
-    if (!explanation) {
-      return {
-        correctExplanation: 'No explanation currently available.',
-        steps: null,
-        distractors: [],
-        resolvedTrap: null
-      };
-    }
-
-    const text = String(explanation).trim();
-
-    // 1. Resolve Primary Trap
-    let resolvedTrap = resolveTrapInfo(primaryTrap);
-    if (!resolvedTrap) {
-      resolvedTrap = detectTrapFromText(text);
-    }
-
-    // 2. Split on distractor header markers
-    const distractorHeaderRegex = /(?:(?:why\s+other\s+options\s+are\s+incorrect(?:\s*\(distractor\s*&\s*trap\s*breakdown\))?|why\s+distractors\s+fail|why\s+other\s+options\s+(?:are\s+traps|fail|are\s+wrong|are\s+incorrect)|why\s+other\s+choices\s+fail|why\s+incorrect\s+options\s+fail|(?:explicit\s+)?distractor\s+(?:breakdown|analysis|notes|traps)|common\s+traps|trap\s+breakdown|why\s+distractors\s+are\s+incorrect)(?:\s*(?:[•·\-–—:|/]|&|\+)\s*[^\n\r]*)?):?/i;
-    const match = text.match(distractorHeaderRegex);
-
-    if (match && match.index !== undefined) {
-      const correctRaw = text.substring(0, match.index).trim();
-      const distractorsRaw = text.substring(match.index + match[0].length).trim();
-
-      const cleanedCorrect = correctRaw
-        .replace(/^(?:why\s+options?\s+[A-E](?:\s*,\s*[A-E])*\s+is\s+correct|correct\s+answer(?:\s+analysis)?|how\s+to\s+think\s+about\s+this|pedagogical\s+evaluation):?/i, '')
-        .trim();
-
-      let steps = null;
-      if (/(?:\*\*|\b)Step\s+\d+:?\*?\*?/i.test(cleanedCorrect)) {
-        const rawSteps = cleanedCorrect.split(/(?=(?:(?:\*\*|\b)Step\s+\d+:?\*?\*?))/i);
-        const filtered = rawSteps.map(s => s.trim()).filter(Boolean);
-        if (filtered.length > 1) steps = filtered;
-      }
-
-      const distractorItems = extractDistractorLines(distractorsRaw);
-
-      return {
-        correctExplanation: cleanedCorrect || correctRaw,
-        steps,
-        distractors: distractorItems,
-        resolvedTrap
-      };
-    }
-
-    const lines = text.split(/\r?\n+/).map(l => l.trim()).filter(Boolean);
-    const correctLines = [];
-    const distractorLines = [];
-
-    let inDistractorSection = false;
-    for (const line of lines) {
-      if (/(?:INCORRECT|DISTRACTOR|Wrong|Trap)/i.test(line) && /(?:[-•*]\s*)?(?:Options?|Choices?|Distractors?|Statements?)\s+[A-E]\b/i.test(line)) {
-        inDistractorSection = true;
-      }
-      if (inDistractorSection || /(?:INCORRECT|DISTRACTOR)/i.test(line)) {
-        distractorLines.push(line);
-      } else {
-        correctLines.push(line);
-      }
-    }
-
-    if (distractorLines.length > 0) {
-      const correctText = correctLines
-        .join('\n')
-        .replace(/^(?:why\s+options?\s+[A-E](?:\s*,\s*[A-E])*\s+is\s+correct|correct\s+answer(?:\s+analysis)?|pedagogical\s+evaluation|analysis\s+of\s+options):?/i, '')
-        .trim();
-
-      return {
-        correctExplanation: correctText || text,
-        steps: null,
-        distractors: extractDistractorLines(distractorLines.join('\n')),
-        resolvedTrap
-      };
-    }
-
-    const cleanedUnified = text
-      .replace(/^(?:why\s+options?\s+[A-E](?:\s*,\s*[A-E])*\s+is\s+correct|correct\s+answer|how\s+to\s+think\s+about\s+this):?/i, '')
-      .trim();
-
-    return {
-      correctExplanation: cleanedUnified || text,
-      steps: null,
-      distractors: [],
-      resolvedTrap
-    };
-  }, [explanation, primaryTrap]);
+  const parsed = useMemo(
+    () => parseMentorExplanation(explanation, primaryTrap),
+    [explanation, primaryTrap]
+  );
 
   if (!explanation) return null;
 

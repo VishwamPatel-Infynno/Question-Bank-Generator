@@ -182,7 +182,7 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: rgba(79, 48, 185, 0.08);
+  background: var(--brand-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -346,6 +346,7 @@
 
 .footer-inner {
   max-width: 1440px;
+  width: 100%;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -357,14 +358,26 @@
 .footer-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.footer-brand a {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
+.footer-product-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.775rem;
+  letter-spacing: -0.01em;
+}
+
+.footer-separator {
+  color: var(--border-medium);
+  font-size: 0.65rem;
+  user-select: none;
+}
+
+.footer-tagline {
+  color: var(--text-muted);
+  font-size: 0.75rem;
 }
 
 .footer-links {
@@ -398,7 +411,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--status-danger-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -577,6 +590,6 @@
 }
 
 .load-error-icon {
-  background: rgba(220, 38, 38, 0.1);
+  background: var(--status-danger-bg);
   color: var(--status-danger);
 }

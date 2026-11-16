@@ -41,7 +41,7 @@ def _install_record_factory() -> None:
         )
         return record
 
-    factory._mcat_ctx = True  # type: ignore[attr-defined]
+    factory.__dict__["_mcat_ctx"] = True
     logging.setLogRecordFactory(factory)
 
 

@@ -16,12 +16,19 @@ from app.repositories.job_repository import (
     save_jobs_bulk,
     update_job_progress,
 )
+from app.repositories.mappers import (
+    model_to_schema,
+    schema_to_model,
+)
 from app.repositories.passage_repository import (
     delete_passage,
     get_passage_by_id,
     get_passages,
     restore_passage,
     save_passage,
+)
+from app.repositories.query_builders import (
+    build_question_filters,
 )
 from app.repositories.question_repository import (
     batch_update_question_status,
@@ -47,6 +54,7 @@ from app.repositories.question_repository import (
 __all__ = [
     "batch_exists",
     "batch_update_question_status",
+    "build_question_filters",
     "count_questions",
     "delete_batch",
     "delete_passage",
@@ -67,6 +75,7 @@ __all__ = [
     "get_subtopic_reference_questions",
     "hard_delete_question",
     "hard_delete_questions_batch",
+    "model_to_schema",
     "override_question_duplicate",
     "promote_completed_batch_questions",
     "reconcile_interrupted_batches",
@@ -79,6 +88,7 @@ __all__ = [
     "save_passage",
     "save_question",
     "save_questions_batch",
+    "schema_to_model",
     "scrub_stored_request_secrets",
     "update_job_progress",
     "update_question_status",

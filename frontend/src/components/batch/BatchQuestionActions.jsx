@@ -17,9 +17,6 @@ export default function BatchQuestionActions({
 
   return (
     <div className="batch-qitem-actions-bar">
-      <div className="batch-qitem-actions-meta">
-        {question.aamc_skill || question.primary_trap || 'MCAT Standard'}
-      </div>
       <div className="batch-qitem-actions-group">
         {isDeleted && onRestoreQuestion && (
           <button

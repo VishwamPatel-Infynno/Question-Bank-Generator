@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, Response
 
 from app.schemas import (
     AAMC_REASONING_SKILLS,
@@ -80,15 +83,59 @@ def _build_rich_sections_payload():
 
 
 _CACHED_SECTIONS_PAYLOAD = _build_rich_sections_payload()
+_SECTIONS_JSON = json.dumps(_CACHED_SECTIONS_PAYLOAD, sort_keys=True)
+_SECTIONS_ETAG = f'"{hashlib.sha256(_SECTIONS_JSON.encode("utf-8")).hexdigest()[:16]}"'
+
+_CACHED_TAXONOMY_PAYLOAD = get_taxonomy_data()
+_TAXONOMY_JSON = json.dumps(_CACHED_TAXONOMY_PAYLOAD, sort_keys=True)
+_TAXONOMY_ETAG = f'"{hashlib.sha256(_TAXONOMY_JSON.encode("utf-8")).hexdigest()[:16]}"'
+
+_TAXONOMY_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=300"
 
 
-@router.get("/sections")
-async def get_sections():
+def _matches_etag(client_etag: str | None, server_etag: str) -> bool:
+    if not client_etag:
+        return False
+    if client_etag.strip() == "*":
+        return True
+    clean_server = server_etag.strip().removeprefix("W/").strip('"')
+    tags = [t.strip().removeprefix("W/").strip('"') for t in client_etag.split(",")]
+    return clean_server in tags
+
+
+_DEFAULT_REQUEST: Any = None
+_DEFAULT_RESPONSE: Any = None
+
+
+@router.get("/sections", response_model=None)
+async def get_sections(
+    request: Request = _DEFAULT_REQUEST,
+    response: Response = _DEFAULT_RESPONSE,
+) -> Response | dict[str, Any]:
     """Returns official AAMC MCAT sections and their categorized subtopics (in-memory pre-cached)."""
+    if request is not None and _matches_etag(request.headers.get("if-none-match"), _SECTIONS_ETAG):
+        return Response(
+            status_code=304,
+            headers={"ETag": _SECTIONS_ETAG, "Cache-Control": _TAXONOMY_CACHE_CONTROL},
+        )
+    if response is not None:
+        response.headers["Cache-Control"] = _TAXONOMY_CACHE_CONTROL
+        response.headers["ETag"] = _SECTIONS_ETAG
     return _CACHED_SECTIONS_PAYLOAD
 
 
-@router.get("/taxonomy")
-async def get_taxonomy():
+@router.get("/taxonomy", response_model=None)
+async def get_taxonomy(
+    request: Request = _DEFAULT_REQUEST,
+    response: Response = _DEFAULT_RESPONSE,
+) -> Response | dict[str, Any]:
     """Returns the official manager-provided MCAT Dependent Taxonomy."""
-    return get_taxonomy_data()
+    if request is not None and _matches_etag(request.headers.get("if-none-match"), _TAXONOMY_ETAG):
+        return Response(
+            status_code=304,
+            headers={"ETag": _TAXONOMY_ETAG, "Cache-Control": _TAXONOMY_CACHE_CONTROL},
+        )
+    if response is not None:
+        response.headers["Cache-Control"] = _TAXONOMY_CACHE_CONTROL
+        response.headers["ETag"] = _TAXONOMY_ETAG
+    return _CACHED_TAXONOMY_PAYLOAD

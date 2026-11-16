@@ -13,7 +13,7 @@ There is no LangGraph runtime: the flow is the hand-written loop in `engine.py`/
 Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_update`, `build_usage_only_update`, `run_review_and_solve`), `routes.py`, `state.py` (`AgentWorkflowState`), `engine.py` + `review_loop.py`/`passage_prep.py`/`dedup_inflight.py`/`live_job_store.py`, `agents/*` (LLM calls), `agents/validators.py`, `agents/prompts.py`, `agents/prompt_builder.py`.
 
 ## Invariants (do not weaken without the user asking)
-- Quality gate: score must be above the threshold (`config.passes_quality_gate`, never a literal 90); up to 3 regeneration attempts; then reject.
+- Quality gate: score must be above the threshold (`config.passes_quality_gate`, default `PASSING_SCORE_THRESHOLD=80`); up to 3 regeneration attempts; then reject.
 - Blind solver independently answers without seeing the key; a key mismatch or confidence below 88% triggers remediation.
 - Exactly 4 options A-D, one correct answer; option lengths within +/-15% of each other (`option_balancer.py`).
 - Single hyphens only: em dashes and en dashes are forbidden in prompts and in generated output.

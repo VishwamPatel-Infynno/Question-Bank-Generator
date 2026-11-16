@@ -389,14 +389,6 @@
   font-weight: 600;
 }
 
-.qcard-header-scaled-badge {
-  font-size: 0.675rem;
-  font-weight: 700;
-  background: var(--brand-light);
-  color: var(--brand-primary);
-  border: 1px solid var(--border-brand);
-}
-
 .qcard-header-actions {
   display: flex;
   align-items: center;
@@ -910,7 +902,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(5, 8, 15, 0.88);
+  background-color: var(--bg-backdrop-heavy);
   backdrop-filter: blur(6px);
   z-index: var(--z-overlay);
   display: flex;

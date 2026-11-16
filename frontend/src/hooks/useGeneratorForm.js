@@ -9,7 +9,7 @@ const DEFAULT_GENERATOR_FORM = {
   selectedTopic: '',
   selectedTopicName: '',
   selectedSubtopic: '',
-  selectedSkill: '',
+  selectedSkill: 'Automatic',
   selectedSubskill: '',
   questionType: 'PASSAGE_BASED_MCQ',
   difficulty: DIFFICULTY.MEDIUM,

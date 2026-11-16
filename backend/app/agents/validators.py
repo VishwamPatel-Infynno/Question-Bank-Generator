@@ -74,6 +74,68 @@ def sanitize_draft_dashes(draft: QuestionDraft) -> bool:
     return changed
 
 
+def order_distractors_in_explanation(explanation: str) -> str:
+    """Ensures distractor explanations appear in alphabetical order (A, then B, then C, then D)."""
+    if not explanation or not explanation.strip():
+        return explanation
+
+    header_pattern = re.compile(
+        r"((?:(?<=[\r\n])[ \t]*[-•*][ \t]*|^[ \t]*[-•*][ \t]*)?(?:Why (?:Other Options are Incorrect(?:\s*\(distractor\s*&\s*trap\s*breakdown\))?|Distractors Fail|Other Options (?:Are Traps|Fail|Are Wrong|Are Incorrect)|Other Choices Fail|Incorrect Options Fail|Distractors Are Incorrect)|(?:Explicit\s+)?Distractor\s+(?:Breakdown|Analysis|Notes|Traps)|Common Traps|Trap Breakdown)[^\n:]*:?)",
+        re.IGNORECASE,
+    )
+    match = header_pattern.search(explanation)
+    if not match:
+        return explanation
+
+    header_start = match.start()
+    header_text = match.group(1)
+
+    intro = explanation[:header_start].rstrip()
+    after_header = explanation[match.end() :].strip()
+
+    trailing_section = ""
+    trailing_match = re.search(
+        r"\n\s*(?:Primary Cognitive Trap|Exam Trap|Cognitive Trap|Key Takeaway|Takeaway|Summary):",
+        after_header,
+        re.IGNORECASE,
+    )
+    if trailing_match:
+        trailing_section = "\n\n" + after_header[trailing_match.start() :].strip()
+        after_header = after_header[: trailing_match.start()].strip()
+
+    distractor_split = re.compile(
+        r"(?=(?:^|\n)[ \t]*(?:[-•*]\s*)?(?:Options?|Choices?|Distractors?|Statements?)\s+[A-D]\b)",
+        re.IGNORECASE,
+    )
+    chunks = [c.strip() for c in distractor_split.split(after_header) if c.strip()]
+
+    def get_letter(chunk: str) -> str:
+        m = re.search(
+            r"(?:Options?|Choices?|Distractors?|Statements?)\s+([A-D])\b", chunk, re.IGNORECASE
+        )
+        return m.group(1).upper() if m else "Z"
+
+    if len(chunks) >= 2 and all(get_letter(c) != "Z" for c in chunks):
+        sorted_chunks = sorted(chunks, key=get_letter)
+        reordered_distractors = "\n".join(sorted_chunks)
+        return f"{intro}\n\n{header_text}\n{reordered_distractors}{trailing_section}"
+
+    return explanation
+
+
+def normalize_draft_distractors(draft: QuestionDraft) -> bool:
+    """Reorders distractor explanations in draft.explanation alphabetically if out of order.
+
+    Returns True if anything changed.
+    """
+    old = draft.explanation or ""
+    new = order_distractors_in_explanation(old)
+    if new != old:
+        draft.explanation = new
+        return True
+    return False
+
+
 def _distractor_unaddressed(explanation: str, option_id: str) -> bool:
     pattern = rf"(?:option|choice|answer)\s*\(?{option_id}\)?\b|\({option_id}\)|\b{option_id}[.):]"
     return not re.search(pattern, explanation, re.IGNORECASE)

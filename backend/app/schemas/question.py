@@ -18,7 +18,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import config
-from app.schemas.mcat import calculate_mcat_scaled_score, enum_value
+from app.schemas.mcat import enum_value
 
 
 class QuestionStatus(str, Enum):
@@ -282,12 +282,6 @@ class Question(TaxonomyFields):
         elif self.correct_answer_ids and not self.correct_answer_id:
             self.correct_answer_id = ", ".join(self.correct_answer_ids)
 
-        if not self.mcat_scaled_score:
-            scaled_info = calculate_mcat_scaled_score(self.final_score, self.difficulty)
-            self.mcat_scaled_score = scaled_info["section_score"]
-            if not self.mcat_percentile:
-                self.mcat_percentile = scaled_info["percentile"]
-
 
 class Passage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -411,18 +405,19 @@ def determine_question_status(
     """
     Determines question lifecycle status based on psychometric score thresholds.
 
-    If is_in_progress_batch is True, active questions are withheld in 'batch_only'
-    (if score > BATCH_PASSING_SCORE_THRESHOLD) or 'below_threshold' until batch completion.
-    If is_in_progress_batch is False, scores > PASSING_SCORE_THRESHOLD become 'ai_validated'.
+    Scores > PASSING_SCORE_THRESHOLD become 'ai_validated' (or 'batch_only' while the batch is generating).
+    Scores >= BATCH_PASSING_SCORE_THRESHOLD (PASSING_SCORE_THRESHOLD - 10) and <= PASSING_SCORE_THRESHOLD
+    remain in 'batch_only'.
+    Scores < BATCH_PASSING_SCORE_THRESHOLD become 'below_threshold'.
     """
     s = score or 0
     if is_in_progress_batch:
-        if s > config.BATCH_PASSING_SCORE_THRESHOLD:
+        if s >= config.BATCH_PASSING_SCORE_THRESHOLD:
             return "batch_only"
         return "below_threshold"
 
     if s > config.PASSING_SCORE_THRESHOLD:
         return "ai_validated"
-    if s > config.BATCH_PASSING_SCORE_THRESHOLD:
+    if s >= config.BATCH_PASSING_SCORE_THRESHOLD:
         return "batch_only"
     return "below_threshold"

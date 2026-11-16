@@ -1,5 +1,6 @@
 import { Award, Edit3, ShieldCheck, Image as ImageIcon, Tag } from 'lucide-react';
 import {
+  formatAamcSkill,
   formatDifficulty,
   getDifficultyBadgeClass,
   getSectionBadgeClass,
@@ -69,21 +70,15 @@ export default function QuestionCardHeader({
         {question.aamc_skill && (
           <span
             className="badge badge-cyan qcard-header-skill-chip"
-            title={`AAMC Reasoning Skill: ${question.aamc_skill}`}
+            title={`AAMC Reasoning Skill: ${formatAamcSkill(question.aamc_skill)}`}
           >
-            {question.aamc_skill}
+            {formatAamcSkill(question.aamc_skill)}
           </span>
         )}
 
         <span className="badge badge-emerald qcard-header-score-badge">
           <Award size={11} /> {question.final_score}/100
         </span>
-
-        {question.mcat_scaled_score && (
-          <span className="badge qcard-header-scaled-badge">
-            MCAT {question.mcat_scaled_score}
-          </span>
-        )}
       </div>
 
       {/* Top Actions */}

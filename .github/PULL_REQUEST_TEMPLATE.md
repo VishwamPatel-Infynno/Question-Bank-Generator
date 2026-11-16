@@ -12,10 +12,11 @@ Fixes #(issue number)
 - [ ] CI / Build configuration
 
 ## Quality Gate & Testing Checklist
-- [ ] Python linting passes: `ruff check backend/`
-- [ ] Pytest test suite passes (all 29 tests): `PYTHONPATH=backend pytest backend/tests/test_backend.py backend/tests/test_database_structure.py -v`
-- [ ] Frontend linting passes: `pnpm lint`
-- [ ] Frontend builds cleanly: `pnpm build`
-- [ ] Adheres to the strict psychometric quality benchmark (> 90 passing threshold)
+- [ ] Python linting passes: `ruff check .`
+- [ ] Pytest test suite passes: `pytest -v` (384 deterministic tests across 59 modules)
+- [ ] Frontend linting passes: `pnpm --dir frontend lint`
+- [ ] Frontend unit tests pass: `pnpm --dir frontend run test` (118 tests across 13 files)
+- [ ] Frontend builds cleanly: `pnpm --dir frontend build`
+- [ ] Adheres to the strict psychometric quality benchmark (> 80 passing threshold; `PASSING_SCORE_THRESHOLD=80`)
 - [ ] No sensitive API keys or credentials committed
 - [ ] Applicable documentation updated in `docs/`

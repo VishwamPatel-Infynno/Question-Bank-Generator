@@ -12,6 +12,7 @@ import logging
 import re
 import uuid
 from contextlib import asynccontextmanager
+from typing import cast
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,9 +21,11 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.api.router import api_router
+from app.api.v1.metrics import get_metrics
 from app.core.config import config
 from app.core.logging import bind_log_context, configure_logging
 from app.db.session import engine, init_db
+from app.middleware.telemetry import TelemetryMiddleware
 from app.repositories import reconcile_interrupted_batches, scrub_stored_request_secrets
 from app.services.batch_concurrency import cancel_all_background_batches
 
@@ -193,6 +196,7 @@ class RequestContextMiddleware:
 
 core_app.add_middleware(SecurityHeadersMiddleware)
 core_app.add_middleware(RequestContextMiddleware)
+core_app.add_middleware(TelemetryMiddleware)
 
 
 # Enable hardened CORS - origins sourced from Settings (localhost defaults + env overrides)
@@ -202,6 +206,15 @@ core_app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
+)
+
+# Root Prometheus exposition endpoint for standard metric scrapers
+core_app.add_api_route(
+    "/metrics",
+    get_metrics,
+    methods=["GET"],
+    tags=["Observability & Telemetry"],
+    response_model=None,
 )
 
 # Mount versioned API routes under /api
@@ -231,4 +244,4 @@ class CleanLifespanMiddleware:
         return getattr(self._app, name)
 
 
-app: FastAPI = CleanLifespanMiddleware(core_app)  # type: ignore[assignment]
+app: FastAPI = cast(FastAPI, CleanLifespanMiddleware(core_app))

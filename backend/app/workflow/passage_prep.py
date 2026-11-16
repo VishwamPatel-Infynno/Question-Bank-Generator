@@ -94,6 +94,27 @@ def _build_batch_worker_request(
         and (total_qty == 1 or (idx % 5 in (0, 2)))
     )
 
+    # Resolve AAMC Reasoning Skill:
+    # If the user specifically requested a skill, calibrate all questions to that requested skill.
+    # Otherwise, distribute across official AAMC reasoning skills in a balanced rotation.
+    user_skill = (req.aamc_skill or "").strip()
+    is_automatic_skill = not user_skill or user_skill.lower() in (
+        "automatic",
+        "all",
+        "all skills",
+        "none",
+    )
+
+    if not is_automatic_skill:
+        item_skill = user_skill
+    elif sec_is_cars:
+        cars_skills = ["CARS1", "CARS2", "CARS3"]
+        item_skill = cars_skills[idx % len(cars_skills)]
+    else:
+        # AAMC SIRS rotation for Science sections (Skill 1, 2, 3, 4 with authentic MCAT weighting)
+        science_skills = ["Skill_1", "Skill_2", "Skill_3", "Skill_4", "Skill_2"]
+        item_skill = science_skills[idx % len(science_skills)]
+
     item_req = req.model_copy(
         update={
             "run_id": item_run_id,
@@ -104,6 +125,7 @@ def _build_batch_worker_request(
             "passage_mode": item_passage_mode,
             "passage_id": item_passage_id,
             "shared_stimulus": item_stimulus,
+            "aamc_skill": item_skill,
             "require_image": should_require_item_image or req.require_image,
             "thematic_angle": req.thematic_angle or f"Question Item {idx + 1}",
             "visual_type": "AI_FLUX_Image"

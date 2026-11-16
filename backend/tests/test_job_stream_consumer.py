@@ -133,7 +133,7 @@ async def test_error_event_without_usage_still_raises(persist):
 
 
 def test_attempt_request_carries_batch_job_and_passage_settings(monkeypatch):
-    monkeypatch.setattr(bw.config, "BATCH_PASSING_SCORE_THRESHOLD", 85)
+    monkeypatch.setattr(bw.config, "PASSING_SCORE_THRESHOLD", 85)
     job = GenerationJob(id="job-1", batch_id="batch-1", job_number=1)
     base = GenerationRequest(section="chem_phys", subtopic="Kinetics")
     req = bw._build_attempt_request(

@@ -12,7 +12,7 @@ import { confirmModalProps } from '../components/modals/confirmModalProps';
 /**
  * AiValidatedQuestionsView
  *
- * Dedicated view for inspecting questions that met or exceeded the 90/100
+ * Dedicated view for inspecting questions that met or exceeded the 80/100
  * quality benchmark, allowing pre-med authors to audit psychometric rationale,
  * edit inline, and approve questions into the permanent Question Bank.
  *

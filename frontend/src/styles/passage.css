@@ -23,7 +23,7 @@
   width: 28px;
   height: 28px;
   border-radius: var(--radius-xs);
-  background: rgba(79, 48, 185, 0.1);
+  background: var(--brand-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -117,7 +117,7 @@
 }
 
 .passage-desk-pill-linked {
-  background: rgba(51, 90, 207, 0.08);
+  background: var(--brand-light);
   border: 1px solid var(--brand-ring);
   border-radius: var(--radius-full);
   padding: 2px 8px;
@@ -354,7 +354,7 @@
 
 .passage-linked-option-row.correct {
   border-color: var(--status-success);
-  background: rgba(16, 185, 129, 0.05);
+  background: var(--status-success-bg);
 }
 
 .passage-linked-option-letter {
@@ -468,7 +468,7 @@
 
 .passage-editor-option-btn.correct {
   border-color: var(--status-success);
-  background: rgba(16, 185, 129, 0.15);
+  background: var(--status-success-bg);
   color: var(--status-success);
 }
 
@@ -569,7 +569,7 @@
 
 .passage-card-figure-pill {
   background: var(--success-tint);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: 1px solid var(--status-success-border);
   border-radius: var(--radius-full);
   padding: 1px 7px;
   font-size: 0.68rem;

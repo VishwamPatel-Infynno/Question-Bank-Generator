@@ -62,14 +62,6 @@
   font-size: 0.725rem;
 }
 
-.qbank-mcat-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  background: var(--brand-light);
-  color: var(--brand-primary);
-  border: 1px solid var(--border-brand);
-}
-
 .qbank-stem {
   font-size: 0.92rem;
   font-weight: 600;
@@ -413,7 +405,7 @@
   width: 28px;
   height: 28px;
   border-radius: var(--radius-xs);
-  background: rgba(79, 48, 185, 0.1);
+  background: var(--brand-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -630,11 +622,6 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.validated-card-score-pill {
-  border-radius: 12px;
-  padding: 2px 10px;
 }
 
 .validated-card-passage-header {

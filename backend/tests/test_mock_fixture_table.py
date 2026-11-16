@@ -15,7 +15,7 @@ EXPECTED_DIGESTS = {
     (MCATSection.BIO_BIOCHEM, False): "54569cda51c086d3",
     (MCATSection.BIO_BIOCHEM, True): "0e5f56f052d8e4c7",
     (MCATSection.PSYCH_SOC, False): "e27244f2996658ea",
-    (MCATSection.PSYCH_SOC, True): "81c14cd3fe1bf339",
+    (MCATSection.PSYCH_SOC, True): "6ee284e13cdaf56e",
 }
 
 
