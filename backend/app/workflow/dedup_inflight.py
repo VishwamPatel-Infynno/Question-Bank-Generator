@@ -212,12 +212,22 @@ async def _run_deduplication_anti_collision_loop(
         )
         await event_queue.put(dup_evt)
 
-        collision_hint = (
-            f"CRITICAL ANTI-COLLISION REQUIREMENT: Your previous draft had high similarity ({int(dup_result.similarity_score * 100)}%) "
-            f"with existing question: '{dup_result.matched_question_stem}'. "
-            f"You MUST NOT write a question testing this same calculation or scenario. "
-            f"Formulate a completely distinct scientific scenario testing cognitive trap {alt_trap} for {req.subtopic or 'this topic'}."
-        )
+        if req.shared_stimulus:
+            collision_hint = (
+                f"CRITICAL ANTI-COLLISION REQUIREMENT: Your previous draft had high similarity ({int(dup_result.similarity_score * 100)}%) "
+                f"with existing question: '{dup_result.matched_question_stem}'. "
+                f"Reason: {dup_result.match_reason or 'Conceptual collision'}. "
+                f"You MUST NOT write a question testing this same claim, paragraph, or answer rationale. "
+                f"Formulate a completely distinct question testing a different aspect of the passage with cognitive trap {alt_trap}."
+            )
+        else:
+            collision_hint = (
+                f"CRITICAL ANTI-COLLISION REQUIREMENT: Your previous draft had high similarity ({int(dup_result.similarity_score * 100)}%) "
+                f"with existing question: '{dup_result.matched_question_stem}'. "
+                f"Reason: {dup_result.match_reason or 'Conceptual collision'}. "
+                f"You MUST NOT write a question testing this same calculation or scenario. "
+                f"Formulate a completely distinct scientific scenario testing cognitive trap {alt_trap} for {req.subtopic or 'this topic'}."
+            )
         state["diversity_context"] = (
             f"{state.get('diversity_context') or ''} {collision_hint}".strip()
         )

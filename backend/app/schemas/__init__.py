@@ -1,3 +1,9 @@
+from app.schemas.extractors import (
+    extract_correct_answer_ids,
+    extract_correct_answer_text,
+    extract_field,
+    extract_option_choices,
+)
 from app.schemas.mcat import (
     AAMC_REASONING_SKILLS,
     ALT_TRAP_ROTATION,
@@ -104,6 +110,10 @@ __all__ = [
     "calculate_mcat_scaled_score",
     "determine_question_status",
     "enum_value",
+    "extract_correct_answer_ids",
+    "extract_correct_answer_text",
+    "extract_field",
+    "extract_option_choices",
     "get_section_tree",
     "get_skills_for_section",
     "get_taxonomy_data",

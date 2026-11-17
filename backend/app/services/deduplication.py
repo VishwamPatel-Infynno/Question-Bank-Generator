@@ -18,13 +18,10 @@ from typing import Any, TypedDict
 from pydantic import BaseModel
 
 from app.core.config import config
+from app.schemas.extractors import extract_correct_answer_text
+from app.schemas.extractors import extract_field as _field
 
 logger = logging.getLogger(__name__)
-
-
-def _field(obj: Any, key: str, default: Any = None) -> Any:
-    """Reads ``key`` from a dict or an attribute from a model (reference pools hold both)."""
-    return obj.get(key, default) if isinstance(obj, dict) else getattr(obj, key, default)
 
 
 # Common English stop words to exclude during token normalization
@@ -207,18 +204,18 @@ def compute_sequence_ratio(text1: str, text2: str) -> float:
 
 
 # A pair whose stem similarity is below this can never be flagged: compute_question_similarity
-# short-circuits to 0.7 * stem_sim (< 0.28), under any sane soft threshold.
-_STEM_PRUNE_BELOW = 0.40
+# short-circuits to 0.7 * stem_sim (< 0.25), unless substantive answer keys collide.
+_STEM_PRUNE_BELOW = 0.35
 
 # Two answer options count as the same when their text similarity exceeds this
-_OPTION_MATCH_RATIO = 0.85
+_OPTION_MATCH_RATIO = 0.70
 # Options whose lengths differ by more than this ratio cannot reach _OPTION_MATCH_RATIO
-_OPTION_LENGTH_RATIO_FLOOR = 0.60
+_OPTION_LENGTH_RATIO_FLOOR = 0.55
 
 # How the stem and option similarities combine into one verdict (compute_question_similarity)
-_STEM_NEAR_DUPLICATE = 0.80  # the stem alone drives the collision
-_STEM_SUBSTANTIAL = 0.60
-_STEM_MODERATE = 0.50
+_STEM_NEAR_DUPLICATE = 0.70  # the stem alone drives the collision
+_STEM_SUBSTANTIAL = 0.50
+_STEM_MODERATE = 0.40
 _OPTIONS_NEAR_IDENTICAL = 0.75
 _OPTIONS_SUBSTANTIAL = 0.50
 
@@ -328,8 +325,26 @@ def compute_question_similarity(
     )
     stem_sim = compute_stem_similarity(stem1, stem2, prune=prune)
 
-    # Early-exit prune: below _STEM_PRUNE_BELOW the composite can never reach a duplicate verdict
-    if stem_sim < _STEM_PRUNE_BELOW:
+    cand_key_text = extract_correct_answer_text(candidate)
+    ref_key_text = extract_correct_answer_text(reference)
+    key_sim = 0.0
+    is_substantive_key = False
+    if cand_key_text and ref_key_text:
+        key_sim = compute_stem_similarity(cand_key_text, ref_key_text)
+        min_words = min(len(cand_key_text.split()), len(ref_key_text.split()))
+        is_substantive_key = min_words >= 3
+
+    p_cand = _field(candidate, "passage_id")
+    p_ref = _field(reference, "passage_id")
+    same_passage = bool(p_cand and p_ref and str(p_cand) == str(p_ref))
+    if not same_passage:
+        stim_cand = _field(candidate, "stimulus_text")
+        stim_ref = _field(reference, "stimulus_text")
+        if stim_cand and stim_ref and len(str(stim_cand)) > 80 and str(stim_cand) == str(stim_ref):
+            same_passage = True
+
+    # Early-exit prune: below cutoff and not an identical substantive answer key
+    if stem_sim < _STEM_PRUNE_BELOW and not (is_substantive_key and key_sim >= 0.55):
         overall = round(0.70 * stem_sim, 4)
         return overall, f"Distinct question stem ({int(stem_sim * 100)}%)"
 
@@ -346,21 +361,39 @@ def compute_question_similarity(
 
     opts_sim = compute_options_overlap(opts1, opts2)
 
-    # If stems are nearly identical, that alone drives the collision
+    # 1. Intra-passage anti-collision (questions on the same reading passage)
+    if same_passage:
+        if is_substantive_key and key_sim >= 0.55:
+            overall = max(0.76, round(0.50 * key_sim + 0.50 * stem_sim, 4))
+            return overall, f"Same-passage identical answer insight ({int(key_sim * 100)}% match)"
+        if stem_sim >= 0.50:
+            overall = max(0.76, stem_sim)
+            return overall, f"Same-passage stem collision ({int(stem_sim * 100)}% match)"
+
+    # 2. General cross-question correct answer collision (substantive keys)
+    if is_substantive_key and key_sim >= 0.70 and (stem_sim >= 0.35 or opts_sim >= 0.50):
+        overall = max(0.76, round(0.50 * key_sim + 0.35 * stem_sim + 0.15 * opts_sim, 4))
+        return overall, f"Identical correct answer rationale ({int(key_sim * 100)}% key match)"
+
+    # 3. If stems are nearly identical, that alone drives the collision
     if stem_sim >= _STEM_NEAR_DUPLICATE:
         overall = stem_sim
         reason = f"High question stem textual overlap ({int(stem_sim * 100)}%)"
-    # If options are identical or near-identical and the stem has moderate-to-high overlap
+    # 4. If options are identical or near-identical and the stem has moderate-to-high overlap
     elif opts_sim >= _OPTIONS_NEAR_IDENTICAL and stem_sim >= _STEM_MODERATE:
         overall = round((0.50 * stem_sim) + (0.50 * opts_sim), 4)
         reason = f"Identical answer choices ({int(opts_sim * 100)}%) and conceptual stem match ({int(stem_sim * 100)}%)"
-    # If both stem and options have substantial overlap
+    # 5. If both stem and options have substantial overlap
     elif stem_sim >= _STEM_SUBSTANTIAL and opts_sim >= _OPTIONS_SUBSTANTIAL:
         overall = round((0.60 * stem_sim) + (0.40 * opts_sim), 4)
         reason = f"Question stem ({int(stem_sim * 100)}%) and answer choice ({int(opts_sim * 100)}%) collision"
     else:
-        overall = round((0.70 * stem_sim) + (0.30 * opts_sim), 4)
-        reason = f"Overall conceptual similarity ({int(overall * 100)}%)"
+        if is_substantive_key and key_sim >= 0.50:
+            overall = round((0.50 * stem_sim) + (0.30 * opts_sim) + (0.20 * key_sim), 4)
+            reason = f"Overall conceptual & key similarity ({int(overall * 100)}%)"
+        else:
+            overall = round((0.70 * stem_sim) + (0.30 * opts_sim), 4)
+            reason = f"Overall conceptual similarity ({int(overall * 100)}%)"
 
     return overall, reason
 

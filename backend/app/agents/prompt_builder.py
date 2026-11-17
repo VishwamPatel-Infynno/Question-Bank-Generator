@@ -109,6 +109,8 @@ Section: {section_name}"""
         user_prompt += f"\nContent Domain: {req.content_domain}"
     if req.question_type:
         user_prompt += f"\nQuestion Type Format: {req.question_type}"
+    if req.thematic_angle:
+        user_prompt += f"\nPedagogical & Slot Directive: {req.thematic_angle}"
 
     # Target Student Misconception / Likely Mistake Pattern Calibration
     if req.likely_mistake_pattern and req.likely_mistake_pattern not in ("Automatic", "None", ""):
@@ -165,8 +167,16 @@ Section: {section_name}"""
 
     # Handle pre-existing shared passage (Single Passage Set) vs new passage
     if req.shared_stimulus and req.shared_stimulus.strip():
+        slot_mandate = ""
+        if req.thematic_angle:
+            slot_mandate = (
+                f"\n\nMANDATORY SLOT SPECIALIZATION:\n{req.thematic_angle}\n"
+                "You MUST strictly adhere to this assigned slot role and archetype. "
+                "Do NOT write a general main idea question if assigned a detail, function, or application question. "
+                "Ensure your stem, choices, and key are distinct from typical sibling questions on this passage."
+            )
         user_prompt += f"""\nCRITICAL PASSAGE INSTRUCTION:
-You MUST formulate this question strictly and exclusively based on the following PRE-EXISTING READING PASSAGE.
+You MUST formulate this question strictly and exclusively based on the following PRE-EXISTING READING PASSAGE.{slot_mandate}
 Do NOT write a new passage. Formulate your question stem, options, correct key, and explanation directly against this text:
 ---
 {req.shared_stimulus.strip()}

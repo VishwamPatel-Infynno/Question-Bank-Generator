@@ -218,6 +218,11 @@ def _build_diversity_context(
         parts.append(
             f"Previously targeted misconceptions: {', '.join(used_mistakes[-3:])}. Diversify the targeted misconception."
         )
+    if total_qty > 1:
+        parts.append(
+            "ANTI-DUPLICATION MANDATE: Sibling questions in this set test different aspects of the stimulus. "
+            "Focus strictly on your unique assigned slot angle. Do NOT replicate sibling question stems or identical answer choices."
+        )
     return " ".join(parts)
 
 

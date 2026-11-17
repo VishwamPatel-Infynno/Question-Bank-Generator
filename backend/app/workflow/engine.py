@@ -14,7 +14,6 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from app.agents.base import LLMNotConfiguredError
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
 from app.core.concurrency import get_global_pipeline_semaphore
@@ -29,10 +28,7 @@ from app.schemas import (
     enum_value,
 )
 from app.workflow.dedup_inflight import (
-    _refresh_duplicate_info_after_review,
-    _run_deduplication_anti_collision_loop,
     clear_in_flight_batch,
-    remove_in_flight_draft,
 )
 from app.workflow.engine_layout import (
     RunLayout,
@@ -53,30 +49,25 @@ from app.workflow.live_job_store import (
     _finalize_live_job_progress,
     _handle_live_job_cancellation,
     _handle_live_job_failure,
-    _persist_live_question,
-)
-from app.workflow.nodes import (
-    finalize_node,
-    fused_generator_node,
-    image_node,
 )
 from app.workflow.passage_prep import (
     SharedPassageState,
-    _build_batch_worker_request,
-    _determine_item_diagram_requirement,
     _prepare_shared_passage_and_visual,
 )
 from app.workflow.review_loop import _run_question_review_loop, count_llm_calls
+from app.workflow.slot_worker import (
+    SLOT_ERROR_RETRY_DELAY_SECONDS,
+    SLOT_REPLENISH_DELAY_SECONDS,
+    SlotWorkerContext,
+    run_slot_worker,
+)
 from app.workflow.sse import iter_sse_events
-from app.workflow.state import AgentWorkflowState
 
 logger = logging.getLogger(__name__)
 
 # Max buffered SSE events before workers wait for the consumer to catch up
 _EVENT_QUEUE_MAX = 256
 
-SLOT_REPLENISH_DELAY_SECONDS = 0.5  # pause before re-drafting a rejected slot
-SLOT_ERROR_RETRY_DELAY_SECONDS = 1.0  # pause before retrying a slot after an error
 # Workers start slightly apart so siblings can see each other's in-flight stems for dedup
 WORKER_STAGGER_SECONDS = 0.35
 WORKER_STAGGER_MAX_SECONDS = 2.0
@@ -90,6 +81,7 @@ __all__ = [
     "WORKER_STAGGER_SECONDS",
     "RunLayout",
     "SlotLedger",
+    "SlotWorkerContext",
     "WorkflowRunResult",
     "_build_diversity_context",
     "_complete_message",
@@ -104,6 +96,7 @@ __all__ = [
     "_shared_passage_payload",
     "_start_message",
     "count_llm_calls",
+    "run_slot_worker",
     "run_workflow",
     "run_workflow_stream",
 ]
@@ -219,367 +212,40 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         except Exception as ref_err:
             logger.warning("Could not load reference questions for deduplication: %s", ref_err)
 
-        async def _worker(idx: int) -> None:
-            # Attempts per slot: the first draft plus the configured number of replenishments
-            max_slot_attempts = config.WORKFLOW_MAX_WORKER_RETRIES + 1
-            for attempt in range(max_slot_attempts):
-                if attempt > 0 and ledger.budget_spent(idx, config.MAX_LLM_CALLS_PER_SLOT):
-                    logger.warning(
-                        "Question %s: LLM call budget exhausted after %s calls; not starting attempt %s.",
-                        idx + 1,
-                        ledger.calls[idx],
-                        attempt + 1,
-                    )
-                    return
-                # Reset per attempt so an error before the new state exists can never fold the
-                # previous attempt's (already counted) usage a second time.
-                attempt_state: AgentWorkflowState | None = None
-                try:
-                    async with semaphore:
-                        item_req, item_run_id, is_passage_item, item_interaction = (
-                            _build_batch_worker_request(
-                                req=req,
-                                idx=idx,
-                                total_qty=total_qty,
-                                batch_id=batch_id,
-                                effective_passage_count=effective_passage_count,
-                                shared_passage_id=shared_passage_id,
-                                shared_passage_text=shared_passage_text,
-                            )
-                        )
-                        if attempt > 0:
-                            item_req.thematic_angle = (
-                                f"Question Item {idx + 1} Attempt {attempt + 1}"
-                            )
-
-                        diversity_context = _build_diversity_context(
-                            idx, total_qty, attempt, shared_used_traps, shared_used_mistakes
-                        )
-
-                        if total_qty > 1:
-                            batch_prog_evt = make_event(
-                                event_type="batch_progress",
-                                agent_name="System",
-                                message=_drafting_message(
-                                    idx, total_qty, attempt, is_passage_item, item_interaction
-                                ),
-                                data={
-                                    "current_index": idx + 1,
-                                    "total_count": total_qty,
-                                    "interaction_type": item_interaction,
-                                    "passage_required": item_req.passage_required,
-                                    "passage_mode": item_req.passage_mode,
-                                    "passage_id": item_req.passage_id,
-                                    "is_passage_item": is_passage_item,
-                                    "batch_id": batch_id,
-                                    "stage": "drafting",
-                                },
-                                run_id=item_run_id,
-                            )
-                            await event_queue.put(batch_prog_evt)
-
-                        state = _initial_attempt_state(
-                            item_req,
-                            item_run_id,
-                            batch_id,
-                            diversity_context,
-                            _resolve_passing_threshold(item_req, req),
-                            slot_prior_calls=ledger.calls[idx],
-                        )
-                        attempt_state = state
-
-                        # Step 1: Question Writer & Reviewer (Fused Authoring & 100-pt Audit)
-                        gen_evt = make_event(
-                            event_type="agent_start",
-                            agent_name="Question Writer & Reviewer",
-                            message=f"Drafting and auditing question {idx + 1}/{total_qty} (Single Choice)...",
-                            data={
-                                "index": idx + 1,
-                                "total": total_qty,
-                                "stage": "drafting",
-                                "interaction_type": item_interaction,
-                                "passage_required": item_req.passage_required,
-                            },
-                            run_id=item_run_id,
-                        )
-                        await event_queue.put(gen_evt)
-
-                        gen_res = await fused_generator_node(state)
-                        state.update(gen_res)
-
-                        # Step 1.5: Deduplication Check & Anti-Collision Loop
-                        await _run_deduplication_anti_collision_loop(
-                            state=state,
-                            idx=idx,
-                            total_qty=total_qty,
-                            item_run_id=item_run_id,
-                            req=req,
-                            db_reference_pool=db_reference_pool,
-                            outcomes_questions=outcomes_questions,
-                            event_queue=event_queue,
-                            make_event=make_event,
-                            batch_key=batch_id,
-                            job_id=job_id,
-                        )
-
-                        cur_draft = state.get("current_draft") or {}
-                        c_trap = cur_draft.get("primary_trap")
-                        c_mistake = cur_draft.get("likely_mistake_pattern")
-                        if c_trap and c_trap not in shared_used_traps:
-                            shared_used_traps.append(c_trap)
-                        if c_mistake and c_mistake not in shared_used_mistakes:
-                            shared_used_mistakes.append(c_mistake)
-
-                        gen_usage = state.get("latest_usage", {})
-                        self_score = (state.get("current_review") or {}).get("total_score")
-                        usage_note = (
-                            f"{gen_usage.get('total_tokens', 0)} tokens, "
-                            f"${gen_usage.get('cost_usd', 0.0):.5f}"
-                        )
-                        draft_message = (
-                            f"Draft authored and audited for Question {idx + 1} "
-                            f"(Score: {self_score}/100, {usage_note})."
-                            if self_score is not None
-                            else f"Draft authored for Question {idx + 1} "
-                            f"(independent review next, {usage_note})."
-                        )
-                        gen_done_evt = make_event(
-                            event_type="agent_complete",
-                            agent_name="Question Writer & Reviewer",
-                            message=draft_message,
-                            data={
-                                "draft": state["current_draft"],
-                                "review": state.get("current_review"),
-                                "score": self_score,
-                                "latest_usage": gen_usage,
-                                "index": idx + 1,
-                                "total": total_qty,
-                                "stage": "drafting",
-                            },
-                            run_id=item_run_id,
-                        )
-                        await event_queue.put(gen_done_evt)
-
-                        # Step 2: Quality Review / Remediation Loop
-                        async def _recheck_duplicate(
-                            st: AgentWorkflowState, _idx: int = idx
-                        ) -> None:
-                            await _refresh_duplicate_info_after_review(
-                                st,
-                                _idx,
-                                req,
-                                db_reference_pool,
-                                outcomes_questions,
-                                batch_key=batch_id,
-                                job_id=job_id,
-                            )
-
-                        question_passed = await _run_question_review_loop(
-                            state=state,
-                            idx=idx,
-                            total_qty=total_qty,
-                            item_run_id=item_run_id,
-                            event_queue=event_queue,
-                            make_event=make_event,
-                            # Offline mock fixtures cannot change their stem when told to, so the
-                            # duplicate-rewrite loop only applies to real generations
-                            recheck_duplicate=None if config.OFFLINE_MODE else _recheck_duplicate,
-                        )
-
-                        if question_passed:
-                            await _refresh_duplicate_info_after_review(
-                                state,
-                                idx,
-                                req,
-                                db_reference_pool,
-                                outcomes_questions,
-                                batch_key=batch_id,
-                                job_id=job_id,
-                            )
-
-                        dup_info = state.get("duplicate_info") or {}
-                        is_hard_dup = bool(dup_info.get("is_duplicate", False))
-                        is_sibling_collision = _is_sibling_collision(dup_info, outcomes_questions)
-
-                        # Accept if question passed quality audit and does not collide with a sibling in this batch
-                        if question_passed and (
-                            not is_sibling_collision or attempt == max_slot_attempts - 1
-                        ):
-                            is_passage_item_check = (
-                                is_single_passage_set and idx < effective_passage_count
-                            )
-
-                            # Attach shared passage diagram reference if applicable
-                            if is_passage_item_check and (
-                                shared_passage_image_svg or shared_passage_image_url
-                            ):
-                                state["image_url"] = shared_passage_image_url
-                                state["image_svg"] = shared_passage_image_svg
-                                state["image_description"] = shared_passage_image_desc
-                                outcomes = state.setdefault("stage_outcomes", {})
-                                outcomes["passage_visual_stimulus"] = {
-                                    "image_url": shared_passage_image_url,
-                                    "image_svg": shared_passage_image_svg,
-                                    "image_description": shared_passage_image_desc,
-                                    "note": "Visual stimulus belongs to shared reading passage",
-                                }
-
-                            requires_image = _determine_item_diagram_requirement(
-                                state=state, is_passage_item=is_passage_item_check
-                            )
-
-                            if requires_image:
-                                img_start_evt = make_event(
-                                    event_type="agent_start",
-                                    agent_name="Diagram & Chart Maker",
-                                    message=f"Drawing visual stimulus diagram for Question {idx + 1}...",
-                                    data={
-                                        "index": idx + 1,
-                                        "total": total_qty,
-                                        "stage": "image",
-                                    },
-                                    run_id=item_run_id,
-                                )
-                                await event_queue.put(img_start_evt)
-
-                                img_res = await image_node(state)
-                                state.update(img_res)
-
-                                img_done_evt = make_event(
-                                    event_type="agent_complete",
-                                    agent_name="Diagram & Chart Maker",
-                                    message=f"Visual diagram drawn and attached to Question {idx + 1}.",
-                                    data={
-                                        "has_svg": bool(state.get("image_svg")),
-                                        "image_url": state.get("image_url"),
-                                        "usage": state.get("latest_usage"),
-                                        "index": idx + 1,
-                                        "total": total_qty,
-                                        "stage": "image",
-                                    },
-                                    run_id=item_run_id,
-                                )
-                                await event_queue.put(img_done_evt)
-
-                            # Finalize Question Object
-                            fin_res = await finalize_node(state)
-                            state.update(fin_res)
-
-                            final_q_dict = state["final_question"]
-                            final_q_dict["index"] = idx + 1
-                            final_q_dict["batch_id"] = batch_id
-                            final_q_dict["job_id"] = job_id
-                            outcomes_questions[idx] = final_q_dict
-
-                            if is_standalone_live_run:
-                                completed_so_far = sum(
-                                    1 for q in outcomes_questions if q is not None
-                                )
-                                await _persist_live_question(
-                                    final_q_dict=final_q_dict,
-                                    batch_id=batch_id,
-                                    job_id=job_id,
-                                    item_run_id=item_run_id,
-                                    shared_passage_id=shared_passage_id,
-                                    completed_so_far=completed_so_far,
-                                    idx=idx,
-                                )
-
-                            # Emit question_generated event
-                            q_gen_evt = make_event(
-                                event_type="question_generated",
-                                agent_name="System",
-                                message=f"Question {idx + 1} of {total_qty} passed quality check (Score: {final_q_dict.get('final_score')}/100) and is ready for review.",
-                                data={
-                                    "question": final_q_dict,
-                                    "index": idx + 1,
-                                    "total": total_qty,
-                                    "batch_id": batch_id,
-                                    "job_id": job_id,
-                                    "stage": "completed",
-                                },
-                                run_id=item_run_id,
-                            )
-                            await event_queue.put(q_gen_evt)
-
-                            ledger.fold(idx, state)
-                            attempt_state = None  # already counted
-                            await remove_in_flight_draft(batch_id, idx, job_id=job_id)
-                            return  # Successfully completed this slot!
-
-                        # Rejection or collision - auto-replenish slot
-                        rej_data = state.get("rejection_data") or {
-                            "index": idx + 1,
-                            "stage": "rejected",
-                            "reason": "Duplicate collision"
-                            if is_hard_dup
-                            else "Quality score below threshold",
-                        }
-                        outcomes_rejections.append(rej_data)
-                        logger.warning(
-                            "Question %s attempt %s/%s not satisfied (passed=%s, is_dup=%s). Auto-replenishing slot...",
-                            idx + 1,
-                            attempt + 1,
-                            max_slot_attempts,
-                            question_passed,
-                            is_hard_dup,
-                        )
-                        ledger.fold(idx, state)
-                        attempt_state = None  # already counted
-                        await remove_in_flight_draft(batch_id, idx, job_id=job_id)
-                        await asyncio.sleep(SLOT_REPLENISH_DELAY_SECONDS)
-                        continue
-
-                except asyncio.CancelledError:
-                    ledger.fold(idx, attempt_state)
-                    await remove_in_flight_draft(batch_id, idx, job_id=job_id)
-                    raise
-                except Exception as worker_err:
-                    ledger.fold(idx, attempt_state)
-                    # A question staged in this failed attempt must not linger beside the retry
-                    outcomes_questions[idx] = None
-                    await remove_in_flight_draft(batch_id, idx, job_id=job_id)
-                    # A missing-credentials error cannot succeed on retry: fail fast with the message
-                    if (
-                        attempt < max_slot_attempts - 1
-                        and not isinstance(worker_err, LLMNotConfiguredError)
-                        and not ledger.budget_spent(idx, config.MAX_LLM_CALLS_PER_SLOT)
-                    ):
-                        logger.warning(
-                            "Worker %s encountered error (attempt %s/%s): %s. Auto-replenishing slot in 1.0s...",
-                            idx + 1,
-                            attempt + 1,
-                            max_slot_attempts,
-                            worker_err,
-                        )
-                        await asyncio.sleep(SLOT_ERROR_RETRY_DELAY_SECONDS)
-                        continue
-
-                    logger.error(
-                        "Worker %s exhausted all %s replenishment attempts: %s",
-                        idx + 1,
-                        max_slot_attempts,
-                        worker_err,
-                        exc_info=worker_err,
-                    )
-                    outcomes_errors.append(str(worker_err))
-                    err_evt = make_event(
-                        event_type="question_failed",
-                        agent_name="System",
-                        message=f"Generation failed for Question {idx + 1} after retries: {worker_err!s}",
-                        data={"index": idx + 1, "error": str(worker_err)},
-                        run_id=req.run_id,
-                    )
-                    await event_queue.put(err_evt)
-                    return
-
+        # Worker slot attempt limit is governed by config.WORKFLOW_MAX_WORKER_RETRIES + 1
         async def _staggered_worker(w_idx: int) -> None:
             if w_idx > 0:
                 # Small bounded stagger so siblings can see each other's in-flight stems for dedup,
                 # without delaying the last worker of a 50-question run by ~17 seconds.
                 await asyncio.sleep(min(WORKER_STAGGER_SECONDS * w_idx, WORKER_STAGGER_MAX_SECONDS))
             with bind_log_context(batch_id=batch_id, run_id=req.run_id, slot=w_idx + 1):
-                await _worker(w_idx)
+                ctx = SlotWorkerContext(
+                    idx=w_idx,
+                    total_qty=total_qty,
+                    req=req,
+                    batch_id=batch_id,
+                    job_id=job_id,
+                    is_single_passage_set=is_single_passage_set,
+                    effective_passage_count=effective_passage_count,
+                    shared_passage_id=shared_passage_id,
+                    shared_passage_text=shared_passage_text,
+                    shared_passage_image_svg=shared_passage_image_svg,
+                    shared_passage_image_url=shared_passage_image_url,
+                    shared_passage_image_desc=shared_passage_image_desc,
+                    ledger=ledger,
+                    semaphore=semaphore,
+                    event_queue=event_queue,
+                    make_event=make_event,
+                    db_reference_pool=db_reference_pool,
+                    outcomes_questions=outcomes_questions,
+                    outcomes_rejections=outcomes_rejections,
+                    outcomes_errors=outcomes_errors,
+                    shared_used_traps=shared_used_traps,
+                    shared_used_mistakes=shared_used_mistakes,
+                    is_standalone_live_run=is_standalone_live_run,
+                    review_loop_fn=_run_question_review_loop,
+                )
+                await run_slot_worker(ctx)
 
         tasks.extend([asyncio.create_task(_staggered_worker(i)) for i in range(total_qty)])
 

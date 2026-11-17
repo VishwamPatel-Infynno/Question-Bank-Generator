@@ -324,3 +324,72 @@ def test_duplicate_thresholds_come_from_config():
 
     assert config.DUPLICATE_SOFT_THRESHOLD < config.DUPLICATE_HARD_THRESHOLD
     assert config.DUPLICATE_HARD_THRESHOLD <= config.DUPLICATE_API_THRESHOLD
+
+
+def test_intra_passage_identical_answer_key_collision():
+    from app.services.deduplication import compute_question_similarity, evaluate_duplicate
+
+    q1 = {
+        "id": "q1",
+        "passage_id": "passage-common-123",
+        "question_stem": "The author's central claim is best described as which of the following?",
+        "options": [
+            {"id": "A", "text": "Instruments are always unmediated"},
+            {
+                "id": "B",
+                "text": "Measurement is structured, so acknowledging that structure makes knowledge more reliable.",
+            },
+            {"id": "C", "text": "Detectors are completely uncalibrated"},
+            {"id": "D", "text": "Engineering can remove every physical constraint"},
+        ],
+        "correct_answer_id": "B",
+    }
+    q2 = {
+        "id": "q2",
+        "passage_id": "passage-common-123",
+        "question_stem": "According to the author, why is the second position on instrumental measurement more persuasive?",
+        "options": [
+            {"id": "A", "text": "Designers failed to anticipate anomalies"},
+            {"id": "B", "text": "Detector sensitivity distorts everything"},
+            {"id": "C", "text": "Unmediated measurement is impossible"},
+            {
+                "id": "D",
+                "text": "Measurement is structured, and recognizing that structure makes knowledge reliable",
+            },
+        ],
+        "correct_answer_id": "D",
+    }
+
+    score, reason = compute_question_similarity(q1, q2)
+    assert score >= 0.75
+    assert "Same-passage" in reason
+
+    res = evaluate_duplicate(q2, [q1], threshold=0.75)
+    assert res.is_duplicate is True
+    assert res.similarity_score >= 0.75
+
+
+def test_intra_passage_stem_collision():
+    from app.services.deduplication import compute_question_similarity, evaluate_duplicate
+
+    q1 = {
+        "id": "q1",
+        "passage_id": "passage-common-456",
+        "question_stem": "The author's discussion of the defenders of the linear model is best interpreted as serving which of the following purposes?",
+        "options": [{"id": "A", "text": "Option A"}, {"id": "B", "text": "Option B"}],
+        "correct_answer_id": "A",
+    }
+    q2 = {
+        "id": "q2",
+        "passage_id": "passage-common-456",
+        "question_stem": "The author's discussion of the defenders of the linear model is best interpreted as serving which function in the passage?",
+        "options": [{"id": "A", "text": "Option C"}, {"id": "B", "text": "Option D"}],
+        "correct_answer_id": "B",
+    }
+
+    score, reason = compute_question_similarity(q1, q2)
+    assert score >= 0.75
+    assert "Same-passage" in reason or "High question stem" in reason
+
+    res = evaluate_duplicate(q2, [q1], threshold=0.75)
+    assert res.is_duplicate is True

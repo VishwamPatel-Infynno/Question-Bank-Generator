@@ -59,6 +59,93 @@ MODALITY_ROTATION_BY_SECTION: dict[str, list[str]] = {
     ],
 }
 
+# Standard AAMC CARS 5-Question Set Blueprint
+CARS_PASSAGE_SET_BLUEPRINTS: list[dict[str, str]] = [
+    {
+        "skill": "CARS1",
+        "archetype": "Central Claim / Main Thesis",
+        "directive": (
+            "SLOT 1 FOCUS: Test the author's overarching thesis, central argument, or primary communicative purpose across the entire passage. "
+            "Formulate an unambiguous stem asking for the author's core claim or purpose."
+        ),
+    },
+    {
+        "skill": "CARS1",
+        "archetype": "Local Detail & Passage Evidence",
+        "directive": (
+            "SLOT 2 FOCUS: Test direct textual comprehension of a specific concept, term, or relationship discussed in the early paragraphs (Paragraph 1 or 2). "
+            "Do NOT ask about the overarching thesis; test local textual evidence."
+        ),
+    },
+    {
+        "skill": "CARS2",
+        "archetype": "Rhetorical Function / Author's Stance",
+        "directive": (
+            "SLOT 3 FOCUS: Test the logical or rhetorical function of a specific phrase, metaphor, or cited example in the middle of the passage "
+            "(e.g., why the author mentions X, or how Paragraph 3 functions relative to Paragraph 2). Do NOT repeat the main claim."
+        ),
+    },
+    {
+        "skill": "CARS3",
+        "archetype": "Reasoning Beyond the Text: Novel Scenario Application",
+        "directive": (
+            "SLOT 4 FOCUS: Extrapolate the author's reasoning to a NEW, hypothetical real-world scenario, historical event, or modern policy NOT described in the text. "
+            "Ask how the author's philosophy or framework would apply to this new situation."
+        ),
+    },
+    {
+        "skill": "CARS3",
+        "archetype": "Reasoning Beyond the Text: Challenge / Weaken Assumptions",
+        "directive": (
+            "SLOT 5 FOCUS: Present a new piece of hypothetical evidence or counter-argument and ask which finding or observation would most directly weaken, challenge, or invalidate the author's argument."
+        ),
+    },
+]
+
+# Standard AAMC Science 5-Question Set Blueprint (CPBS, BBLS, PSBB)
+SCIENCE_PASSAGE_SET_BLUEPRINTS: list[dict[str, str]] = [
+    {
+        "skill": "Skill_1",
+        "archetype": "Scientific Concept & Principle Foundation",
+        "directive": (
+            "SLOT 1 FOCUS: Test foundational biochemical, physical, or physiological concepts referenced in the passage (Knowledge of Scientific Concepts and Principles). "
+            "Focus on the underlying scientific definitions and laws."
+        ),
+    },
+    {
+        "skill": "Skill_4",
+        "archetype": "Data, Figure & Graph Interpretation",
+        "directive": (
+            "SLOT 2 FOCUS: Test data-based and statistical reasoning (Skill 4). "
+            "Require the examinee to analyze a quantitative trend, data relationship, experimental baseline, or table/figure described in the passage."
+        ),
+    },
+    {
+        "skill": "Skill_3",
+        "archetype": "Experimental Design & Methodological Rationale",
+        "directive": (
+            "SLOT 3 FOCUS: Test reasoning about research design and execution (Skill 3). "
+            "Evaluate why a specific control was chosen, how a variable was isolated, or the rationale for a specific experimental assay."
+        ),
+    },
+    {
+        "skill": "Skill_2",
+        "archetype": "Scientific Reasoning & Problem Solving / Mechanism",
+        "directive": (
+            "SLOT 4 FOCUS: Test multi-step mechanistic deduction or problem solving (Skill 2). "
+            "Require combining a passage observation with outside foundational knowledge to deduce a mechanism."
+        ),
+    },
+    {
+        "skill": "Skill_2",
+        "archetype": "Novel Experimental Condition / Hypothesis Testing",
+        "directive": (
+            "SLOT 5 FOCUS: Predict the outcome of a hypothetical follow-up experiment or modification to the experimental protocol (Reasoning Beyond the Passage). "
+            "Ask what would happen if a novel inhibitor, gene knockout, or condition were introduced."
+        ),
+    },
+]
+
 
 def _build_batch_worker_request(
     req: GenerationRequest,
@@ -119,9 +206,9 @@ def _build_batch_worker_request(
     ) and not sec_is_cars
     should_require_item_image = bool(req.require_image and not sec_is_cars)
 
-    # Resolve AAMC Reasoning Skill:
-    # If the user specifically requested a skill, calibrate all questions to that requested skill.
-    # Otherwise, distribute across official AAMC reasoning skills in a balanced rotation.
+    # Resolve AAMC Reasoning Skill & Slot Blueprint:
+    # If this is a passage set, assign deterministic slot archetypes so sibling questions
+    # test distinct aspects (Main Idea, Detail, Function, Novel Application, Weaken).
     user_skill = (req.aamc_skill or "").strip()
     is_automatic_skill = not user_skill or user_skill.lower() in (
         "automatic",
@@ -130,17 +217,27 @@ def _build_batch_worker_request(
         "none",
     )
 
-    if not is_automatic_skill:
-        item_skill = user_skill
-    elif sec_is_cars:
-        cars_skills = ["CARS1", "CARS2", "CARS3"]
-        item_skill = cars_skills[idx % len(cars_skills)]
+    item_question_type = req.question_type
+    if is_passage_item and effective_passage_count > 1:
+        blueprints = CARS_PASSAGE_SET_BLUEPRINTS if sec_is_cars else SCIENCE_PASSAGE_SET_BLUEPRINTS
+        blueprint = blueprints[idx % len(blueprints)]
+        item_skill = blueprint["skill"] if is_automatic_skill else user_skill
+        item_question_type = blueprint["archetype"]
+        slot_directive = blueprint["directive"]
+        if req.thematic_angle:
+            item_thematic_angle = f"{req.thematic_angle} • {slot_directive}"
+        else:
+            item_thematic_angle = slot_directive
     else:
-        # AAMC SIRS rotation for Science sections (Skill 1, 2, 3, 4 with authentic MCAT weighting)
-        science_skills = ["Skill_1", "Skill_2", "Skill_3", "Skill_4", "Skill_2"]
-        item_skill = science_skills[idx % len(science_skills)]
-
-    item_thematic_angle = req.thematic_angle or f"Question Item {idx + 1}"
+        if not is_automatic_skill:
+            item_skill = user_skill
+        elif sec_is_cars:
+            cars_skills = ["CARS1", "CARS2", "CARS3"]
+            item_skill = cars_skills[idx % len(cars_skills)]
+        else:
+            science_skills = ["Skill_1", "Skill_2", "Skill_3", "Skill_4", "Skill_2"]
+            item_skill = science_skills[idx % len(science_skills)]
+        item_thematic_angle = req.thematic_angle or f"Question Item {idx + 1}"
 
     item_req = req.model_copy(
         update={
@@ -148,6 +245,7 @@ def _build_batch_worker_request(
             "batch_id": batch_id,
             "questions_to_generate": 1,
             "interaction_type": item_interaction,
+            "question_type": item_question_type,
             "passage_required": item_passage,
             "passage_mode": item_passage_mode,
             "passage_id": item_passage_id,
