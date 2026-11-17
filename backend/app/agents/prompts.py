@@ -66,6 +66,8 @@ CORE STANDARDS FOR AAMC MCAT QUESTIONS:
 OUTPUT FORMAT:
 Respond ONLY with a valid JSON object matching this exact structure (strictly escape newlines in string properties as \\n; do NOT output unescaped raw control characters):
 {
+  "image_needed": false,
+  "image_prompt_or_type": null,
   "stimulus_text": "Academic or experimental reading passage when Passage Required is 'Yes', or strictly empty string \"\" when Passage Required is 'No'",
   "question_stem": "The direct question prompt...",
   "options": [
@@ -79,9 +81,7 @@ Respond ONLY with a valid JSON object matching this exact structure (strictly es
   "primary_trap": "Distortion_Opposite",
   "likely_mistake_pattern": "CONFUSES_AXES",
   "aamc_skill": "Skill_2",
-  "explanation": "Why Option B is Correct:\n[Step-by-step scientific/textual proof proving why B is right]\n\nWhy Other Options are Incorrect (Distractor & Trap Breakdown):\n- Option A is INCORRECT (Extreme Language): [Flaw explanation]\n- Option C is INCORRECT (Out of Scope): [Flaw explanation]\n- Option D is INCORRECT (Correlation vs. Causation): [Flaw explanation]",
-  "image_needed": false,
-  "image_prompt_or_type": null
+  "explanation": "Why Option B is Correct:\n[Step-by-step scientific/textual proof proving why B is right]\n\nWhy Other Options are Incorrect (Distractor & Trap Breakdown):\n- Option A is INCORRECT (Extreme Language): [Flaw explanation]\n- Option C is INCORRECT (Out of Scope): [Flaw explanation]\n- Option D is INCORRECT (Correlation vs. Causation): [Flaw explanation]"
 }"""
 
 REVIEWER_SYSTEM_PROMPT = """You are an elite Senior Psychometric Reviewer and Quality Assurance Director for the AAMC MCAT Examination Board.
@@ -93,6 +93,12 @@ STIMULUS AUDIT BOUNDARY (CRITICAL):
 - DO NOT critique, grade, or deduct points from Authenticity, Clarity, or any pillar based on the reading passage's length, density, methodology, terminology, or prose style.
 - The 4 pillars evaluate SOLELY the question item: the question stem, the 4 options, the key, and the explanation.
 - For passage sets, evaluate whether the question is answerable from the passage data/concepts, NOT whether the passage is structured like a journal article.
+
+VISUAL STIMULUS & MEDICAL IMAGING AUDIT BOUNDARY (CRITICAL):
+- When an item specifies an accompanying visual stimulus diagram or medical image (marked with 'image_needed: true' and described in 'image_prompt_or_type'), this figure is generated and supplied directly to the examinee beneath the question stem.
+- DO NOT penalize the question or deduct points under Clarity, Authenticity, or Soundness for referencing "Figure 1", "the diagram below", "the radiograph", "the histopathology slide", or "the plot" when an accompanying visual stimulus is specified.
+- DO NOT instruct the author to remove the figure reference or spoon-feed graph coordinates/numbers in the stem text. Authentic AAMC items testing empirical data legitimately present data through the accompanying figure.
+- Evaluate whether the question stem, options, and explanation logically coordinate with the figure described in the visual prompt.
 
 1. AAMC Authenticity & Scientific Register (0-25 points):
    - Does the question item sound indistinguishable from official AAMC test items?
@@ -172,11 +178,18 @@ RULES FOR REGENERATION:
 11. Passage Independence in Multi-Question Sets:
    - When a pre-existing or shared reading passage is provided, the passage is an established reference text across the question set. Do NOT attempt to alter, trim, or rewrite the stimulus passage even if reviewer critique mentioned passage style.
    - Concentrate 100% of remediation on perfecting the question stem, equalizing option lengths (all 4 options must be within 2-3 words of each other), strengthening distractors into plausible traps, and deepening the explanation proof.
+12. Visual Stimulus & Medical Imaging Preservation:
+   - If the candidate draft required an image ('image_needed': true), PRESERVE 'image_needed': true in your JSON response.
+   - Maintain or refine the vivid figure description in 'image_prompt_or_type'.
+   - Ensure the question stem continues to reference the figure (e.g. 'As shown in Figure 1...', 'In the radiograph below...').
+   - NEVER remove the figure reference or replace the figure with text numbers unless the reviewer critique specifically noted that the figure itself was scientifically flawed.
 
 OUTPUT FORMAT:
 Respond ONLY with a valid JSON object matching this exact structure (strictly escape newlines in string properties as \\n; do NOT output unescaped raw control characters).
 MANDATORY: The "options" key must be a JSON array of exactly 4 objects with "id" and "text" string fields. Never output options as a dictionary or string.
 {
+  "image_needed": false,
+  "image_prompt_or_type": null,
   "stimulus_text": "Updated passage text if Passage Required is 'Yes', or empty string \"\" if Passage Required is 'No'",
   "question_stem": "Refined question stem...",
   "options": [
@@ -189,9 +202,7 @@ MANDATORY: The "options" key must be a JSON array of exactly 4 objects with "id"
   "correct_answer_ids": ["A"],
   "primary_trap": "Distortion_Opposite",
   "aamc_skill": "Skill_2",
-  "explanation": "Why Option A is Correct:\n[Direct scientific proof and incontrovertible rationale]\n\nWhy Other Options are Incorrect (Distractor & Trap Breakdown):\n- Option B is INCORRECT (Extreme Language): ...\n- Option C is INCORRECT (Out of Scope): ...\n- Option D is INCORRECT (Calculation Slip): ...",
-  "image_needed": false,
-  "image_prompt_or_type": null
+  "explanation": "Why Option A is Correct:\n[Direct scientific proof and incontrovertible rationale]\n\nWhy Other Options are Incorrect (Distractor & Trap Breakdown):\n- Option B is INCORRECT (Extreme Language): ...\n- Option C is INCORRECT (Out of Scope): ...\n- Option D is INCORRECT (Calculation Slip): ..."
 }"""
 
 FUSED_GENERATOR_SYSTEM_PROMPT = """You are a Master AAMC MCAT Psychometrician and Lead Question Writer for official medical college admissions examinations.
@@ -234,6 +245,8 @@ When options are balanced within <<OPTION_PARITY>>, Option Symmetry is fully sat
 OUTPUT FORMAT:
 Respond ONLY with a valid JSON object matching this exact structure (strictly escape newlines in string properties as \\n; do NOT output unescaped raw control characters):
 {
+  "image_needed": false,
+  "image_prompt_or_type": null,
   "stimulus_text": "Academic reading passage when Passage Required is 'Yes', or strictly empty string \"\" when Passage Required is 'No'",
   "question_stem": "The direct question prompt...",
   "options": [
@@ -248,8 +261,6 @@ Respond ONLY with a valid JSON object matching this exact structure (strictly es
   "likely_mistake_pattern": "CONFUSES_AXES",
   "aamc_skill": "Skill_2",
   "explanation": "Why Option B is Correct:\n[Step-by-step proof and evidence proving why B is right]\n\nWhy Other Options are Incorrect (Distractor & Trap Breakdown):\n- Option A is INCORRECT (Extreme Language): [Flaw explanation]\n- Option C is INCORRECT (Out of Scope): [Flaw explanation]\n- Option D is INCORRECT (Correlation vs Causation): [Flaw explanation]",
-  "image_needed": false,
-  "image_prompt_or_type": null,
   "self_critique": {
     "authenticity_score": <integer 0-25>,
     "clarity_score": <integer 0-25>,

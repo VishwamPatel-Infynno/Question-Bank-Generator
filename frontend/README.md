@@ -19,7 +19,7 @@ The frontend provides an intuitive, real-time command canvas for AAMC MCAT quest
 - **AI-Validated Editorial Review Desk**: High-speed triage desk where educators inspect, inline-edit, discard, or approve validated questions into the canonical Question Bank.
 - **Question Quality & Cost Breakdown**: Comprehensive 100-point 4-pillar quality check with itemized token tracking and micro-dollar cost calculations.
 - **Export & Print Studio**: Professional modal for exporting PDF Exam Papers (with candidate headers and page breaks), Study Packs, CSV, and JSON bundles.
-- **Publication-Grade Medical & Scientific Visual Studio**: Dedicated figure renderer supporting all 7 clinical and experimental modalities (Radiology, Histopathology, Gross Anatomy, Cellular Electron Microscopy, Physiology/ECG Traces, Clinical Pathology, and SVG Vector Diagrams) with modality badging, high-contrast dark container rendering for radiographic clarity, and click-to-zoom accessible lightbox inspection (`VisualStimulusLightboxModal.jsx`).
+- **Publication-Grade Medical & Scientific Visual Studio**: Dedicated figure renderer supporting all 7 clinical and experimental modalities (Radiology, Histopathology, Gross Anatomy, Cellular Electron Microscopy, Physiology/ECG Traces, Clinical Pathology, and SVG Vector Diagrams) with modality badging, autonomous AI visual discretion for standalone and passage questions ("Include Images When Needed"), high-contrast dark container rendering for radiographic clarity, and click-to-zoom accessible lightbox inspection (`VisualStimulusLightboxModal.jsx`).
 - **Enterprise Question Bank**: High-speed searchable, filterable repository with multi-format export, lifecycle status management, and copy-to-clipboard actions.
 
 ---
@@ -109,8 +109,11 @@ frontend/src/
 │   │   └── AiValidatedStatsBar.jsx # Quick-action statistics header
 │   └── wizard/
 │       ├── index.js              # Wizard barrel export
-│       ├── GuidedWizard.jsx      # Streamlined 3-step guided exam generation wizard dock
+│       ├── GuidedWizard.jsx      # Streamlined 3-step guided exam generation wizard dock (16px radius)
 │       ├── HeroLanding.jsx       # Welcome landing hero header with hoisted HERO_PRESETS & HERO_PRESET_ICONS
+│       ├── WizardChoiceCard.jsx  # Accessible decision card primitive with selection checkmark indicator (12px radius)
+│       ├── WizardFooterNav.jsx   # Sticky bottom navigation controls and action buttons (Back, Quick Start, Generate)
+│       ├── WizardHeaderStepper.jsx # Interactive step tracker and continuous progress bar (Step 1, 2, 3)
 │       ├── wizardConstants.js    # STEP_CONFIG, QUICK_PRESETS, and frozen HERO_PRESETS definitions
 │       └── steps/                # Streamlined 3-step modular components
 │           ├── index.js          # Steps barrel export

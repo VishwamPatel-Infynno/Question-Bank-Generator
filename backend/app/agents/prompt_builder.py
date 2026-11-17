@@ -211,18 +211,27 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
                 "  4. Cellular Electron Microscopy: Transmission or scanning electron micrographs (TEM/SEM) displaying subcellular organelles (mitochondrial cristae, rough ER, nuclear pores, sarcomeres, synaptic junctions).\n"
                 "  5. Physiological Traces: Standard clinical 12-lead ECG rhythm strips on pink/red millimeter grid paper, cardiac action potential curves, Wiggers diagrams, or spirometry flow loops.\n"
                 "  6. Clinical Pathology: Diagnostic clinical photography (dermatological manifestations, retinal fundoscopic exam findings, physical examination signs).\n"
-                "  7. Scientific & Biochemical Diagrams: Reaction mechanisms, metabolic cycles, Lineweaver-Burk kinetic plots, optics, or circuit diagrams.\n"
-                "- UNRESTRICTED MEDICAL IMAGING FREEDOM: Do not artificially restrict the image type or modality. The image model supports the entire medical and scientific domain without restriction. Generate the authentic medical visual prompt needed.\n"
-                "- In your question stem, directly refer to the visual figure (e.g., 'As shown in the radiograph...', 'In the histopathology slide below...', 'Based on the electron micrograph...', 'As depicted in the figure...').\n"
-                "- Strictly set 'image_needed': true and write a vivid, clinically accurate description of the visual in 'image_prompt_or_type' specifying the exact modality, tissue/organ, view/plane, staining (e.g. H&E stain), or imaging parameters.\n"
+                "  7. Scientific & Biochemical Diagrams: Reaction mechanisms, metabolic cycles, enzyme kinetics plots, titration curves, or circuit diagrams.\n"
+                "- UNRESTRICTED MEDICAL IMAGING FREEDOM: Align with the thematic visual focus assigned to this question item if specified in thematic_angle (e.g. histopathology, scientific diagram, radiology, physiology trace). Do not artificially restrict the image type or modality.\n"
+                "- DO NOT spoon-feed findings or numerical coordinates in the text stem—present the empirical data through the figure (e.g. 'As shown in Figure 1...', 'In the radiograph below...', 'Based on the histopathology slide below...') and require the examinee to interpret the visual stimulus to arrive at the answer.\n"
+                "- Strictly set 'image_needed': true and write a vivid, clinically accurate description of the visual in 'image_prompt_or_type' specifying the exact modality, view/plane, staining, and parameters.\n"
             )
         else:
             user_prompt += (
-                "\nVISUAL STIMULUS & MEDICAL IMAGING DISCRETION:\n"
-                "- Visual stimuli and medical images are ENABLED without restriction across all scientific and medical modalities.\n"
-                "- You have complete creative and pedagogical freedom to include accompanying visual stimuli: whenever a question benefits from, illustrates, or incorporates any medical image, clinical finding, anatomical structure, physiological trace, cellular micrograph, laboratory assay, reaction mechanism, or scientific diagram, set 'image_needed': true and provide a vivid, detailed description in 'image_prompt_or_type'.\n"
-                "- FULL MODALITY SPECTRUM ENCOURAGED: You are encouraged to explore the rich diversity of all 7 medical and scientific modalities—actively draw from Diagnostic Radiology (chest/bone X-rays, CT scans, MRI, ultrasound), Histopathology (H&E biopsy slides, cytology smears), Gross Anatomy & Dissections, Cellular Electron Microscopy (TEM/SEM micrographs), Physiological Traces (12-lead ECG strips, cardiac action potentials, PV loops), Clinical Pathology (dermatology, fundoscopy), and Scientific Figures (biochemical pathways, enzyme kinetics plots, reaction mechanisms).\n"
-                "- UNRESTRICTED MEDICAL IMAGING FREEDOM: Do not restrict yourself or limit visuals only to line plots—incorporate authentic medical and scientific visuals across any topic. Set 'image_needed': true and write a vivid, clinically accurate description in 'image_prompt_or_type'."
+                "\nAI VISUAL NECESSITY ASSESSMENT & PEDAGOGICAL VALIDATION (Include Images When Needed is ON):\n"
+                "- Visual stimuli and medical imaging are ENABLED for this question bank session.\n"
+                "- STEP 1: Critically evaluate the pedagogical requirement of the specific concept, problem, and subtopic being authored:\n"
+                "  * REQUIRE AN IMAGE ('image_needed': true):\n"
+                "    If this question item tests or benefits from empirical data interpretation, experimental graphs (Lineweaver-Burk, Michaelis-Menten, scatter plots, titration curves), molecular biology assays (SDS-PAGE/Western blots, PCR, chromatography), metabolic pathways, chemical reaction mechanisms, organ anatomy, tissue biopsy histology (H&E staining), cellular electron micrographs (TEM/SEM), diagnostic radiology (X-ray, CT, MRI, ultrasound), or physiological traces (12-lead ECG, action potentials, PV loops):\n"
+                "    1. Set 'image_needed': true at the beginning of your JSON response.\n"
+                "    2. Write a vivid, publication-grade figure description in 'image_prompt_or_type' specifying the exact modality, view/plane, staining, and parameters.\n"
+                "    3. In 'question_stem', directly reference the visual figure (e.g. 'As shown in Figure 1...', 'In the radiograph below...', 'Based on the histopathology slide below...').\n"
+                "    4. DO NOT spoon-feed graph axes, findings, or numerical coordinates in text sentences—present the empirical data through the figure so examinees must interpret the visual stimulus!\n"
+                "    5. Modality Diversity: Draw naturally from across all 7 supported modalities (Radiology, Histology, Gross Anatomy, Cellular Electron Microscopy, Physiological Traces, Clinical Pathology, Scientific Diagrams) based on the subject matter.\n"
+                "  * REMAIN TEXT-ONLY ('image_needed': false):\n"
+                "    If this question item tests purely conceptual definitions, theoretical principles, terminology recall, or abstract reasoning that does not involve an empirical figure or data plot:\n"
+                "    1. Set 'image_needed': false and 'image_prompt_or_type': null.\n"
+                "    2. Formulate a crisp, high-yield text-focused question stem without decorative or unnecessary visual clutter.\n"
             )
     else:
         user_prompt += (

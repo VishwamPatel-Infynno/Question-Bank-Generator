@@ -9,7 +9,7 @@ from typing import Any
 
 from app.core.config import config
 from app.schemas import ALT_TRAP_ROTATION, GenerationRequest, Question, WorkflowEvent
-from app.services.deduplication import evaluate_duplicate
+from app.services.deduplication import DuplicateCheckResult, evaluate_duplicate
 from app.workflow.nodes import fused_generator_node
 from app.workflow.review_loop import llm_budget_exhausted
 from app.workflow.state import AgentWorkflowState
@@ -28,7 +28,8 @@ _DEDUP_THREAD_POOL_MIN = 150
 
 async def _evaluate_duplicate_async(
     draft: dict[str, Any], ref_pool: list[Any], *, threshold: float, soft_threshold: float
-):
+) -> DuplicateCheckResult:
+    """Asynchronously evaluates duplicate similarity against a reference pool, offloading large pools to a thread."""
     if len(ref_pool) >= _DEDUP_THREAD_POOL_MIN:
         return await asyncio.to_thread(
             evaluate_duplicate, draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold

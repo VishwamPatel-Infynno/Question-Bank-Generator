@@ -9,11 +9,10 @@ and calculating in-set replenishment shortfalls.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from app.core.config import config
 from app.schemas import GenerationJob, JobStatus, Question
-from app.services.deduplication import cluster_questions
+from app.services.deduplication import DuplicateCluster, cluster_questions
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +23,13 @@ def find_cluster_duplicates(
     *,
     cluster_ids: list[str] | None = None,
     custom_leader_ids: list[str] | None = None,
-) -> tuple[list[dict[str, Any]], list[str]]:
-    """Semantic duplicate clusters among active questions and the ids to purge.
+) -> tuple[list[DuplicateCluster], list[str]]:
+    """
+    Identifies semantic duplicate clusters among active questions and calculates question IDs to purge.
 
-    Every cluster keeps one leader (the highest-scoring member, or the member named in
-    ``custom_leader_ids``); the rest are purged. ``cluster_ids`` restricts the purge to those
-    clusters (all clusters are still returned).
+    Every cluster elects and preserves one leader (the highest-scoring member, or the member named in
+    custom_leader_ids); remaining duplicate members are earmarked for removal. cluster_ids can restrict
+    the purge set to specific clusters.
     """
     threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
     q_dumps = [q.model_dump() for q in active_questions]

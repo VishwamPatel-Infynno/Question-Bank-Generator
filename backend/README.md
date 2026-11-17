@@ -41,8 +41,8 @@ backend/
 │   │   ├── generator.py     # Fused clinical question synthesis & self-critique agent
 │   │   ├── blind_solver.py  # Blind-solver dual-validation candidate verification agent (fail-closed)
 │   │   ├── validators.py    # Free deterministic structural validators & dash repair, run before LLM review
-│   │   ├── reviewer.py      # 100-point 4-pillar psychometric auditor agent
-│   │   ├── regenerator.py   # Autonomous remediation agent (<= 80 score trigger)
+│   │   ├── reviewer.py      # 100-point 4-pillar psychometric auditor agent (with Accompanying Visual Stimulus anti-deduction mandate)
+│   │   ├── regenerator.py   # Autonomous remediation agent (<= 80 score trigger; Rule 12 visual retention)
 │   │   ├── option_balancer.py # Mathematical option length balancing (±15%) & anti-guessability
 │   │   ├── image_generator.py # FLUX-2-klein-4b neural visual & SVG vector generator
 │   │   ├── medical_imaging.py # High-fidelity anatomical & clinical diagnostic prompt synthesis (radiology, ECG, histology)
@@ -90,7 +90,7 @@ backend/
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (59 deterministic modules / 393 tests + 1 live E2E module with 10 tests = 403 total backend tests)
+└── tests/                   # Deterministic Automated Test Suite (59 deterministic modules / 396 tests + 1 live E2E module with 10 tests = 406 total backend tests)
     ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
     ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
     ├── test_additional_instructions.py     # Educator custom authoring instructions and prompt builder integration
@@ -265,7 +265,7 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (393 deterministic tests across 59 modules, 403 total backend tests)
+# Run all unit and integration tests (396 deterministic tests across 59 modules, 406 total backend tests)
 # Smart auto-skip: 314 pure unit tests pass offline, 79 DB-dependent tests skip cleanly if PostgreSQL is offline
 source .venv/bin/activate
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
@@ -274,7 +274,7 @@ pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 PYTHONPATH=backend pytest backend/tests/test_database_structure.py -v
 ```
 
-### Code Formatting & Linting
+### Code Formatting, Zero-Suppression & Type Precision
 Enforce Python code hygiene using **Ruff** (rules E, W, F, I, UP, B, C4, SIM, RET, G004, ASYNC, PT, RUF):
 
 ```bash
@@ -287,6 +287,13 @@ ruff format --check .
 # Automatically fix linting issues
 ruff check --fix backend/
 ```
+
+- **Native Zero-Suppression Standard**: The backend enforces a strict zero-suppression policy (**0 `# noqa` directives across the entire codebase**). Linter findings are resolved architecturally:
+  - Mutable `ContextVar` defaults (`B039`) are resolved with immutable `default=None` and runtime fallback (`_log_context.get() or {}`).
+  - Timeout argument shadowing (`ASYNC109`) is resolved by renaming to `timeout_seconds: float`.
+  - Import registration in `init_db.py` (`F401`) is resolved through explicit `__all__` export manifests.
+  - Unused arguments (`ARG001`) and dictionary key iterations (`PERF102`) are resolved by signature cleanup and `.values()` loops.
+- **Python Type Precision & Typing Standards**: Bare `dict` type annotations are strictly prohibited across all modules in favor of `dict[str, Any]` and dedicated `TypedDict` schemas (`AgentUsageEntry`, `AgentWorkflowState`). All background coroutines declare explicit return types (`-> None`).
 
 ---
 

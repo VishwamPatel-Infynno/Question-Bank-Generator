@@ -19,7 +19,7 @@ from app.schemas import (
     is_cars,
 )
 from app.workflow.nodes import agent_usage_entry
-from app.workflow.state import AgentWorkflowState
+from app.workflow.state import AgentUsageEntry, AgentWorkflowState
 
 
 @dataclass
@@ -34,7 +34,30 @@ class SharedPassageState:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cost: float = 0.0
-    usage_breakdown: list[dict[str, Any]] = field(default_factory=list)
+    usage_breakdown: list[AgentUsageEntry] = field(default_factory=list)
+
+
+MODALITY_ROTATION_BY_SECTION: dict[str, list[str]] = {
+    "bio_biochem": [
+        "histopathology (e.g. H&E tissue biopsy, cellular histology, blood smear)",
+        "scientific_diagram (e.g. enzyme kinetics plot, SDS-PAGE gel, metabolic pathway)",
+        "gross_anatomy (e.g. organ cross-section, cardiac chambers, renal architecture)",
+        "cellular_microscopy (e.g. TEM micrograph of mitochondrial cristae, sarcomere ultrastructure)",
+        "physiology_trace (e.g. 12-lead ECG strip, cardiac action potential, PV loop)",
+    ],
+    "chem_phys": [
+        "scientific_diagram (e.g. reaction mechanism, titration curve, optics diagram, circuit)",
+        "diagnostic_radiology (e.g. plain radiograph X-ray, CT attenuation, ultrasound, MRI)",
+        "physiology_trace (e.g. cardiac electrical trace, respiratory pressure-volume curve)",
+        "cellular_microscopy (e.g. membrane channel ultrastructure, electron micrograph)",
+    ],
+    "psych_soc": [
+        "scientific_diagram (e.g. experimental scatter plot with regression line, psychophysics curve)",
+        "diagnostic_radiology (e.g. fMRI BOLD cortical activation scan, PET neuroimaging)",
+        "gross_anatomy (e.g. neuroanatomical structures: limbic system, hippocampus, amygdala)",
+        "clinical_pathology (e.g. neurological examination findings, emotion processing stimuli)",
+    ],
+}
 
 
 def _build_batch_worker_request(
@@ -87,16 +110,14 @@ def _build_batch_worker_request(
         item_stimulus = None
 
     # Visual stimulus generation for science sections:
-    # When visuals are enabled, independent/standalone questions require a visual stimulus
-    # (as they have no shared passage image to reference). For passage-linked questions,
-    # the shared passage carries Figure 1 unless individual items explicitly mandate one.
+    # Autonomous AI validation: items inherit allow_ai_images so the AI dynamically evaluates
+    # visual necessity for each question item. require_image is only True if explicitly mandated
+    # by the user on the parent request.
     sec_is_cars = is_cars(req.section)
     has_diagrams_enabled = (
         req.allow_ai_images or req.require_image or req.visual_type in KNOWN_VISUAL_TYPES
     ) and not sec_is_cars
-    should_require_item_image = bool(
-        has_diagrams_enabled and (req.require_image or not is_passage_item)
-    )
+    should_require_item_image = bool(req.require_image and not sec_is_cars)
 
     # Resolve AAMC Reasoning Skill:
     # If the user specifically requested a skill, calibrate all questions to that requested skill.
@@ -119,6 +140,8 @@ def _build_batch_worker_request(
         science_skills = ["Skill_1", "Skill_2", "Skill_3", "Skill_4", "Skill_2"]
         item_skill = science_skills[idx % len(science_skills)]
 
+    item_thematic_angle = req.thematic_angle or f"Question Item {idx + 1}"
+
     item_req = req.model_copy(
         update={
             "run_id": item_run_id,
@@ -132,7 +155,7 @@ def _build_batch_worker_request(
             "aamc_skill": item_skill,
             "allow_ai_images": bool(has_diagrams_enabled and not sec_is_cars),
             "require_image": should_require_item_image,
-            "thematic_angle": req.thematic_angle or f"Question Item {idx + 1}",
+            "thematic_angle": item_thematic_angle,
             "visual_type": "None"
             if sec_is_cars
             else (
@@ -145,7 +168,9 @@ def _build_batch_worker_request(
     return item_req, item_run_id, is_passage_item, item_interaction
 
 
-def _determine_item_diagram_requirement(state: AgentWorkflowState, is_passage_item: bool) -> bool:
+def _determine_item_diagram_requirement(
+    state: AgentWorkflowState, _is_passage_item: bool = False, **_kwargs: Any
+) -> bool:
     """
     Evaluates whether a specific question item within a batch requires a visual stimulus diagram.
 
@@ -179,15 +204,10 @@ def _determine_item_diagram_requirement(state: AgentWorkflowState, is_passage_it
         return True
 
     draft = state.get("current_draft") or {}
-    item_image_needed = bool(draft.get("image_needed", False))
 
-    if is_passage_item:
-        # Passage-linked question shares the passage image unless its own draft explicitly
-        # requires a dedicated item-level visual stimulus.
-        return item_image_needed
-
-    # For independent items, generate visual stimulus whenever visuals are permitted or requested
-    return item_image_needed or visuals_permitted
+    # Autonomous AI validation: only generate a diagram if the draft explicitly validated
+    # that an accompanying visual stimulus is needed for this question item.
+    return bool(draft.get("image_needed", False))
 
 
 async def _prepare_shared_passage_and_visual(

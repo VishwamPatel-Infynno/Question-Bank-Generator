@@ -45,7 +45,7 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (393 deterministic unit & integration tests across 59 modules; 282 pass offline, 111 DB tests run cleanly with PostgreSQL; 403 total backend tests including 10 live LLM E2E tests)
+# 1. Backend pytest suite (396 deterministic unit & integration tests across 59 modules; 282 pass offline, 112 DB tests run cleanly with PostgreSQL; 406 total backend tests including 10 live LLM E2E tests)
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 
 # 2. Backend Python linter and formatting checks (E, W, F, I, UP, B, C4, SIM, RET, G004, ASYNC, PT, RUF)
@@ -88,8 +88,12 @@ pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
    - Frontend: Top-level views (`views/`) with feature-based component directories (`wizard/`, `question/`, `passage/`, `bank/`, `batch/`, `validated/`, `layout/`, `modals/`, `common/`) and centralized hooks/constants.
 9. **Multi-Agent Pipeline & Cognitive Fusion**: Step 01 fuses item authoring and 100-point rubric self-critique (`Drafting & Review`) into a single pass calibrated to aim for a perfect 100/100 score on first pass. Step 02 executes independent dual validation (`Answer Check`). Step 03 executes remediation (`Question Polish`) for drafts scoring $\le 80$ or failing verification, while Step 04 renders visual stimuli (`Figures & Diagrams`).
 10. **AAMC Dual Split-Pane Reading Mode**: Ensures dense scientific research passages and CARS essays are presented side-by-side with sticky scrolling and synchronized candidate review.
-11. **Option Symmetry & Anti-AI Standard**: Enforce option length parity (within 3 words, or 20% of the average for longer options; `agents/standards.py`) across strictly 4 options ($A, B, C, D$) and single hyphens (`-`) only; em dashes (`—`) and en dashes (`–`) are strictly forbidden across prompts and generation output.
-12. **Medical Imaging Freedom & Prompt Safety**: Unrestricted visual stimulus synthesis across all 7 clinical modalities (Radiology, Histopathology, Gross Anatomy, Cellular Microscopy, Physiology/ECG, Clinical Pathology, Scientific Diagrams) for natural science sections (CP, BB). Prompts must use academic textbook illustration framing and avoid raw trauma/gore descriptors to prevent commercial content moderation false positives.
+11. **Reviewer-Regenerator Visual Preservation Boundary**: The Reviewer agent receives the Accompanying Visual Stimulus Specification and is bound by the anti-deduction audit mandate, prohibiting point deductions for "Figure 1" references in standalone stems. The Regenerator must preserve `image_needed: True` and retain figure references per Rule 12.
+12. **Python Type Precision & Typing Standards**: Generic bare `dict` annotations are strictly prohibited. All dictionaries must be explicitly typed as `dict[str, Any]` or defined via `TypedDict` (e.g. `AgentUsageEntry`, `AgentWorkflowState`). Coroutines must declare explicit return types (`-> None`).
+13. **Option Symmetry & Anti-AI Standard**: Enforce option length parity (within 3 words, or 20% of the average for longer options; `agents/standards.py`) across strictly 4 options ($A, B, C, D$) and single hyphens (`-`) only; em dashes (`—`) and en dashes (`–`) are strictly forbidden across prompts and generation output.
+14. **Medical Imaging Freedom & Prompt Safety**: Unrestricted visual stimulus synthesis across all 7 clinical modalities (Radiology, Histopathology, Gross Anatomy, Cellular Microscopy, Physiology/ECG, Clinical Pathology, Scientific Diagrams) for natural science sections (CP, BB). Prompts must use academic textbook illustration framing and avoid raw trauma/gore descriptors to prevent commercial content moderation false positives.
+15. **Zero-Suppression Linting Policy (0 # noqa)**: The backend enforces a strict 0 `# noqa` rule across all production and test code. Do not suppress linter errors with `# noqa`; resolve them structurally (e.g. immutable ContextVar defaults, parameter disambiguation, formal `__all__` export manifests, `.values()` loops).
+16. **UI Spatial Radius Scale Conformance**: All user interface elements must conform to the 5-tier spatial hierarchy defined in `DESIGN.md` §3.2: `--radius-lg` (`16px`) for primary workspace cards/modals, `--radius-md` (`12px`) for sub-cards/option boxes, `--radius-sm` (`8px`) for buttons/inputs, `--radius-xs` (`4px`) for micro badges, and `--radius-full` (`9999px`) for status pills.
 
 ---
 

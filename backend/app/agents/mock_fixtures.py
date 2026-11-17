@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from app.agents.mock_drafts import MOCK_DRAFTS
 from app.schemas import (
@@ -113,7 +114,7 @@ def improve_draft_heuristically(
 
 
 # Authentic multi-question variant definitions for offline testing and collision-free fallback
-_MOCK_QUESTION_VARIANTS: dict[str, list[dict]] = {
+_MOCK_QUESTION_VARIANTS: dict[str, list[dict[str, Any]]] = {
     "chem_phys_independent": [
         {
             "stem": "In a photoelectric experiment, monochromatic ultraviolet light strikes a cesium target with work function 2.14 eV. If the incident photon energy is 3.50 eV, what is the maximum kinetic energy of the emitted photoelectrons?",

@@ -60,7 +60,6 @@ async def _finalize_live_job_progress(
     job_id: str,
     batch_id: str,
     completed_total: int,
-    total_qty: int,
     cumulative_tokens: int,
     cumulative_prompt_tokens: int,
     cumulative_completion_tokens: int,

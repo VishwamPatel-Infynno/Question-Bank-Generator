@@ -4,7 +4,7 @@
 > **Prepared by**: Infynno Solutions LLP • Infinite Innovations • [infynno.com](https://infynno.com/)  
 > **Product**: Infynno MCAT Question Bank Generator v2.0  
 > **Target Audience**: Client Leadership, Product Stakeholders, Medical Admissions Educators, Pre-Med Faculty, and Test-Prep Authors  
-> **System Status**: Fully Implemented, Tested (393 Backend + 119 Frontend Tests), and Production-Ready  
+> **System Status**: Fully Implemented, Tested (396 Backend + 119 Frontend Tests), and Production-Ready  
 
 ---
 
@@ -110,6 +110,7 @@ sequenceDiagram
     end
 
     Orchestrator->>Auditor: Independent 100-pt 4-Pillar Evaluation
+    Note over Auditor: Injects Accompanying Figure Spec<br/>Audits Stem & Figure Alignment
     alt Final Score > 80
         Auditor-->>Orchestrator: Approved (High Quality)
         opt Section != CARS and Diagram Needed
@@ -142,9 +143,13 @@ Evaluates items across four equal 25-point pillars (100 points total):
 3. **Pillar 3: Distractor Traps & Option Symmetry (25 pts)** — Plausibility of wrong choices, length symmetry ($\pm 15\%$), and cognitive trap alignment.
 4. **Pillar 4: Explanation & Proof Rigor (25 pts)** — Incontrovertible mathematical or deductive proof citing explicit passage evidence.
 
+- **Accompanying Visual Stimulus & Empirical Data Audit Boundary**:
+  When an educator or candidate question requires empirical findings (such as Lineweaver-Burk enzyme kinetics, 12-lead ECG traces, chest CT scans, or renal biopsy histology slides), the Senior Psychometric Auditor receives the complete Accompanying Visual Stimulus Specification. The Auditor is strictly instructed **never to penalize references to "Figure 1", "the plot", or "the radiograph below"** in standalone stems, verifying instead that the question stem, answer choices, and scientific proof logically align with the described empirical figure.
+
 ### 3.4 Autonomous Remediation Loop (`regenerator.py`)
 - Automatically repairs borderline drafts scoring $\le 80$.
 - Ingests specific auditor critique notes, adjusts distractors, equalizes option word counts, and sharpens step-by-step proofs.
+- **Visual Stimulus Preservation Guarantee**: Mandates that items requiring medical imaging or scientific diagrams retain `image_needed: True` and preserve references to "Figure 1". The regenerator remediates pedagogical traps and explanation depth without flattening empirical visual findings into plain text numbers.
 - Maximum 3 cycles; if an item cannot reach 70 points, the circuit breaker permanently discards it.
 
 ### 3.5 Visual Stimulus & Medical Imaging Engine (`image_generator.py` & `medical_imaging.py`)
@@ -273,10 +278,13 @@ The primary authoring portal switches between a minimalist welcome canvas (`Hero
    - **Challenge Level**: Low, Medium, High difficulty calibration.
    - **Binary Format**: Passage-Based Set vs. Independent Discretes.
 3. **Step 3: Review & Launch (`WizardStep3ReviewAdvanced.jsx`)**:
-   - **Parameter Summary Card**: Compact tabular review of section, topics, difficulty, and question count.
-   - **Scientific Diagrams Toggle Card**: 1-click toggle card for natural science sections.
+   - **Parameter Summary Card**: Compact tabular review of section, topics, difficulty, and question count (`.wizard-review-card`, 12px radius).
+   - **Scientific Diagrams Toggle Card**: 1-click toggle card for natural science sections (`.wizard-diagram-card`, 12px radius).
    - **Additional Authoring Instructions**: High-priority textarea allowing educators to specify custom clinical scenarios or derivations (triggers animated `+ Custom Prompt Active` badge).
    - **Advanced Settings Drawer**: Fine-grained selection of specific cognitive traps, SIRS reasoning skills, and targeted mistake patterns.
+4. **Spatial Ergonomics & Radius Scale**:
+   - The outer Guided Wizard dock (`.wizard-card`) is styled with `border-radius: var(--radius-lg)` (`16px`), matching top-level workspace panels and modal dialogs.
+   - Nested decision containers—such as difficulty choice cards (`.wizard-tier-card`), review parameter summaries (`.wizard-review-card`), and the diagram toggle card (`.wizard-diagram-card`)—consistently enforce `border-radius: var(--radius-md)` (`12px`), providing a harmonious, fatigue-free authoring environment that eliminates visual sibling drift.
 
 ---
 
@@ -399,7 +407,7 @@ $$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\te
 
 ### Full-Stack Architecture Specifications
 - **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (119 unit tests across 13 test files).
-- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (393 deterministic test suite).
+- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (396 deterministic test suite).
 - **Database**: PostgreSQL 16 with native JSONB columns for multi-stage payloads, rubrics, and token tracking; UUID4 primary keys; automated schema migrations on startup.
 - **Observability**: Prometheus `/metrics` endpoint exposing real-time worker pool occupancy, batch lifecycle states, and token expenditures.
 - **Security & Hygiene**:

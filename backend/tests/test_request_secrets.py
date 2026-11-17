@@ -1,6 +1,7 @@
 """Client-supplied API keys must never be persisted or returned."""
 
 import uuid
+from typing import Any
 
 import pytest
 from app.db.session import async_session_factory
@@ -16,7 +17,7 @@ from app.schemas import GenerationBatch, GenerationRequest
 pytestmark = pytest.mark.requires_db
 
 
-def _batch(batch_id: str, payload: dict) -> GenerationBatch:
+def _batch(batch_id: str, payload: dict[str, Any]) -> GenerationBatch:
     return GenerationBatch(
         id=batch_id,
         section="chem_phys",

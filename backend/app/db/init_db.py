@@ -8,10 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import config
 from app.db.base import Base
-from app.models.batch import GenerationBatchModel  # noqa: F401 - Registered for Base.metadata
-from app.models.job import GenerationJobModel  # noqa: F401 - Registered for Base.metadata
-from app.models.passage import PassageModel  # noqa: F401 - Registered for Base.metadata
-from app.models.question import QuestionModel  # noqa: F401 - Registered for Base.metadata
+from app.models.batch import GenerationBatchModel
+from app.models.job import GenerationJobModel
+from app.models.passage import PassageModel
+from app.models.question import QuestionModel
+
+__all__ = [
+    "GenerationBatchModel",
+    "GenerationJobModel",
+    "PassageModel",
+    "QuestionModel",
+    "init_db_schema",
+]
 
 logger = logging.getLogger(__name__)
 

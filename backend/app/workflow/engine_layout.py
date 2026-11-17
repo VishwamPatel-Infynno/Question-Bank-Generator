@@ -32,7 +32,7 @@ from app.schemas import (
 )
 from app.workflow.passage_prep import SharedPassageState
 from app.workflow.review_loop import count_llm_calls
-from app.workflow.state import AgentWorkflowState
+from app.workflow.state import AgentUsageEntry, AgentWorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ class SlotLedger:
     prompt_tokens: list[int]
     completion_tokens: list[int]
     costs: list[float]
-    usage: list[list[dict[str, Any]]]
+    usage: list[list[AgentUsageEntry]]
     calls: list[int] = field(default_factory=list)
 
     @classmethod
@@ -189,7 +189,7 @@ class SlotLedger:
             "total_cost_usd": round(sum(self.costs) + passage.cost, 7),
         }
 
-    def all_usage(self) -> list[dict[str, Any]]:
+    def all_usage(self) -> list[AgentUsageEntry]:
         return [entry for slot_usage in self.usage for entry in slot_usage]
 
 

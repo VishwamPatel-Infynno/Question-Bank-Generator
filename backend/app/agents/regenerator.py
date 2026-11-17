@@ -77,6 +77,15 @@ async def regenerate_question(
         instruction_block += "\n"
 
     target_score = int(req.passing_threshold or config.PASSING_SCORE_THRESHOLD)
+
+    visual_stimulus_block = ""
+    if getattr(draft, "image_needed", False) and getattr(draft, "image_prompt_or_type", None):
+        visual_stimulus_block = (
+            f"\nAccompanying Visual Stimulus Specification:\n"
+            f"- Image Needed: True\n"
+            f"- Figure Description / Prompt: {draft.image_prompt_or_type.strip()}\n"
+        )
+
     user_prompt = f"""The following candidate MCAT question received a score of {review.total_score}/100 and needs to be re-generated to score > {target_score}.
 
 Section: {section_name}
@@ -88,7 +97,7 @@ Iteration: {iteration}
 --- ORIGINAL CANDIDATE DRAFT ---
 Stimulus:
 {draft.stimulus_text if is_passage_active else ""}
-
+{visual_stimulus_block}
 Stem:
 {draft.question_stem}
 
@@ -116,6 +125,7 @@ CRITICAL REMEDIATION MANDATE:
 5. Step-by-step proof: Provide an indisputable, cohesive step-by-step proof in the explanation without referring to prior drafts or earlier iterations.
 6. Passage text is fixed: Do NOT attempt to rewrite the reading passage; focus solely on the question stem, options, and explanation.
 7. Output format: "options" MUST be a JSON list of 4 objects with "id" and "text" string fields.
+8. Visual Stimulus Preservation: If the original draft required an image ('image_needed': true), PRESERVE 'image_needed': true in your JSON output, keep or refine the vivid figure description in 'image_prompt_or_type', and maintain the question stem's direct reference to the figure (e.g. 'As shown in Figure 1...', 'In the radiograph below...'). DO NOT remove the figure or replace it with text numbers.
 
 Please re-generate and refine this question to resolve all weaknesses and produce a publication-grade AAMC MCAT question. Output valid JSON only."""
 
@@ -148,6 +158,10 @@ Please re-generate and refine this question to resolve all weaknesses and produc
             or req.require_passage_image
             or req.visual_type in KNOWN_VISUAL_TYPES
         )
+        orig_img_needed = bool(getattr(draft, "image_needed", False))
+        resolved_img_needed = image_allowed and (
+            orig_img_needed or bool(data.get("image_needed", False))
+        )
         return QuestionDraft(
             stimulus_text=stimulus,
             question_stem=_require_text(data, "question_stem"),
@@ -155,7 +169,7 @@ Please re-generate and refine this question to resolve all weaknesses and produc
             correct_answer_id=correct_id_str,
             correct_answer_ids=keys_list,
             explanation=order_distractors_in_explanation(_require_text(data, "explanation")),
-            image_needed=image_allowed and bool(data.get("image_needed", draft.image_needed)),
+            image_needed=resolved_img_needed,
             image_prompt_or_type=data.get("image_prompt_or_type") or draft.image_prompt_or_type,
             # Metadata describes the question's design, not this rewrite: carry it over
             primary_trap=draft.primary_trap,

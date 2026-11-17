@@ -102,6 +102,14 @@ async def review_question(
 
     target_benchmark = int(req.passing_threshold or config.PASSING_SCORE_THRESHOLD)
 
+    visual_stimulus_block = ""
+    if getattr(draft, "image_needed", False) and getattr(draft, "image_prompt_or_type", None):
+        visual_stimulus_block = (
+            f"\nAccompanying Visual Stimulus / Medical Imaging Figure:\n"
+            f"- Status: Figure is REQUIRED and will be generated based on this specification.\n"
+            f"- Figure Description / Prompt: {draft.image_prompt_or_type.strip()}\n"
+        )
+
     user_prompt = f"""Review the following candidate AAMC MCAT Multiple Choice Question:
 
 Metadata:
@@ -117,7 +125,7 @@ Metadata:
 --- CANDIDATE QUESTION UNDER AUDIT ---
 {stimulus_label}
 {draft.stimulus_text if draft.stimulus_text else "(None - Standalone Question)"}
-
+{visual_stimulus_block}
 Question Stem:
 {draft.question_stem}
 
@@ -133,6 +141,10 @@ Explanation:
 AUDIT INSTRUCTIONS:
 - The 4 scoring pillars evaluate SOLELY the question item: Question Stem, Options, Key, and Explanation.
 - DO NOT critique or deduct points from any pillar for the background reading passage.
+- VISUAL STIMULUS & MEDICAL IMAGING MANDATE: When an accompanying figure is specified ("Accompanying Visual Stimulus / Medical Imaging Figure"), the image IS generated and provided directly to the examinee beneath the question stem.
+  * DO NOT penalize or deduct points from Clarity or Authenticity for referencing "Figure 1", "the diagram below", "the radiograph", "the histopathology slide", or "the plot".
+  * DO NOT tell the author to remove the figure reference or replace the figure with text numbers. AAMC items testing empirical data legitimately present findings through figures.
+  * Evaluate whether the question stem, options, and explanation logically align with the figure described in the specification.
 - If option word counts are within parity, Option Symmetry is satisfied; do NOT penalize options for minor stylistic phrasing.
 - Award the full score of 25 points per pillar (100/100 total) when the item satisfies all requirements with no identifiable psychometric defects.
 Evaluate the candidate question and return your 100-point rubric breakdown as JSON."""

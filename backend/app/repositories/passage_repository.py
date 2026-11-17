@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import and_, func, or_, select, update
 
@@ -93,7 +94,7 @@ async def save_passage(passage: Passage) -> Passage:
 
         # Synchronize stimulus_text and visual stimulus to all linked questions if text is present
         if passage.id and passage.text is not None:
-            values_to_update: dict = {
+            values_to_update: dict[str, Any] = {
                 "stimulus_text": passage.text,
             }
             if passage.image_url is not None:

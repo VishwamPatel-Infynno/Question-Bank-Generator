@@ -412,6 +412,50 @@ def test_determine_item_diagram_requirement_unrestricted():
     assert _determine_item_diagram_requirement(state_cars, is_passage_item=False) is False
     assert _determine_item_diagram_requirement(state_cars, is_passage_item=True) is False
 
+    # 6. Independent item with AI visual necessity validation (image_needed=False) -> False
+    state_independent_conceptual = {
+        "request": {
+            "section": "bio_biochem",
+            "allow_ai_images": True,
+            "require_image": False,
+        },
+        "current_draft": {"image_needed": False},
+        "image_url": None,
+    }
+    assert (
+        _determine_item_diagram_requirement(state_independent_conceptual, is_passage_item=False)
+        is False
+    )
+
+    # 7. Independent item with AI visual necessity validation (image_needed=True) -> True
+    state_independent_visual = {
+        "request": {
+            "section": "bio_biochem",
+            "allow_ai_images": True,
+            "require_image": False,
+        },
+        "current_draft": {"image_needed": True},
+        "image_url": None,
+    }
+    assert (
+        _determine_item_diagram_requirement(state_independent_visual, is_passage_item=False) is True
+    )
+
+    # 8. Independent item with explicit mandate (require_image=True) -> True
+    state_independent_explicit = {
+        "request": {
+            "section": "bio_biochem",
+            "allow_ai_images": True,
+            "require_image": True,
+        },
+        "current_draft": {"image_needed": False},
+        "image_url": None,
+    }
+    assert (
+        _determine_item_diagram_requirement(state_independent_explicit, is_passage_item=False)
+        is True
+    )
+
 
 @pytest.mark.asyncio
 async def test_openai_content_safety_retry_fallback():
@@ -472,3 +516,127 @@ async def test_openai_content_safety_retry_fallback():
 
     assert img_data == "data:image/png;base64,EDUCATIONAL_FALLBACK_BASE64"
     assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_reviewer_receives_visual_stimulus_context_and_mandate(monkeypatch):
+    """
+    Verifies that when a candidate draft requires an image, review_question passes the visual stimulus
+    specification and the anti-deduction audit mandate to the reviewer prompt.
+    """
+    from app.agents import reviewer
+    from app.schemas import GenerationRequest, MCATSection, OptionChoice, QuestionDraft
+
+    captured_prompt = ""
+
+    async def mock_call_llm_validated(prompt, **kwargs):
+        nonlocal captured_prompt
+        captured_prompt = prompt
+        return reviewer.ReviewScore(
+            authenticity_score=25,
+            clarity_score=25,
+            distractor_score=25,
+            explanation_score=25,
+            total_score=100,
+            passed=True,
+        ), reviewer.TokenUsage(
+            prompt_tokens=100, completion_tokens=50, total_tokens=150, cost_usd=0.001
+        )
+
+    monkeypatch.setattr(reviewer, "call_llm_validated", mock_call_llm_validated)
+
+    draft = QuestionDraft(
+        question_stem="As shown in Figure 1, the Lineweaver-Burk plot illustrates enzyme inhibition...",
+        options=[
+            OptionChoice(id="A", text="Competitive inhibition with increased apparent Km"),
+            OptionChoice(id="B", text="Noncompetitive inhibition with decreased maximal velocity"),
+            OptionChoice(id="C", text="Uncompetitive inhibition with parallel reciprocal lines"),
+            OptionChoice(id="D", text="Irreversible inhibition with permanently degraded enzyme"),
+        ],
+        correct_answer_id="A",
+        explanation="Why Option A is Correct: Lineweaver-Burk plot shows shared y-intercept.\n\nWhy Other Options are Incorrect:\n- Option B is INCORRECT: ...\n- Option C is INCORRECT: ...\n- Option D is INCORRECT: ...",
+        image_needed=True,
+        image_prompt_or_type="High-resolution double reciprocal Lineweaver-Burk plot comparing uninhibited vs inhibited enzyme",
+    )
+    req = GenerationRequest(
+        section=MCATSection.BIO_BIOCHEM, allow_ai_images=True, require_image=False
+    )
+
+    score, _ = await reviewer.review_question(draft, req)
+    assert score.passed is True
+    assert "Accompanying Visual Stimulus / Medical Imaging Figure" in captured_prompt
+    assert "High-resolution double reciprocal Lineweaver-Burk plot" in captured_prompt
+    assert "VISUAL STIMULUS & MEDICAL IMAGING MANDATE" in captured_prompt
+    assert (
+        'DO NOT penalize or deduct points from Clarity or Authenticity for referencing "Figure 1"'
+        in captured_prompt
+    )
+
+
+@pytest.mark.asyncio
+async def test_regenerator_preserves_visual_stimulus_requirement(monkeypatch):
+    """
+    Verifies that when a candidate draft requiring an image is regenerated, the regenerator
+    prompt includes the visual stimulus block and preserves image_needed=True.
+    """
+    from app.agents import regenerator
+    from app.schemas import GenerationRequest, MCATSection, OptionChoice, QuestionDraft, ReviewScore
+
+    captured_prompt = ""
+
+    async def mock_call_llm_validated(prompt, parse, **kwargs):
+        nonlocal captured_prompt
+        captured_prompt = prompt
+        raw_json = (
+            "{\n"
+            '  "question_stem": "As shown in Figure 1, an enzyme-catalyzed reaction with an inhibitor...",\n'
+            '  "options": [\n'
+            '    {"id": "A", "text": "Competitive inhibition with increased apparent Km"},\n'
+            '    {"id": "B", "text": "Noncompetitive inhibition with reduced maximal velocity"},\n'
+            '    {"id": "C", "text": "Uncompetitive inhibition with parallel reciprocal lines"},\n'
+            '    {"id": "D", "text": "Irreversible inhibition with permanent enzyme covalent bonding"}\n'
+            "  ],\n"
+            '  "correct_answer_id": "A",\n'
+            '  "correct_answer_ids": ["A"],\n'
+            '  "explanation": "Why Option A is Correct: Lineweaver-Burk plot proof.\\n\\nWhy Other Options are Incorrect (Distractor & Trap Breakdown):\\n- Option B is INCORRECT: ...\\n- Option C is INCORRECT: ...\\n- Option D is INCORRECT: ...",\n'
+            '  "image_needed": true,\n'
+            '  "image_prompt_or_type": "Refined Lineweaver-Burk plot"\n'
+            "}"
+        )
+        return parse(raw_json), regenerator.TokenUsage(
+            prompt_tokens=100, completion_tokens=50, total_tokens=150, cost_usd=0.001
+        )
+
+    monkeypatch.setattr(regenerator, "call_llm_validated", mock_call_llm_validated)
+
+    draft = QuestionDraft(
+        question_stem="As shown in Figure 1, the Lineweaver-Burk plot...",
+        options=[
+            OptionChoice(id="A", text="Option A"),
+            OptionChoice(id="B", text="Option B"),
+            OptionChoice(id="C", text="Option C"),
+            OptionChoice(id="D", text="Option D"),
+        ],
+        correct_answer_id="A",
+        explanation="Explanation",
+        image_needed=True,
+        image_prompt_or_type="Lineweaver-Burk plot",
+    )
+    review = ReviewScore(
+        authenticity_score=20,
+        clarity_score=20,
+        distractor_score=20,
+        explanation_score=20,
+        total_score=80,
+        passed=False,
+        weaknesses=["Refine option lengths to satisfy symmetry parity"],
+        recommendations=["Equalize word counts across options"],
+    )
+    req = GenerationRequest(
+        section=MCATSection.BIO_BIOCHEM, allow_ai_images=True, require_image=False
+    )
+
+    re_draft, _ = await regenerator.regenerate_question(draft, review, req)
+    assert re_draft.image_needed is True
+    assert "Accompanying Visual Stimulus Specification" in captured_prompt
+    assert "Visual Stimulus Preservation" in captured_prompt

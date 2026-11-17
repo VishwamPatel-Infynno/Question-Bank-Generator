@@ -13,13 +13,15 @@ from typing import Any
 
 # Per-task correlation ids (run, batch, job, question slot). asyncio tasks copy the current
 # context when created, so values bound in a parent flow into the workers it spawns.
-_log_context: ContextVar[dict[str, Any]] = ContextVar("log_context", default={})  # noqa: B039
+_log_context: ContextVar[dict[str, Any] | None] = ContextVar("log_context", default=None)
 
 
 @contextmanager
 def bind_log_context(**fields: Any) -> Iterator[None]:
     """Binds correlation ids (e.g. batch_id, job_id, run_id) to every log line in this scope."""
-    token = _log_context.set({**_log_context.get(), **{k: v for k, v in fields.items() if v}})
+    token = _log_context.set(
+        {**(_log_context.get() or {}), **{k: v for k, v in fields.items() if v}}
+    )
     try:
         yield
     finally:
@@ -34,7 +36,7 @@ def _install_record_factory() -> None:
 
     def factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
         record = previous(*args, **kwargs)
-        ctx = _log_context.get()
+        ctx = _log_context.get() or {}
         record.ctx = ctx
         record.ctx_str = (
             "[" + " ".join(f"{k}={str(v)[:8]}" for k, v in ctx.items()) + "] " if ctx else ""

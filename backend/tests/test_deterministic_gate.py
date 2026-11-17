@@ -11,6 +11,7 @@ from app.workflow.review_loop import (
     _run_question_review_loop,
     _validator_review,
 )
+from app.workflow.state import AgentWorkflowState
 from factories import make_draft, make_request, make_state, make_usage
 
 
@@ -18,7 +19,7 @@ def _draft(key="A", stem="Which statement best explains the observed rate change
     return make_draft(correct_answer_id=key, question_stem=stem)
 
 
-def _state(draft: QuestionDraft) -> dict:
+def _state(draft: QuestionDraft) -> AgentWorkflowState:
     return make_state(draft, fused_self_passed=True)
 
 

@@ -13,7 +13,7 @@ import difflib
 import logging
 import re
 from collections import OrderedDict
-from typing import Any
+from typing import Any, TypedDict
 
 from pydantic import BaseModel
 
@@ -102,6 +102,29 @@ class DuplicateCheckResult(BaseModel):
     matched_options: list[dict[str, Any]] | None = None
     matched_explanation: str | None = None
     match_reason: str | None = None
+
+
+class DuplicateMember(TypedDict, total=False):
+    """Represents a redundant duplicate question within a duplicate cluster, along with similarity metrics."""
+
+    question: dict[str, Any]
+    similarity_score: float
+    reason: str
+
+
+class DuplicateCluster(TypedDict, total=False):
+    """
+    Represents an equivalence class of semantically identical or near-identical questions.
+
+    Identifies the elected leader question (retained in the bank based on psychometric score or custom override)
+    and the list of redundant duplicate members earmarked for purging or remediation.
+    """
+
+    cluster_id: str
+    size: int
+    leader_question: dict[str, Any]
+    duplicates: list[DuplicateMember]
+    highest_similarity: float
 
 
 def normalize_text(text: str | None) -> str:
@@ -436,10 +459,11 @@ def evaluate_duplicate(
 def cluster_questions(
     questions: list[dict[str, Any] | Any],
     threshold: float | None = None,
-) -> list[dict[str, Any]]:
+) -> list[DuplicateCluster]:
     """
     Groups questions into duplicate clusters using graph connected components.
-    For each cluster with >= 2 items, identifies the leader question (highest final_score)
+
+    For each cluster with >= 2 items, identifies the leader question (highest final_score or manual override)
     and list of redundant sibling duplicates with similarity metrics.
     """
     threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
@@ -492,7 +516,7 @@ def cluster_questions(
     clusters: list[dict[str, Any]] = []
     cluster_num = 1
 
-    for _root, members in groups.items():
+    for members in groups.values():
         if len(members) < 2:
             continue
 

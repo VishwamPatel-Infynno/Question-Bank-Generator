@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from app.core.config import config
 from app.schemas import GenerationRequest, is_cars
@@ -9,7 +10,7 @@ from app.workflow.state import AgentWorkflowState
 logger = logging.getLogger(__name__)
 
 
-def _is_image_required(req: GenerationRequest, draft: dict) -> bool:
+def _is_image_required(req: GenerationRequest, draft: dict[str, Any]) -> bool:
     """Evaluates whether an image is required based on section restrictions, autonomous AI discretion, or explicit flags."""
     if is_cars(req.section):
         return False

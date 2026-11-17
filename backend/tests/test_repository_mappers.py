@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from app.models.passage import PassageModel
 from app.models.question import QuestionModel
@@ -18,7 +19,7 @@ from app.repositories.query_builders import (
 from app.schemas.question import OptionChoice, Passage, Question, ReviewScore
 
 
-def _sample_review_rubric_dict() -> dict:
+def _sample_review_rubric_dict() -> dict[str, Any]:
     return {
         "authenticity_score": 23,
         "clarity_score": 23,

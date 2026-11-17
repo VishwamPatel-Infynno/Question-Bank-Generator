@@ -113,6 +113,36 @@ stateDiagram-v2
     CompletedEnd --> [*]
 ```
 
+### 2.2 Reviewer-Regenerator Visual Preservation Lifecycle
+
+To ensure that standalone questions requiring medical imaging or scientific figures are never inadvertently stripped during remediation, the workflow implements an explicit visual preservation boundary:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User Request (allow_ai_images=True)
+    participant Gen as Question Generator
+    participant Rev as Question Reviewer
+    participant Regen as Question Regenerator
+    participant Img as Image Generator Agent
+
+    User->>Gen: Draft question item
+    Gen->>Gen: Evaluates visual need -> image_needed: True<br/>Sets image_prompt_or_type & references Figure 1
+    Gen->>Rev: Submit draft for 100-pt audit
+    Note over Rev: Injects Accompanying Visual Stimulus Spec<br/>Enforces Anti-Deduction Audit Mandate
+    Rev-->>Gen: Audits stem + figure prompt alignment -> Passes (>80)
+    
+    alt Remediation Required for Distractor/Explanation
+        Gen->>Regen: Remediate weaknesses
+        Note over Regen: Preserves image_needed=True<br/>Retains Figure 1 stem reference
+        Regen-->>Rev: Re-audited and passed
+    end
+
+    Rev->>Img: _determine_item_diagram_requirement -> True!
+    Img->>Img: Generates publication-grade stimulus diagram
+    Img-->>User: Delivers finalized question with visual figure
+```
+
 ### 2.3 Unified Quality Threshold Architecture
 
 The system implements a unified psychometric quality threshold model to ensure uncompromising question quality across both live single sessions and batch generation jobs:
@@ -179,14 +209,28 @@ The system coordinates specialized autonomous engines with a deterministic quali
   - Passing Score: **$> 80$** points ($81 - 100$).
   - Failing Score: **$\le 80$** points ($0 - 80$).
 - **Strict Parsing**: Every pillar score must be present and within 0-25. Missing or out-of-range scores no longer default to a passing value; the call is retried once and then fails closed with `QualityCheckUnavailableError`.
+- **Visual Stimulus & Medical Imaging Audit Boundary**:
+  - When `draft.image_needed` is `True`, the prompt injects the complete figure specification:
+    ```
+    Accompanying Visual Stimulus / Medical Imaging Figure:
+    - Status: Figure is REQUIRED and will be generated based on this specification.
+    - Figure Description / Prompt: {draft.image_prompt_or_type}
+    ```
+  - **Anti-Deduction Audit Mandate**: Enforces strict instructions in `REVIEWER_SYSTEM_PROMPT`:
+    * The accompanying figure IS generated and provided directly to the examinee beneath the question stem.
+    * The Auditor **must not penalize or deduct points** from Clarity or Authenticity for referencing "Figure 1", "the diagram below", "the radiograph", "the histopathology slide", or "the plot".
+    * The Auditor **must not instruct the author to remove the figure reference** or replace the figure with text numbers. AAMC items legitimately present empirical findings through figures.
+    * The Auditor evaluates whether the stem, options, and explanation logically align with the figure described in the specification.
 - **Output**: Returns numerical pillar scores, observed strengths, specific weaknesses, and actionable remediation instructions.
 - **Inference Gateway**: High-throughput enterprise reasoning model (Temperature: `0.1` for objective, deterministic evaluation).
 
 ### 3.4 Autonomous Remediation Engine (`regenerator.py`)
 - **Mission**: Triggered exclusively when the score is $\le 80$ or blind solver fails. It digests the exact critique, distractor deficiencies, dissenting blind-solver rationales, and recommendations to repair the draft.
-- **Rules**:
+- **Rules & Visual Preservation**:
   - Fixes borderline ambiguities, equalizes option lengths, and sharpens distractor plausibility.
   - Deepens step-by-step rationales explaining why the key is incontrovertible and why every distractor fails.
+  - **Rule 12 (Visual Stimulus & Medical Imaging Preservation)**: When an accompanying figure is specified (`orig_img_needed == True`), the regenerator **MUST preserve** `image_needed: True` and retain references to "Figure 1" or the diagnostic imaging finding. It is strictly forbidden from stripping the figure or converting empirical visual data into text math unless specifically instructed that a visual is disallowed.
+  - `_parse_regenerated()` guarantees that `orig_img_needed` is preserved in the returned `QuestionDraft`.
   - Re-submits the updated draft back to the Reviewer for re-audit.
 - **Inference Gateway**: High-throughput enterprise reasoning model (Temperature: `0.2` for disciplined remediation).
 
@@ -225,6 +269,12 @@ The system coordinates specialized autonomous engines with a deterministic quali
 - **Unrestricted Pedagogical Visual Freedom & Autonomous Discretion**:
   - Questions are no longer restricted from generating visual stimuli based on passage association. In both discrete and passage-based modes, every question where `draft.image_needed: true` or `req.require_image: true` generates a dedicated, publication-grade figure.
   - **Standalone Question Autonomous AI Discretion Architecture**: For standalone questions when "Include Images When Needed" is enabled (`allow_ai_images: true`), visual creation is 100% dependent on autonomous AI pedagogical discretion without artificial modulo forcing (such as former `idx % 5 in (0, 2)` rules). If the question is conceptual or formulaic, `image_needed: false` is chosen and it renders cleanly as a pure text-based question with zero empty placeholders or wasted image generation tokens.
+  - **Resolution of Reviewer-Regenerator Visual Stripping Paradox**:
+    Earlier multi-agent iterations suffered from a feedback disconnect where standalone questions requesting empirical figures (such as Lineweaver-Burk enzyme kinetics or CT scans) had their visual figures stripped during remediation. Because the Reviewer agent was blind to `draft.image_needed` and the figure prompt, it perceived references to "Figure 1" in standalone stems as an unanswerable question flaw, docked 4 points to fail the draft at 79/100, and instructed the author to remove the figure. The Regenerator obeyed, converted the numbers into prose math, and set `image_needed: false`.
+    This was completely resolved by:
+    1. Passing the full visual stimulus specification (`Accompanying Visual Stimulus / Medical Imaging Figure`) to the Reviewer.
+    2. Enforcing the `VISUAL STIMULUS & MEDICAL IMAGING AUDIT BOUNDARY` in `REVIEWER_SYSTEM_PROMPT`.
+    3. Enforcing Rule 12 in `REGENERATOR_SYSTEM_PROMPT` and `orig_img_needed` preservation in `_parse_regenerated()`.
   - **3-Tier Discretion Safeguard**:
     1. *Form State Decoupling*: The frontend "Include Images When Needed" toggle activates `allow_ai_images: true` while defaulting `require_image: false`, granting visual permission without commanding mandatory figures.
     2. *Batch Item Safeguard (`is_standalone_batch` in `passage_prep.py`)*: Multi-question independent batches (`total_qty > 1` and `passage_mode == 'independent'`) enforce `is_standalone_batch`, ensuring individual worker items inherit `require_image: false` and `allow_ai_images: true` so parent batch flags never force figures onto standalone items.
@@ -879,3 +929,29 @@ For complete UI design tokens, color scales, typography guidelines, and componen
 - `GET /api/health/live` is a database-free liveness probe; `/api/health/ready` stays the readiness probe.
 - Error text stored on batches and jobs goes through `sanitize_error_text` (credentials, URL query strings and length removed).
 - The web image runs as a non-root nginx with a Content-Security-Policy (scripts from the same origin only; the theme/font bootstrap lives in `frontend/public/boot.js`), and the backend runs Uvicorn with `--proxy-headers` so rate limits see the real client IP.
+
+---
+
+## 10. Python Type Precision, Zero-Suppression & Quality Contracts
+
+The backend enforces strict type precision and zero-suppression code hygiene across all agent, repository, workflow, and data layers:
+
+1. **Bare `dict` Prohibition**:
+   - Generic bare `dict` type annotations are strictly prohibited across the codebase.
+   - All dictionary schemas enforce precise parameterization via `dict[str, Any]` or dedicated `TypedDict` definitions.
+2. **Typed Agent State & Token Breakdown**:
+   - `AgentUsageEntry` (`app.workflow.state`): Strongly typed dictionary defining per-agent spend (`agent`, `model`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `cost_usd`, `duration_ms`).
+   - `AgentWorkflowState` (`app.workflow.state`): Complete typed contract for the asynchronous workflow runtime (`request`, `current_draft`, `current_review`, `stage_outcomes`, `iteration_count`, `agent_usage_breakdown`, `blind_solver_verdict`).
+   - `SlotLedger` (`app.workflow.engine_layout`): Structured per-slot financial ledger parameterized with `usage: list[list[AgentUsageEntry]]` and `all_usage(self) -> list[AgentUsageEntry]`.
+3. **Explicit Coroutine Return Types**:
+   - Background tasks and event loop monitors explicitly declare their return contract (e.g., `async def _monitor_tasks() -> None`).
+4. **Zero-Defect Type Assertion**:
+   - The entire Python backend repository is verified with automated AST inspection, guaranteeing zero bare `dict` annotations in production and test modules.
+5. **Zero-Suppression Native Linting Model**:
+   - The entire Python backend repository enforces a strict zero-suppression policy (**0 `# noqa` comments** across all production and test files).
+   - Rather than masking rule violations, linter findings are resolved architecturally:
+     - `B039` (mutable ContextVar default) is resolved by passing immutable `default=None` and using `_log_context.get() or {}`.
+     - `ASYNC109` (timeout parameter collision) is resolved by parameter renaming to `timeout_seconds: float`.
+     - `F401` (unused model imports in init_db) is resolved via explicit `__all__ = ["GenerationBatchModel", "GenerationJobModel", "PassageModel", "QuestionModel", "init_db_schema"]`.
+     - `ARG001` (unused arguments) and `PERF102` (dictionary key iteration) are resolved by surgical signature alignment and `.values()` loops.
+

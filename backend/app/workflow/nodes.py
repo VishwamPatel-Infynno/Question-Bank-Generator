@@ -28,25 +28,26 @@ from app.schemas import (
     ReviewScore,
     TokenUsage,
     determine_question_status,
+    is_cars,
 )
-from app.workflow.state import AgentWorkflowState
+from app.workflow.state import AgentUsageEntry, AgentWorkflowState
 
 logger = logging.getLogger(__name__)
 
 
-def agent_usage_entry(agent_name: str, usage: TokenUsage, iteration: int = 1) -> dict[str, Any]:
-    """One itemised line of the usage breakdown."""
-    entry = {
+def agent_usage_entry(agent_name: str, usage: TokenUsage, iteration: int = 1) -> AgentUsageEntry:
+    """Constructs an itemized AgentUsageEntry record for a single agent invocation."""
+    entry: AgentUsageEntry = {
         "agent": agent_name,
         "iteration": iteration,
         "prompt_tokens": usage.prompt_tokens,
         "completion_tokens": usage.completion_tokens,
         "total_tokens": usage.total_tokens,
         "cost_usd": usage.cost_usd,
+        "calls": usage.calls,
     }
     if usage.duration_ms is not None:
         entry["duration_ms"] = usage.duration_ms
-    entry["calls"] = usage.calls
     return entry
 
 
@@ -408,10 +409,14 @@ async def image_node(state: AgentWorkflowState) -> dict[str, Any]:
 
     outcomes = dict(state.get("stage_outcomes", {}))
     outcomes["visual_stimulus"] = {
+        "status": "generated",
         "image_url": img_url,
         "image_svg": img_svg,
         "image_description": img_desc,
         "usage": usage,
+        "ai_validated": True,
+        "image_needed": True,
+        "modality": visual_category,
     }
 
     return {
@@ -446,9 +451,22 @@ async def finalize_node(state: AgentWorkflowState) -> dict[str, Any]:
             "reason": f"Draft achieved passing quality score ({review.total_score if review else 95}/100) on initial audit; regeneration loop was not required.",
         }
     if "visual_stimulus" not in outcomes:
+        draft_img_needed = bool(getattr(draft, "image_needed", False))
+        if req.allow_ai_images and not draft_img_needed:
+            bypass_reason = (
+                "AI visual necessity assessment evaluated this item and determined that the concept is "
+                "conceptual/theoretical and best tested as a clean, text-focused item without an unnecessary figure."
+            )
+        elif is_cars(req.section):
+            bypass_reason = "Visual stimuli are strictly prohibited in CARS section in accordance with official AAMC standards."
+        else:
+            bypass_reason = f"No visual stimulus needed (image_required='{req.image_required or 'No'}', visual_type='{req.visual_type or 'None'}')."
+
         outcomes["visual_stimulus"] = {
             "status": "bypassed",
-            "reason": f"No visual stimulus needed (image_required='{req.image_required or 'No'}', visual_type='{req.visual_type or 'None'}').",
+            "reason": bypass_reason,
+            "ai_validated": True,
+            "image_needed": draft_img_needed,
         }
     effective_trap = (
         getattr(draft, "primary_trap", None)

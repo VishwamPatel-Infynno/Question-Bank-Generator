@@ -54,7 +54,9 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 
 
-def _parse_option_choices(raw_options: Any, data: dict | None = None) -> list[OptionChoice]:
+def _parse_option_choices(
+    raw_options: Any, data: dict[str, Any] | None = None
+) -> list[OptionChoice]:
     """Parses raw options list or dict into validated OptionChoice instances."""
     if not raw_options and data and isinstance(data, dict):
         for candidate_key in ("options", "choices", "answer_choices"):
@@ -105,7 +107,7 @@ def _parse_option_choices(raw_options: Any, data: dict | None = None) -> list[Op
 
 
 def _parse_correct_keys(
-    data: dict, options: list[OptionChoice], fallback_keys: list[str] | None = None
+    data: dict[str, Any], options: list[OptionChoice], fallback_keys: list[str] | None = None
 ) -> tuple[str, list[str]]:
     """Extracts the string key representation and list of correct answer keys."""
     raw_id = data.get("correct_answer_id")
@@ -128,7 +130,7 @@ def _parse_correct_keys(
     return ", ".join(keys_list), keys_list
 
 
-def _detect_primary_trap(data: dict, req: GenerationRequest) -> str:
+def _detect_primary_trap(data: dict[str, Any], req: GenerationRequest) -> str:
     """Determines the primary cognitive trap from payload, request override, or explanation regex."""
     raw_trap = data.get("primary_trap")
     normalized_trap = normalize_primary_trap(raw_trap)
@@ -176,7 +178,7 @@ def _detect_primary_trap(data: dict, req: GenerationRequest) -> str:
     return "SCOPE_SHIFT"
 
 
-def _detect_mistake_pattern(data: dict, req: GenerationRequest) -> str | None:
+def _detect_mistake_pattern(data: dict[str, Any], req: GenerationRequest) -> str | None:
     """Determines target student misconception / likely mistake pattern."""
     raw_mistake = data.get("likely_mistake_pattern")
     if req.likely_mistake_pattern and req.likely_mistake_pattern not in ("Automatic", ""):
@@ -200,7 +202,7 @@ def _detect_mistake_pattern(data: dict, req: GenerationRequest) -> str | None:
     return "Confuses closely related concepts or misreads reference baseline"
 
 
-def _resolve_effective_stimulus(data: dict, req: GenerationRequest) -> str:
+def _resolve_effective_stimulus(data: dict[str, Any], req: GenerationRequest) -> str:
     """Resolves reading passage vs direct independent question stimulus."""
     if not req.is_passage_active:
         return ""
@@ -209,14 +211,14 @@ def _resolve_effective_stimulus(data: dict, req: GenerationRequest) -> str:
     return str(data.get("stimulus_text") or "").strip()
 
 
-def _require_text(data: dict, field: str) -> str:
+def _require_text(data: dict[str, Any], field: str) -> str:
     value = data.get(field)
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"Model output is missing a non-empty '{field}'")
     return value
 
 
-def _parse_question_draft_data(data: dict, req: GenerationRequest) -> QuestionDraft:
+def _parse_question_draft_data(data: dict[str, Any], req: GenerationRequest) -> QuestionDraft:
     if not isinstance(data, dict):
         raise ValueError(f"Model output must be a JSON object, got {type(data).__name__}")
     question_stem = _require_text(data, "question_stem")
@@ -502,7 +504,7 @@ async def generate_question_with_self_critique(
 
     try:
 
-        def _parse_fused(raw: str) -> tuple[dict, QuestionDraft]:
+        def _parse_fused(raw: str) -> tuple[dict[str, Any], QuestionDraft]:
             parsed = safe_json_loads(raw)
             return parsed, _parse_question_draft_data(parsed, req)
 

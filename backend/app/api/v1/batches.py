@@ -113,8 +113,8 @@ async def get_single_batch(batch_id: str) -> dict[str, Any]:
 
     # Group questions by job_id or run_id
     # Serialize each question once; the grouped and flat views share the same dicts.
-    questions_by_job: dict[str, list[dict]] = {}
-    visible_dumps: list[dict] = []
+    questions_by_job: dict[str, list[dict[str, Any]]] = {}
+    visible_dumps: list[dict[str, Any]] = []
     for q in visible_questions:
         q_dump = q.model_dump()
         visible_dumps.append(q_dump)

@@ -4,6 +4,7 @@ import json
 import logging
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 
 class MCATSection(str, Enum):
@@ -128,7 +129,7 @@ def normalize_section(val: str) -> MCATSection:
     return MCATSection.CHEM_PHYS
 
 
-def calculate_mcat_scaled_score(audit_total: int, difficulty: str = "medium") -> dict:
+def calculate_mcat_scaled_score(audit_total: int, difficulty: str = "medium") -> dict[str, Any]:
     """
     Calibrates internal 100-point psychometric audit score into official AAMC MCAT scaled score.
     Returns:
@@ -268,19 +269,19 @@ LIKELY_MISTAKE_PATTERNS = _gen_options.get("likely_mistake_pattern", {}).get("va
 TAXONOMY_SKILLS = DEPENDENT_TAXONOMY.get("skills", [])
 
 
-def get_taxonomy_data() -> dict:
+def get_taxonomy_data() -> dict[str, Any]:
     """Returns the full parsed manager MCAT dependent taxonomy."""
     return DEPENDENT_TAXONOMY
 
 
-def get_skills_for_section(section_val: str | MCATSection) -> list[dict]:
+def get_skills_for_section(section_val: str | MCATSection) -> list[dict[str, Any]]:
     """Returns skills with subskills applicable to a given section code e.g. CP, BB, PS, CARS."""
     sec = normalize_section(section_val)
     sec_code = MCAT_SECTION_CODES.get(sec, "CP")
     return [sk for sk in TAXONOMY_SKILLS if sec_code in sk.get("applies_to", [])]
 
 
-def get_section_tree(section_val: str | MCATSection) -> dict | None:
+def get_section_tree(section_val: str | MCATSection) -> dict[str, Any] | None:
     """Finds the section hierarchy tree for a given MCATSection or string."""
     sec = normalize_section(section_val)
     sec_code = MCAT_SECTION_CODES.get(sec, "CP")

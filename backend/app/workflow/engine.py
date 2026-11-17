@@ -583,7 +583,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
         tasks.extend([asyncio.create_task(_staggered_worker(i)) for i in range(total_qty)])
 
-        async def _monitor_tasks():
+        async def _monitor_tasks() -> None:
             try:
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for idx_t, res in enumerate(results):
@@ -631,7 +631,6 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     job_id=job_id,
                     batch_id=batch_id,
                     completed_total=0,
-                    total_qty=total_qty,
                     cumulative_tokens=cumulative_tokens,
                     cumulative_prompt_tokens=cumulative_prompt_tokens,
                     cumulative_completion_tokens=cumulative_completion_tokens,
@@ -695,7 +694,6 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 job_id=job_id,
                 batch_id=batch_id,
                 completed_total=completed_total,
-                total_qty=total_qty,
                 cumulative_tokens=cumulative_tokens,
                 cumulative_prompt_tokens=cumulative_prompt_tokens,
                 cumulative_completion_tokens=cumulative_completion_tokens,

@@ -307,7 +307,7 @@ def test_standalone_ai_discretion_image_needed_false():
 
 
 def test_standalone_batch_require_image_enabled_for_independent_items():
-    """Verifies that for an independent/standalone question batch with visuals enabled, items are assigned require_image=True so dedicated figures are generated."""
+    """Verifies that for an independent/standalone question batch with explicit require_image=True, items inherit require_image=True."""
     from app.workflow.passage_prep import _build_batch_worker_request
 
     parent_req = GenerationRequest(
@@ -333,8 +333,59 @@ def test_standalone_batch_require_image_enabled_for_independent_items():
         assert is_passage_item is False
         assert item_req.passage_mode == "independent"
         assert item_req.allow_ai_images is True
-        # Standalone questions with visuals enabled must have require_image=True
         assert item_req.require_image is True
+
+
+def test_standalone_batch_ai_discretion_for_independent_items():
+    """Verifies that for an independent batch with allow_ai_images=True and require_image=False,
+
+    items inherit AI image discretion without hardcoded index forcing, and diagram requirements
+    are dynamically evaluated based on the AI draft's visual necessity assessment.
+    """
+    from app.workflow.passage_prep import (
+        _build_batch_worker_request,
+        _determine_item_diagram_requirement,
+    )
+
+    parent_req = GenerationRequest(
+        section=MCATSection.BIO_BIOCHEM,
+        difficulty=Difficulty.HARD,
+        questions_to_generate=5,
+        passage_mode="independent",
+        passage_required="No",
+        allow_ai_images=True,
+        require_image=False,
+    )
+
+    for idx in range(5):
+        item_req, _run_id, is_passage_item, _interaction = _build_batch_worker_request(
+            req=parent_req,
+            idx=idx,
+            total_qty=5,
+            batch_id="test-batch-uuid",
+            effective_passage_count=0,
+            shared_passage_id=None,
+            shared_passage_text=None,
+        )
+        assert is_passage_item is False
+        assert item_req.passage_mode == "independent"
+        assert item_req.allow_ai_images is True
+        # No artificial hardcoding: require_image remains False so AI dynamically evaluates need
+        assert item_req.require_image is False
+
+        # When the AI determines an empirical figure is necessary:
+        state_visual = {
+            "request": item_req.model_dump(),
+            "current_draft": {"image_needed": True},
+        }
+        assert _determine_item_diagram_requirement(state_visual, is_passage_item=False) is True
+
+        # When the AI determines the question is purely conceptual / theoretical:
+        state_conceptual = {
+            "request": item_req.model_dump(),
+            "current_draft": {"image_needed": False},
+        }
+        assert _determine_item_diagram_requirement(state_conceptual, is_passage_item=False) is False
 
 
 def test_standalone_batch_require_image_disabled_when_visuals_off():
