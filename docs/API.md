@@ -86,6 +86,7 @@ Accept: text/event-stream
   "allow_ai_images": false,
   "require_image": false,
   "require_passage_image": false,
+  "visual_type": "None",
   "custom_prompt": "Focus on Michaelis-Menten kinetics and competitive enzyme inhibition.",
   "additional_instructions": "Include experimental Lineweaver-Burk data interpretation with explicit Km and Vmax calculation distractor traps.",
   "questions_to_generate": 1,
@@ -109,6 +110,7 @@ Accept: text/event-stream
 | `allow_ai_images` | `boolean` | No | `false` | Whether AI is permitted to generate visual stimuli across all 7 medical/scientific modalities with full pedagogical and creative freedom |
 | `require_image` | `boolean` | No | `false` | Force visual stimulus generation for the question stem |
 | `require_passage_image`| `boolean` | No | `false` | Force visual diagram generation for the shared passage stimulus |
+| `visual_type` | `string` | No | `"None"` | Visual stimulus generation type: `"None"`, `"AI_FLUX_Image"`, `"SVG_Diagram"`, or `"AI_OpenAI_Image"` (from `KNOWN_VISUAL_TYPES`) |
 | `custom_prompt` | `string` | No | `null` | Contextual steer or clinical scenario / reading passage guidance |
 | `additional_instructions` | `string` | No | `null` | Educator instructions specifying constraints, clinical scenarios, or pedagogical rules strictly enforced across passage generation, question generation, and remediation critique cycles |
 | `questions_to_generate` | `integer` | No | `5` | Quantity to generate (Wizard UI provides `5` [1 Single Job] and `50` [10-Job Batch]; backend permits 1 to 50) |
@@ -260,7 +262,7 @@ Retrieves a single question by UUID4 primary key, including complete 4-pillar re
   "image_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...",
   "image_svg": null,
   "image_description": "Axial contrast-enhanced CT scan of the abdomen demonstrating appendiceal wall thickening and fat stranding.",
-  "visual_type": "ai_openai",
+  "visual_type": "AI_OpenAI_Image",
   "visual_medical_category": "radiology",
   "visual_clinical_description": "Axial contrast-enhanced CT scan of the abdomen demonstrating appendiceal wall thickening and fat stranding.",
   "image_needed": true,

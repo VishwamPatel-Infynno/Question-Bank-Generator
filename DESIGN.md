@@ -118,8 +118,9 @@ Psychological, Social & Biological (PS)  -> Royal Violet  (#a855f7 / #7c3aed)
 
 ## 4. Component Design Specifications
 
-### 4.1 Guided Question Wizard (`GuidedWizard.jsx`)
-Streamlined 3-step authoring workflow:
+### 4.1 Guided Question Wizard & Hero Landing (`GuidedWizard.jsx`, `HeroLanding.jsx`)
+Streamlined 3-step authoring workflow with quick-launch hero presets:
+- **Hero Landing Header (`HeroLanding.jsx`)**: Welcome landing hero with instant 1-click exam preset chips (`HERO_PRESETS` hoisted in `wizardConstants.js`) paired with the module-level `HERO_PRESET_ICONS` lookup table (`chem_phys: FlaskConical`, `cars: BookOpen`, `bio_biochem: Dna`, `psych_soc: Brain`). Clicking any preset triggers `handleApplyPresetAndNavigate` in `useAppState.js`, immediately applying calibrated section rules, default challenge levels, and navigating directly into Step 1 of the guided wizard dock.
 - **Step 1: Section & Focus (`WizardStep1SectionFocus.jsx`)**: Official AAMC exam section selection (CP, CARS, BB, PS) with quick-start presets and granular topic/subtopic syllabus focus. Streamlined to clean interactive cards without marketing slogans or explanatory noise.
 - **Step 2: Level & Format (`WizardStep2LevelFormat.jsx`)**: Calibrated challenge level (**Low**, **Medium**, **High**), question format (Passage-Based vs Independent Single-Choice), and 2 calibrated Generation Scopes governed by the unified 5-question Job architecture, presented as streamlined cards without redundant badge pills:
   1. **5 Questions**: 1 Single Job consisting of 5 questions linked to a shared reading passage (or 5 discretes), dispatched to the background worker pool (~35-50s) with automated AI validation and real-time telemetry streaming into Validated Bank and Batch Activity.
