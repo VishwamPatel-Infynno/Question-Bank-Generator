@@ -1,3 +1,5 @@
+import { DIFFICULTY } from '../../constants';
+
 /**
  * wizardConstants.js - Configuration steps and quick presets for GuidedWizard.
  */
@@ -50,4 +52,60 @@ export const QUICK_PRESETS = [
     desc: 'Cognitive bias & behavioral health study'
   }
 ];
+
+export const HERO_PRESETS = Object.freeze([
+  {
+    label: 'Chem / Phys',
+    sectionId: 'chem_phys',
+    config: {
+      section: 'chem_phys',
+      difficulty: DIFFICULTY.MEDIUM,
+      totalQuestions: 50,
+      passageMode: 'single_passage',
+      passageQuestionCount: 50,
+      passageCount: 10,
+      passageRequired: 'Yes'
+    }
+  },
+  {
+    label: 'CARS',
+    sectionId: 'cars',
+    config: {
+      section: 'cars',
+      difficulty: DIFFICULTY.MEDIUM,
+      totalQuestions: 50,
+      passageCount: 10,
+      passageMode: 'single_passage',
+      passageQuestionCount: 50,
+      passageRequired: 'Yes'
+    }
+  },
+  {
+    label: 'Bio / Biochem',
+    sectionId: 'bio_biochem',
+    config: {
+      section: 'bio_biochem',
+      difficulty: DIFFICULTY.HIGH,
+      totalQuestions: 50,
+      passageMode: 'single_passage',
+      passageQuestionCount: 50,
+      passageCount: 10,
+      passageRequired: 'Yes'
+    }
+  },
+  {
+    label: 'Psych / Soc',
+    sectionId: 'psych_soc',
+    config: {
+      section: 'psych_soc',
+      difficulty: DIFFICULTY.MEDIUM,
+      totalQuestions: 50,
+      passageMode: 'independent',
+      passageQuestionCount: 0,
+      passageCount: 0,
+      passageRequired: 'No'
+    }
+  }
+]);
+
 

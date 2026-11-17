@@ -7,68 +7,20 @@ import {
   Brain
 } from 'lucide-react';
 import InfynnoLogo from '../common/InfynnoLogo';
-import { DIFFICULTY } from '../../constants';
+import { HERO_PRESETS } from './wizardConstants';
+
+const HERO_PRESET_ICONS = Object.freeze({
+  chem_phys: FlaskConical,
+  cars: BookOpen,
+  bio_biochem: Dna,
+  psych_soc: Brain
+});
 
 export default function HeroLanding({
   onGetStarted,
   onOpenBank,
   onApplyPreset
 }) {
-  const PRESETS = [
-    {
-      label: 'Chem / Phys',
-      icon: FlaskConical,
-      config: {
-        section: 'chem_phys',
-        difficulty: DIFFICULTY.MEDIUM,
-        totalQuestions: 50,
-        passageMode: 'single_passage',
-        passageQuestionCount: 50,
-        passageCount: 10,
-        passageRequired: 'Yes'
-      }
-    },
-    {
-      label: 'CARS',
-      icon: BookOpen,
-      config: {
-        section: 'cars',
-        difficulty: DIFFICULTY.MEDIUM,
-        totalQuestions: 50,
-        passageCount: 10,
-        passageMode: 'single_passage',
-        passageQuestionCount: 50,
-        passageRequired: 'Yes'
-      }
-    },
-    {
-      label: 'Bio / Biochem',
-      icon: Dna,
-      config: {
-        section: 'bio_biochem',
-        difficulty: DIFFICULTY.HIGH,
-        totalQuestions: 50,
-        passageMode: 'single_passage',
-        passageQuestionCount: 50,
-        passageCount: 10,
-        passageRequired: 'Yes'
-      }
-    },
-    {
-      label: 'Psych / Soc',
-      icon: Brain,
-      config: {
-        section: 'psych_soc',
-        difficulty: DIFFICULTY.MEDIUM,
-        totalQuestions: 50,
-        passageMode: 'independent',
-        passageQuestionCount: 0,
-        passageCount: 0,
-        passageRequired: 'No'
-      }
-    }
-  ];
-
   return (
     <div className="hero-wrapper" id="hero-landing-view">
       <div className="hero-content">
@@ -122,8 +74,8 @@ export default function HeroLanding({
         <div className="hero-presets-container">
           <div className="hero-presets-label">Presets:</div>
           <div className="hero-presets-chips">
-            {PRESETS.map((preset) => {
-              const Icon = preset.icon;
+            {HERO_PRESETS.map((preset) => {
+              const Icon = HERO_PRESET_ICONS[preset.sectionId] || FlaskConical;
               return (
                 <button
                   key={preset.label}

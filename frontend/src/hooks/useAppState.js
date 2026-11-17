@@ -176,10 +176,24 @@ export function useAppState() {
   ]);
 
   // ─── Preset Handler ───────────────────────────────────────────────────────
+  /**
+   * Applies an exam preset configuration across form fields and surfaces a confirmation toast.
+   *
+   * @param {{
+   *   section?: string,
+   *   difficulty?: string,
+   *   totalQuestions?: number,
+   *   passageCount?: number,
+   *   passageMode?: 'single_passage' | 'independent',
+   *   passageRequired?: string,
+   *   passageQuestionCount?: number,
+   *   primaryTrap?: string
+   * }} cfg - Preset configuration options.
+   */
   const handleApplyPreset = useCallback((cfg) => {
     updateFields({
       ...(cfg.section &&
-        applySectionRules(generatorForm.formData, cfg.section, cfg.totalQuestions)),
+        applySectionRules(generatorForm.formData, cfg.section)),
       ...(cfg.difficulty && { difficulty: cfg.difficulty }),
       ...(cfg.totalQuestions !== undefined && { totalQuestions: cfg.totalQuestions }),
       ...(cfg.passageCount !== undefined && { passageRequired: cfg.passageCount > 0 ? 'Yes' : 'No' }),
@@ -196,6 +210,11 @@ export function useAppState() {
     });
   }, [updateFields, showToast, generatorForm.formData]);
 
+  /**
+   * Applies an exam preset configuration and navigates directly to Step 1 of the guided wizard.
+   *
+   * @param {Parameters<typeof handleApplyPreset>[0]} cfg - Preset configuration options.
+   */
   const handleApplyPresetAndNavigate = useCallback(
     (cfg) => {
       handleApplyPreset(cfg);

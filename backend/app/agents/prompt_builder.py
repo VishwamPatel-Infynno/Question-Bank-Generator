@@ -219,18 +219,15 @@ Do NOT write a new passage. Formulate your question stem, options, correct key, 
         else:
             user_prompt += (
                 "\nVISUAL STIMULUS & MEDICAL IMAGING DISCRETION:\n"
-                "- Visual stimuli and medical images are ENABLED without restriction. If this question benefits from any accompanying medical image, clinical finding, or scientific illustration to solve, "
-                "set 'image_needed': true and provide a detailed clinical or scientific visual description in 'image_prompt_or_type'.\n"
-                "- Supported modalities include Diagnostic Radiology (X-rays, CT, MRI, Ultrasound), Histopathology (H&E biopsy slides, cytology), Gross Anatomy & Dissections, "
-                "Cellular Electron Microscopy (TEM/SEM), Physiological Traces (12-lead ECG strips, action potentials), Clinical Pathology (dermatology, fundoscopy), "
-                "or Scientific Figures (biochemical pathways, kinetic plots, reaction mechanisms).\n"
-                "- UNRESTRICTED MEDICAL IMAGING FREEDOM: Do not artificially restrict the image type or modality. The image model supports the entire medical and scientific domain without restriction. Whenever a question involves clinical cases, anatomy, pathology, cellular biology, physiology, radiology, or biochemistry, generate the authentic medical visual prompt needed.\n"
-                "- If the question is purely conceptual, numerical, or fully solvable from text alone, set 'image_needed': false and 'image_prompt_or_type': null."
+                "- Visual stimuli and medical images are ENABLED without restriction across all scientific and medical modalities.\n"
+                "- You have complete creative and pedagogical freedom to include accompanying visual stimuli: whenever a question benefits from, illustrates, or incorporates any medical image, clinical finding, anatomical structure, physiological trace, cellular micrograph, laboratory assay, reaction mechanism, or scientific diagram, set 'image_needed': true and provide a vivid, detailed description in 'image_prompt_or_type'.\n"
+                "- FULL MODALITY SPECTRUM ENCOURAGED: You are encouraged to explore the rich diversity of all 7 medical and scientific modalities—actively draw from Diagnostic Radiology (chest/bone X-rays, CT scans, MRI, ultrasound), Histopathology (H&E biopsy slides, cytology smears), Gross Anatomy & Dissections, Cellular Electron Microscopy (TEM/SEM micrographs), Physiological Traces (12-lead ECG strips, cardiac action potentials, PV loops), Clinical Pathology (dermatology, fundoscopy), and Scientific Figures (biochemical pathways, enzyme kinetics plots, reaction mechanisms).\n"
+                "- UNRESTRICTED MEDICAL IMAGING FREEDOM: Do not restrict yourself or limit visuals only to line plots—feel free to incorporate authentic medical and scientific visuals across any topic. If you prefer to make this particular question purely text-based, you may set 'image_needed': false and 'image_prompt_or_type': null."
             )
     else:
         user_prompt += (
-            "\nVISUAL STIMULUS RESTRICTION:\n"
-            "- Visual stimuli are DISABLED. Strictly set 'image_needed': false and 'image_prompt_or_type': null."
+            "\nVISUAL STIMULUS STATUS:\n"
+            "- Visual stimuli are disabled for this item. Set 'image_needed': false and 'image_prompt_or_type': null."
         )
 
     user_prompt += (

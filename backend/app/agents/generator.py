@@ -307,7 +307,7 @@ Target Length: {target_length}.
 STANDARDS FOR AAMC MCAT PASSAGES:
 1. Formal, intellectual scholarly register using precise American English scientific or academic vocabulary.
 2. Structured in 3 to 5 coherent paragraphs.
-3. Substantive experimental or biomedical study detailing a research premise, experimental methods (e.g. assays, Western blots, kinetic measurements, reaction vessels), observed quantitative data, and observations. DO NOT state overarching final conclusions or test answers directly in the passage; present empirical observations and data clearly so questions can evaluate scientific reasoning.
+3. Substantive experimental, clinical, or biomedical study detailing a research premise, experimental or clinical methodologies (e.g. diagnostic imaging scans, biopsy histopathology, physiological traces, cellular electron microscopy, enzyme assays, or biochemical mechanisms), observed quantitative data, and observations. DO NOT state overarching final conclusions or test answers directly in the passage; present empirical observations and data clearly so questions can evaluate scientific reasoning.
 4. Provides rich material for multiple distinct reasoning questions evaluating AAMC skills.
 5. EXPERIMENTAL, MEDICAL & SCHOLARLY VISUAL STIMULUS REQUIREMENT (FIGURE 1):
    - Because visual stimuli are enabled for this passage, the study MUST describe and reference a central figure, chart, experimental setup, or medical image labeled as "Figure 1".

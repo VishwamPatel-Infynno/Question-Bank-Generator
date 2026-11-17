@@ -110,7 +110,8 @@ frontend/src/
 │   └── wizard/
 │       ├── index.js              # Wizard barrel export
 │       ├── GuidedWizard.jsx      # Streamlined 3-step guided exam generation wizard dock
-│       ├── HeroLanding.jsx       # Welcome landing hero header
+│       ├── HeroLanding.jsx       # Welcome landing hero header with hoisted HERO_PRESETS & HERO_PRESET_ICONS
+│       ├── wizardConstants.js    # STEP_CONFIG, QUICK_PRESETS, and frozen HERO_PRESETS definitions
 │       └── steps/                # Streamlined 3-step modular components
 │           ├── index.js          # Steps barrel export
 │           ├── WizardAdvancedSettings.jsx    # Decomposed collapsible advanced settings drawer
@@ -136,7 +137,7 @@ frontend/src/
 │   ├── useDebouncedValue.js      # Debounced value for search inputs
 │   ├── useExportActions.js       # Download, copy and print actions of the export dialog
 │   ├── useFocusTrap.js           # Accessible WCAG AA keyboard focus-trapping hook for modals
-│   ├── useGeneratorForm.js       # Wizard form state and toggle helpers
+│   ├── useGeneratorForm.js       # Wizard form state, DEFAULT_GENERATOR_FORM (with explicit visual_type: 'AI_FLUX_Image'), and toggle helpers
 │   ├── useGlobalCounts.js        # Navbar live numbers: running batches, review-queue count, backend status
 │   ├── useKeyboardShortcuts.js   # Global hotkeys (⌘↵ to generate on the review step, T to toggle theme, / to focus search, Escape)
 │   ├── usePagination.js          # Page index, page size and slicing with filter-driven resets
@@ -152,7 +153,7 @@ frontend/src/
 │   ├── index.js                  # Utilities barrel export
 │   ├── batchHelpers.js           # Calculates current execution stage, badges, descriptions, and refill status for a batch
 │   ├── batchJobHelpers.js        # Batch stage, structural-sharing and cache-patch helpers
-│   ├── batchPayload.js           # The POST /batches/start payload for the wizard's form state
+│   ├── batchPayload.js           # The POST /batches/start payload builder with defense-in-depth CARS visual suppression
 │   ├── download.js               # Text file download helper
 │   ├── explanationHelpers.js     # Pure JS distractor line & trap parser
 │   ├── export/                   # csv.js, json.js, htmlDoc.js (print builder), printPaperCss.js, escape.js, index.js
@@ -197,7 +198,7 @@ In the repository root or `frontend` directory, you can run:
 # Automatically runs 'predev' hook to clean ports 8000 and 5173
 pnpm dev
 
-# Run Vitest automated test suite (118 tests across 13 test files)
+# Run Vitest automated test suite (119 tests across 13 test files)
 pnpm test
 
 # Run Oxlint high-speed linter across frontend sources (0 errors, 0 warnings policy)

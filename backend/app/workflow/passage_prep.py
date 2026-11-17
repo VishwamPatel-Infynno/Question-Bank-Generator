@@ -50,6 +50,11 @@ def _build_batch_worker_request(
     Builds an isolated GenerationRequest for an individual question worker within a batch,
     resolving whether the question is passage-linked or independent (strictly single-choice MCAT format).
 
+    For independent/standalone question batches (total_qty > 1 and passage_mode == 'independent'),
+    items are guaranteed autonomous AI visual discretion (allow_ai_images=True, require_image=False)
+    so that visual generation is determined solely by the AI draft's clinical/scientific assessment
+    rather than inheriting forced parent batch flags.
+
     Args:
         req: The parent GenerationRequest for the batch.
         idx: Zero-based index of this question within the batch.
@@ -82,12 +87,19 @@ def _build_batch_worker_request(
         item_stimulus = None
 
     # Visual stimulus generation for science sections:
-    # Governed by autonomous AI discretion (image_needed: True/False) unless explicitly mandated by require_image
+    # Governed by autonomous AI discretion (image_needed: True/False) unless explicitly mandated by require_image.
+    # For independent/standalone questions in batches (total_qty > 1), items must NOT be forcibly assigned
+    # require_image: True; they must follow autonomous AI discretion.
     sec_is_cars = is_cars(req.section)
     has_diagrams_enabled = (
         req.allow_ai_images or req.require_image or req.visual_type in KNOWN_VISUAL_TYPES
     )
-    should_require_item_image = bool(not sec_is_cars and req.require_image)
+    is_standalone_batch = (
+        req.passage_mode == "independent" or not is_passage_item
+    ) and total_qty > 1
+    should_require_item_image = bool(
+        not sec_is_cars and req.require_image and not is_standalone_batch
+    )
 
     # Resolve AAMC Reasoning Skill:
     # If the user specifically requested a skill, calibrate all questions to that requested skill.
@@ -173,15 +185,9 @@ def _determine_item_diagram_requirement(state: AgentWorkflowState, is_passage_it
     item_image_needed = bool(draft.get("image_needed", False))
 
     if is_passage_item:
-        has_shared_passage_image = bool(state.get("image_url") or state.get("image_svg"))
-        # If the item draft explicitly requires its own image or there is no shared passage image,
-        # generate the required image when needed.
-        if item_image_needed:
-            return True
-        if not has_shared_passage_image:
-            return item_image_needed
-        # Question shares the passage image
-        return False
+        # Passage-linked question shares the passage image unless its own draft explicitly
+        # requires a dedicated item-level visual stimulus.
+        return item_image_needed
 
     # Autonomous AI determination for independent items
     return item_image_needed

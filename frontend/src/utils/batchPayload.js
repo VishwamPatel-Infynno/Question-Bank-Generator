@@ -1,3 +1,5 @@
+import { SECTION_IDS, normalizeSectionId } from '../constants/mcat';
+
 const joinOr = (list, fallback) => (list && list.length > 0 ? list.join(', ') : fallback);
 
 /**
@@ -30,7 +32,8 @@ export function buildBatchPayload(form) {
   } = form;
 
   const isPassageMode = passageMode === 'single_passage';
-  const isVisualsPermitted = Boolean(allowAiImages || requireImage);
+  const isCars = normalizeSectionId(selectedSection) === SECTION_IDS.CARS;
+  const isVisualsPermitted = !isCars && Boolean(allowAiImages || requireImage);
   const isSkillAutomatic = !selectedSkill || selectedSkill === 'Automatic' || selectedSkill === 'All';
 
   return {
@@ -53,7 +56,7 @@ export function buildBatchPayload(form) {
     likely_mistake_pattern: joinOr(likelyMistakePatterns, likelyMistakePattern || 'Automatic'),
     additional_instructions: additionalInstructions?.trim() || undefined,
     allow_ai_images: isVisualsPermitted,
-    require_image: Boolean(requireImage),
+    require_image: isVisualsPermitted ? Boolean(requireImage) : false,
     visual_type: isVisualsPermitted ? 'AI_FLUX_Image' : 'None',
     require_passage_image: isVisualsPermitted && isPassageMode
   };

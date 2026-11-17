@@ -4,7 +4,7 @@
 > **Prepared by**: Infynno Solutions LLP • Infinite Innovations • [infynno.com](https://infynno.com/)  
 > **Product**: Infynno MCAT Question Bank Generator v2.0  
 > **Target Audience**: Client Leadership, Product Stakeholders, Medical Admissions Educators, Pre-Med Faculty, and Test-Prep Authors  
-> **System Status**: Fully Implemented, Tested (392 Backend + 118 Frontend Tests), and Production-Ready  
+> **System Status**: Fully Implemented, Tested (393 Backend + 119 Frontend Tests), and Production-Ready  
 
 ---
 
@@ -149,7 +149,10 @@ Evaluates items across four equal 25-point pillars (100 points total):
 
 ### 3.5 Visual Stimulus & Medical Imaging Engine (`image_generator.py` & `medical_imaging.py`)
 - **Unrestricted Medical & Scientific Visual Generation**: Synthesizes publication-grade scientific figures, anatomical illustrations, and clinical diagnostic stimuli across both discrete questions and passage-linked item sets whenever required (`draft.image_needed: true` or `req.require_image: true`).
-- **Autonomous AI Discretion for Standalone Questions**: In standalone question generation with "Include Images When Needed" enabled, visual creation is 100% dependent on autonomous AI pedagogical discretion (without pre-defined artificial modulo or forced question indices). If the question is conceptual or formulaic and does not require an image, it renders cleanly as a pure text-based question with zero empty placeholders or wasted image generation tokens.
+- **Autonomous AI Discretion for Standalone Questions**: In standalone question generation with "Include Images When Needed" enabled, visual creation is 100% dependent on autonomous AI pedagogical discretion (without pre-defined artificial modulo or forced question indices).
+  - *Frontend Decoupling*: The toggle sets `allow_ai_images: true` while defaulting `require_image: false`, permitting figures when necessary without forcing generation across every item.
+  - *Multi-Question Batch Isolation (`is_standalone_batch`)*: In independent batches (`total_qty > 1` and `passage_mode == 'independent'`), worker items strictly evaluate under AI discretion (`allow_ai_images: True`, `require_image: False`) ensuring parent batch flags never mandate images across independent questions.
+  - *Unrestricted AI Pedagogical Discretion*: The generator has complete freedom to incorporate visuals across all supported modalities whenever an accompanying figure, clinical photograph, or diagram enriches the question. If the model chooses a pure text-based question, it sets `image_needed: false`, rendering cleanly with zero empty placeholders or wasted image generation compute.
 - **The 7 Supported Medical & Scientific Modalities**:
   1. **Radiology**: Axial, coronal, and sagittal CT scans, MRI (T1, T2, FLAIR sequences), chest radiographs, ultrasound sonograms, and fluoroscopic views.
   2. **Histopathology**: Light micrographs featuring hematoxylin and eosin (H&E) staining, specialized tissue biopsies, and cytological smears (e.g., Reed-Sternberg cells, renal glomerular crescents).
@@ -394,8 +397,8 @@ $$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\te
 ## 10. Technical Architecture, Security & Production Readiness
 
 ### Full-Stack Architecture Specifications
-- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (118 unit tests).
-- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (392 deterministic test suite).
+- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (119 unit tests across 13 test files).
+- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (393 deterministic test suite).
 - **Database**: PostgreSQL 16 with native JSONB columns for multi-stage payloads, rubrics, and token tracking; UUID4 primary keys; automated schema migrations on startup.
 - **Observability**: Prometheus `/metrics` endpoint exposing real-time worker pool occupancy, batch lifecycle states, and token expenditures.
 - **Security & Hygiene**:

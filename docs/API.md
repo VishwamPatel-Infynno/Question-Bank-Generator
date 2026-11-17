@@ -106,7 +106,7 @@ Accept: text/event-stream
 | `subtopic` | `string` | No | `null` | Categorized syllabus topic |
 | `difficulty` | `string` | No | `"medium"` | `low`, `medium`, `high` (with backward-compatible support for `easy`, `hard`, `foundational`, `top percentile`) |
 | `aamc_skill` | `string` | No | `null` | Official AAMC SIRS Skill (1-4) or CARS Skill |
-| `allow_ai_images` | `boolean` | No | `false` | Whether AI is permitted to generate visual stimuli when deemed necessary |
+| `allow_ai_images` | `boolean` | No | `false` | Whether AI is permitted to generate visual stimuli across all 7 medical/scientific modalities with full pedagogical and creative freedom |
 | `require_image` | `boolean` | No | `false` | Force visual stimulus generation for the question stem |
 | `require_passage_image`| `boolean` | No | `false` | Force visual diagram generation for the shared passage stimulus |
 | `custom_prompt` | `string` | No | `null` | Contextual steer or clinical scenario / reading passage guidance |

@@ -177,4 +177,16 @@ describe('buildBatchPayload', () => {
     expect(buildBatchPayload({ ...base, totalQuestions: 1, passageMode: 'independent', requireImage: true }).require_image).toBe(true);
     expect(buildBatchPayload({ ...base, totalQuestions: 5 }).passage_count).toBe(1);
   });
+  it('suppresses visual stimuli for CARS section as defense-in-depth', () => {
+    const p = buildBatchPayload({
+      ...base,
+      selectedSection: 'cars',
+      allowAiImages: true,
+      requireImage: true
+    });
+    expect(p.allow_ai_images).toBe(false);
+    expect(p.require_image).toBe(false);
+    expect(p.visual_type).toBe('None');
+    expect(p.require_passage_image).toBe(false);
+  });
 });
