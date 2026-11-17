@@ -1,4 +1,4 @@
-import { CheckCircle2, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Sparkles } from 'lucide-react';
 import { PaginationBar, LoadError, EmptyState } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
 import { usePagination, useAiValidated } from '../hooks';
@@ -65,7 +65,6 @@ export default function AiValidatedQuestionsView({
 
   // ─── Pagination ────────────────────────────────────────────────────────────
   const {
-    currentPage,
     setCurrentPage,
     pageSize,
     setPageSize,
@@ -135,9 +134,14 @@ export default function AiValidatedQuestionsView({
             </button>
           )}
           {onNavigateToWizard && (
-            <button type="button" onClick={() => onNavigateToWizard(1)} className="btn-primary">
-              <span>Generate Questions</span>
-              <ArrowRight size={15} />
+            <button
+              type="button"
+              id="btn-validated-empty-create"
+              onClick={() => onNavigateToWizard(1)}
+              className="btn-primary"
+            >
+              <Sparkles size={14} />
+              <span>Create New Questions</span>
             </button>
           )}
         </EmptyState>
@@ -162,7 +166,7 @@ export default function AiValidatedQuestionsView({
           </div>
 
           <PaginationBar
-            currentPage={safeCurrentPage || currentPage}
+            currentPage={safeCurrentPage}
             totalPages={totalPages}
             totalItems={filteredQuestions.length}
             pageSize={pageSize}

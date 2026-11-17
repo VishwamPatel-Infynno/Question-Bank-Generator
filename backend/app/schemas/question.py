@@ -104,7 +104,9 @@ class ReviewScore(BaseModel):
     strengths: list[str] = Field(default_factory=list)
     weaknesses: list[str] = Field(default_factory=list)
     recommendations: list[str] = Field(default_factory=list)
-    passed: bool = Field(False, description="True if total_score > 90 benchmark")
+    passed: bool = Field(
+        False, description="True if total_score exceeds the passing threshold (default > 80)"
+    )
 
 
 class TaxonomyFields(BaseModel):

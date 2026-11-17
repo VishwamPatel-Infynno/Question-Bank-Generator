@@ -87,10 +87,10 @@ export default function PassageEditorialDesk({
             type="button"
             onClick={onBack}
             className="btn-secondary"
-            title="Return to Passages table"
+            title="Return to Passage Bank"
           >
             <ArrowLeft size={14} />
-            <span>Back to Passages</span>
+            <span>Back to Passage Bank</span>
           </button>
 
           <div className="passage-desk-divider" />

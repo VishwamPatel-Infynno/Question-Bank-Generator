@@ -81,18 +81,13 @@ def _build_batch_worker_request(
         item_passage_id = None
         item_stimulus = None
 
-    # For independent questions in science sections, when AI diagrams are permitted,
-    # calibrate authentic AAMC frequency (~40%: items 0 and 2 in every 5 questions, or single question)
+    # Visual stimulus generation for science sections:
+    # Governed by autonomous AI discretion (image_needed: True/False) unless explicitly mandated by require_image
     sec_is_cars = is_cars(req.section)
     has_diagrams_enabled = (
         req.allow_ai_images or req.require_image or req.visual_type in KNOWN_VISUAL_TYPES
     )
-    should_require_item_image = bool(
-        not sec_is_cars
-        and not is_passage_item
-        and has_diagrams_enabled
-        and (total_qty == 1 or (idx % 5 in (0, 2)))
-    )
+    should_require_item_image = bool(not sec_is_cars and req.require_image)
 
     # Resolve AAMC Reasoning Skill:
     # If the user specifically requested a skill, calibrate all questions to that requested skill.
@@ -126,11 +121,16 @@ def _build_batch_worker_request(
             "passage_id": item_passage_id,
             "shared_stimulus": item_stimulus,
             "aamc_skill": item_skill,
-            "require_image": should_require_item_image or req.require_image,
+            "allow_ai_images": bool(has_diagrams_enabled and not sec_is_cars),
+            "require_image": should_require_item_image,
             "thematic_angle": req.thematic_angle or f"Question Item {idx + 1}",
-            "visual_type": "AI_FLUX_Image"
-            if (should_require_item_image or req.require_image)
-            else req.visual_type,
+            "visual_type": "None"
+            if sec_is_cars
+            else (
+                "AI_FLUX_Image"
+                if (should_require_item_image or has_diagrams_enabled)
+                else req.visual_type
+            ),
         }
     )
     return item_req, item_run_id, is_passage_item, item_interaction
@@ -140,9 +140,8 @@ def _determine_item_diagram_requirement(state: AgentWorkflowState, is_passage_it
     """
     Evaluates whether a specific question item within a batch requires a visual stimulus diagram.
 
-    Respects section type (CARS never has diagrams), passage attachment (passage-linked items
-    share the passage diagram and never have their own), explicit image flags from the request,
-    and the autonomous AI decision stored in the generated draft.
+    Respects section type (CARS never has diagrams), explicit image flags from the request,
+    and autonomous AI decisions stored in the generated draft.
 
     Args:
         state: Current AgentWorkflowState for this question worker.
@@ -161,9 +160,6 @@ def _determine_item_diagram_requirement(state: AgentWorkflowState, is_passage_it
     # CARS strictly has no figures, data tables or diagrams in official AAMC format
     if is_cars(section_val):
         return False
-    if is_passage_item:
-        # Passage question items share the passage diagram; they never have internal images
-        return False
 
     # Check if visual generation is permitted at all
     visuals_permitted = allow_ai_images or explicit_image or visual_type in KNOWN_VISUAL_TYPES
@@ -173,8 +169,22 @@ def _determine_item_diagram_requirement(state: AgentWorkflowState, is_passage_it
     if explicit_image:
         return True
 
+    draft = state.get("current_draft") or {}
+    item_image_needed = bool(draft.get("image_needed", False))
+
+    if is_passage_item:
+        has_shared_passage_image = bool(state.get("image_url") or state.get("image_svg"))
+        # If the item draft explicitly requires its own image or there is no shared passage image,
+        # generate the required image when needed.
+        if item_image_needed:
+            return True
+        if not has_shared_passage_image:
+            return item_image_needed
+        # Question shares the passage image
+        return False
+
     # Autonomous AI determination for independent items
-    return bool(state.get("current_draft", {}).get("image_needed", False))
+    return item_image_needed
 
 
 async def _prepare_shared_passage_and_visual(

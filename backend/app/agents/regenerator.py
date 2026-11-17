@@ -32,6 +32,7 @@ from app.agents.standards import OPTION_PARITY_TEXT, is_cars
 from app.agents.validators import order_distractors_in_explanation
 from app.core.config import config
 from app.schemas import (
+    KNOWN_VISUAL_TYPES,
     MCAT_SECTION_LABELS,
     GenerationRequest,
     QuestionDraft,
@@ -141,7 +142,12 @@ Please re-generate and refine this question to resolve all weaknesses and produc
         )
 
         # Same visual gating as the generator: never request a figure it would not allow
-        image_allowed = not is_cars(req.section) and bool(req.allow_ai_images or req.require_image)
+        image_allowed = not is_cars(req.section) and bool(
+            req.allow_ai_images
+            or req.require_image
+            or req.require_passage_image
+            or req.visual_type in KNOWN_VISUAL_TYPES
+        )
         return QuestionDraft(
             stimulus_text=stimulus,
             question_stem=_require_text(data, "question_stem"),

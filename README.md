@@ -20,11 +20,11 @@ For deep-dive technical specifications, architecture diagrams, API schemas, and 
 | **[UI/UX Design System (DESIGN.md)](DESIGN.md)** | Authoritative design tokens, dual obsidian/alabaster themes, streamlined 3-step wizard with decomposed summary/advanced drawers, decomposed QuestionCard components, Duplicate Comparison Modal, AAMC Dual Split-Pane reading mode, accessible modal focus-trapping contracts (`Modal`, `ConfirmationModal`, `DeletePassageModal`), live batch retry telemetry (`AUTO-RETRYING X/3`), typography scale, component contracts, accessibility criteria (WCAG AA), and micro-animations. |
 | **[Architecture & Multi-Agent Workflow](docs/ARCHITECTURE.md)** | Complete workflow diagrams, 3-step pipeline specifications, Blind-Solver Dual Validation, Deduplication & Anti-Collision Subsystem, Strict Quality Gate, Two-Tier quality threshold model, global worker semaphores, background batch runner with 3-trial retries, SSE pipeline, and PostgreSQL 16 ERD. |
 | **[REST & SSE API Reference](docs/API.md)** | Complete FastAPI endpoint documentation (40 endpoint operations), deduplication, duplicate clustering, auto-resolve & refill endpoints, question restoration (`/restore`), permanent purges (`/permanent`, `/purge-batch`), batch generation schemas, 3-trial batch controls (`/stop`, `/retry`, `/cancel-all`), Prometheus `/metrics` exposition, SSE event stream contracts, filter parameters, and cURL examples. |
-| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 384 passing deterministic unit/integration tests across 59 modules (394 total backend tests), 118 frontend tests across 13 test files, 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
+| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 392 passing deterministic unit/integration tests across 59 modules (402 total backend tests), 118 frontend tests across 13 test files, 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
 | **[Token Usage & Cost Tracking](docs/TOKEN_TRACKING.md)** | Verified rate cards per model: DeepInfra DeepSeek ($0.20 in / $0.60 out per 1M tokens standard), Anthropic Claude Haiku 5.5 ($0.10 in / $0.50 out with tiers and prompt-cache rates), OpenAI gpt-4o-mini, and token-billed gpt-image-2.5-flare images, exact mathematical cost formulas, multi-agent accumulation, and UI observability. |
-| **[Installation, Setup & Deployment](docs/SETUP_AND_CONFIG.md)** | Step-by-step setup, Docker PostgreSQL 16 guide, environment variables reference (67 Settings fields), database duplicate cleanup (`pnpm run db:clean-duplicates`), predev port cleanup, production deployment, linters, and troubleshooting. |
+| **[Installation, Setup & Deployment](docs/SETUP_AND_CONFIG.md)** | Step-by-step setup, Docker PostgreSQL 16 guide, environment variables reference (68 Settings fields), database duplicate cleanup (`pnpm run db:clean-duplicates`), predev port cleanup, production deployment, linters, and troubleshooting. |
 | **[MCAT Psychometric Rubric & Standards](docs/MCAT_RUBRIC.md)** | Official 4 AAMC sections standards, 100-point 4-pillar evaluation rubric (25 pts per pillar), First-Pass 100/100 Calibration Directive, Blind-Solver algorithmic verification, unified 80/70 quality thresholds, and cognitive distractor trap engineering. |
-| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `engine_layout.py`, `review_loop.py`, `passage_prep.py`, `dedup_inflight.py`, `live_job_store.py`, `nodes.py`), Blind-Solver agent, services, repositories (`mappers.py`, `query_builders.py`), 3-trial retry engine, testing (394 tests across 60 modules: 384 deterministic, 10 live), and seeding scripts. |
+| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `engine_layout.py`, `review_loop.py`, `passage_prep.py`, `dedup_inflight.py`, `live_job_store.py`, `nodes.py`), Blind-Solver agent, services, repositories (`mappers.py`, `query_builders.py`), 3-trial retry engine, testing (402 tests across 59 deterministic modules + 1 live E2E module: 392 deterministic, 10 live), and seeding scripts. |
 | **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directory (`wizard/`, `question/`, `batch/`, `modals/`, `common/`), top-level views, hooks, predev port cleaner, and local development instructions. |
 
 ---
@@ -58,7 +58,7 @@ graph LR
 - **Independent Psychometric Auditor (`reviewer.py`)**: Independently audits candidate items whenever the initial draft scores $\le 80$ or after remediation across 4 equal 25-point pillars (*Authenticity & Tone*, *Clarity & Scientific Logic*, *Distractor Traps*, *Explanation & Key Accuracy*).
 - **Remediation Engine Agent (`regenerator.py`)**: Automatically triggered when score $\le 80$. Digests the exact weaknesses and recommendations to repair borderline distractors and expand step-by-step proofs up to 3 iterations.
 - **Strict Quality Gate**: If a question fails to reach the batch threshold ($70$ points) after maximum attempts (`MAX_REGENERATION_ATTEMPTS = 3`), the workflow halts immediately. Bypasses image generation and discards the candidate to protect repository integrity.
-- **Stimulus & Diagram Agent (`image_generator.py`)**: Renders clean programmatic SVG vector diagrams for metabolic pathways, reaction mechanisms, optics, and experimental charts, with fallback support for AI visual generators (strictly disabled for CARS).
+- **Medical Imaging & Visual Stimulus Subsystem (`image_generator.py` & `medical_imaging.py`)**: Synthesizes publication-grade scientific figures and clinical diagnostic stimuli across 7 medical modalities (Radiology CT/MRI/X-Ray, Histopathology H&E, Gross Anatomy specimens, Cellular Electron Microscopy TEM/SEM, Physiology/ECG Traces, Clinical Pathology, and SVG Vector Diagrams) with automated content safety retry fallback for educational textbook schematics (strictly disabled for CARS in compliance with official AAMC exam regulations).
 
 ### 2. Dual First-Class AI Inference & Precision Cost Accounting
 - **Inference Engines**: Multi-provider support switchable via `ACTIVE_LLM_PROVIDER`:
@@ -140,7 +140,7 @@ pnpm dev
 Run the full backend test suite covering schemas, routing logic, strict quality gates, SVG & FLUX synthesis, database operations, and token calculations:
 
 ```bash
-# Run backend deterministic test suite (353 deterministic tests across 55 modules)
+# Run backend deterministic test suite (392 deterministic tests across 59 modules)
 # Smart auto-skip: If PostgreSQL is offline, 275 pure unit tests pass and 78 DB tests skip cleanly
 # conftest.py strips provider keys and enables OFFLINE_MODE: no test ever calls a live LLM
 source .venv/bin/activate
@@ -187,11 +187,11 @@ Question Bank Generator/
 ├── docs/                        # Comprehensive Documentation Suite
 │   ├── README.md                # Master Documentation Index & role-based sitemap
 │   ├── ARCHITECTURE.md          # Multi-agent architecture, quality gate & Blind-Solver
-│   ├── API.md                   # Complete REST & SSE API specification (39 operations / 33 paths)
+│   ├── API.md                   # Complete REST & SSE API specification (40 operations across 34 paths; 41 operations across 35 paths including root /metrics)
 │   ├── CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md # Client system & operational workflow guide
-│   ├── TESTING_AND_QA.md        # Pytest test suite (363 tests across 56 modules: 353 offline-capable, 10 live) & TestSprite E2E specs
+│   ├── TESTING_AND_QA.md        # Pytest test suite (392 deterministic tests across 59 modules; 402 total backend tests) & TestSprite E2E specs
 │   ├── TOKEN_TRACKING.md        # Dual-provider inference pricing & mathematical cost engine
-│   ├── SETUP_AND_CONFIG.md      # Installation, deployment (67 Settings fields) & FAQs
+│   ├── SETUP_AND_CONFIG.md      # Installation, deployment (68 Settings fields) & FAQs
 │   └── MCAT_RUBRIC.md           # 100-point psychometric rubric & authoring standards
 ├── scripts/
 │   └── clean_duplicate_artifacts.py # Database discarded duplicate cleanup utility (pnpm run db:clean-duplicates)
@@ -200,7 +200,7 @@ Question Bank Generator/
 │   ├── standard_prd.json        # Product requirements used to generate the scenarios
 │   └── testsprite_frontend_test_plan.json # Test plan definition
 ├── backend/
-│   ├── README.md                # Dedicated backend developer guide (55 test modules)
+│   ├── README.md                # Dedicated backend developer guide (59 deterministic modules / 392 tests)
 │   ├── requirements.txt         # Runtime dependencies (requirements-dev.txt adds pytest, pytest-asyncio, pytest-cov, ruff)
 │   ├── scripts/
 │   │   └── seed_questions.py    # CLI database seeding script with authentic AAMC rubrics
@@ -290,6 +290,8 @@ Question Bank Generator/
 │       │   ├── job_repository.py      # Background worker job state tracking
 │       │   ├── passage_repository.py  # Shared stimulus reading passage queries
 │       │   ├── question_repository.py # Clean CRUD, hybrid FTS & aggregate token usage queries
+│       │   ├── mappers.py             # Pure model mapping functions for Questions & Passages
+│       │   ├── query_builders.py      # Shared SQLAlchemy query filters & difficulty aliases
 │       │   └── __init__.py
 │       ├── schemas/             # Domain Pydantic V2 schemas
 │       │   ├── mcat.py          # Official AAMC MCAT sections & subtopic taxonomy
@@ -298,8 +300,12 @@ Question Bank Generator/
 │       │   ├── workflow.py      # GenerationRequest, ReviewScore, WorkflowEvent
 │       │   └── __init__.py
 │       ├── services/            # Background Worker Services
-│       │   ├── batch_runner.py  # Asynchronous worker pool (5 Q single job / 50 Q 10 jobs)
+│       │   ├── batch_runner.py  # High-level pool managing 5-question (1-job) & 50-question (10-job) batches
+│       │   ├── batch_worker.py  # Dedicated background worker executing parallel job attempts & trials
+│       │   ├── batch_concurrency.py # Process-wide worker semaphores & rate throttles
+│       │   ├── batch_resolution.py  # Duplicate cluster resolution & deficit replenishment
 │       │   ├── deduplication.py # Real-time multi-metric similarity & anti-collision service
+│       │   ├── metrics.py       # Prometheus text exposition metric collection
 │       │   └── __init__.py
 │       ├── agents/              # Multi-agent decision logic & prompts
 │       │   ├── base.py          # LiteLLM client & calculate_token_cost()
@@ -308,6 +314,7 @@ Question Bank Generator/
 │       │   ├── standards.py     # Shared option-length and passage-length authoring standards
 │       │   ├── generator.py     # Fused question generator & self-critique agent
 │       │   ├── image_generator.py # Programmatic SVG & FLUX-2-klein-4b visual generator
+│       │   ├── medical_imaging.py # High-fidelity anatomical & diagnostic clinical prompt synthesis
 │       │   ├── mock_fixtures.py # Mock fallback questions & heuristic rubrics
 │       │   ├── mock_drafts.py   # Table of the seven canned mock drafts
 │       │   ├── option_balancer.py # Mathematical option length balancing (±15%)
@@ -318,12 +325,14 @@ Question Bank Generator/
 │       │   └── __init__.py
 │       ├── workflow/            # Multi-agent workflow engine
 │       │   ├── engine.py        # Core asynchronous workflow runner & event emitters
+│       │   ├── engine_layout.py # Run layout, SlotLedger & SSE event formatting
 │       │   ├── review_loop.py   # Deterministic gate, reviewer, Blind-Solver & remediation loop
 │       │   ├── passage_prep.py  # Per-item requests & shared passage/visual drafting
 │       │   ├── dedup_inflight.py# Duplicate detection vs. DB, siblings & in-flight drafts
 │       │   ├── live_job_store.py# Question & job/batch persistence for live runs
 │       │   ├── nodes.py         # Discrete agent worker nodes (Generator, Reviewer, etc.)
 │       │   ├── routes.py        # route_after_review: Quality Gate routing used by the review loop
+│       │   ├── sse.py           # SSE event formatting & keepalive pings
 │       │   ├── state.py         # AgentWorkflowState typed dictionary
 │       │   └── __init__.py
 │       └── api/                 # Modular API Routers
@@ -333,6 +342,7 @@ Question Bank Generator/
 │               ├── config.py    # Read-only engine configuration & model settings
 │               ├── generation.py# SSE streaming question generator endpoint
 │               ├── health.py    # Database connectivity & system health checks
+│               ├── metrics.py   # Prometheus text exposition endpoint
 │               ├── passages.py  # Shared passage stimuli listing & retrieval
 │               ├── questions.py # Question Bank CRUD & JSON/CSV exports
 │               ├── taxonomy.py  # AAMC syllabus hierarchy & dependent taxonomy

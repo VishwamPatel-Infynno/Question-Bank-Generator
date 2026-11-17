@@ -256,3 +256,82 @@ async def test_autonomous_ai_determined_image_workflow(monkeypatch):
         "current_draft": {"image_needed": False},
     }
     assert route_after_review(state_review_not_needed) == "finalize"
+
+
+def test_standalone_ai_discretion_image_needed_true():
+    """Verifies that a standalone question with allow_ai_images=True routes to image_generator if AI sets image_needed=True."""
+    from app.workflow.routes import route_after_review
+
+    req = GenerationRequest(
+        section=MCATSection.CHEM_PHYS,
+        difficulty=Difficulty.MEDIUM,
+        questions_to_generate=1,
+        passage_mode="independent",
+        passage_required="No",
+        allow_ai_images=True,
+        require_image=False,
+    )
+    state = {
+        "request": req.model_dump(),
+        "current_review": {"total_score": 95},
+        "current_draft": {
+            "image_needed": True,
+            "image_prompt_or_type": "Renal tubular countercurrent multiplier diagram",
+        },
+    }
+    assert route_after_review(state) == "image_generator"
+
+
+def test_standalone_ai_discretion_image_needed_false():
+    """Verifies that a standalone question with allow_ai_images=True routes directly to finalize if AI sets image_needed=False."""
+    from app.workflow.routes import route_after_review
+
+    req = GenerationRequest(
+        section=MCATSection.CHEM_PHYS,
+        difficulty=Difficulty.MEDIUM,
+        questions_to_generate=1,
+        passage_mode="independent",
+        passage_required="No",
+        allow_ai_images=True,
+        require_image=False,
+    )
+    state = {
+        "request": req.model_dump(),
+        "current_review": {"total_score": 95},
+        "current_draft": {
+            "image_needed": False,
+            "image_prompt_or_type": None,
+        },
+    }
+    assert route_after_review(state) == "finalize"
+
+
+def test_standalone_batch_no_predefined_modulo():
+    """Verifies that for a 5-question standalone batch, no artificial modulo or forced images are set across indices."""
+    from app.workflow.passage_prep import _build_batch_worker_request
+
+    parent_req = GenerationRequest(
+        section=MCATSection.BIO_BIOCHEM,
+        difficulty=Difficulty.HARD,
+        questions_to_generate=5,
+        passage_mode="independent",
+        passage_required="No",
+        allow_ai_images=True,
+        require_image=False,
+    )
+
+    for idx in range(5):
+        item_req, _run_id, is_passage_item, _interaction = _build_batch_worker_request(
+            req=parent_req,
+            idx=idx,
+            total_qty=5,
+            batch_id="test-batch-uuid",
+            effective_passage_count=0,
+            shared_passage_id=None,
+            shared_passage_text=None,
+        )
+        assert is_passage_item is False
+        assert item_req.passage_mode == "independent"
+        assert item_req.allow_ai_images is True
+        # Strictly False across all indices (0 through 4) - no idx % 5 in (0, 2) forcing
+        assert item_req.require_image is False

@@ -1,209 +1,423 @@
-# Infynno MCAT Question Bank Generator v2.0: System Architecture & Client Workflow Guide
+# Infynno MCAT Question Bank Generator v2.0
+## System Architecture, End-to-End Workflows & Client Master Guide
 
-> **Author**: Lead Software Architect & Systems Builder  
-> **Target Audience**: Client Leadership, Product Stakeholders, and Medical Admissions Educators  
-> **System Status**: Fully Implemented, Tested, and Production-Ready  
-
----
-
-## 1. Executive Summary & Architecture Overview
-
-Preparing candidates for the **AAMC MCAT (Medical College Admission Test)** requires simulating the exact cognitive rigor, multi-disciplinary depth, and strict timing of North American medical admissions testing. Unlike standard memorization tests, the MCAT evaluates deep critical reasoning across physical sciences, biochemistry, humanities, and behavioral dynamics under extreme time pressure (**~96 to ~101 seconds per question**).
-
-### The Problem With Standard AI Question Generation
-Most off-the-shelf generative AI setups produce flawed test questions for four reasons:
-
-1. **The "Longest Option" Giveaway**: Language models tend to over-explain the correct answer, creating a giveaway choice that test-savvy students exploit without doing the science.
-2. **Superficial Distractors**: Generic models write wrong options that are obviously nonsensical. Official MCAT items use distractors that reflect authentic student misconceptions, inverted ratios, or out-of-scope extrapolations.
-3. **Pacing & Passage Realism**: Official MCAT passages demand dense experimental narratives with figures, reaction kinetics, and control groups. Naive prompts generate disjointed trivia stems.
-4. **AI Style Tell-Tales**: Generic AI outputs frequently use unnatural em dashes ("—") and repetitive qualifiers that immediately break immersion.
-
-### How Infynno Engineered the Solution
-The **Infynno MCAT Question Bank Generator v2.0** solves these challenges with five core pillars:
-
-- **Calibrated Multi-Tier Generation Scopes**:
-  - **5 Questions**: Rapid single background worker (1 Job, 5 Questions) drafting on a shared passage or discrete set (~35-50s) streamed into the AI Validated Bank and Batch Activity Desk with live telemetry.
-  - **50 Questions**: Enterprise background multi-job batch (10 concurrent jobs x 5 questions) with automatic AI validation.
-- **Binary Passage Architecture**: In a generation run, the studio generates either:
-  - **Passage-Based Set**: 1 comprehensive scientific or rhetoric passage linked to all questions in the set; OR
-  - **Independent Discretes**: Standalone scientific stems with zero stimulus text.
-- **CARS Pure Passage Standard**: For **Critical Analysis and Reasoning Skills (CARS)**, the system strictly enforces 100% passage-based sets, locking discrete mode out in accordance with AAMC regulations.
-- **Fused Draft-and-Critique Cognitive Engine**: Authors the scenario, symmetric options, and mentor explanation while simultaneously self-scoring the item across a standardized 100-point rubric in a single unified round-trip. Every draft is then independently audited by a separate reviewer and a blind solver.
-- **Blind-Solver Dual-Validation Safeguard**: Acts as an algorithmic test candidate, solving the drafted question completely blind without access to the author's answer key or explanation. Any discrepancy in the answer key or low confidence ($< 88\%$) instantly forces the item into remediation, eliminating false keys and ambiguous stems before human review.
-- **AAMC Dual Split-Pane Reading Mode**: Provides an authentic side-by-side split reading canvas for passage sets. The left pane anchors the dense research passage with sticky scrolling, while the right pane presents candidate stems, options, and rationales with independent vertical navigation.
-- **Autonomous Remediation & Quality Gate (80/70 Points)**: Items scoring $\le 80$ undergo up to three cycles of independent auditing and remediation. Items scoring $> 80$ are promoted to the AI Validated review queue, items scoring between 70 and 80 are retained as Good Quality in batches, and items unable to reach 70 after 3 attempts are rejected.
+> **Prepared by**: Infynno Solutions LLP • Infinite Innovations • [infynno.com](https://infynno.com/)  
+> **Product**: Infynno MCAT Question Bank Generator v2.0  
+> **Target Audience**: Client Leadership, Product Stakeholders, Medical Admissions Educators, Pre-Med Faculty, and Test-Prep Authors  
+> **System Status**: Fully Implemented, Tested (392 Backend + 118 Frontend Tests), and Production-Ready  
 
 ---
 
-## 2. The 4 Official AAMC MCAT Sections & Pacing Standards
-
-The platform is engineered around the official syllabus, cognitive traps, and pacing rules of the four AAMC MCAT sections:
-
-| Section Code | Official Section Name | Total Qs | Time Limit | Target Pacing | Core Focus & Purity Rules |
-| :---: | :--- | :---: | :---: | :---: | :--- |
-| **chem_phys** | **Chemical and Physical Foundations of Biological Systems** | 59 | 95 mins | **~96s / question** | General chemistry, organic chemistry, physics, thermodynamics, enzymatic kinetics. Supports Passage Sets or Discretes. |
-| **cars** | **Critical Analysis and Reasoning Skills** | 53 | 90 mins | **~101s / question** | Humanities and social science rhetoric, authorial tone, thesis extraction. **Strictly 100% Passage-Based (Discretes forbidden).** |
-| **bio_biochem** | **Biological and Biochemical Foundations of Living Systems** | 59 | 95 mins | **~96s / question** | Molecular genetics, metabolic pathways, microbiology, organ physiology. Supports Passage Sets or Discretes. |
-| **psych_soc** | **Psychological, Social, and Biological Foundations of Behavior** | 59 | 95 mins | **~96s / question** | Cognitive psychology, healthcare sociodemographics, sensory perception. Supports Passage Sets or Discretes. |
-
----
-
-## 3. End-to-End User Experience & Streamlined 3-Step Guided Wizard
-
-The workstation provides an interactive **Streamlined 3-Step Guided Wizard** docked beside the full-width workspace, organizing authoring decisions into three high-velocity stages:
-
-```
-[ Step 1: Section & Topic Focus ] ──> [ Step 2: Level, Format & Scope ] ──> [ Step 3: Review & Launch (Advanced Calibration) ]
-```
-
-1. **Step 1: Section & Topic Focus**: 
-   - **Exam Section Selection**: Choose from the 4 official AAMC sections (Chemical and Physical Foundations, CARS, Biological and Biochemical Foundations, Psychological, Social, and Biological Foundations). Selecting CARS automatically primes the wizard for 100% passage-based operation and disables image generation.
-   - **Discipline & Major Unit**: Select syllabus discipline and unit taxonomy.
-   - **High-Yield Concept Subtopics**: Multi-select granular subtopics or select all concepts for a balanced mix.
-2. **Step 2: Level, Format & Scope**:
-   - **Generation Scope**: Select **5 Questions (1 Job)** for fast iterative authoring (~35-50s) or **50 Questions (10 Jobs)** for comprehensive background mock section generation. Cards feature clean, streamlined selection buttons without distracting redundant badge pills.
-   - **Challenge Level**: Calibrate between **Low**, **Medium**, and **High** difficulty tiers with color-coded badges and plain-English descriptors.
-   - **Binary Passage Mode**: Passage-Based Set vs Independent Discretes.
-   - **Question Breakdown**: Calibrate single-choice and multi-choice proportions.
-3. **Step 3: Review & Launch (with Advanced Calibration)**:
-   - **Compact Parameter Summary Table**: Review selected section, topics, difficulty, and question count at a glance in a high-density tabular summary card.
-   - **Dedicated Scientific Diagrams & Reaction Schemes Toggle Card**: Prominently positioned for all natural science sections with full-card clickability and animated pill switch, allowing educators to immediately enable or disable programmatic SVG diagrams and reaction schemes without opening advanced menus.
-   - **Additional Authoring Instructions Textarea**: High-priority guidance field allowing educators to supply custom pedagogical constraints, clinical scenarios, or negative rules (e.g. *"Focus on Lineweaver-Burk plots with competitive inhibition calculation traps"*). When populated, the Step 3 card header displays a visible, animated indicator badge: **`+ Custom Prompt Active`**.
-   - **Expandable Advanced Accordion**: Collapsible drawer giving fine-grained control over:
-     - *Cognitive Distractor Traps*: Multi-select official AAMC cognitive traps (Formula Trap, Extreme Quantifiers, False Causation, etc.).
-     - *AAMC Reasoning Skills*: Target specific SIRS reasoning skills (Skill 1–4) and likely student mistake patterns.
-   - **Unified Launch Action**: Launch real-time SSE streaming for 5-question sets or dispatch enterprise background mock runs.
-
+## Table of Contents
+1. [Executive Summary & Value Proposition](#1-executive-summary--value-proposition)
+2. [Official AAMC MCAT Foundations & Pacing Rules](#2-official-aamc-mcat-foundations--pacing-rules)
+3. [Autonomous Multi-Agent AI Pipeline](#3-autonomous-multi-agent-ai-pipeline)
+4. [Pedagogical Quality, Anti-Guessability & Distractor Traps](#4-pedagogical-quality-anti-guessability--distractor-traps)
+5. [Anti-Collision, Deduplication & Editorial Overrides](#5-anti-collision-deduplication--editorial-overrides)
+6. [The 5 Top-Level Workstation Views](#6-the-5-top-level-workstation-views)
+   - 6.1 [Create Questions: Question Studio & 3-Step Wizard](#61-create-questions-question-studio--3-step-wizard)
+   - 6.2 [Batch Progress: Concurrency Monitor & Resilient Processing](#62-batch-progress-concurrency-monitor--resilient-processing)
+   - 6.3 [Review Queue: AI-Validated Triage & Editorial Staging](#63-review-queue-ai-validated-triage--editorial-staging)
+   - 6.4 [Question Bank: Canonical Repository & Inline Editorial Desk](#64-question-bank-canonical-repository--inline-editorial-desk)
+   - 6.5 [Passage Bank: Stimulus Curation & Cascading Management](#65-passage-bank-stimulus-curation--cascading-management)
+7. [Export & Print Studio](#7-export--print-studio)
+8. [Financial Telemetry & Micro-Dollar Cost Accounting](#8-financial-telemetry--micro-dollar-cost-accounting)
+9. [UI Design System, Ergonomics & Accessibility](#9-ui-design-system-ergonomics--accessibility)
+10. [Technical Architecture, Security & Production Readiness](#10-technical-architecture-security--production-readiness)
 
 ---
 
-## 4. Multi-Agent Pipeline & Strict Quality Gate
+## 1. Executive Summary & Value Proposition
+
+Preparing medical school candidates for the **AAMC MCAT (Medical College Admission Test)** requires simulating the exact cognitive rigor, multi-disciplinary depth, and strict timing of North American medical admissions testing. Unlike standard memorization tests, the MCAT evaluates deep critical reasoning across physical sciences, biochemistry, humanities, and behavioral dynamics under extreme time pressure (**~96 to ~101 seconds per question**).
 
 ```mermaid
-graph TD
-    User([Educator / User]) -->|POST /api/generate| Engine[Multi-Agent Orchestrator]
-    Engine --> Worker1[Worker Question 1]
-    Engine --> Worker2[Worker Question 2]
-    Engine --> Worker3[Worker Question 3]
-    Engine --> Worker4[Worker Question 4]
-    Engine --> Worker5[Worker Question 5]
+flowchart LR
+    A["Pre-Med Educator / Author"] --> B["Infynno Studio 3-Step Wizard"]
+    B --> C["Fused Cognitive Generator<br/>(First-Pass 100/100 Directive)"]
+    C --> D["Blind-Solver Algorithmic Candidate<br/>(No Answer Key Access, >=88% Conf)"]
+    D --> E["Senior Psychometric Auditor<br/>(100-pt 4-Pillar Rubric)"]
+    E --> F["Autonomous Remediation<br/>(Up to 3 In-Place Cycles)"]
+    F --> G["Deduplication & Anti-Collision Engine<br/>(>80% Semantic Avoidance)"]
+    G --> H["Editorial Review Queue<br/>& Canonical Question Bank"]
+```
 
-    subgraph "Per-Item Autonomous Quality Workflow"
-        Worker1 --> Fused[Fused Draft & 100-pt Audit]
-        Fused -->|Score > 80| ImageGen[Vector/SVG Engine]
-        Fused -->|Score <= 80| Remediation[Remediation Loop]
-        Remediation --> Auditor[Independent Auditor]
-        Auditor -->|Pass > 80| ImageGen
-        Auditor -->|70 <= Pass <= 80 & Max Cycles| BatchOnly[Accept as Good Quality (Batch Only)]
-        Auditor -->|Fail < 70 & Max Cycles| Reject[Strict Quality Gate Reject]
-        ImageGen --> Staged[Staged in Review Deck]
+### The Critical Flaws of Generic AI in Medical Test Prep
+Standard generative AI setups fail when applied to official MCAT question authoring:
+1. **The "Longest Option" Give-Away**: Language models naturally over-explain the correct answer, creating a giveaway choice that test-savvy students exploit without reading the passage.
+2. **Superficial & Unrealistic Distractors**: Off-the-shelf AI creates distractors that are obviously wrong or absurd. Official MCAT questions use distractors that reflect authentic student misconceptions, inverted math ratios, or out-of-scope extrapolations.
+3. **Disjointed Trivia vs. Experimental Passages**: Real MCAT sections require dense, publication-grade research passages featuring experimental controls, Lineweaver-Burk kinetics, gel electrophoresis, or complex humanities rhetoric. Naive prompts generate isolated trivia.
+4. **AI Style Tell-Tales**: Generic AI outputs frequently use unnatural em-dashes (`—`) and repetitive robotic phrasing (`"It is important to remember that..."`) that destroy test authenticity.
+
+### The Infynno Engineered Solution
+The **Infynno MCAT Question Bank Generator v2.0** eliminates these failures through an enterprise-grade multi-agent platform:
+- **Mathematical Option Symmetry**: Option lengths are locked within 3 words or $\pm 15-20\%$ of each other with parallel grammatical structure.
+- **Blind-Solver Dual Validation**: An independent AI agent solves the question without the answer key. If it disagrees or confidence is $< 88\%$, the question is automatically rejected or remediated.
+- **100-Point Psychometric Audit**: Every draft is graded across 4 pillars of 25 points each. Only items scoring $> 80$ reach the review queue.
+- **Autonomous Deduplication**: Multi-metric mathematical similarity guarantees zero question repetition across mock sets.
+- **Human-Centric Editorial Control**: Pre-med instructors retain full editorial power with 1-click in-place editing, override shields, and publication-ready multi-format exports (PDF, CSV, JSON).
+
+---
+
+## 2. Official AAMC MCAT Foundations & Pacing Rules
+
+The entire application is strictly aligned with the four official AAMC MCAT sections:
+
+| Section Code | Official AAMC Section Name | Questions | Time Limit | Target Pacing | Formatting Mandates |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **`chem_phys`** | **Chemical and Physical Foundations of Biological Systems** | 59 | 95 mins | **~96s / question** | General chemistry, organic chemistry, physics, thermodynamics, kinetics. Supports Passage Sets or Discretes. |
+| **`cars`** | **Critical Analysis and Reasoning Skills** | 53 | 90 mins | **~101s / question** | Humanities, ethics, philosophy, social sciences. **Strictly 100% Passage-Based (Discretes forbidden). Zero diagrams.** |
+| **`bio_biochem`** | **Biological and Biochemical Foundations of Living Systems** | 59 | 95 mins | **~96s / question** | Molecular genetics, metabolic pathways, microbiology, organ physiology. Supports Passage Sets or Discretes. |
+| **`psych_soc`** | **Psychological, Social, and Biological Foundations of Behavior** | 59 | 95 mins | **~96s / question** | Cognitive psychology, healthcare sociology, sensory perception, research ethics. Supports Passage Sets or Discretes. |
+
+### AAMC Scientific Inquiry & Reasoning Skills (SIRS)
+The platform explicitly targets and categorizes questions by the official AAMC reasoning framework:
+- **Skill 1: Knowledge of Scientific Concepts and Principles** — Identifying scientific definitions, models, and fundamental relationships.
+- **Skill 2: Scientific Reasoning and Problem-Solving** — Analyzing scientific theories, evaluating hypotheses, and synthesizing concepts.
+- **Skill 3: Reasoning About the Design and Execution of Research** — Evaluating experimental variables, positive/negative controls, validity, and ethics.
+- **Skill 4: Data-Based and Statistical Reasoning** — Reading reaction graphs, scatter plots, Lineweaver-Burk plots, p-values, and confidence intervals.
+
+---
+
+## 3. Autonomous Multi-Agent AI Pipeline
+
+The core intelligence consists of five specialized autonomous agents orchestrated by a deterministic state engine:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Educator as Educator / Author
+    participant Orchestrator as Engine Orchestrator
+    participant FusedGen as Fused Generator & Self-Scorer
+    participant BlindSolver as Blind-Solver Safeguard
+    participant Auditor as Senior Psychometric Auditor
+    participant Remediator as Autonomous Remediation Loop
+    participant StimulusEngine as Vector / Diagram Engine
+    participant DB as PostgreSQL 16 & Staging Deck
+
+    Educator->>Orchestrator: Dispatch Run (5 or 50 Questions)
+    Orchestrator->>FusedGen: Author Scenario + Symmetric Options + Initial Rubric
+    Note over FusedGen: Calibrated to First-Pass 100/100 Standard
+    FusedGen-->>Orchestrator: Draft Payload (Stem, Options A-D, Rationales)
+    
+    Orchestrator->>BlindSolver: Solve Blindly (No Key, No Explanations)
+    alt Key Matches & Confidence >= 88%
+        BlindSolver-->>Orchestrator: Verified Sound (Unambiguous)
+    else Key Mismatch or Confidence < 88%
+        BlindSolver-->>Orchestrator: Ambiguity Detected -> Force Remediation
+        Orchestrator->>Remediator: Repair Stems & Options (Max 3 Cycles)
+        Remediator-->>Orchestrator: Revised Draft
+    end
+
+    Orchestrator->>Auditor: Independent 100-pt 4-Pillar Evaluation
+    alt Final Score > 80
+        Auditor-->>Orchestrator: Approved (High Quality)
+        opt Section != CARS and Diagram Needed
+            Orchestrator->>StimulusEngine: Generate Scalable Vector SVG / Diagram
+            StimulusEngine-->>Orchestrator: Inline SVG / Visual Stimulus
+        end
+        Orchestrator->>DB: Atomically Staged in Review Queue (ai_validated)
+    else 70 <= Final Score <= 80
+        Auditor-->>Orchestrator: Acceptable into Batch Only (batch_only)
+        Orchestrator->>DB: Retained as Good Quality Batch Item
+    else Final Score < 70 after 3 Cycles
+        Auditor-->>Orchestrator: Circuit Breaker Rejection
+        Note over Orchestrator: Discard Substandard Item Permanently
     end
 ```
 
-### 4.1 Fused Draft-and-Critique Cognitive Engine (`fused_generator_node`) & First-Pass 100/100 Mandate
-- Crafts high-yield clinical or scientific scenarios, 4 symmetric options ($A, B, C, D$), and 3-card mentor explanations.
-- Guided by an explicit **First-Pass 100/100 Excellence Directive**: the question writer aims for full 25 points across all four pillars on the initial draft itself.
-- Simultaneously generates a 100-point self-critique object in a single inference call. By default the independent reviewer and blind solver still audit every draft (`ALWAYS_INDEPENDENT_REVIEW`), running concurrently to save time.
-- Strictly forbids em dashes (`—`) and enforces option word count symmetry (within 3 words, or 20% for longer options).
+### 3.1 Fused Draft-and-Critique Cognitive Engine (`generator.py`)
+- **First-Pass 100/100 Excellence Directive**: Explicitly instructed to author perfect items on the initial attempt, maximizing authenticity, distractor sharpness, and explanation rigor in a single unified round-trip.
+- **Anti-AI Formatting Standard**: Strictly forbids unspaced em-dashes (`—`), en-dashes (`–`), or double hyphens (`--`). Uses clean spaced single hyphens (`-`).
+- **Option Length Symmetry**: Automatically adjusts character and word counts so no single option can be identified as an outlier.
 
-### 4.2 Blind-Solver Dual-Validation Safeguard (`blind_solver.py`)
-- Acts as an algorithmic test candidate, solving the drafted question completely blind without knowing the author's key or explanation.
-- Evaluates whether the question stem and passage provide unambiguous mathematical or deductive proof to identify the intended key.
-- Requires both **answer key agreement** and **$\ge 88\%$ confidence**. If the blind solver selects a different option or confidence is low, the item is automatically redirected to remediation to remove ambiguity.
+### 3.2 Blind-Solver Dual-Validation Safeguard (`blind_solver.py`)
+- **Simulated Test Candidate**: Solves the candidate question purely from the passage and question stem, without access to the author's answer key or explanation.
+- **Strict Verification Gate**: Requires both **exact key agreement** and **$\ge 88\%$ algorithmic confidence**. If the solver chooses a different key or flags ambiguous language, the question is routed into remediation.
 
-### 4.3 Independent Senior Psychometric Auditor (`reviewer.py`)
-- Engaged if a draft scores $\le 80$, fails blind-solver verification, or has undergone remediation.
-- Evaluates four 25-point pillars:
-  1. *MCAT Authenticity & Scientific Rigor* (0-25)
-  2. *Clarity & Logical Soundness* (0-25)
-  3. *Distractor Trap Quality & Anti-Guessability* (0-25)
-  4. *Explanation & Key Rigor* (0-25)
-- Calibrated to award full 25 points per pillar when an item meets all requirements with zero flaws.
+### 3.3 Senior Psychometric Auditor (`reviewer.py`)
+Evaluates items across four equal 25-point pillars (100 points total):
+1. **Pillar 1: Authenticity & Scientific Rigor (25 pts)** — Alignment with AAMC syllabus, clinical or laboratory depth, and professional tone.
+2. **Pillar 2: Clarity & Scientific Logic (25 pts)** — Syntactic precision, unambiguous phrasing, and absence of linguistic traps.
+3. **Pillar 3: Distractor Traps & Option Symmetry (25 pts)** — Plausibility of wrong choices, length symmetry ($\pm 15\%$), and cognitive trap alignment.
+4. **Pillar 4: Explanation & Proof Rigor (25 pts)** — Incontrovertible mathematical or deductive proof citing explicit passage evidence.
 
-### 4.4 Autonomous Remediation Engine (`regenerator.py`)
-- Repairs identified distractor weaknesses, equalizes option lengths, and sharpens pedagogical proofs.
-- Loops up to 3 cycles before triggering the deterministic rejection circuit breaker.
+### 3.4 Autonomous Remediation Loop (`regenerator.py`)
+- Automatically repairs borderline drafts scoring $\le 80$.
+- Ingests specific auditor critique notes, adjusts distractors, equalizes option word counts, and sharpens step-by-step proofs.
+- Maximum 3 cycles; if an item cannot reach 70 points, the circuit breaker permanently discards it.
 
-### 4.5 Configurable Quality Gate Benchmark (`PASSING_SCORE_THRESHOLD = 80`)
-- Controlled directly via `.env:L81` (`PASSING_SCORE_THRESHOLD=80`), with derived batch threshold `BATCH_PASSING_SCORE_THRESHOLD=70`.
-- Items scoring $> 80$ are promoted to the AI Validated review queue. Items scoring between 70 and 80 are accepted into the batch as Good Quality questions. Any item unable to achieve at least 70 points after 3 cycles is completely rejected.
-
----
-
-## 5. Mentor Explanations & 11 Cognitive Traps
-
-Every approved question presents a comprehensive **3-Card Mentor Explanation**:
-
-1. **Card 1: Why Option [Key] is Correct** (Emerald / Success) — Clear deductive or mathematical proof citing specific passage data.
-2. **Card 2: Why Other Options are Incorrect** (Amber / Warning) — Itemized distractor cards dissecting the exact fallacy in each incorrect choice ($A, B, C, D$).
-3. **Card 3: Primary Cognitive Trap Spotlight** (Purple / Tactical Defense) — Details the exact psychological trap, the underlying student error mechanism, and an actionable test-day defense strategy.
-
-### Supported Trap Taxonomy:
-- The trap names offered in the wizard's Advanced Settings (defined in `frontend/src/constants/mcatTraps.js`); the generator receives the chosen names, or `Automatic` to pick its own.
-
----
-
-## 6. Financial Transparency, Concurrency & Batch Resiliency
-
-Every generated item tracks real-time inference telemetry and costs across dual first-class inference providers (DeepInfra DeepSeek V4.1 Flash or Anthropic Claude Haiku 5.5 / Sonnet / Opus with prompt caching):
-
-$$\text{Total Cost (DeepInfra)} = \left(\frac{\text{Input Tokens}}{1{,}000{,}000} \times \$0.20\right) + \left(\frac{\text{Output Tokens}}{1{,}000{,}000} \times \$0.60\right)$$ (standard DeepInfra price; rates always follow the model's own provider, see `docs/TOKEN_TRACKING.md`)
-
-- **Predictable Micro-Costs**: An audited 5-question batch typically costs **between $0.006 and $0.012 USD** in total inference under DeepInfra, or competitive prompt-cached rates under Anthropic Claude.
-- **Repository Observability**: The Question Bank header displays accumulated input tokens, output tokens, total execution time, and cumulative investment across the entire repository.
-- **Enterprise Multi-Batch Concurrency & Resiliency**:
-  - The background batch runner operates under global worker semaphores (`4 concurrent jobs`, `10 concurrent LLM calls`) ensuring safe execution without API rate limit bottlenecks.
-  - **Review Queue Withholding Guarantee**: Questions produced during background batches are held safely in `batch_only` status while the batch is in progress. The "Ready for Review" queue remains clean of incomplete or draft items until the batch cleanly completes, at which point questions with `final_score > config.PASSING_SCORE_THRESHOLD` (80) are atomically promoted to `ai_validated`. Cancelled or stopped batches retain questions in `batch_only` so educators never review partial runs.
-  - **1-Click Batch Stop**: Educators can pause a 50-question mock run at any time without losing items already generated and validated.
-  - **Autonomous In-Flight 3-Trials Retry Policy**: If candidate questions fail quality thresholds during a run, background jobs automatically execute in-flight replenishment retries up to **3 max trials per set**. Active jobs broadcast live `AUTO-RETRYING (X/3)` telemetry badges, transitioning to `3/3 TRIALS EXHAUSTED` when trials are completed.
-  - **Controlled "Resume Sets" Resumption**: Manual retry buttons are hidden during generation and eliminated for completed or failed runs. Batches stopped manually mid-run display a clear **"Resume Sets"** button, allowing educators to resume paused sets that have trials remaining (`trial_count < 3`). Retrying exhausted runs is blocked with an explicit error message.
-  - **Batch Duplicate Clustering & Auto-Refill**: Educators can inspect intra-batch similarity clusters, designate custom leaders, permanently purge duplicates (`action="delete"`), and automatically launch replacement jobs to deliver exact target quotas.
-- **Dedicated Application Views**: Seamlessly navigate between:
-  1. **Create Questions (`HeroLanding.jsx`, `GuidedWizard.jsx`)**: Interactive question studio featuring the welcome canvas with instant section presets and the streamlined 3-Step Guided Wizard dispatching to background worker pools.
-  2. **Batch Progress (`BatchActivityView.jsx`)**: Real-time monitor tracking running batch jobs, per-job question counts, status indicators, and background worker progress. Features **Dual-Track Progress Indication**: an aggregate progress bar tracking overall batch completion alongside per-set **5-Question Progress Strips** with discrete slot pills (`✓ Q1` ready for review in emerald, `✓ Q1` in bank in purple, pulsing `● Q2` actively generating, and dashed `Q3` pending slot).
-  3. **Review Queue (`AiValidatedQuestionsView.jsx`)**: High-quality items (>80 points) awaiting one-click educator publishing into the Question Bank. Score labels are streamlined to clean status badges, and obsolete Discarded/Needs Polish counters are pruned.
-  4. **Question Bank (`QuestionBankView.jsx`)**: Primary verified repository strictly presented in high-density **Editorial Cards** (with search, multi-factor filtering, in-place inline editing, bulk deletion, and PDF/CSV/JSON export; legacy table grid mode removed).
-  5. **Passage Bank (`PassageBankView.jsx`)**: Comprehensive repository of reading passages and research narratives. Features the interactive **Passage Editorial Desk** for live editing of passage content, attaching and previewing figures/diagrams (`PassageVisualStimulusEditor.jsx`), reviewing all linked practice questions (`PassageLinkedQuestionCard.jsx`), and dedicated passage deletion with linked question cascade removal via `DeletePassageModal`, preserving historical batch execution progress intact.
+### 3.5 Visual Stimulus & Medical Imaging Engine (`image_generator.py` & `medical_imaging.py`)
+- **Unrestricted Medical & Scientific Visual Generation**: Synthesizes publication-grade scientific figures, anatomical illustrations, and clinical diagnostic stimuli across both discrete questions and passage-linked item sets whenever required (`draft.image_needed: true` or `req.require_image: true`).
+- **Autonomous AI Discretion for Standalone Questions**: In standalone question generation with "Include Images When Needed" enabled, visual creation is 100% dependent on autonomous AI pedagogical discretion (without pre-defined artificial modulo or forced question indices). If the question is conceptual or formulaic and does not require an image, it renders cleanly as a pure text-based question with zero empty placeholders or wasted image generation tokens.
+- **The 7 Supported Medical & Scientific Modalities**:
+  1. **Radiology**: Axial, coronal, and sagittal CT scans, MRI (T1, T2, FLAIR sequences), chest radiographs, ultrasound sonograms, and fluoroscopic views.
+  2. **Histopathology**: Light micrographs featuring hematoxylin and eosin (H&E) staining, specialized tissue biopsies, and cytological smears (e.g., Reed-Sternberg cells, renal glomerular crescents).
+  3. **Gross Anatomy**: Anatomical atlas-style dissections, organ systems, neurovascular pathways, and visceral cross-sections with automated safety sanitization for academic purity.
+  4. **Cellular Electron Microscopy**: High-magnification TEM and SEM micrographs highlighting organellar ultrastructure (mitochondria, rough ER, Golgi, ciliated axonemes).
+  5. **Physiological & ECG Traces**: Standard 12-lead ECG rhythm strips, myocardial action potential curves, cardiac pressure-volume (PV) loops, and pulmonary spirometric flow-volume loops.
+  6. **Clinical Pathology**: Clinical photographic presentations, dermatological lesions (melanoma margins, erythema migrans), and ophthalmic fundoscopic examinations.
+  7. **Scientific Diagrams & Reaction Pathways**: Clean, scalable vector graphics (**programmatic SVGs**) directly rendered with DOMPurify sanitization (metabolic pathways, Lineweaver-Burk plots, optical ray tracings, chromatography apparatus).
+- **Educator Customization via Step 3 Instructions**:
+  Educators can direct specific modalities, projections, and clinical findings using the **Additional Authoring Instructions** textarea in Step 3 of the Guided Wizard:
+  - *"Include an axial contrast-enhanced CT showing acute appendicitis with an appendicolith."*
+  - *"Provide an H&E histological section of cardiac muscle showing contraction band necrosis."*
+  - *"Generate a Lead II rhythm strip demonstrating second-degree Mobitz Type I AV block."*
+- **Interactive Full-Screen Lightbox & Zoom Inspection**:
+  Candidate cards and review desks integrate the interactive `VisualStimulusLightboxModal`:
+  - **Full-Screen Canvas**: Accessible dialog with focus trapping (`useFocusTrap`) and Escape key dismissal.
+  - **Zoom & Pan Controls**: Scalable zoom from $0.5\times$ to $3.0\times$ with 1-click reset (`RotateCcw`).
+  - **Copy SVG Source**: Direct clipboard export of raw vector XML.
+- **High-Contrast Dark Container Presentation**:
+  To protect clinical visual fidelity, figures classified under **Radiology** or **Electron Microscopy** automatically render inside a dedicated high-contrast dark container (`isDarkContainer: true`) even in Alabaster Light mode, preventing washed-out whites and preserving diagnostic micro-details.
+- **CARS Safeguard**: In strict accordance with official AAMC test regulations, diagram generation is permanently disabled for Critical Analysis and Reasoning Skills (CARS).
 
 ---
 
-## 7. Question Deduplication, Collision Avoidance & Editorial Override
+## 4. Pedagogical Quality, Anti-Guessability & Distractor Traps
 
-### 7.1 Why Duplicate Prevention is Serious for Medical Education
-In high-stakes MCAT preparation, item duplication severely damages product credibility:
-- **Artificially Inflated Diagnostic Scores**: If a student encounters two nearly identical questions across different practice exams, their score reflects rote memory rather than authentic scientific reasoning.
-- **Wasted Student Pacing**: Candidates have roughly ~96 seconds per question. Encountering repetitive stems wastes valuable mock testing stamina.
-- **Content Dilution**: High-value question banks must span comprehensive cognitive angles rather than clustering around identical textbook phrasing.
+### 4.1 3-Card Structured Mentor Explanations
+Every item generated presents a comprehensive 3-card pedagogical breakdown designed to train medical reasoning:
 
-### 7.2 The Autonomous Anti-Collision Loop
-During both live single-pass authoring and high-throughput batch generation:
-1. **Targeted Reference Scoping**: The candidate question is compared against all existing bank items within the **exact Section and Subtopic**, as well as sibling questions generated within the active batch.
-2. **Multi-Metric Textual & Distractor Evaluation**: Stems and options are evaluated using token containment, 1-gram/2-gram Jaccard overlap, SequenceMatcher ratio, and distractor set similarity.
-3. **Autonomous Pivot**: If composite similarity exceeds **80%**, the generator is automatically re-prompted with the colliding stem and instructed to pivot to an alternative clinical presentation, distinct enzymatic mechanism, or novel calculation angle.
-
-### 7.3 The Educator Review & Override Workflow
-When an item with potential overlap is presented for editorial review:
-
-```
-[ Candidate Question Staged ] ──> [ ⚠️ Duplicate Risk (XX%) Badge Displayed ]
-                                                 │
-                                                 ▼
-                                  [ Open Comparison Modal ]
-                                  (Candidate vs Conflicting Item)
-                                                 │
-             ┌───────────────────────────────────┼───────────────────────────────────┐
-             ▼                                   ▼                                   ▼
-    [ Override & Approve ]             [ Regenerate Fresh Angle ]                 [ Discard ]
-   • Stamps audit trail               • Re-prompts generator                     • Completely purges
-   • Status -> 'in_bank'              • Injects avoidance directive               substandard draft
-   • Badge -> 🛡️ Overridden          • Discards current candidate
+```mermaid
+graph TD
+    subgraph MentorView ["3-Card Structured Mentor Explanation"]
+        C1["Card 1: Why Option [Key] is Correct<br/>(Emerald / Success)<br/>• Step-by-step deductive/mathematical proof<br/>• Explicit passage citations"]
+        C2["Card 2: Why Other Options are Incorrect<br/>(Amber / Warning)<br/>• Sub-card for each wrong choice [A, C, D]<br/>• Details specific misconception or math error"]
+        C3["Card 3: Primary Cognitive Trap Spotlight<br/>(Purple / Defense)<br/>• Identifies exact test trap mechanism<br/>• Actionable student defense strategy"]
+    end
 ```
 
-1. **Visual Alert**: Question cards in the staging deck and bank display an unmistakable warning pill: `⚠️ Duplicate Risk (86%)`.
-2. **Collision Diagnostics & Context**:
-   - The card displays the exact similarity percentage and the primary collision cause (e.g. *"High question stem textual overlap (86%)"*), giving educators full context on the potential duplicate.
-3. **Three Editorial Paths**:
-   - **Override & Approve (Emerald Shield)**: If the educator verifies that the question explores a distinct scientific principle (for example, competitive vs uncompetitive inhibition under identical kinetics conditions), clicking "Override & Approve" persists the item, sets `is_duplicate_override=true`, and records the exact override timestamp. The question card badge transitions to a protected blue badge: `🛡️ Overridden`.
-   - **Regenerate Fresh Angle (Indigo Refresh)**: Dispatches an autonomous re-generation task requiring the engine to pick a completely different scientific angle while discarding the collision.
-   - **Discard (Rose Trash)**: Discards the redundant draft from the active review deck.
-4. **Permanent Audit Trail**: All overrides are preserved in the PostgreSQL `duplicate_info` JSONB column and included in administrative JSON and CSV exports.
+### 4.2 The 11-Trap Cognitive Taxonomy
+The system incorporates an exhaustive taxonomy of official MCAT cognitive traps:
+
+| Trap Name | Error Mechanism | Student Defense Strategy |
+| :--- | :--- | :--- |
+| **Calculation / Formula Trap** | Uses inverted ratios, forgotten square roots, or wrong constants. | Verify unit cancellations and dimensional analysis before calculating. |
+| **Extreme Language** | Uses absolute qualifiers (*always*, *never*, *completely*, *solely*). | Eliminate choices containing absolutes unless explicitly supported by data. |
+| **Outside Knowledge in CARS** | Brings in real-world historical or scientific facts not in the passage. | Base CARS answers strictly on author arguments, ignoring outside knowledge. |
+| **Correlation vs. Causation** | Assumes an observed correlation proves direct physical causation. | Check if experiments controlled for confounding variables. |
+| **Distortion / Opposite** | Inverts an enzymatic relationship or reverses an author's claim. | Trace the direction of regulation (*upregulation* vs. *inhibition*). |
+| **Out of Scope** | Introduces plausible concepts never addressed in the passage narrative. | Reject choices that discuss unmentioned physiological systems. |
+| **Half-Right / False Premise** | Combines a true scientific fact with an invalid concluding inference. | Evaluate both clauses independently; if half is wrong, the option is wrong. |
+| **Scope Shift** | Answers a related question rather than the exact question asked in the stem. | Re-read the stem's final clause to confirm the exact parameter being requested. |
+| **Faulty Comparison** | Compares two entities not compared or calibrated in the experiment. | Check table rows and control groups for true direct comparisons. |
+| **Unwarranted Extrapolation** | Extrapolates in vitro cell culture findings to whole in vivo organisms. | Confine conclusions strictly to the experimental model tested. |
+| **Vague Generalization** | Offers a true but overly vague biological platitude without answering the stem. | Favor specific mechanisms over broad, non-committal generalizations. |
+
+> **Smart AI Automatic Selection**: In addition to manual trap targeting in the wizard, the generator features an `Automatic` mode where the AI analyzes the scenario to select and inject the most pedagogically appropriate trap, badging it on the question header.
+
+---
+
+## 5. Anti-Collision, Deduplication & Editorial Overrides
+
+In high-stakes MCAT preparation, duplicate questions damage student outcomes by creating artificially inflated scores and wasting timed practice stamina.
+
+```mermaid
+flowchart TD
+    Candidate["Candidate Question Drafted"] --> ScopedPool["Scoped Reference Pool<br/>(Exact Section + Subtopic + Active Batch)"]
+    ScopedPool --> MathCheck["Multi-Metric Similarity Check<br/>• 35% Token Containment<br/>• 25% 1-Gram Jaccard<br/>• 20% 2-Gram Jaccard<br/>• 20% SequenceMatcher<br/>• Distractor Overlap Penalty"]
+    
+    MathCheck -->|Similarity >= 80%| Pivot["Autonomous Pivot Loop<br/>(Re-prompts generator with collision notice)"]
+    MathCheck -->|Similarity < 80%| ReviewQueue["Staged for Review"]
+
+    ReviewQueue -->|Edge-Case Overlap| Warning["⚠️ Duplicate Risk (XX%) Badge"]
+    Warning --> Modal["Comparison Modal<br/>(Side-by-side stem & distractor diff)"]
+    
+    Modal -->|Legitimate Edge Case| Override["Override & Approve<br/>• is_duplicate_override = true<br/>• Persistent Blue Shield: 🛡️ Overridden"]
+    Modal -->|Unwanted Collision| Regenerate["Regenerate Fresh Angle"]
+    Modal -->|Substandard| Discard["Discard Item"]
+```
+
+### 5.1 Multi-Metric Similarity Algorithm
+The anti-collision engine calculates a composite mathematical similarity score:
+$$\text{Similarity} = 0.35(\text{Token Containment}) + 0.25(\text{1-Gram Jaccard}) + 0.20(\text{2-Gram Jaccard}) + 0.20(\text{SequenceMatcher})$$
+If distractor choices match an existing item by $\ge 75\%$, a severe options-overlap penalty is added to guarantee distractor diversity.
+
+### 5.2 Intra-Batch Clustering & Autonomous Replenishment
+In background multi-job batches (e.g. 50 questions), the system performs autonomous pairwise clustering (>75% similarity). Duplicate items within the same batch are permanently purged (`action="delete"`) and automatically replenished with fresh drafts, guaranteeing delivery of the exact target quota without passage drift.
+
+### 5.3 Protected Audit Trail (`🛡️ Overridden`)
+When an educator determines that two questions examine distinct principles (e.g., competitive vs. uncompetitive enzyme inhibition using the same substrate), clicking **"Override & Approve"** stamps the database with an audit timestamp and marks the question with a protected royal blue badge: `🛡️ Overridden`.
+
+---
+
+## 6. The 5 Top-Level Workstation Views
+
+```mermaid
+graph LR
+    Nav["Infynno MCAT Studio Navigation"]
+    Nav --> Tab1["1. Create Questions<br/>(Hero Landing & 3-Step Wizard)"]
+    Nav --> Tab2["2. Batch Progress<br/>(Worker Pool & Concurrency Monitor)"]
+    Nav --> Tab3["3. Review Queue<br/>(AI-Validated Staging Deck)"]
+    Nav --> Tab4["4. Question Bank<br/>(Canonical Repository & Inline Editor)"]
+    Nav --> Tab5["5. Passage Bank<br/>(Stimulus Curation & Cascade Manager)"]
+```
+
+---
+
+### 6.1 Create Questions: Question Studio & 3-Step Wizard
+The primary authoring portal switches between a minimalist welcome canvas (`HeroLanding.jsx`) and the streamlined 3-step authoring wizard (`GuidedWizard.jsx`):
+
+1. **Step 1: Section & Focus (`WizardStep1SectionFocus.jsx`)**:
+   - Official AAMC section selection (`CP`, `CARS`, `BB`, `PS`).
+   - Granular syllabus navigation: major units and concept subtopics.
+2. **Step 2: Level, Format & Scope (`WizardStep2LevelFormat.jsx`)**:
+   - **Generation Scope**:
+     - **5 Questions (1 Single Job)**: Rapid background worker drafting on a shared passage or discrete set (~35-50s) with live telemetry.
+     - **50 Questions (10 Jobs)**: Enterprise background multi-job batch across 10 concurrent worker jobs.
+   - **Challenge Level**: Low, Medium, High difficulty calibration.
+   - **Binary Format**: Passage-Based Set vs. Independent Discretes.
+3. **Step 3: Review & Launch (`WizardStep3ReviewAdvanced.jsx`)**:
+   - **Parameter Summary Card**: Compact tabular review of section, topics, difficulty, and question count.
+   - **Scientific Diagrams Toggle Card**: 1-click toggle card for natural science sections.
+   - **Additional Authoring Instructions**: High-priority textarea allowing educators to specify custom clinical scenarios or derivations (triggers animated `+ Custom Prompt Active` badge).
+   - **Advanced Settings Drawer**: Fine-grained selection of specific cognitive traps, SIRS reasoning skills, and targeted mistake patterns.
+
+---
+
+### 6.2 Batch Progress: Concurrency Monitor & Resilient Processing
+A real-time monitor (`BatchActivityView.jsx`, `ActiveMultiBatchMonitor.jsx`) tracking multi-job background batches:
+
+- **Global Worker Pool Concurrency Gauge**: Displays live worker slot occupancy against server semaphores (`4 active worker slots`, `10 LLM calls`).
+- **Dual-Track Progress Indication**:
+  - **Uncapped Mathematical Progress Bar**: Accurately reflects `actual_count / target_count * 100%`.
+  - **5-Question Progress Strips**: Visual micro-pills (`Q1`–`Q5`) showing exact slot lifecycle:
+    - `✓ Q1` (Emerald): Completed and ready for review.
+    - `✓ Q1` (Purple): Completed and approved into Question Bank.
+    - `● Q2` (Pulsing Cyan): Actively generating or self-evaluating candidate.
+    - `Q3` (Dashed Muted): Pending placeholder awaiting worker slot.
+- **Autonomous In-Flight 3-Trials Retry Policy**: If questions fail quality benchmarks, background jobs automatically execute up to 3 replenishment trials, displaying `AUTO-RETRYING (X/3)` or `3/3 TRIALS EXHAUSTED`.
+- **Review Queue Withholding Guarantee**: Items generated in background batches remain in `batch_only` status while the batch is running. Only when the batch cleanly finishes are items with score $> 80$ promoted to the Review Queue, ensuring educators never review incomplete sets.
+- **1-Click Batch Stop & Controlled Resume**: Educators can stop a running batch safely. Paused batches with remaining trials display a **"Resume Sets"** action to resume execution.
+
+---
+
+### 6.3 Review Queue: AI-Validated Triage & Editorial Staging
+A dedicated triage desk (`AiValidatedQuestionsView.jsx`) for items that scored $> 80$ in batch runs:
+
+- **Fast Editorial Scanning**: Displays section badges, difficulty chips (`badge-emerald`, `badge-amber`, `badge-rose`), score badges (`<Award size={11} /> Score/100`), subtopic, and primary trap tag.
+- **Passage Inspection with `SharedPassageCard`**: Expandable reading passages formatted in `Newsreader` serif typography with word-count badges, font scaling controls (A-, 100%, A+), and embedded diagrams.
+- **1-Click Editorial Actions**:
+  - **Save to Question Bank**: Moves the question to the permanent bank.
+  - **Discard**: Permanently removes the question.
+  - **Quality Review**: Opens the comprehensive 4-pillar psychometric breakdown modal.
+- **Bulk Actions**: Select individual or all questions to "Save Selected to Question Bank" or "Discard Selected".
+
+---
+
+### 6.4 Question Bank: Canonical Repository & Inline Editorial Desk
+The primary searchable and filterable repository (`QuestionBankView.jsx`), strictly consolidated on the canonical **Editorial Cards** view:
+
+- **Multi-Factor Filtering & Search**: Instant keyword search (focused via `/` keyboard shortcut), section dropdown, difficulty filter, and sorting.
+- **Inline Question Editor (`QuestionInlineEditor.jsx`)**: In-place editing of question stem, options, and explanations without navigating away, powered by live **Option Length Symmetry** calculations.
+- **Card Drawer Expansion**: Inline preview showing the full reading passage via `SharedPassageCard`, 2x2 option grid with correct key highlight, and full 3-card mentor explanations.
+- **Full Question Inspector Modal**: Accessible dialog with 3 inspection tabs:
+  - **Preview Tab**: Student practice mode with interactive selection and mentor explanations.
+  - **Scorecard Tab**: Itemized 100-point rubric with reviewer critique.
+  - **Details Tab**: Deep stage outcome JSON inspector showing raw multi-agent payloads.
+- **Bulk Management**: Multi-select questions for batch deletion (with accessible confirmation dialog) or export.
+
+---
+
+### 6.5 Passage Bank: Stimulus Curation & Cascading Management
+A specialized repository (`PassageBankView.jsx`) dedicated to reading passages and research narratives:
+
+- **Passage Editorial Desk (`PassageEditorialDesk.jsx`)**: Split-pane editorial canvas featuring:
+  - Live in-place text editor for the passage narrative.
+  - Real-time word counter with MCAT pacing metrics.
+  - Figure showcase and discard tool (`PassageVisualStimulusEditor.jsx`).
+  - Linked questions drawer inspecting all questions currently associated with the passage.
+- **Safe Cascade Deletion Modal (`DeletePassageModal.jsx`)**: Accessible dialog that audits and displays the exact number of linked questions across all lifecycle statuses (`in_bank`, `ai_validated`, `batch_only`) that will be soft-deleted, while cleanly preserving historical batch execution progress.
+
+---
+
+## 7. Export & Print Studio
+
+The platform includes a built-in accessible export modal (`ExportPrintModal.jsx`) supporting 4 distinct publication formats:
+
+```mermaid
+graph TD
+    Repo[(Question Bank Repository)] --> ExportModal[Export & Print Studio]
+    ExportModal --> F1["1. Exam Paper (PDF / Print)<br/>• Candidate header & timing block<br/>• Official AAMC layout<br/>• @media print CSS rules (zero awkward page breaks)"]
+    ExportModal --> F2["2. Comprehensive Study Pack<br/>• Full reading passages<br/>• Question stems & correct keys<br/>• Complete 3-card mentor explanations"]
+    ExportModal --> F3["3. Standardized CSV Export<br/>• Comma-delimited spreadsheet<br/>• Formatted for Canvas, Blackboard, or LMS import"]
+    ExportModal --> F4["4. Normalized JSON Bundle<br/>• Full relational schemas<br/>• Multi-agent stage outcomes & token telemetry"]
+```
+
+---
+
+## 8. Financial Telemetry & Micro-Dollar Cost Accounting
+
+Every inference request calculates exact sub-micro-cent USD expenditure using real-time token tracking:
+
+$$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\text{in}}\right) + \left(\frac{\text{Completion Tokens}}{1,000,000} \times R_{\text{out}}\right) + \text{Cache Costs}$$
+
+### Supported Inference Providers & Standard Rate Cards
+- **DeepInfra (DeepSeek V4.1 Flash Reasoning Engine)**:
+  - Input: **$0.20 / 1M tokens**
+  - Output: **$0.60 / 1M tokens**
+  - FLUX-2 Neural Visual Stimulus: **$0.014 / image**
+- **Anthropic Claude (Haiku 5.5, Sonnet 3.5, Opus 3)**:
+  - Claude Haiku 5.5: **$0.10 input / $0.50 output per 1M tokens** with native prompt caching discounts.
+- **OpenAI (`gpt-4o-mini`)**: Supported via provider toggle.
+
+### Operational Cost Benchmarks
+- A complete, quality-audited **5-question set** typically costs between **$0.006 and $0.012 USD** under DeepInfra.
+- An enterprise **50-question mock section (10 jobs)** costs between **$0.06 and $0.12 USD**.
+- Accumulated repository tokens, execution durations, and total dollar investments are displayed live in the Question Bank header.
+
+---
+
+## 9. UI Design System, Ergonomics & Accessibility
+
+- **Linear/Vercel-Inspired Minimalist Aesthetic**: Quiet surfaces, hairline dividers (`1px solid var(--border-light)`), subtle box shadows, and zero card clutter.
+- **Dual-Theme Ergonomics**: First-class Alabaster Light (`#f8fafc`) default and Dark Obsidian (`#080c14`) theme with zero-flicker toggle via navbar switch or keyboard shortcut (`T`).
+- **Editorial Typography Hierarchy**:
+  - `Plus Jakarta Sans`: Clean, geometric sans-serif for UI controls, buttons, wizards, and tables.
+  - `Newsreader Serif`: Clinical reading passages and stimuli rendered in high-legibility serif (`1.05rem`, `line-height: 1.68`) to eliminate reading fatigue.
+  - `JetBrains Mono`: Monospace typography for token counts, stopwatch timers, cost calculations, and keyboard shortcuts.
+- **WCAG AA Accessibility Standards**:
+  - Minimum contrast ratio of 4.5:1 for body copy and 3:1 for large text/badges across both themes.
+  - Strict keyboard focus trapping (`useFocusTrap`) across all modals (`Modal`, `ConfirmationModal`, `DeletePassageModal`, `ExportPrintModal`), restoring focus to origin controls upon `Escape` or dismissal.
+- **Global Keyboard Accelerators**:
+  - `⌘ + Enter` / `Ctrl + Enter`: Trigger question or batch generation.
+  - `T`: Instant toggle between Dark and Light themes.
+  - `/`: Immediately focus the Question Bank search input.
+  - `A`: Approve active staged question into the bank.
+  - `D`: Discard active staged question.
+  - `Escape`: Dismiss open dialogs and drawers.
+- **Everyday Human Language Standard**: Replaces robotic AI jargon with classroom-authentic terms (*Reading passage*, *Independent question*, *Quality Review*, *Create Questions*, *Common Traps*).
+
+---
+
+## 10. Technical Architecture, Security & Production Readiness
+
+### Full-Stack Architecture Specifications
+- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (118 unit tests).
+- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (392 deterministic test suite).
+- **Database**: PostgreSQL 16 with native JSONB columns for multi-stage payloads, rubrics, and token tracking; UUID4 primary keys; automated schema migrations on startup.
+- **Observability**: Prometheus `/metrics` endpoint exposing real-time worker pool occupancy, batch lifecycle states, and token expenditures.
+- **Security & Hygiene**:
+  - Input sanitization via DOMPurify SVG profile (`SafeSvg`) preventing XSS in diagrams.
+  - Strict CORS validation and API key redaction in logging contexts.
+  - Pre-development port hygiene scripts ensuring clean local boot.
+
+---
+
+## Summary Deliverable Overview
+
+| Dimension | Infynno MCAT Generator v2.0 Capability |
+| :--- | :--- |
+| **Exam Alignment** | 100% compliant with official AAMC syllabus, SIRS skills, and CARS pure-passage rules. |
+| **Pedagogical Integrity** | Mathematical option symmetry ($\pm 15\%$), 3-card mentor explanations, 11-trap taxonomy. |
+| **Verification & Safeguards** | Algorithmic Blind-Solver test candidate ($\ge 88\%$ confidence), 100-pt 4-pillar auditor. |
+| **Duplicate Prevention** | Multi-metric semantic anti-collision loop ($>80\%$), intra-batch clustering, protected override shields (`🛡️`). |
+| **Batch Capabilities** | Dual-track progress monitor, 4-stage stepper, 3-trials autonomous retries, withholding queue guarantee. |
+| **Editorial Workflows** | Canonical Editorial Cards bank, inline question editor, passage editorial desk, cascade delete safety. |
+| **Export Formats** | Exam Booklets (PDF/Print with page-break protection), Study Packs, CSV, Normalized JSON. |
+| **Economics & Telemetry** | Micro-dollar precision tracking ($0.006–$0.012 per 5-question set) across DeepInfra / Anthropic Claude. |
+| **Design & Accessibility** | Alabaster Light / Dark Obsidian, Newsreader serif typography, WCAG AA focus trapping, keyboard shortcuts. |
+
+---
+*Infynno Solutions LLP • Infinite Innovations • Confidential & Proprietary Client Deliverable*

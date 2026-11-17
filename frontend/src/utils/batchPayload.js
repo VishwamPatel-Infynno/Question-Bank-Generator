@@ -53,7 +53,7 @@ export function buildBatchPayload(form) {
     likely_mistake_pattern: joinOr(likelyMistakePatterns, likelyMistakePattern || 'Automatic'),
     additional_instructions: additionalInstructions?.trim() || undefined,
     allow_ai_images: isVisualsPermitted,
-    require_image: isVisualsPermitted && !isPassageMode && totalQuestions === 1,
+    require_image: Boolean(requireImage),
     visual_type: isVisualsPermitted ? 'AI_FLUX_Image' : 'None',
     require_passage_image: isVisualsPermitted && isPassageMode
   };

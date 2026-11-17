@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 /**
  * The Question Bank's two delete flows (one question, the selection) behind one confirm dialog:
@@ -16,7 +16,7 @@ import { useState } from 'react';
 export function useBankDeletion({ openConfirmModal, closeConfirmModal, onShowToast }) {
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const confirmDeletion = ({ count, action, successMessage }) => {
+  const confirmDeletion = useCallback(({ count, action, successMessage }) => {
     const plural = count !== 1 ? 's' : '';
     openConfirmModal({
       title: count === 1 ? 'Delete Question' : 'Delete Selected Questions',
@@ -47,7 +47,7 @@ export function useBankDeletion({ openConfirmModal, closeConfirmModal, onShowToa
         }
       }
     });
-  };
+  }, [openConfirmModal, closeConfirmModal, onShowToast]);
 
   return { isDeleting, confirmDeletion };
 }

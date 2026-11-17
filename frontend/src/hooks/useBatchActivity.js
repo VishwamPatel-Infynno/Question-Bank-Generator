@@ -45,7 +45,8 @@ export function useBatchActivity({
     return firstJobId ? { [firstJobId]: true } : {};
   });
 
-  // Track prev prop for render-time state adjustment if prop changes while mounted
+  // Adjust state when newlyLaunchedBatch changes while mounted (React official pattern:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
   const [prevLaunchedBatch, setPrevLaunchedBatch] = useState(newlyLaunchedBatch);
   if (newlyLaunchedBatch && newlyLaunchedBatch !== prevLaunchedBatch) {
     setPrevLaunchedBatch(newlyLaunchedBatch);

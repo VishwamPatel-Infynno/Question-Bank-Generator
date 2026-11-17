@@ -88,10 +88,10 @@ export default function QuestionCardHeader({
             type="button"
             onClick={() => onOpenAudit(question)}
             className="btn-secondary qcard-header-btn"
-            title="Open quality breakdown modal"
+            title="Open quality review breakdown modal"
           >
             <ShieldCheck size={12} color="var(--brand-primary)" />
-            <span>Audit</span>
+            <span>Quality Review</span>
           </button>
         )}
 

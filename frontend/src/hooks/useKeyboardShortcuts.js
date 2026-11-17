@@ -58,7 +58,6 @@ export function useKeyboardShortcuts({ onGenerate, onToggleTheme, onFocusSearch,
         }
         return;
       }
-
     };
 
     window.addEventListener('keydown', handleKeyDown);

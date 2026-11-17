@@ -173,7 +173,8 @@ describe('buildBatchPayload', () => {
       require_passage_image: false,
       visual_type: 'None'
     });
-    expect(buildBatchPayload({ ...base, totalQuestions: 1, passageMode: 'independent' }).require_image).toBe(true);
+    expect(buildBatchPayload({ ...base, totalQuestions: 1, passageMode: 'independent' }).require_image).toBe(false);
+    expect(buildBatchPayload({ ...base, totalQuestions: 1, passageMode: 'independent', requireImage: true }).require_image).toBe(true);
     expect(buildBatchPayload({ ...base, totalQuestions: 5 }).passage_count).toBe(1);
   });
 });

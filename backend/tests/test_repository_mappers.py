@@ -2,14 +2,20 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from app.models.passage import PassageModel
 from app.models.question import QuestionModel
-from app.repositories.mappers import model_to_schema, schema_to_model
+from app.repositories.mappers import (
+    model_to_schema,
+    passage_model_to_schema,
+    passage_schema_to_model,
+    schema_to_model,
+)
 from app.repositories.query_builders import (
     DIFFICULTY_ALIASES,
     SLIM_DEFER,
     build_question_filters,
 )
-from app.schemas.question import OptionChoice, Question, ReviewScore
+from app.schemas.question import OptionChoice, Passage, Question, ReviewScore
 
 
 def _sample_review_rubric_dict() -> dict:
@@ -177,3 +183,47 @@ def test_build_question_filters():
     # 5. Search creates hybrid conditions
     filters_search = build_question_filters(search="enzyme kinetics")
     assert any("to_tsvector" in str(f) or "enzyme kinetics" in str(f) for f in filters_search)
+
+
+def test_passage_model_to_schema():
+    now = datetime.now(UTC)
+    model = PassageModel(
+        id="pass-123",
+        title="Enzyme Catalysis Mechanisms",
+        text="A detailed passage describing carbonic anhydrase kinetics.",
+        word_count=7,
+        section="BBLS",
+        subtopic="Biochemistry",
+        image_url="https://example.com/img.png",
+        image_svg="<svg></svg>",
+        image_description="Active site schematic",
+        is_deleted=False,
+        deleted_at=None,
+        created_at=now,
+        updated_at=now,
+    )
+    schema = passage_model_to_schema(model, question_count=4)
+    assert schema.id == "pass-123"
+    assert schema.title == "Enzyme Catalysis Mechanisms"
+    assert schema.question_count == 4
+    assert schema.word_count == 7
+    assert schema.is_deleted is False
+    assert schema.image_description == "Active site schematic"
+
+
+def test_passage_schema_to_model_round_trip():
+    passage = Passage(
+        id="pass-456",
+        title="Renal Physiology",
+        text="The glomerulus filters blood entering the nephron under high hydrostatic pressure.",
+        section="BBLS",
+        subtopic="Organ Systems",
+        is_deleted=False,
+    )
+    # word_count not provided -> automatically calculated from text (11 words)
+    model = passage_schema_to_model(passage)
+    assert model.id == "pass-456"
+    assert model.title == "Renal Physiology"
+    assert model.word_count == 11
+    assert model.section == "BBLS"
+    assert model.is_deleted is False

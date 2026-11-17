@@ -45,7 +45,7 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (384 deterministic unit & integration tests across 59 modules; 282 pass offline, 102 DB tests run cleanly with PostgreSQL; 394 total backend tests including 10 live LLM E2E tests)
+# 1. Backend pytest suite (392 deterministic unit & integration tests across 59 modules; 282 pass offline, 110 DB tests run cleanly with PostgreSQL; 402 total backend tests including 10 live LLM E2E tests)
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 
 # 2. Backend Python linter and formatting checks (E, W, F, I, UP, B, C4, SIM, RET, G004, ASYNC, PT, RUF)
@@ -89,6 +89,7 @@ pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
 9. **Multi-Agent Pipeline & Cognitive Fusion**: Step 01 fuses item authoring and 100-point rubric self-critique (`Drafting & Review`) into a single pass calibrated to aim for a perfect 100/100 score on first pass. Step 02 executes independent dual validation (`Answer Check`). Step 03 executes remediation (`Question Polish`) for drafts scoring $\le 80$ or failing verification, while Step 04 renders visual stimuli (`Figures & Diagrams`).
 10. **AAMC Dual Split-Pane Reading Mode**: Ensures dense scientific research passages and CARS essays are presented side-by-side with sticky scrolling and synchronized candidate review.
 11. **Option Symmetry & Anti-AI Standard**: Enforce option length parity (within 3 words, or 20% of the average for longer options; `agents/standards.py`) across strictly 4 options ($A, B, C, D$) and single hyphens (`-`) only; em dashes (`—`) and en dashes (`–`) are strictly forbidden across prompts and generation output.
+12. **Medical Imaging Freedom & Prompt Safety**: Unrestricted visual stimulus synthesis across all 7 clinical modalities (Radiology, Histopathology, Gross Anatomy, Cellular Microscopy, Physiology/ECG, Clinical Pathology, Scientific Diagrams) for natural science sections (CP, BB). Prompts must use academic textbook illustration framing and avoid raw trauma/gore descriptors to prevent commercial content moderation false positives.
 
 ---
 

@@ -92,7 +92,7 @@ export default function HeroLanding({
 
         {/* Tagline */}
         <p className="hero-tagline">
-          Generate MCAT questions with passages, diagrams, and explanations.
+          Create MCAT questions with passages, diagrams, and explanations.
         </p>
 
         {/* Centered CTA Buttons */}

@@ -11,5 +11,3 @@ export function useRequestGuard() {
   useEffect(() => () => guard.cancel(), [guard]);
   return guard;
 }
-
-export default useRequestGuard;

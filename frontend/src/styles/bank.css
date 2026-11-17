@@ -276,16 +276,6 @@
   user-select: none;
 }
 
-.validated-passage-text {
-  color: var(--text-primary);
-  font-family: var(--font-serif);
-  font-size: 0.85rem;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  max-height: 260px;
-  overflow-y: auto;
-}
-
 .validated-stem {
   font-size: 0.875rem;
   font-weight: 600;
@@ -556,12 +546,9 @@
 }
 
 .validated-card-diff {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: var(--radius-xs);
-  background: var(--bg-surface-subtle);
-  color: var(--text-muted);
+  text-transform: capitalize;
 }
 
 .validated-card-trap-tag {
@@ -599,14 +586,6 @@
   padding: 1px 6px;
 }
 
-.validated-card-trap-summary {
-  font-size: 0.68rem;
-  padding: 1px 6px;
-  background: var(--bg-surface-subtle);
-  border-radius: 4px;
-  color: var(--text-secondary);
-}
-
 .validated-option-correct-badge {
   font-size: 0.675rem;
   font-weight: 700;
@@ -642,12 +621,6 @@
 
 .validated-card-passage-body {
   margin-top: 8px;
-}
-
-.validated-card-figure-box {
-  margin-top: 10px;
-  border-top: 1px solid var(--border-light);
-  padding-top: 10px;
 }
 
 .validated-card-stem-box {

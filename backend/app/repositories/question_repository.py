@@ -29,13 +29,6 @@ logger = logging.getLogger(__name__)
 # Giving a question one of these statuses also un-deletes it
 _VISIBLE_STATUSES = frozenset({"in_bank", "ai_validated", "batch_only"})
 
-# Backward compatibility aliases
-_model_to_schema = model_to_schema
-_schema_to_model = schema_to_model
-_build_question_filters = build_question_filters
-_DIFFICULTY_ALIASES = DIFFICULTY_ALIASES
-_SLIM_DEFER = SLIM_DEFER
-
 
 async def save_question(q: Question) -> Question:
     """Inserts or updates a question in PostgreSQL, auto-syncing passages and batches."""
@@ -46,13 +39,14 @@ async def save_question(q: Question) -> Question:
     async with async_session_factory() as session:
         # 1. Auto-sync Passage record atomically if passage_id and stimulus_text exist
         if q.passage_id and q.stimulus_text and q.stimulus_text.strip():
+            words = q.stimulus_text.split()
             p_stmt = (
                 pg_insert(PassageModel)
                 .values(
                     id=q.passage_id,
                     title=f"{q.subtopic or q.section} Passage",
                     text=q.stimulus_text.strip(),
-                    word_count=len(q.stimulus_text.split()),
+                    word_count=len(words),
                     section=q.section,
                     subtopic=q.subtopic,
                     image_url=q.image_url,
@@ -65,7 +59,7 @@ async def save_question(q: Question) -> Question:
                     index_elements=["id"],
                     set_={
                         "text": q.stimulus_text.strip(),
-                        "word_count": len(q.stimulus_text.split()),
+                        "word_count": len(words),
                         "updated_at": now_dt,
                     },
                 )
@@ -95,7 +89,7 @@ async def save_question(q: Question) -> Question:
             await session.execute(b_stmt)
 
         # 3. Save QuestionModel
-        model = _schema_to_model(q)
+        model = schema_to_model(q)
         await session.merge(model)
         await session.commit()
         return q
@@ -218,7 +212,7 @@ async def save_questions_batch(questions: list[Question]) -> list[str]:
         )
         existing_ids = {m.id for m in existing_rows.scalars().all()}
         for q in questions:
-            model = _schema_to_model(q)
+            model = schema_to_model(q)
             if q.id in existing_ids:
                 await session.merge(model)
             else:
@@ -262,7 +256,7 @@ async def count_questions(
     include_deleted: bool = False,
 ) -> int:
     """Returns the total number of questions matching specific filter criteria."""
-    filters = _build_question_filters(
+    filters = build_question_filters(
         section=section,
         difficulty=difficulty,
         search=search,
@@ -299,7 +293,7 @@ async def get_questions(
     include_deleted: bool = False,
 ) -> list[Question]:
     """Retrieves questions from PostgreSQL with optional filtering, hybrid full-text search, pagination, and slim payload projection."""
-    filters = _build_question_filters(
+    filters = build_question_filters(
         section=section,
         difficulty=difficulty,
         search=search,
@@ -315,7 +309,7 @@ async def get_questions(
         stmt = select(QuestionModel)
         if slim:
             # The slim schema omits these blobs anyway (about 70% of a row's bytes): do not read them
-            stmt = stmt.options(*_SLIM_DEFER)
+            stmt = stmt.options(*SLIM_DEFER)
         for cond in filters:
             stmt = stmt.where(cond)
 
@@ -325,9 +319,9 @@ async def get_questions(
             stmt = stmt.order_by(QuestionModel.final_score.asc(), QuestionModel.created_at.desc())
         elif sort_by == "difficulty":
             diff_order = case(
-                (QuestionModel.difficulty.in_(_DIFFICULTY_ALIASES["low"]), 1),
-                (QuestionModel.difficulty.in_(_DIFFICULTY_ALIASES["medium"]), 2),
-                (QuestionModel.difficulty.in_(_DIFFICULTY_ALIASES["high"]), 3),
+                (QuestionModel.difficulty.in_(DIFFICULTY_ALIASES["low"]), 1),
+                (QuestionModel.difficulty.in_(DIFFICULTY_ALIASES["medium"]), 2),
+                (QuestionModel.difficulty.in_(DIFFICULTY_ALIASES["high"]), 3),
                 else_=4,
             )
             stmt = stmt.order_by(diff_order, QuestionModel.created_at.desc())
@@ -340,7 +334,7 @@ async def get_questions(
             stmt = stmt.limit(limit)
         result = await session.execute(stmt)
         models = result.scalars().all()
-        return [_model_to_schema(m, slim=slim) for m in models]
+        return [model_to_schema(m, slim=slim) for m in models]
 
 
 async def get_active_batch_questions(batch_id: str) -> list[Question]:
@@ -356,7 +350,7 @@ async def get_active_batch_questions(batch_id: str) -> list[Question]:
             .order_by(QuestionModel.created_at.desc())
         )
         result = await session.execute(stmt)
-        return [_model_to_schema(m) for m in result.scalars().all()]
+        return [model_to_schema(m) for m in result.scalars().all()]
 
 
 async def get_question_by_id(question_id: str, include_deleted: bool = False) -> Question | None:
@@ -369,7 +363,7 @@ async def get_question_by_id(question_id: str, include_deleted: bool = False) ->
         model = res.scalar_one_or_none()
         if not model:
             return None
-        return _model_to_schema(model)
+        return model_to_schema(model)
 
 
 async def delete_question(question_id: str) -> bool:
@@ -447,7 +441,7 @@ async def restore_question(question_id: str) -> Question | None:
             await session.execute(p_stmt)
 
         await session.commit()
-        return _model_to_schema(q)
+        return model_to_schema(q)
 
 
 async def update_question_status(question_id: str, status: str) -> bool:
@@ -542,7 +536,7 @@ async def get_subtopic_reference_questions(
         # Dedup only reads stems/options: skip the large JSONB audit blobs of every reference row
         stmt = (
             select(QuestionModel)
-            .options(*_SLIM_DEFER)
+            .options(*SLIM_DEFER)
             .where(
                 active_question_clause(),
                 QuestionModel.status.in_(["in_bank", "ai_validated", "approved"]),
@@ -568,13 +562,13 @@ async def get_subtopic_reference_questions(
         stmt = stmt.order_by(QuestionModel.created_at.desc()).limit(limit)
         result = await session.execute(stmt)
         models = result.scalars().all()
-        return [_model_to_schema(m, slim=True) for m in models]
+        return [model_to_schema(m, slim=True) for m in models]
 
 
 async def override_question_duplicate(question_id: str) -> Question | None:
     """Marks a question's duplicate alert as manually overridden and approved in the database."""
-    now_iso = datetime.now(UTC).isoformat()
     now_dt = datetime.now(UTC)
+    now_iso = now_dt.isoformat()
     async with async_session_factory() as session:
         model = await session.get(QuestionModel, question_id)
         if not model or model.is_deleted:
@@ -590,7 +584,7 @@ async def override_question_duplicate(question_id: str) -> Question | None:
         model.updated_at = now_dt
         await session.commit()
         await session.refresh(model)
-        return _model_to_schema(model)
+        return model_to_schema(model)
 
 
 @dataclass(frozen=True)

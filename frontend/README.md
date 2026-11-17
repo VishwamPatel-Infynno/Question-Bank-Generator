@@ -19,6 +19,7 @@ The frontend provides an intuitive, real-time command canvas for AAMC MCAT quest
 - **AI-Validated Editorial Review Desk**: High-speed triage desk where educators inspect, inline-edit, discard, or approve validated questions into the canonical Question Bank.
 - **Question Quality & Cost Breakdown**: Comprehensive 100-point 4-pillar quality check with itemized token tracking and micro-dollar cost calculations.
 - **Export & Print Studio**: Professional modal for exporting PDF Exam Papers (with candidate headers and page breaks), Study Packs, CSV, and JSON bundles.
+- **Publication-Grade Medical & Scientific Visual Studio**: Dedicated figure renderer supporting all 7 clinical and experimental modalities (Radiology, Histopathology, Gross Anatomy, Cellular Electron Microscopy, Physiology/ECG Traces, Clinical Pathology, and SVG Vector Diagrams) with modality badging, high-contrast dark container rendering for radiographic clarity, and click-to-zoom accessible lightbox inspection (`VisualStimulusLightboxModal.jsx`).
 - **Enterprise Question Bank**: High-speed searchable, filterable repository with multi-format export, lifecycle status management, and copy-to-clipboard actions.
 
 ---
@@ -56,10 +57,12 @@ frontend/src/
 │   ├── common/
 │   │   ├── index.js              # Common primitives barrel export
 │   │   ├── CustomSelect.jsx      # Accessible custom dropdown select primitive
+│   │   ├── EmptyState.jsx        # Decomposed zero-state canvas with customizable icons & actions
 │   │   ├── ErrorBoundary.jsx     # Production React error boundary with fallback UI
 │   │   ├── FormattedText.jsx     # Inline markdown & cognitive trap chip highlighter
 │   │   ├── InfynnoLogo.jsx       # Official corporate vector logo primitive
 │   │   ├── LiveStopwatch.jsx     # High-precision live stopwatch timer
+│   │   ├── LoadError.jsx         # Standardized network/offline error banner with retry trigger
 │   │   ├── Modal.jsx             # Base accessible modal wrapper with focus trap & keyboard escape
 │   │   ├── PaginationBar.jsx     # Accessible pagination bar with page range counter & controls
 │   │   ├── SafeSvg.jsx           # Renders untrusted SVG markup through DOMPurify (SVG profile); use instead of dangerouslySetInnerHTML
@@ -97,11 +100,12 @@ frontend/src/
 │   │   ├── ReviewAuditView.jsx   # 100-point rubric breakdown & token cost modal (Focus Trapped)
 │   │   ├── SharedPassageCard.jsx # Shared reading passage stimulus display card
 │   │   ├── StageJsonInspector.jsx# Deep stage outcome JSON inspector accordion
-│   │   └── VisualStimulusViewer.jsx # SVG & neural visual diagram renderer
+│   │   ├── VisualStimulusLightboxModal.jsx # Accessible click-to-zoom fullscreen modal with focus-trapping & pan controls
+│   │   └── VisualStimulusViewer.jsx # Publication-grade medical & scientific figure renderer (7 modalities)
 │   ├── validated/
 │   │   ├── index.js              # AI Validated barrel export
 │   │   ├── AiValidatedFiltersBar.jsx # Filters for AI-validated questions
-│   │   ├── AiValidatedQuestionCard.jsx # Card with direct bank approval actions
+│   │   ├── AiValidatedQuestionCard.jsx # High-density review card integrating SharedPassageCard, Award score badge & Quality Review modal
 │   │   └── AiValidatedStatsBar.jsx # Quick-action statistics header
 │   └── wizard/
 │       ├── index.js              # Wizard barrel export
@@ -163,7 +167,8 @@ frontend/src/
 │   ├── selectHelpers.js          # Keyboard navigation over enabled select options
 │   ├── selection.js              # Toggle-id / toggle-all selection helpers
 │   ├── taxonomyHelpers.js        # Taxonomy flattening for the wizard
-│   └── trapHelpers.js            # Cognitive trap detection & resolution
+│   ├── trapHelpers.js            # Cognitive trap detection & resolution
+│   └── visualHelpers.js          # Intelligent medical modality classification, presentation badges & dark container resolution
 ├── styles/
 │   ├── tokens.css                # Authoritative design tokens (colors, z-index layers --z-*) (Light/Dark obsidian themes)
 │   ├── base.css                  # Global reset, scrollbars, buttons, primitives
@@ -192,8 +197,14 @@ In the repository root or `frontend` directory, you can run:
 # Automatically runs 'predev' hook to clean ports 8000 and 5173
 pnpm dev
 
-# Run Oxlint high-speed linter across 137 frontend files (0 errors, 0 warnings policy)
+# Run Vitest automated test suite (118 tests across 13 test files)
+pnpm test
+
+# Run Oxlint high-speed linter across frontend sources (0 errors, 0 warnings policy)
 pnpm lint
+
+# Check CSS class usage and verify zero unused or missing classes
+pnpm check:css
 
 # Build production bundle with Vite (compiles cleanly)
 pnpm build

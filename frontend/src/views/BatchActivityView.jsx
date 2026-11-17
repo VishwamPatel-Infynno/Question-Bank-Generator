@@ -81,7 +81,7 @@ export default function BatchActivityView({
 
   // ─── Pagination ────────────────────────────────────────────────────────────
   const {
-    currentPage,
+    safeCurrentPage,
     setCurrentPage,
     pageSize,
     setPageSize,
@@ -177,7 +177,7 @@ export default function BatchActivityView({
 
           {filteredBatches.length > 0 && (
             <PaginationBar
-              currentPage={currentPage}
+              currentPage={safeCurrentPage}
               totalPages={totalPages}
               totalItems={filteredBatches.length}
               pageSize={pageSize}

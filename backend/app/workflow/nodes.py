@@ -75,8 +75,8 @@ async def fused_generator_node(state: AgentWorkflowState) -> dict[str, Any]:
     """
     Fused Draft-and-Critique node:
     Generates the question AND self-scores it in a single LLM round-trip.
-    If self_score > 90, sets fused_self_passed=True to bypass redundant review calls.
-    If self_score <= 90 or critique is missing, sets fused_self_passed=False to route
+    If self_score > passing_threshold (default 80), sets fused_self_passed=True to bypass redundant review calls.
+    If self_score <= passing_threshold or critique is missing, sets fused_self_passed=False to route
     to the standard Reviewer node for a full independent audit and remediation loop.
     """
     req = GenerationRequest(**state["request"])
@@ -340,7 +340,7 @@ async def regenerator_node(state: AgentWorkflowState) -> dict[str, Any]:
 async def reject_node(state: AgentWorkflowState) -> dict[str, Any]:
     """
     Quality Gate Reject Node:
-    Triggered when candidate question fails to score > 90 after max attempts.
+    Triggered when candidate question fails to score > passing_threshold (default 80) after max attempts.
     Halts workflow: Bypasses image generation and does NOT persist to database.
     """
     req = GenerationRequest(**state["request"])

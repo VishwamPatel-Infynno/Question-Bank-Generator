@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.agents.standards import resolve_standards
+
 GENERATOR_SYSTEM_PROMPT = """You are a Master AAMC MCAT Psychometrician and Lead Question Writer for official medical college admissions examinations.
 Your task is to write authentic, publication-grade MCAT Multiple Choice Questions adhering strictly to official Association of American Medical Colleges (AAMC) conventions.
 
@@ -260,8 +262,6 @@ Respond ONLY with a valid JSON object matching this exact structure (strictly es
 }"""
 
 # Resolve the <<TOKEN>> placeholders from agents/standards.py so every prompt quotes the same numbers
-from app.agents.standards import resolve_standards  # noqa: E402
-
 GENERATOR_SYSTEM_PROMPT = resolve_standards(GENERATOR_SYSTEM_PROMPT)
 REVIEWER_SYSTEM_PROMPT = resolve_standards(REVIEWER_SYSTEM_PROMPT)
 REGENERATOR_SYSTEM_PROMPT = resolve_standards(REGENERATOR_SYSTEM_PROMPT)

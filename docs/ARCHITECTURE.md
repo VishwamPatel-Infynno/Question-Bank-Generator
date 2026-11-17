@@ -197,12 +197,37 @@ The system coordinates specialized autonomous engines with a deterministic quali
   - **Discards from Database**: Zero substandard questions enter the PostgreSQL repository.
   - **Diagnostic Payload**: Transmits full rejection telemetry and history via SSE for audit inspection.
 
-### 3.6 Infynno Visual & Vector Engine (`image_generator.py`)
-- **Mission**: Generates visual stimuli for questions requiring graphical diagrams (e.g., metabolic cycles, enzyme kinetics, gel electrophoresis assays, optics diagrams; strictly disabled for CARS).
-- **Autonomous AI Routing**: Supports autonomous AI-driven stimulus synthesis when `allow_ai_images` is enabled and deemed pedagogically necessary.
-- **Hybrid Visual Engine**:
-  - *Programmatic SVG Renderer*: Generates clean, crisp, scalable vector graphics for reaction mechanisms, cell transport, coordinate grids, and statistical bar charts.
-  - *FLUX-2-klein-4b Neural Visual Engine*: State-of-the-art rectified-flow transformer (`black-forest-labs/FLUX-2-klein-4b`) hosted on DeepInfra for photorealistic scientific illustrations with dynamic provider cost extraction and a flat $0.014 unit baseline rate.
+### 3.6 Infynno Visual Stimulus & Medical Imaging Subsystem (`image_generator.py` & `medical_imaging.py`)
+- **Mission**: Synthesizes publication-grade scientific figures, anatomical illustrations, and clinical diagnostic stimuli for candidate questions across natural sciences (Chemical and Physical Foundations, Biological and Biochemical Foundations). Strictly disabled for CARS in compliance with official AAMC exam guidelines.
+- **Autonomous Medical Modality Classification (`medical_imaging.py`)**:
+  The system analyzes the question stem, reading passage, and educator custom instructions using calibrated regex pattern recognition to autonomously classify stimuli into one of seven medical and scientific modalities:
+  1. *Radiology (`radiology`)*: Axial, coronal, and sagittal CT scans, MRI sequences (T1, T2, FLAIR), standard chest and skeletal radiographs, sonograms/ultrasounds, PET scans, and fluoroscopy.
+  2. *Histopathology (`histopathology`)*: High-resolution light micrographs featuring hematoxylin and eosin (H&E) staining, specialized tissue biopsies, cytological smears, and cellular architectures (e.g., glomerular crescents, squamous vs. columnar epithelium, Reed-Sternberg cells).
+  3. *Gross Anatomy (`gross_anatomy`)*: Detailed anatomical atlas-style illustrations of organ systems, cadaveric dissections, neurovascular bundles (e.g., Circle of Willis, brachial plexus), and cardiac cross-sections. Prompts undergo automated safety sanitization to emphasize clean medical textbook illustration and eliminate gore/trauma triggers.
+  4. *Cellular Electron Microscopy (`cellular_microscopy`)*: Transmission electron micrographs (TEM) and scanning electron micrographs (SEM) highlighting cellular organelle ultrastructure (e.g., mitochondrial cristae, rough endoplasmic reticulum, Golgi cisternae, ciliary axonemes).
+  5. *Physiological & ECG Traces (`physiology_trace`)*: Standard 12-lead electrocardiograms, rhythm strips (P-QRS-T complexes), cardiac action potential curves, ventricular pressure-volume (PV) loops, and spirometric flow-volume loops.
+  6. *Clinical Pathology (`clinical_pathology`)*: Clinical diagnostic presentations, dermatological lesions (e.g., asymmetric pigmented macules, erythema migrans), retinal fundoscopic examinations, and ocular diagnostic photography.
+  7. *Scientific Diagrams (`scientific_diagram`)*: Scalable vector graphics (SVG) depicting metabolic cascades (glycolysis, Krebs cycle, electron transport chain), Lineweaver-Burk and Michaelis-Menten enzyme kinetics, laboratory assay apparatus (chromatography columns, gel electrophoresis ladders), and optical ray diagrams.
+- **Dual-Provider Neural & Vector Visual Engine**:
+  - *OpenAI GPT Image 2.5 (`gpt-image-2.5-flare` / `dall-e-3`)*: Token-billed from provider response usage; delivers ultra-high fidelity anatomical and radiographic representations with base64 decoded PNG/JPEG binary delivery.
+  - *DeepInfra FLUX-2-klein-4b*: State-of-the-art rectified-flow transformer (`black-forest-labs/FLUX-2-klein-4b`) hosted on DeepInfra for photorealistic scientific illustrations with dynamic provider cost extraction and a flat \$0.014 unit baseline rate.
+  - *Programmatic SVG Vector Engine*: Pure Python deterministic renderer generating crisp, high-DPI vector diagrams with DOMPurify sanitization.
+- **Automated Content Moderation Safety Fallback**:
+  Commercial image APIs employ automated content moderation filters that occasionally misinterpret legitimate medical and anatomical terminology (such as "organ dissection", "lesion", or "necrotic biopsy") as violative content, raising HTTP 400 content policy violations.
+  The engine implements an automated retry fallback:
+  - Catches provider HTTP 400 `content_policy_violation` exceptions.
+  - Automatically transforms the prompt into an educational medical textbook schematic context:
+    ```
+    Educational medical textbook illustration, anatomical and clinical diagram,
+    schematic line art, academic pre-med biology textbook style: [original description]
+    ```
+  - Re-executes the API call transparently without failing the generation slot or dropping the visual stimulus.
+- **Unrestricted Pedagogical Visual Freedom & Autonomous Discretion**:
+  - Questions are no longer restricted from generating visual stimuli based on passage association. In both discrete and passage-based modes, every question where `draft.image_needed: true` or `req.require_image: true` generates a dedicated, publication-grade figure.
+  - **Standalone Question Autonomous AI Discretion**: For standalone questions when "Include Images When Needed" is enabled (`allow_ai_images: true`), visual creation is 100% dependent on autonomous AI pedagogical discretion without artificial modulo forcing (such as former `idx % 5 in (0, 2)` rules). If the question is conceptual or formulaic, `image_needed: false` is chosen and it renders cleanly as a pure text-based question with zero empty placeholders or wasted image generation tokens.
+- **Persistence & Delivery Pipeline**:
+  - Images are persisted as decoded binary data or raw SVG XML in PostgreSQL `image_url` and `image_svg`.
+  - Served via `GET /api/questions/{question_id}/image` with content negotiation (`image/svg+xml`, `image/png`, `image/jpeg`, or HTTP 307 CDN redirect) and strict MIME type sandboxing.
 
 ### 3.7 Question Deduplication & Collision Prevention Subsystem (`deduplication.py`)
 - **Mission**: Autonomous real-time safeguard against cognitive repetition, duplicate stems, and identical question angles across the question repository. Guarantees that neither live-generated items nor high-throughput batch sets introduce redundant questions into the bank.

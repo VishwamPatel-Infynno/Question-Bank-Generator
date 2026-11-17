@@ -248,7 +248,15 @@ def _parse_question_draft_data(data: dict, req: GenerationRequest) -> QuestionDr
         likely_mistake_pattern=effective_mistake,
         image_needed=(
             False
-            if (is_cars(req.section) or not (req.allow_ai_images or req.require_image))
+            if (
+                is_cars(req.section)
+                or not (
+                    req.allow_ai_images
+                    or req.require_image
+                    or req.require_passage_image
+                    or req.visual_type in KNOWN_VISUAL_TYPES
+                )
+            )
             else bool(data.get("image_needed", False))
         ),
         image_prompt_or_type=data.get("image_prompt_or_type"),
@@ -301,17 +309,25 @@ STANDARDS FOR AAMC MCAT PASSAGES:
 2. Structured in 3 to 5 coherent paragraphs.
 3. Substantive experimental or biomedical study detailing a research premise, experimental methods (e.g. assays, Western blots, kinetic measurements, reaction vessels), observed quantitative data, and observations. DO NOT state overarching final conclusions or test answers directly in the passage; present empirical observations and data clearly so questions can evaluate scientific reasoning.
 4. Provides rich material for multiple distinct reasoning questions evaluating AAMC skills.
-5. EXPERIMENTAL & SCHOLARLY VISUAL STIMULUS REQUIREMENT (FIGURE 1):
-   - Because visual stimuli are enabled for this passage, the study MUST describe and reference a central figure, chart, experimental setup, or diagram labeled as "Figure 1" (e.g., Figure 1: Experimental apparatus schematic, anatomical diagram, Western blot / gel electrophoresis, Lineweaver-Burk kinetic plot, reaction mechanism, or metabolic pathway).
-   - In the text of the passage, explicitly mention "Figure 1" so questions can test visual data interpretation.
-   - Strictly set "image_needed": true and provide a comprehensive, vivid description in "image_prompt" for generating this figure.
+5. EXPERIMENTAL, MEDICAL & SCHOLARLY VISUAL STIMULUS REQUIREMENT (FIGURE 1):
+   - Because visual stimuli are enabled for this passage, the study MUST describe and reference a central figure, chart, experimental setup, or medical image labeled as "Figure 1".
+   - UNRESTRICTED MODALITY FREEDOM: Figure 1 may be any authentic medical imaging scan or scientific schematic matching the study:
+     * Diagnostic Radiology (chest/bone X-rays, axial/sagittal CT or MRI scans, ultrasound/echocardiograms)
+     * Histopathology (H&E tissue biopsy, cytology smear, light micrograph)
+     * Gross Anatomy (anatomical specimen, organ cross-section, vascular/neural atlas diagram)
+     * Cellular Electron Microscopy (TEM/SEM subcellular organelles, mitochondrial cristae, membrane junctions)
+     * Physiological Traces (12-lead ECG rhythm strip, cardiac action potential, Wiggers diagram, spirometry loop)
+     * Clinical Pathology (dermatologic manifestation, retinal fundoscopy photograph)
+     * Scientific Schematics (biochemical pathways, Western blot / gel, Lineweaver-Burk kinetic plot, reaction mechanism)
+   - In the text of the passage, explicitly mention and describe "Figure 1" so questions can test visual data interpretation.
+   - Strictly set "image_needed": true and provide a comprehensive, vivid description in "image_prompt" for generating this figure without restricting the image model.
 
 OUTPUT FORMAT:
 Respond ONLY with a valid JSON object matching this exact structure:
 {{
   "passage_text": "The full 3 to 5 paragraph reading passage text explicitly incorporating and describing Figure 1...",
   "image_needed": true,
-  "image_prompt": "Detailed description of Figure 1: high-contrast experimental figure, chart, illustration, or diagram on a clean white background with clearly labeled axes, legends, or structures..."
+  "image_prompt": "Detailed description of Figure 1: clinical medical imaging scan, histopathology slide, physiological trace, or experimental diagram specifying tissue, modality, orientation, and diagnostic features..."
 }}"""
     else:
         prompt = f"""Generate a high-yield, authentic AAMC MCAT Reading Passage for {section_name}.

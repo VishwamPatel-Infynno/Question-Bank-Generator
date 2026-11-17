@@ -66,8 +66,6 @@ export function useAppState() {
   const [viewMode, setViewMode] = useState('hero'); // 'hero' | 'wizard'
   const [wizardStep, setWizardStep] = useState(1);
 
-  // ─── Sections / Backend Status ────────────────────────────────────────────
-
   // ─── Form ─────────────────────────────────────────────────────────────────
   const generatorForm = useGeneratorForm();
   const { updateFields } = generatorForm;

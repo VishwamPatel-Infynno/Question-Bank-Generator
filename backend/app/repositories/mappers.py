@@ -3,10 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.db.base import to_datetime, to_iso_str
+from app.models.passage import PassageModel
 from app.models.question import QuestionModel
 from app.schemas.question import (
     DuplicateInfo,
     OptionChoice,
+    Passage,
     Question,
     ReviewScore,
 )
@@ -148,4 +150,44 @@ def schema_to_model(q: Question) -> QuestionModel:
         is_deleted=bool(q.is_deleted),
         deleted_at=to_datetime(q.deleted_at) if q.deleted_at else None,
         stage_outcomes=q.stage_outcomes,
+    )
+
+
+def passage_model_to_schema(m: PassageModel, question_count: int = 0) -> Passage:
+    """Converts a SQLAlchemy PassageModel to a Pydantic Passage schema."""
+    return Passage(
+        id=m.id,
+        title=m.title,
+        text=m.text,
+        word_count=m.word_count,
+        section=m.section,
+        subtopic=m.subtopic,
+        image_url=m.image_url,
+        image_svg=m.image_svg,
+        image_description=m.image_description,
+        question_count=question_count,
+        is_deleted=getattr(m, "is_deleted", False) or False,
+        deleted_at=to_iso_str(m.deleted_at) if getattr(m, "deleted_at", None) else None,
+        created_at=to_iso_str(m.created_at),
+        updated_at=to_iso_str(m.updated_at) if m.updated_at else None,
+    )
+
+
+def passage_schema_to_model(p: Passage) -> PassageModel:
+    """Converts a Pydantic Passage schema to a SQLAlchemy PassageModel."""
+    word_count = p.word_count or (len(p.text.split()) if p.text else 0)
+    return PassageModel(
+        id=p.id,
+        title=p.title,
+        text=p.text,
+        word_count=word_count,
+        section=p.section,
+        subtopic=p.subtopic,
+        image_url=p.image_url,
+        image_svg=p.image_svg,
+        image_description=p.image_description,
+        is_deleted=bool(p.is_deleted),
+        deleted_at=to_datetime(p.deleted_at) if p.deleted_at else None,
+        created_at=to_datetime(p.created_at),
+        updated_at=to_datetime(p.updated_at) if p.updated_at else datetime.now(UTC),
     )

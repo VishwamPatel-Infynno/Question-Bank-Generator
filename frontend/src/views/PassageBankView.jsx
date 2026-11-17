@@ -55,7 +55,7 @@ export default function PassageBankView({
 
   // ─── Pagination ────────────────────────────────────────────────────────────
   const {
-    currentPage,
+    safeCurrentPage,
     setCurrentPage,
     pageSize,
     setPageSize,
@@ -98,10 +98,10 @@ export default function PassageBankView({
               type="button"
               className="btn-primary"
               onClick={() => onNavigateToWizard(1)}
-              title="Generate a new passage set using AI"
+              title="Create a new passage set with the question wizard"
             >
               <Sparkles size={15} />
-              <span>Generate Passage Set</span>
+              <span>Create Passage Set</span>
             </button>
           )}
         </div>
@@ -167,7 +167,7 @@ export default function PassageBankView({
           {/* Pagination */}
           {!loading && sortedPassages.length > 0 && (
             <PaginationBar
-              currentPage={currentPage}
+              currentPage={safeCurrentPage}
               totalPages={totalPages}
               totalItems={sortedPassages.length}
               pageSize={pageSize}

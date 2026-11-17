@@ -18,6 +18,8 @@ from app.repositories.job_repository import (
 )
 from app.repositories.mappers import (
     model_to_schema,
+    passage_model_to_schema,
+    passage_schema_to_model,
     schema_to_model,
 )
 from app.repositories.passage_repository import (
@@ -77,6 +79,8 @@ __all__ = [
     "hard_delete_questions_batch",
     "model_to_schema",
     "override_question_duplicate",
+    "passage_model_to_schema",
+    "passage_schema_to_model",
     "promote_completed_batch_questions",
     "reconcile_interrupted_batches",
     "refresh_batch_aggregates",

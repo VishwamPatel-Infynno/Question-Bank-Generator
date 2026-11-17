@@ -253,3 +253,222 @@ async def test_generate_image_stimulus_modality_integration_openai(monkeypatch):
     assert usage is not None
     assert usage["details"]["modality"] == "radiology"
     assert usage["details"]["medical_modality"] == "radiology"
+
+
+def test_detect_medical_modality_expanded_lexicon():
+    """Verifies that expanded medical terminology across all clinical sub-disciplines classifies accurately."""
+    # Radiology
+    assert (
+        detect_medical_modality("Coronary angiogram demonstrating severe proximal LAD stenosis")
+        == MedicalModality.RADIOLOGY
+    )
+    assert (
+        detect_medical_modality("DEXA bone density scan of lumbar spine and femoral neck")
+        == MedicalModality.RADIOLOGY
+    )
+    assert (
+        detect_medical_modality("Pulmonary V/Q perfusion scan demonstrating wedge defect")
+        == MedicalModality.RADIOLOGY
+    )
+
+    # Histology
+    assert (
+        detect_medical_modality(
+            "Kidney biopsy with Periodic acid-Schiff (PAS) stain showing basement membrane thickening"
+        )
+        == MedicalModality.HISTOLOGY
+    )
+    assert (
+        detect_medical_modality("Liver biopsy stained with Masson trichrome revealing fibrosis")
+        == MedicalModality.HISTOLOGY
+    )
+    assert (
+        detect_medical_modality("Lymph node immunohistochemistry IHC slide positive for CD20")
+        == MedicalModality.HISTOLOGY
+    )
+
+    # Gross Anatomy
+    assert (
+        detect_medical_modality(
+            "Detailed anatomical diagram of the circle of Willis and basal ganglia"
+        )
+        == MedicalModality.GROSS_ANATOMY
+    )
+    assert (
+        detect_medical_modality(
+            "Musculoskeletal anatomy of the rotator cuff and supraspinatus tendon"
+        )
+        == MedicalModality.GROSS_ANATOMY
+    )
+
+    # Cellular Microscopy
+    assert (
+        detect_medical_modality(
+            "Subcellular TEM showing clathrin-coated pit and vesicle trafficking"
+        )
+        == MedicalModality.CELLULAR_MICROSCOPY
+    )
+    assert (
+        detect_medical_modality("Ultrastructure of nuclear envelope and chromatin organization")
+        == MedicalModality.CELLULAR_MICROSCOPY
+    )
+
+    # Physiology Trace
+    assert (
+        detect_medical_modality(
+            "Wiggers diagram correlating ventricular pressure, volume, and heart sounds"
+        )
+        == MedicalModality.PHYSIOLOGY_TRACE
+    )
+    assert (
+        detect_medical_modality(
+            "Left ventricular pressure-volume (PV) loop showing increased afterload"
+        )
+        == MedicalModality.PHYSIOLOGY_TRACE
+    )
+
+    # Clinical Pathology
+    assert (
+        detect_medical_modality("Dermatoscopic examination of a keratosis plaque on the forehead")
+        == MedicalModality.CLINICAL_PATHOLOGY
+    )
+    assert (
+        detect_medical_modality(
+            "Otoscopy examination revealing bulging erythematous tympanic membrane"
+        )
+        == MedicalModality.CLINICAL_PATHOLOGY
+    )
+
+
+def test_determine_item_diagram_requirement_unrestricted():
+    """
+    Verifies that passage-linked items and batch items are not artificially restricted
+    from generating required medical images.
+    """
+    from app.workflow.passage_prep import _determine_item_diagram_requirement
+
+    # 1. Passage item that autonomously needs its own medical image (e.g. ECG strip or X-Ray)
+    state_passage_needed = {
+        "request": {
+            "section": "bio_biochem",
+            "allow_ai_images": True,
+            "require_image": False,
+        },
+        "current_draft": {"image_needed": True},
+        "image_url": "https://storage.example.com/passage_fig1.png",
+    }
+    assert _determine_item_diagram_requirement(state_passage_needed, is_passage_item=True) is True
+
+    # 2. Passage item where educator explicitly mandated require_image=True
+    state_passage_explicit = {
+        "request": {
+            "section": "chem_phys",
+            "allow_ai_images": True,
+            "require_image": True,
+        },
+        "current_draft": {"image_needed": False},
+        "image_url": None,
+    }
+    assert _determine_item_diagram_requirement(state_passage_explicit, is_passage_item=True) is True
+
+    # 3. Passage item that has no shared passage image, but draft needs one
+    state_passage_no_shared = {
+        "request": {
+            "section": "bio_biochem",
+            "allow_ai_images": True,
+            "require_image": False,
+        },
+        "current_draft": {"image_needed": True},
+        "image_url": None,
+        "image_svg": None,
+    }
+    assert (
+        _determine_item_diagram_requirement(state_passage_no_shared, is_passage_item=True) is True
+    )
+
+    # 4. Passage item that already shares passage image and doesn't need its own
+    state_passage_shared_ok = {
+        "request": {
+            "section": "bio_biochem",
+            "allow_ai_images": True,
+            "require_image": False,
+        },
+        "current_draft": {"image_needed": False},
+        "image_url": "https://storage.example.com/passage_fig1.png",
+    }
+    assert (
+        _determine_item_diagram_requirement(state_passage_shared_ok, is_passage_item=True) is False
+    )
+
+    # 5. CARS section strictly forbids visual stimuli under all conditions
+    state_cars = {
+        "request": {
+            "section": "cars",
+            "allow_ai_images": True,
+            "require_image": True,
+        },
+        "current_draft": {"image_needed": True},
+    }
+    assert _determine_item_diagram_requirement(state_cars, is_passage_item=False) is False
+    assert _determine_item_diagram_requirement(state_cars, is_passage_item=True) is False
+
+
+@pytest.mark.asyncio
+async def test_openai_content_safety_retry_fallback():
+    """
+    Verifies that when OpenAI returns a 400 content policy/safety violation on medical prompts,
+    call_openai_image_api retries with an educational textbook framing and succeeds.
+    """
+    import httpx
+    from app.agents.image_generator import call_openai_image_api
+
+    call_count = 0
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # Simulate initial rejection by OpenAI safety system
+            return httpx.Response(
+                status_code=400,
+                json={
+                    "error": {
+                        "code": "content_policy_violation",
+                        "message": "Your request was rejected as a result of our safety system.",
+                        "type": "image_generation_user_error",
+                    }
+                },
+            )
+        # Second call with educational framing succeeds
+        return httpx.Response(
+            status_code=200,
+            json={
+                "data": [{"b64_json": "EDUCATIONAL_FALLBACK_BASE64"}],
+                "output_format": "png",
+            },
+        )
+
+    transport = httpx.MockTransport(mock_handler)
+
+    # Run attempt_once logic via call_openai_image_api with patched httpx.AsyncClient
+    import app.agents.image_generator as img_module
+
+    original_client_cls = httpx.AsyncClient
+
+    def get_test_client(*args, **kwargs):
+        return original_client_cls(transport=transport)
+
+    # Patch AsyncClient in image_generator
+    import unittest.mock as mock
+
+    with mock.patch.object(img_module.httpx, "AsyncClient", side_effect=get_test_client):
+        img_data, _cost = await call_openai_image_api(
+            prompt="Gross pathology lesion of severe melanoma: pigmented irregular ulceration",
+            width=1024,
+            height=1024,
+            api_key="mock_key",
+            model="gpt-image-2.5-flare",
+        )
+
+    assert img_data == "data:image/png;base64,EDUCATIONAL_FALLBACK_BASE64"
+    assert call_count == 2

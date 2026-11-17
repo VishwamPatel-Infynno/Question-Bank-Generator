@@ -27,7 +27,10 @@ RADIOLOGY_PATTERNS = re.compile(
     r"x-ray|xray|radiograph|radiography|chest\s+film|ct\s+scan|computed\s+tomography|"
     r"mri|magnetic\s+resonance|t1-weighted|t2-weighted|flair|angiogram|angiography|"
     r"ultrasound|sonogram|echocardiogram|echo|fluoroscopy|pet\s+scan|radiopaque|radiolucent|"
-    r"hounsfield|axial\s+slice|coronal\s+section|sagittal\s+view|contrast-enhanced"
+    r"hounsfield|axial\s+slice|coronal\s+section|sagittal\s+view|contrast-enhanced|"
+    r"mammogram|mammograph\w*|dexa\b|bone\s+density|scintigraph\w*|doppler|kub\b|"
+    r"perfusion\s+scan|v/q\s+scan|spect\s+scan|mrcp\b|ercp\b|pyelogram|barium\s+enema|"
+    r"radiolog\w*|imaging\s+scan"
     r")\b",
     re.IGNORECASE,
 )
@@ -39,7 +42,10 @@ HISTOLOGY_PATTERNS = re.compile(
     r"connective\s+tissue|cartilage|bone\s+trabeculae|osteocyte|fibroblast|lymph\s+node|"
     r"glomerul\w*|renal\s+tubule|intercalated\s+disc|sarcomere|myocyte|smooth\s+muscle|"
     r"striated\s+muscle|adipocyte|goblet\s+cell|squamous|columnar|cuboidal|crypt|villi|"
-    r"cytoarchitect\w*|cytolog\w*|smear|papanicolaou|gram\s+stain"
+    r"cytoarchitect\w*|cytolog\w*|smear|papanicolaou|gram\s+stain|"
+    r"trichrome|prussian\s+blue|periodic\s+acid-schiff|pas\s+stain|congo\s+red|silver\s+stain|"
+    r"immunohistochem\w*|ihc\b|wright-giemsa|giemsa|nissl|myelin\s+stain|reticulin|"
+    r"sudan\s+black|oil\s+red|immunofluorescen\w*|histochemical"
     r")\b",
     re.IGNORECASE,
 )
@@ -51,7 +57,10 @@ GROSS_ANATOMY_PATTERNS = re.compile(
     r"mediastinum|coronary\s+arter\w*|peritoneum|retroperitoneal|cranial\s+nerve|"
     r"cerebral\s+cortex|brainstem|cerebellum|spinal\s+cord|ventricle|nephron\s+vasculature|"
     r"hepatic\s+portal|biliary\s+tree|pulmonary\s+trunk|aortic\s+arch|mesentery|"
-    r"netter|medical\s+atlas|gross\s+specimen"
+    r"netter|medical\s+atlas|gross\s+specimen|anatom\w*|coronary\s+sulcus|internal\s+capsule|"
+    r"hippocampus|thalamus|hypothalamus|basal\s+ganglia|pericardium|myocardium|endocardium|"
+    r"tricuspid|mitral\s+valve|aortic\s+valve|superior\s+vena\s+cava|inferior\s+vena\s+cava|"
+    r"portal\s+vein|renal\s+arter\w*|carotid\s+arter\w*|jugular|lymphatic\s+system|musculoskeletal\s+anatom\w*"
     r")\b",
     re.IGNORECASE,
 )
@@ -62,7 +71,10 @@ CELLULAR_MICROSCOPY_PATTERNS = re.compile(
     r"scanning\s+electron|ultrastructur\w*|organelle|mitochondri\w*\s+cristae|endoplasmic\s+reticulum|"
     r"golgi\s+apparatus|ribosome|lysosome|peroxisome|centrosome|nuclear\s+pore|"
     r"cilia\s+axoneme|microtubule|actin\s+filament|synaptic\s+vesicle|postsynaptic\s+density|"
-    r"desmosome|gap\s+junction|tight\s+junction|bacteriophage|capsid|viral\s+particle"
+    r"desmosome|gap\s+junction|tight\s+junction|bacteriophage|capsid|viral\s+particle|"
+    r"subcellular|nuclear\s+envelope|chromatin\s+structure|nucleolus|vesicle\s+trafficking|"
+    r"clathrin|endosome|autophagosome|microfilament|intermediate\s+filament|centriole|"
+    r"cytoskeleton|myofibril|t-tubule|sarcoplasmic\s+reticulum"
     r")\b",
     re.IGNORECASE,
 )
@@ -73,7 +85,10 @@ PHYSIOLOGY_TRACE_PATTERNS = re.compile(
     r"p\s+wave|qrs\s+complex|t\s+wave|pr\s+interval|st\s+segment|qt\s+interval|"
     r"action\s+potential|cardiac\s+action\s+potential|membrane\s+potential\s+curve|"
     r"depolarization\s+trace|eeg\b|electroencephalogram|spirometr\w*|spirogram|"
-    r"fev1|fvc|flow-volume\s+loop|pulse\s+tracing|arterial\s+pressure\s+waveform"
+    r"fev1|fvc|flow-volume\b|pulse\s+tracing|arterial\s+pressure\s+waveform|"
+    r"wiggers\s+diagram|pressure-volume\b|pv\s+loop|cardiac\s+cycle\b|"
+    r"electromyogram|emg\b|nerve\s+conduction\s+velocity|hemodynamic\s+trace|"
+    r"frank-starling\s+curve|compliance\s+curve"
     r")\b",
     re.IGNORECASE,
 )
@@ -84,7 +99,9 @@ CLINICAL_PATHOLOGY_PATTERNS = re.compile(
     r"macule|papule|pustule|melanoma|basal\s+cell|rash|ophthalmolog\w*|fundoscop\w*|"
     r"retinal\s+photograph|optic\s+disc|macula|fundus|cataract|diabetic\s+retinopathy|"
     r"papilledema|slit\s+lamp|corneal|scleral\s+icterus|jaundice|cyanosis|gangrene|"
-    r"gross\s+pathology\s+lesion"
+    r"gross\s+pathology\s+lesion|keratosis|nevus|nodule|bulla|wheal|plaque|petechiae|"
+    r"purpura|ecchymosis|otoscop\w*|tympanic\s+membrane|dermatoscop\w*|clinical\s+finding|"
+    r"physical\s+exam\s+finding"
     r")\b",
     re.IGNORECASE,
 )
@@ -178,7 +195,7 @@ def synthesize_medical_prompt(
     if modality == MedicalModality.GROSS_ANATOMY:
         return (
             "Highly detailed medical anatomical illustration, master medical atlas Netter and Gray's anatomy standard. "
-            "Photorealistic cadaveric and surgical accuracy, true-to-life human anatomical structures, clean surgical illumination, "
+            "Photorealistic anatomical and surgical accuracy, true-to-life human anatomical structures, clean surgical illumination, "
             "distinct vascular, muscular, and neural pathways, authentic medical textbook illustration: "
             f"{cleaned_prompt}"
         )

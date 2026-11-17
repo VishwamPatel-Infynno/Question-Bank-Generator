@@ -298,6 +298,8 @@ async def test_centralized_repository_package_exports():
         "get_passage_by_id",
         "get_passages",
         "save_passage",
+        "passage_model_to_schema",
+        "passage_schema_to_model",
         "get_question_by_id",
         "get_questions",
         "save_question",
@@ -314,9 +316,9 @@ async def test_centralized_repository_package_exports():
 
 
 async def test_model_to_schema_none_options_safety():
-    """Verify that _model_to_schema gracefully handles None or empty options without exception."""
+    """Verify that model_to_schema gracefully handles None or empty options without exception."""
     from app.models.question import QuestionModel
-    from app.repositories.question_repository import _model_to_schema
+    from app.repositories.mappers import model_to_schema
 
     dummy_model = QuestionModel(
         id=f"test-null-opts-{uuid.uuid4()}",
@@ -330,7 +332,7 @@ async def test_model_to_schema_none_options_safety():
         explanation="PFK-1 catalyzes the rate-limiting step of glycolysis.",
         final_score=92,
     )
-    schema_item = _model_to_schema(dummy_model)
+    schema_item = model_to_schema(dummy_model)
     assert schema_item.id == dummy_model.id
     assert schema_item.options == []
 

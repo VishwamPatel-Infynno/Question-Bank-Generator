@@ -16,7 +16,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 
 ---
 
-## 2. API Endpoints Summary (36 Operations / 30 Endpoint Paths)
+## 2. API Endpoints Summary (40 Operations / 34 Endpoint Paths)
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -257,6 +257,13 @@ Retrieves a single question by UUID4 primary key, including complete 4-pillar re
   ],
   "correct_answer_id": "C",
   "explanation": "...",
+  "image_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...",
+  "image_svg": null,
+  "image_description": "Axial contrast-enhanced CT scan of the abdomen demonstrating appendiceal wall thickening and fat stranding.",
+  "visual_type": "ai_openai",
+  "visual_medical_category": "radiology",
+  "visual_clinical_description": "Axial contrast-enhanced CT scan of the abdomen demonstrating appendiceal wall thickening and fat stranding.",
+  "image_needed": true,
   "final_score": 94,
   "review_rubric": {
     "authenticity_score": 24,
@@ -286,12 +293,26 @@ Retrieves a single question by UUID4 primary key, including complete 4-pillar re
 ### 3.5 Serve Question Visual Stimulus
 `GET /api/questions/{question_id}/image`
 
-Serves the visual stimulus image (AI FLUX image or Vector SVG diagram) for a question. Automatically handles base64 decoded binaries, SVG MIME content delivery, and external CDN redirects.
+Serves the visual stimulus image (AI neural image across all 7 medical modalities or Vector SVG diagram) for a question. Automatically handles base64 decoded binaries, SVG MIME content delivery, and external CDN redirects with strict media type sandboxing.
 
-#### Response
-- SVG: `Content-Type: image/svg+xml`
-- Base64 Decoded Image: `Content-Type: image/jpeg` or `image/png`
-- External CDN: `HTTP 307 Temporary Redirect` to image URL
+#### Medical Modality Delivery
+The endpoint serves images generated across all 7 supported modalities:
+- **Radiology**: CT, MRI, X-Ray, Sonogram (`image/png` or `image/jpeg`)
+- **Histopathology**: H&E tissue biopsies and cytology micrographs (`image/png` or `image/jpeg`)
+- **Gross Anatomy**: Anatomical atlas illustrations (`image/png` or `image/jpeg`)
+- **Cellular Microscopy**: TEM/SEM electron micrographs (`image/png` or `image/jpeg`)
+- **Physiology & ECG Traces**: 12-lead rhythm strips and PV loops (`image/png` or `image/svg+xml`)
+- **Clinical Pathology**: Clinical lesion and fundoscopy photography (`image/png` or `image/jpeg`)
+- **Scientific Diagrams**: Scalable vector reaction mechanisms and kinetics plots (`image/svg+xml`)
+
+#### Response Negotiation
+- SVG Vector Graphic: `Content-Type: image/svg+xml` (sanitized with DOMPurify SVG profile)
+- Base64 Decoded Raster Image: `Content-Type: image/png` or `image/jpeg`
+- External CDN Storage: `HTTP 307 Temporary Redirect` to validated secure image URL
+
+#### Error Responses
+- `HTTP 404 Not Found`: Returned when the question exists but has no visual stimulus (`{"detail": "No image or SVG available for this question"}`) or the question UUID does not exist.
+- `HTTP 415 Unsupported Media Type`: Returned if the stored image format is unrecognized or potentially unsafe (`{"detail": "Unsupported image format"}`).
 
 #### cURL Example
 ```bash

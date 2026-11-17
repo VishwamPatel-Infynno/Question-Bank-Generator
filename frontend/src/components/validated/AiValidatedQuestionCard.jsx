@@ -1,9 +1,9 @@
 import { memo } from 'react';
 import {
+  Award,
   CheckCircle2,
   Trash2,
   Database,
-  Sparkles,
   ChevronDown,
   ChevronUp,
   Image as ImageIcon,
@@ -11,7 +11,13 @@ import {
   Tag,
   Target
 } from 'lucide-react';
-import { formatAamcSkill, formatDifficulty, getSectionBadgeClass, getSectionShortLabel } from '../../constants/mcat';
+import {
+  formatAamcSkill,
+  formatDifficulty,
+  getDifficultyBadgeClass,
+  getSectionBadgeClass,
+  getSectionShortLabel
+} from '../../constants/mcat';
 import {
   countWords,
   getEffectiveTrapInfo,
@@ -19,6 +25,7 @@ import {
   isCorrectOption
 } from '../../utils';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
+import SharedPassageCard from '../question/SharedPassageCard';
 
 function AiValidatedQuestionCard({
   question: q,
@@ -53,7 +60,7 @@ function AiValidatedQuestionCard({
           <span className={`badge ${getSectionBadgeClass(q.section)} validated-card-badge-sm`}>
             {getSectionShortLabel(q.section) || q.section_label || q.section}
           </span>
-          <span className="validated-card-diff">
+          <span className={`badge ${getDifficultyBadgeClass(q.difficulty)} validated-card-diff`}>
             {formatDifficulty(q.difficulty)}
           </span>
           {trapInfo?.label && (
@@ -92,8 +99,7 @@ function AiValidatedQuestionCard({
 
         <div className="validated-card-header-right">
           <span className="validated-score-pill">
-            <Sparkles size={11} />
-            Score {q.final_score}/100
+            <Award size={11} /> {q.final_score}/100
           </span>
         </div>
       </div>
@@ -103,7 +109,17 @@ function AiValidatedQuestionCard({
         <div className="validated-passage-box">
           <div
             className="validated-passage-header"
+            role="button"
+            tabIndex={0}
+            aria-expanded={isPassageExpanded}
+            aria-controls={`passage-body-${q.id}`}
             onClick={() => onTogglePassage?.(q.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onTogglePassage?.(q.id);
+              }
+            }}
           >
             <div className="validated-card-passage-header">
               <BookOpen size={12} />
@@ -112,6 +128,12 @@ function AiValidatedQuestionCard({
             <button
               type="button"
               className="btn-secondary validated-card-passage-toggle-btn"
+              tabIndex={-1}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePassage?.(q.id);
+              }}
+              aria-label={isPassageExpanded ? 'Hide passage' : 'View passage'}
             >
               {isPassageExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
               <span>{isPassageExpanded ? 'Hide' : 'View'}</span>
@@ -119,17 +141,12 @@ function AiValidatedQuestionCard({
           </div>
 
           {isPassageExpanded && (
-            <div className="validated-card-passage-body">
-              <div className="validated-passage-text">
-                {q.stimulus_text}
-              </div>
-
-              {/* Embedded Visual Stimulus Diagram */}
-              {hasDiagram && (
-                <div className="validated-card-figure-box">
-                  <VisualStimulusViewer question={q} compact={false} />
-                </div>
-              )}
+            <div className="validated-card-passage-body" id={`passage-body-${q.id}`}>
+              <SharedPassageCard
+                title="Reading Passage"
+                passageText={q.stimulus_text}
+                diagramQuestion={hasDiagram ? q : null}
+              />
             </div>
           )}
         </div>
@@ -179,11 +196,6 @@ function AiValidatedQuestionCard({
           <span className="validated-card-footer-meta">
             Subtopic: <strong>{q.subtopic || 'General'}</strong>
           </span>
-          {q.primary_trap && (
-            <span className="validated-card-trap-summary">
-              Common Trap: {q.primary_trap}
-            </span>
-          )}
         </div>
 
         <div className="validated-actions">

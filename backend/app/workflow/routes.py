@@ -13,7 +13,7 @@ def _is_image_required(req: GenerationRequest, draft: dict) -> bool:
     """Evaluates whether an image is required based on section restrictions, autonomous AI discretion, or explicit flags."""
     if is_cars(req.section):
         return False
-    if req.require_image or req.requires_visual_stimulus:
+    if req.requires_visual_stimulus:
         return True
     return bool(draft.get("image_needed", False))
 

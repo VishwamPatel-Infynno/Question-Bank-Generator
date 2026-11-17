@@ -60,7 +60,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     return selectedRaw.filter((id) => loaded.has(id));
   }, [selectedRaw, questions]);
 
-  const handleUpdateInspectedQuestion = async (updated) => {
+  const handleUpdateInspectedQuestion = useCallback(async (updated) => {
     try {
       await saveEditedQuestion(updated);
       setInspectingQuestion(updated);
@@ -79,7 +79,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       });
       throw err; // lets the editor stay open with the user's changes
     }
-  };
+  }, [handleUpdate, onShowToast]);
 
   const hasActiveFilters = Boolean(searchQuery.trim() || sectionFilter || diffFilter);
 

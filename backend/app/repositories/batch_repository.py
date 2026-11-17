@@ -297,7 +297,7 @@ async def refresh_batch_aggregates(
             allow_complete=allow_complete,
         )
 
-        # If batch is completed or partially completed, promote qualifying active questions (>90 score) to 'ai_validated'
+        # If batch is completed or partially completed, promote qualifying active questions (>80 score) to 'ai_validated'
         if batch_model.status in COMPLETED_STATES:
             await _execute_promote_batch_questions(session, batch_id)
 
@@ -308,8 +308,8 @@ async def refresh_batch_aggregates(
 
 async def promote_completed_batch_questions(batch_id: str) -> int:
     """
-    Promotes all active questions with final_score > 90 belonging to a completed batch
-    from 'batch_only' to 'ai_validated' (Ready for Review).
+    Promotes all active questions with final_score > config.PASSING_SCORE_THRESHOLD (default > 80)
+    belonging to a completed batch from 'batch_only' to 'ai_validated' (Ready for Review).
     """
     async with async_session_factory() as session:
         promoted = await _execute_promote_batch_questions(session, batch_id)

@@ -13,7 +13,7 @@ Fixes #(issue number)
 
 ## Quality Gate & Testing Checklist
 - [ ] Python linting passes: `ruff check .`
-- [ ] Pytest test suite passes: `pytest -v` (384 deterministic tests across 59 modules)
+- [ ] Pytest test suite passes: `pytest -v` (386 deterministic tests across 59 modules)
 - [ ] Frontend linting passes: `pnpm --dir frontend lint`
 - [ ] Frontend unit tests pass: `pnpm --dir frontend run test` (118 tests across 13 files)
 - [ ] Frontend builds cleanly: `pnpm --dir frontend build`

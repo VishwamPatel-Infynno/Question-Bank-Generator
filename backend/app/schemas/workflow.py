@@ -129,8 +129,6 @@ class GenerationRequest(TaxonomyFields):
         """Determines whether visual image/diagram stimulus generation is explicitly required."""
         if is_cars(self.section):
             return False
-        if self.visual_type in KNOWN_VISUAL_TYPES:
-            return True
         return bool(self.require_image or self.require_passage_image)
 
     @field_validator("combination_id", mode="before")

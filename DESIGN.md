@@ -159,8 +159,13 @@ Streamlined 3-step authoring workflow:
   - Permanent purge (`action="delete"`) of duplicate drafts with automatic in-place slot replenishment preserving the original set's reading passage and thematic angle.
   - Guaranteed exact target count delivery (e.g. exactly 50 questions across 10 jobs) without requiring manual educator intervention.
 
-### 4.3 Editorial Review Desk & AI-Validated Triage (`AiValidatedQuestionsView.jsx`, `QuestionCard.jsx`)
-- **Top Metadata Strip**: Displays section badge, difficulty chip, dual score pills (AAMC Scaled Score `118-132` + 100-pt Audit Score), AAMC Skill badge (SIRS 1-4 / CARS 1-3), cumulative token/cost telemetry, and a dedicated **Primary Cognitive Trap Badge Chip** (`rgba(139, 92, 246, 0.12)` background, purple border, `Tag` icon).
+### 4.3 Editorial Review Desk & AI-Validated Triage (`AiValidatedQuestionsView.jsx`, `AiValidatedQuestionCard.jsx`)
+- **Review Queue Architecture**:
+  - **Review Queue Card (`AiValidatedQuestionCard.jsx`)**: High-density triage card rendering the question index, section badge (`getSectionBadgeClass`), difficulty chip (`badge ${getDifficultyBadgeClass(q.difficulty)}`), primary cognitive trap tag (`Tag` icon), AAMC reasoning skill badge, diagram pill, and canonical score badge (`<Award size={11} /> {q.final_score}/100`).
+  - **Embedded Reading Passage (`SharedPassageCard.jsx`)**: When expanded, reading passages render via the canonical `SharedPassageCard` component in publication-grade `Newsreader` serif typography (`font-size: 1.05rem`, `line-height: 1.68`), accompanied by live word-count chips and interactive font-size scaling controls (`A-`, `100%`, `A+`).
+  - **Top Metrics Banner (`AiValidatedStatsBar.jsx`)**: Real-time counter strip distinguishing items *Ready for Review*, *In Question Bank*, and *Good Quality* with instant refresh action.
+  - **Toolbar & Bulk Operations (`AiValidatedFiltersBar.jsx`)**: Real-time keyword search (with `/` shortcut indicator), section dropdown, bulk select-all checkbox, and bulk action triggers (*Save Selected to Question Bank*, *Discard Selected*, *Save All to Question Bank*).
+  - **Action Controls**: Individual 1-click actions: **Save to Question Bank** (`btn-primary`), **Discard** (`btn-secondary`), and **Quality Review** (`btn-secondary`, opens `ReviewAuditView` modal).
 - **Withholding Queue Flow**: Batches hold incomplete or in-flight questions in `batch_only` status. Once a batch completes, questions passing the $> 80$ rubric standard atomically advance to `ai_validated` and appear in the review queue.
 - **Option Badges**: Standard 4 circular `A`, `B`, `C`, `D` pills that highlight emerald on correct answers and crimson on incorrect distractors with clear checkmark/cross indicators.
 - **Distractor Rationalization Drawers**: Collapsible cards detailing the exact psychometric reason why each wrong option constitutes a realistic cognitive trap.
@@ -242,13 +247,27 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - `🛡️ Overridden`: Royal blue shield pill (`rgba(51, 90, 207, 0.12)`, text `#60a5fa`, border `rgba(51, 90, 207, 0.25)`).
 
 ### 4.12 Polymorphic Figure & Diagram Viewer (`VisualStimulusViewer.jsx`)
-- **Component**: [`frontend/src/components/question/VisualStimulusViewer.jsx`](frontend/src/components/question/VisualStimulusViewer.jsx) provides a publication-grade viewer for AAMC scientific figures, reaction pathways, and experimental charts.
+- **Component**: [`frontend/src/components/question/VisualStimulusViewer.jsx`](frontend/src/components/question/VisualStimulusViewer.jsx) provides a publication-grade viewer for AAMC scientific figures, reaction pathways, and experimental charts across all 7 medical and scientific modalities.
+- **Intelligent Medical Modality Classification (`visualHelpers.js`)**:
+  Stimuli are classified via `detectVisualModality`, dynamically resolving domain badges and presentation metadata via `getModalityMetadata`:
+  | Modality Key | UI Badge Label | Badge Token Class | High-Contrast Dark Container |
+  | :--- | :--- | :--- | :---: |
+  | `radiology` | Radiology (X-Ray / CT / MRI) | `badge-cyan` | Yes (`isDarkContainer: true`) |
+  | `histology` | Histopathology (H&E) | `badge-purple` | No |
+  | `gross_anatomy` | Gross Anatomy Specimen | `badge-amber` | No |
+  | `cellular_microscopy` | Electron Microscopy (TEM/SEM) | `badge-indigo` | Yes (`isDarkContainer: true`) |
+  | `physiology_trace` | Physiology / ECG Trace | `badge-rose` | No |
+  | `clinical_pathology` | Clinical Pathology Photograph | `badge-emerald` | No |
+  | `svg_diagram` | SVG Vector Diagram | `badge-purple` | No |
+  | `scientific_diagram` | Scientific Figure | `badge-neutral` | No |
+- **High-Contrast Dark Container Contract**:
+  Radiology scans and Electron Micrographs require deep black backdrops for clinical authenticity. The viewer enforces `isDarkContainer: true`, rendering the canvas inside `#080c14` with a subtle hairline border (`rgba(255, 255, 255, 0.08)`) even when the user has Alabaster Light mode active, preventing washed-out whites and preserving diagnostic micro-details.
 - **Polymorphic Dual-Engine Rendering**:
   - **Programmatic Vector SVG**: Inlines sanitized scalable vector graphics directly into the DOM with crisp, high-DPI rendering, zero blur, and transparent background support.
-  - **Neural Visual Illustrations**: Renders FLUX-2-klein-4b neural image outputs with lazy loading and error fallback.
+  - **Neural Visual Illustrations**: Renders OpenAI GPT Image 2.5 and FLUX-2-klein-4b neural image outputs with lazy loading and error fallback.
   - **Passage & Item Polymorphism**: Dynamically extracts stimulus from either standalone question fields or passage-level attributes (`passage_visual_stimulus`).
-- **Interactive Action Toolbar**:
-  - **Click-to-Zoom Lightbox**: Fullscreen inspection canvas triggered by clicking the figure or the `Maximize2` button. Exposed as `role="dialog"` with `aria-modal`, focus trapping and focus restore via `useFocusTrap`; Escape closes it.
+- **Interactive Action Toolbar & Lightbox Modal (`VisualStimulusLightboxModal.jsx`)**:
+  - **Click-to-Zoom Lightbox**: Fullscreen inspection canvas triggered by clicking the figure or the `Maximize2` button. Exposed as `role="dialog"` with `aria-modal="true"`, focus trapping and focus restore via `useFocusTrap`; Escape closes it.
   - **Safe SVG Rendering**: All raw SVG markup is rendered through `SafeSvg` (DOMPurify SVG profile), never directly with `dangerouslySetInnerHTML`.
   - **Pan & Zoom Controls**: Dynamic zoom level scaling from 0.5x to 3.0x with reset control (`RotateCcw`).
   - **Copy SVG Source**: 1-click clipboard button with checkmark feedback to export raw SVG XML for external documentation or publication.
@@ -258,7 +277,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 - **Component**: [`frontend/src/components/question/QuestionCard.jsx`](frontend/src/components/question/QuestionCard.jsx) serves as the primary presentation surface for reviewing, practicing, and editing candidate items.
 - **Decomposed Architectural Structure**:
   To maintain high maintainability, reduce re-render cycles, and enforce strict single-responsibility boundaries, `QuestionCard` is decomposed into four specialized subcomponents:
-  1. **Question Card Header (`QuestionCardHeader.jsx`)**: Renders the section badge, calibrated scaled score pill (`118–132`), primary cognitive trap chip (`primary_trap`), question index counter, elapsed generation timer, and top action buttons (approve, edit, inspect, compare).
+  1. **Question Card Header (`QuestionCardHeader.jsx`)**: Renders the section badge, calibrated scaled score pill (`118–132`), primary cognitive trap chip (`primary_trap`), question index counter, elapsed generation timer, and top action buttons: **Quality Review** (`ShieldCheck` icon, opens psychometric modal) and **Edit** (`Edit3` icon, toggles inline editor).
   2. **Question Card Footer (`QuestionCardFooter.jsx`)**: Renders itemized prompt and completion token counters, calculated micro-dollar inference cost in USD, and primary lifecycle transition actions (e.g., Approve into Bank, Discard).
   3. **Question Options List (`QuestionOptionsList.jsx`)**: Renders the 4 options ($A, B, C, D$) with length-symmetry indicators ($\pm 15\%$), interactive student practice selection, correct key highlighting (emerald), and distractor failure indications (crimson).
   4. **Conversational Mentor Explanations (`MentorExplanationView.jsx`)**: 3-part structured breakdown cards (*Why Correct*, *Why Other Options Incorrect*, *Primary Cognitive Trap Spotlight*).
@@ -368,8 +387,10 @@ To ensure the product feels thoughtfully crafted by human educators rather than 
   - *Usage & Cost* instead of *AI Compute Units* or *telemetry*
   - *Figure / Diagram* instead of *Visual Stimulus / AI Diagram / Neural Diagram*
 - **Action-Oriented Verbs**:
+  - *Create New Questions* or *Create Questions*
   - *Save to Bank* or *Save Question*
   - *Save All Ready* or *Save Selected*
+  - *Quality Review*
   - *Discard*
   - *Edit Question*
 - **Score Decoupling & Streamlined UI Copy**:
