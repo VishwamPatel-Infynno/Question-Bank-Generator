@@ -276,7 +276,7 @@ async def auto_resolve_batch_and_refill(
     refreshed_b = await get_batch_by_id(batch_id)
     valid_active = await get_active_batch_questions(batch_id)
     remaining_active = len(valid_active)
-    target = refreshed_b.target_count if refreshed_b else 50
+    target = refreshed_b.target_count if refreshed_b else QUESTIONS_PER_JOB * 10
     deficit = max(0, target - remaining_active)
 
     refill_launched = False

@@ -57,6 +57,7 @@ export default function AiValidatedFiltersBar({
               type="checkbox"
               checked={allFilteredSelected}
               onChange={onSelectAll}
+              aria-label={`Select all ${totalFiltered} filtered questions`}
             />
             <span>Select All ({totalFiltered})</span>
           </label>
@@ -69,6 +70,7 @@ export default function AiValidatedFiltersBar({
             disabled={actionInProgress}
             className="btn-primary validated-save-btn validated-btn-approve-all"
             title="Save all questions on this page to the Question Bank"
+            aria-label={`Save all ${totalFiltered} questions to Question Bank`}
           >
             <Database size={13} />
             <span>Save All to Question Bank ({totalFiltered})</span>
@@ -86,6 +88,7 @@ export default function AiValidatedFiltersBar({
               onClick={onBulkMoveToBank}
               disabled={actionInProgress}
               className="btn-primary validated-save-btn validated-btn-approve-all"
+              aria-label={`Save ${selectedCount} selected questions to Question Bank`}
             >
               <Database size={13} />
               <span>Save Selected to Question Bank</span>
@@ -96,6 +99,7 @@ export default function AiValidatedFiltersBar({
               onClick={onBulkDiscard}
               disabled={actionInProgress}
               className="btn-secondary validated-btn-discard-all"
+              aria-label={`Discard ${selectedCount} selected questions`}
             >
               <Trash2 size={13} />
               <span>Discard Selected</span>

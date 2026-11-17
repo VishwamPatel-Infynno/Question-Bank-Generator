@@ -39,6 +39,7 @@ export default function WizardHeaderStepper({
               type="button"
               onClick={() => onStepClick?.(cfg.num)}
               title={`Jump to Step ${cfg.num}: ${cfg.label}`}
+              aria-current={isCurrent ? 'step' : undefined}
               className={`wizard-stepper-pill ${isCurrent ? 'current' : isCompleted ? 'completed' : ''}`}
             >
               <span className={`wizard-stepper-circle ${isCurrent ? 'current' : isCompleted ? 'completed' : ''}`}>

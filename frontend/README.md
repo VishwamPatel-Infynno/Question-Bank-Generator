@@ -21,6 +21,7 @@ The frontend provides an intuitive, real-time command canvas for AAMC MCAT quest
 - **Export & Print Studio**: Professional modal for exporting PDF Exam Papers (with candidate headers and page breaks), Study Packs, CSV, and JSON bundles.
 - **Publication-Grade Medical & Scientific Visual Studio**: Dedicated figure renderer supporting all 7 clinical and experimental modalities (Radiology, Histopathology, Gross Anatomy, Cellular Electron Microscopy, Physiology/ECG Traces, Clinical Pathology, and SVG Vector Diagrams) with modality badging, autonomous AI visual discretion for standalone and passage questions ("Include Images When Needed"), high-contrast dark container rendering for radiographic clarity, and click-to-zoom accessible lightbox inspection (`VisualStimulusLightboxModal.jsx`).
 - **Enterprise Question Bank**: High-speed searchable, filterable repository with multi-format export, lifecycle status management, and copy-to-clipboard actions.
+- **WCAG AA Semantic Controls & Accessibility**: All interactive buttons across wizards, filter bars, cards, and modal dialogs are implemented as native semantic `<button>` elements with explicit `aria-pressed`, `aria-current="step"`, `aria-expanded`, and descriptive `aria-label`s on selection checkboxes and bulk actions.
 
 ---
 
@@ -230,3 +231,19 @@ The frontend uses an enterprise precision design system. For exhaustive tokens, 
 - **Brand Cyan**: `#1E7ADF`
 - **Gradient**: `linear-gradient(135deg, #4F30B9 0%, #335ACF 50%, #1E7ADF 100%)`
 - **Typography**: Plus Jakarta Sans (Sans-serif), Newsreader (Serif for reading passages), JetBrains Mono (Monospace)
+
+---
+
+## ♿ Accessibility & Code Quality Contracts
+
+1. **Native Semantic Controls**: Synthetic non-semantic clickable `<div>` elements have been eliminated. All interactive triggers are native `<button type="button">` with focus rings and standard keyboard actuation (`Space` / `Enter`).
+2. **Dynamic ARIA State**:
+   - `aria-pressed={isActive}` on filter pills (Section, Difficulty, Scope, Status).
+   - `aria-current="step"` on the Wizard Header Stepper.
+   - `aria-expanded` and `aria-controls` on the Advanced Settings accordion drawer.
+   - Explicit `aria-label`s on selection checkboxes and icon buttons across Question Bank, Review Queue, Batch Activity, and Passage Bank.
+3. **Zero-Defect Code Hygiene**:
+   - **0 TODO**, **0 FIXME**, and **0 `console.log`** statements in source code.
+   - Canonical status constants (`QUESTION_STATUS.AI_VALIDATED`) instead of raw strings.
+   - Unidirectional symmetric state pairs (`[rawSelectedIds, setRawSelectedIds]`).
+   - Zero lint errors or warnings via Oxlint (`0 warnings and 0 errors across 156 files`).

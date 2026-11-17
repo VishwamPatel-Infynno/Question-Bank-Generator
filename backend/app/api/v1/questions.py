@@ -162,7 +162,7 @@ async def get_question_image(question_id: str):
     return RedirectResponse(url=img_url)
 
 
-MAX_BULK_QUESTIONS = 500
+MAX_BULK_QUESTIONS: int = 500  # Must equal the le= guard on the GET /questions limit param
 _VALID_QUESTION_STATUSES = frozenset(s.value for s in QuestionStatus)
 
 

@@ -106,17 +106,11 @@ export default function WizardStep3ReviewAdvanced({ generatorForm, sectionMeta =
 
       {/* Dedicated Scientific Diagrams & Reaction Schemes Card (Sciences Only) */}
       {!isCars && (
-        <div
+        <button
+          type="button"
           role="switch"
           aria-checked={allowAiImages}
-          tabIndex={0}
           onClick={() => setAllowAiImages?.(!allowAiImages)}
-          onKeyDown={(e) => {
-            if (e.key === ' ' || e.key === 'Enter') {
-              e.preventDefault();
-              setAllowAiImages?.(!allowAiImages);
-            }
-          }}
           className={`wizard-diagram-card ${allowAiImages ? 'active' : ''}`}
         >
           <div className="wizard-diagram-card-left">
@@ -134,7 +128,7 @@ export default function WizardStep3ReviewAdvanced({ generatorForm, sectionMeta =
           <div className={`wizard-switch-track ${allowAiImages ? 'active' : ''}`}>
             <div className={`wizard-switch-thumb ${allowAiImages ? 'active' : ''}`} />
           </div>
-        </div>
+        </button>
       )}
 
       {/* Advanced Options Collapsible Accordion */}

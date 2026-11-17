@@ -46,7 +46,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
 
   const searchInputRef = useRef(null);
   const [expandedId, setExpandedId] = useState(null);
-  const [selectedRaw, setSelectedIds] = useState([]);
+  const [rawSelectedIds, setRawSelectedIds] = useState([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [inspectingQuestion, setInspectingQuestion] = useState(null);
 
@@ -57,8 +57,8 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   // the user can no longer see must not be bulk-deleted or exported.
   const selectedIds = useMemo(() => {
     const loaded = new Set(questions.map((q) => q.id));
-    return selectedRaw.filter((id) => loaded.has(id));
-  }, [selectedRaw, questions]);
+    return rawSelectedIds.filter((id) => loaded.has(id));
+  }, [rawSelectedIds, questions]);
 
   const handleUpdateInspectedQuestion = useCallback(async (updated) => {
     try {
@@ -111,12 +111,12 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   // ─── Selection Handlers ────────────────────────────────────────────────────
   const handleToggleSelect = useCallback((id, e) => {
     e.stopPropagation();
-    setSelectedIds((prev) => toggleId(prev, id));
+    setRawSelectedIds((prev) => toggleId(prev, id));
   }, []);
 
   const handleSelectAll = () => {
     const currentIds = paginatedQuestions.map((q) => q.id);
-    setSelectedIds((prev) => toggleAll(prev, currentIds));
+    setRawSelectedIds((prev) => toggleAll(prev, currentIds));
   };
 
   const { isDeleting: isDeletingBulk, confirmDeletion } = useBankDeletion({
@@ -141,7 +141,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       count: ids.length,
       action: async () => {
         await batchDeleteQuestions(ids);
-        setSelectedIds([]);
+        setRawSelectedIds([]);
         loadQuestions();
       },
       successMessage: `Successfully removed ${ids.length} question(s) from the Question Bank.`

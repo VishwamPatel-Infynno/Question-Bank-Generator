@@ -81,6 +81,7 @@ export default function QuestionBankFilters({
                 type="button"
                 className={`pill-track-btn qbank-filters-pill-btn ${isActive ? 'active' : ''}`}
                 onClick={() => setSectionFilter(sec.id)}
+                aria-pressed={isActive}
               >
                 <span>{sec.label}</span>
               </button>
@@ -98,6 +99,7 @@ export default function QuestionBankFilters({
                 type="button"
                 onClick={() => setDiffFilter(d.id)}
                 className={`pill-track-btn qbank-filters-pill-btn ${isActive ? 'active' : ''}`}
+                aria-pressed={isActive}
               >
                 {d.label}
               </button>
@@ -128,8 +130,11 @@ export default function QuestionBankFilters({
         <div className="qbank-bulk-bar">
           <div className="qbank-bulk-group">
             <button
+              type="button"
               onClick={onSelectAll}
               className="btn-secondary qbank-filters-clear-btn"
+              aria-pressed={selectedIds.length === questions.length}
+              aria-label={selectedIds.length === questions.length ? 'Deselect all questions' : 'Select all questions'}
             >
               {selectedIds.length === questions.length ? (
                 <CheckSquare size={13} color="var(--brand-primary)" />
@@ -160,9 +165,11 @@ export default function QuestionBankFilters({
               </button>
 
               <button
+                type="button"
                 onClick={onBulkDelete}
                 disabled={isDeletingBulk}
                 className="btn-danger qbank-filters-bulk-btn"
+                aria-label={`Delete ${selectedIds.length} selected question(s)`}
               >
                 <Trash2 size={13} />
                 <span>{isDeletingBulk ? 'Deleting...' : `Delete Selected (${selectedIds.length})`}</span>

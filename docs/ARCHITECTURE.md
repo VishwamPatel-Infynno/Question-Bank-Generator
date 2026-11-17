@@ -577,7 +577,7 @@ stateDiagram-v2
    - If a batch is actively stopped, cancelled, or aborted mid-run, `promote_completed_batch_questions` is bypassed entirely, safely retaining questions in `batch_only` without polluting review queues.
 
 3. **Dynamic Job Allocation & Exact Target Count Guarantees**:
-   In [`backend/app/services/batch_runner.py`](../backend/app/services/batch_runner.py), `launch_background_batch` dynamically partitions target quotas into parallel jobs capped at 5 questions per job:
+   In [`backend/app/services/batch_runner.py`](../backend/app/services/batch_runner.py), `launch_background_batch` dynamically partitions target quotas into parallel jobs capped at 5 questions per job (`QUESTIONS_PER_JOB = 5`, with maximum batch volume calculated via `QUESTIONS_PER_JOB * 10` to avoid magic numbers):
    - 5 questions $\to$ 1 job of 5 items.
    - 50 questions $\to$ 10 jobs of 5 items.
    - 12 questions $\to$ 3 jobs of 5, 5, and 2 items.
@@ -954,4 +954,10 @@ The backend enforces strict type precision and zero-suppression code hygiene acr
      - `ASYNC109` (timeout parameter collision) is resolved by parameter renaming to `timeout_seconds: float`.
      - `F401` (unused model imports in init_db) is resolved via explicit `__all__ = ["GenerationBatchModel", "GenerationJobModel", "PassageModel", "QuestionModel", "init_db_schema"]`.
      - `ARG001` (unused arguments) and `PERF102` (dictionary key iteration) are resolved by surgical signature alignment and `.values()` loops.
+6. **Constant & Query Guard Symmetry**:
+   - In [`backend/app/api/v1/questions.py`](../backend/app/api/v1/questions.py), `MAX_BULK_QUESTIONS: int = 500` is defined as a strongly typed constant, ensuring the bulk save and purge limit exactly matches the `le=500` validation guard on the `GET /questions` limit parameter.
+7. **Frontend State & Accessibility Architecture**:
+   - Canonical status constants (`QUESTION_STATUS.AI_VALIDATED` from `constants/mcat.js`) are strictly enforced across global counting hooks (`useGlobalCounts.js`), eliminating magic string literals.
+   - Symmetric state setter naming pairs (e.g. `[rawSelectedIds, setRawSelectedIds]` in `QuestionBankView.jsx`) ensure predictable, defect-free unidirectional state flow.
+   - Native semantic buttons with WCAG AA attributes (`aria-current="step"`, `aria-pressed`, `aria-expanded`, `aria-controls`, and descriptive `aria-label`s) are standardized across all 5 primary views.
 

@@ -62,6 +62,7 @@ export default function PassageBankFilters({
                 type="button"
                 className={`pill-track-btn passage-bank-pill-btn ${isActive ? 'active' : ''}`}
                 onClick={() => setSectionFilter(sec.id)}
+                aria-pressed={isActive}
               >
                 <span>{sec.label}</span>
               </button>
@@ -91,6 +92,7 @@ export default function PassageBankFilters({
               onClick={onClearAllFilters}
               className="btn-ghost passage-bank-reset-btn"
               title="Reset all search queries and section filters"
+              aria-label="Reset all search queries and section filters"
             >
               <RotateCcw size={11} />
               <span>Reset</span>
@@ -104,6 +106,7 @@ export default function PassageBankFilters({
               onClick={onCreateNewPassage}
               className="btn-primary passage-bank-create-btn"
               title="Manually create a new reading passage"
+              aria-label="Manually create a new reading passage"
             >
               <Plus size={13} />
               <span>New Passage</span>

@@ -33,6 +33,8 @@ export default function WizardAdvancedSettings({
         type="button"
         onClick={() => setShowAdvanced?.((prev) => !prev)}
         className="wizard-advanced-toggle"
+        aria-expanded={showAdvanced}
+        aria-controls="wizard-advanced-panel-content"
       >
         <div className="wizard-advanced-toggle-content">
           <Sliders size={14} color="var(--brand-primary)" />
@@ -47,7 +49,7 @@ export default function WizardAdvancedSettings({
       </button>
 
       {showAdvanced && (
-        <div className="wizard-advanced-panel">
+        <div className="wizard-advanced-panel" id="wizard-advanced-panel-content">
           {/* Cognitive Traps */}
           <div>
             <div className="wizard-advanced-section-title">

@@ -26,6 +26,7 @@ export default function WizardReviewSummary({
               onClick={() => setStep(1)}
               className="wizard-review-cell-edit-btn"
               title="Edit Section"
+              aria-label="Edit Section"
             >
               <Edit3 size={12} />
             </button>
@@ -44,6 +45,7 @@ export default function WizardReviewSummary({
               onClick={() => setStep(1)}
               className="wizard-review-cell-edit-btn"
               title="Edit Topic"
+              aria-label="Edit Topic Focus"
             >
               <Edit3 size={12} />
             </button>
@@ -62,6 +64,7 @@ export default function WizardReviewSummary({
               onClick={() => setStep(2)}
               className="wizard-review-cell-edit-btn"
               title="Edit Difficulty"
+              aria-label="Edit Difficulty"
             >
               <Edit3 size={12} />
             </button>
@@ -80,6 +83,7 @@ export default function WizardReviewSummary({
               onClick={() => setStep(2)}
               className="wizard-review-cell-edit-btn"
               title="Edit Format"
+              aria-label="Edit Format"
             >
               <Edit3 size={12} />
             </button>
@@ -98,6 +102,7 @@ export default function WizardReviewSummary({
               onClick={() => setStep(2)}
               className="wizard-review-cell-edit-btn"
               title="Edit Count"
+              aria-label="Edit Questions Count"
             >
               <Edit3 size={12} />
             </button>

@@ -130,18 +130,11 @@ export default function WizardStep1SectionFocus({
             const Icon = sec.icon;
             const isSelected = selectedSection === sec.id;
             return (
-              <div
+              <button
                 key={sec.id}
+                type="button"
                 className={`wizard-section-card ${isSelected ? 'selected' : ''}`}
                 onClick={() => onSelectSection(sec.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onSelectSection(sec.id);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
                 aria-pressed={isSelected}
               >
                 <div className="wizard-section-top">
@@ -157,7 +150,7 @@ export default function WizardStep1SectionFocus({
                 </div>
 
                 <div className="wizard-section-name">{sec.label}</div>
-              </div>
+              </button>
             );
           })}
         </div>

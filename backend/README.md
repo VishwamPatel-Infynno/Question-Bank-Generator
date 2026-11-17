@@ -266,12 +266,13 @@ Run the deterministic backend test suite covering endpoints, schemas, database o
 
 ```bash
 # Run all unit and integration tests (396 deterministic tests across 59 modules, 406 total backend tests)
-# Smart auto-skip: 314 pure unit tests pass offline, 79 DB-dependent tests skip cleanly if PostgreSQL is offline
-source .venv/bin/activate
-pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
+# Smart auto-skip: pure unit tests pass offline, DB-dependent tests skip cleanly if PostgreSQL is offline
+uv run pytest backend/tests -v
+# or using activated virtual environment:
+pytest -v
 
 # Run database relational structure tests
-PYTHONPATH=backend pytest backend/tests/test_database_structure.py -v
+uv run pytest backend/tests/test_database_structure.py -v
 ```
 
 ### Code Formatting, Zero-Suppression & Type Precision
@@ -279,6 +280,8 @@ Enforce Python code hygiene using **Ruff** (rules E, W, F, I, UP, B, C4, SIM, RE
 
 ```bash
 # Check code style and rules (0 errors policy)
+uvx ruff check backend/app
+# or using local venv:
 ruff check .
 
 # Verify formatting without modification across repository

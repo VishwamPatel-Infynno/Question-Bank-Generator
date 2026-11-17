@@ -87,7 +87,7 @@ graph LR
 - **Dedicated Generation & Review Workspace**: Clean, distraction-free full-width canvas (`maxWidth: 1040px`) hosting live multi-agent synthesis, telemetry, and batch staging without cramped column docks.
 - **Editorial Question Presentation**: Scientific research passages and CARS essays formatted in serif typography with line-height `1.68` for fatigue-free reading; circular option badges (`A`, `B`, `C`, `D`), canonical Question Bank Editorial Cards view (legacy grid mode removed), top metadata strip with purple primary trap badge chips, AAMC Scaled Score and SIRS badges, 3-card structured mentor explanations (*Why Correct*, *Why Other Options Incorrect* with itemized distractor cards, and *Primary Cognitive Trap Spotlight*), and inline editing.
 - **Instant Theme Switching**: Seamless toggle between Dark and Light themes with WCAG AA compliance via the `T` key shortcut.
-- **Full Keyboard Navigation**: `⌘ + Enter` (Generate), `T` (Theme), `/` (Search Bank), `A` (Approve), `D` (Discard), `Escape` (Close Modals).
+- **Full Keyboard Navigation & WCAG AA Accessibility**: `⌘ + Enter` (Generate), `T` (Theme), `/` (Search Bank), `A` (Approve), `D` (Discard), `Escape` (Close Modals). All 5 primary workspace views feature native semantic `<button>` elements, dynamic `aria-pressed` on filter pills, `aria-current="step"` on steppers, `aria-expanded` on collapsible drawers, and explicit `aria-label`s on selection checkboxes and bulk actions.
 
 ### 5. Professional Export & Print Studio (`ExportPrintModal.jsx`)
 - **Official Exam Booklet (PDF / Print)**: Generates classroom and mock test papers with candidate metadata headers, section specifications, and `.page-break` rules preventing awkward splits across pages.

@@ -13,7 +13,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: var(--transition-ui);
 }
 
 .qbank-card-row.selected {
@@ -39,7 +39,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color var(--transition-fast);
+  transition: var(--transition-ui);
 }
 
 .qbank-card-select-btn.selected {
@@ -269,6 +269,13 @@
 }
 
 .validated-passage-header {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -40,9 +40,9 @@ graph TD
 
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
-| **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (159 frontend files, 100% ruff compliance across 145 backend files) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **396 passing tests across 59 modules** (396 deterministic) (~25-30s) |
-| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers | **Vitest** (React 19 testing library) | **119 passing tests across 13 test files** (~500ms) |
+| **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms, zero debug artifacts | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (156 frontend files, 100% ruff compliance across 145 backend files; 0 TODO / 0 FIXME / 0 console.log) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **396 passing tests across 59 modules** (396 deterministic) (~33s) |
+| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **119 passing tests across 13 test files** (~500ms) |
 | **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (406 total backend tests across 60 modules: 59 deterministic + 1 live E2E) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 80$ points (`PASSING_SCORE_THRESHOLD`) |
@@ -420,15 +420,22 @@ ruff check --fix backend
 ruff format .
 ```
 
-### 4.2 Frontend Standards (Oxlint)
+### 4.2 Frontend Standards (Oxlint & Production Build)
 
 - **Target**: React 19 JSX & ES2022
-- **Scope**: 159 source files, 106 lint rules
-- **Policy**: 0 errors, 0 warnings
+- **Scope**: 156 source files, 106 lint rules
+- **Policy**: 0 errors, 0 warnings (0 TODO, 0 FIXME, 0 console.log occurrences across codebase)
+- **Production Build**: Clean compilation with Vite 8 (`pnpm build` in ~250ms)
 
 ```bash
-# Run frontend linter
-pnpm lint
+# Run frontend linter (oxlint)
+cd frontend && node_modules/.bin/oxlint src
+
+# Run frontend tests (vitest)
+cd frontend && node_modules/.bin/vitest run
+
+# Compile production bundle
+cd frontend && pnpm build
 ```
 
 ---

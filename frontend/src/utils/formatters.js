@@ -53,11 +53,6 @@ export function formatTokenCount(tokens) {
   return Number(tokens).toLocaleString();
 }
 
-/**
- * Formats an ISO date string into a readable short date.
- * @param {string} iso - ISO date string
- * @returns {string} Formatted date e.g. "Oct 28, 2026"
- */
 /** Local date and time of an ISO timestamp, or '' when missing/invalid. */
 export function formatDateTime(iso) {
   if (!iso) return '';
@@ -72,6 +67,11 @@ export function formatTime(iso) {
   return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Formats an ISO date string into a readable short date.
+ * @param {string} iso - ISO date string
+ * @returns {string} Formatted date e.g. "Oct 28, 2026"
+ */
 export function formatDate(iso) {
   if (!iso) return '';
   try {

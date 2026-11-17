@@ -1,7 +1,12 @@
-import { SECTION_IDS, DIFFICULTY } from '../constants';
 import { useState, useCallback } from 'react';
+import { SECTION_IDS, DIFFICULTY } from '../constants';
 import { toggleInList, toggleSubtopicState } from '../utils/generatorFormState';
 
+/**
+ * Default initial state for the question-generation wizard form.
+ * This object defines the canonical field names and default values used across
+ * the form, presets, and batch payload builder.
+ */
 const DEFAULT_GENERATOR_FORM = {
   selectedSection: SECTION_IDS.CHEM_PHYS,
   selectedSubject: '',

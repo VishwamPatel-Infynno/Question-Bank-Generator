@@ -217,16 +217,19 @@
 }
 
 .wizard-section-card {
+  width: 100%;
+  font: inherit;
+  color: inherit;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
   padding: 12px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   cursor: pointer;
-  transition: color 0.15s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s cubic-bezier(0.16, 1, 0.3, 1), fill 0.15s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: var(--transition-ui);
   position: relative;
 }
 
@@ -292,7 +295,7 @@
   border: 1px solid var(--border-light);
   cursor: pointer;
   text-align: left;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, transform 0.15s ease, filter 0.15s ease, fill 0.15s ease, stroke 0.15s ease;
+  transition: var(--transition-ui);
 }
 
 .wizard-tier-card:hover {
@@ -889,6 +892,10 @@
 }
 
 .wizard-diagram-card {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
@@ -898,7 +905,7 @@
   justify-content: space-between;
   gap: 16px;
   cursor: pointer;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  transition: var(--transition-ui);
 }
 
 .wizard-diagram-card.active {
@@ -941,7 +948,7 @@
 .wizard-switch-track {
   width: 36px;
   height: 20px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--border-medium);
   position: relative;
   flex-shrink: 0;

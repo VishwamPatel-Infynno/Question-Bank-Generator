@@ -53,6 +53,7 @@ function AiValidatedQuestionCard({
             checked={isSelected}
             onChange={() => onToggleSelect?.(q.id)}
             className="validated-card-checkbox"
+            aria-label={`Select question #${index + 1}`}
           />
           <span className="validated-index">
             #{index + 1}
@@ -107,38 +108,25 @@ function AiValidatedQuestionCard({
       {/* Stimulus / Passage Snippet */}
       {hasPassage && (
         <div className="validated-passage-box">
-          <div
+          <button
+            type="button"
             className="validated-passage-header"
-            role="button"
-            tabIndex={0}
             aria-expanded={isPassageExpanded}
             aria-controls={`passage-body-${q.id}`}
             onClick={() => onTogglePassage?.(q.id)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onTogglePassage?.(q.id);
-              }
-            }}
           >
             <div className="validated-card-passage-header">
               <BookOpen size={12} />
               <span>Reading Passage ({countWords(q.stimulus_text)} words)</span>
             </div>
-            <button
-              type="button"
+            <span
               className="btn-secondary validated-card-passage-toggle-btn"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.stopPropagation();
-                onTogglePassage?.(q.id);
-              }}
-              aria-label={isPassageExpanded ? 'Hide passage' : 'View passage'}
+              aria-hidden="true"
             >
               {isPassageExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
               <span>{isPassageExpanded ? 'Hide' : 'View'}</span>
-            </button>
-          </div>
+            </span>
+          </button>
 
           {isPassageExpanded && (
             <div className="validated-card-passage-body" id={`passage-body-${q.id}`}>
@@ -204,6 +192,7 @@ function AiValidatedQuestionCard({
               type="button"
               onClick={() => onOpenAudit(q)}
               className="btn-secondary validated-card-audit-btn"
+              aria-label={`Open psychometric quality review for question #${index + 1}`}
             >
               Quality Review
             </button>
@@ -215,6 +204,7 @@ function AiValidatedQuestionCard({
             disabled={actionInProgress}
             className="btn-secondary validated-card-discard-btn"
             title="Discard question"
+            aria-label={`Discard question #${index + 1}`}
           >
             <Trash2 size={12} />
             <span>Discard</span>
@@ -225,6 +215,7 @@ function AiValidatedQuestionCard({
             onClick={() => onMoveToBank?.(q)}
             disabled={actionInProgress}
             className="btn-primary validated-save-btn validated-card-bank-btn"
+            aria-label={`Save question #${index + 1} to Question Bank`}
           >
             <Database size={12} />
             <span>Save to Question Bank</span>

@@ -52,6 +52,7 @@ export function useBatchMutations({
   const [isCancellingAll, setIsCancellingAll] = useState(false);
   const { confirmModal, openConfirmModal, closeConfirmModal } = useConfirmModal('batch');
 
+  /** Fires the parent's toast callback when it is wired (guards against unmounted callers). */
   const toast = (payload) => {
     if (onShowToast) onShowToast(payload);
   };

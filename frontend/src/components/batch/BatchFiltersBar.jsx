@@ -43,6 +43,7 @@ export default function BatchFiltersBar({
               key={scope.id}
               type="button"
               onClick={() => onScopeFilterChange?.(scope.id)}
+              aria-pressed={scopeFilter === scope.id}
               className={`pill-track-btn batch-filter-pill-btn ${scopeFilter === scope.id ? 'active' : ''}`}
             >
               {scope.label}
@@ -71,6 +72,7 @@ export default function BatchFiltersBar({
               key={st}
               type="button"
               onClick={() => onStatusFilterChange(st)}
+              aria-pressed={statusFilter === st}
               className={`pill-track-btn batch-filter-pill-btn ${statusFilter === st ? 'active' : ''}`}
             >
               {st === BATCH_FILTER.RUNNING ? 'Running' : st.replace('_', ' ')}
@@ -86,6 +88,7 @@ export default function BatchFiltersBar({
             type="checkbox"
             checked={autoRefresh}
             onChange={(e) => onAutoRefreshChange(e.target.checked)}
+            aria-label="Toggle live auto-sync polling"
           />
           {autoRefresh && <span className="batch-autorefresh-dot" />}
           <span>Live Auto-Sync</span>

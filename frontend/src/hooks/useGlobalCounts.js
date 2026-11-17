@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchBatches, fetchQuestionCounts } from '../services/api';
+import { QUESTION_STATUS } from '../constants';
 
 /**
  * The navbar's live numbers: running batches, questions waiting for review, and whether the
@@ -39,15 +40,15 @@ export function useGlobalCounts() {
         if (err?.name !== 'AbortError') setBackendStatus(false);
       });
 
-    if (prefetchedCounts && typeof prefetchedCounts === 'object' && 'ai_validated' in prefetchedCounts) {
+    if (prefetchedCounts && typeof prefetchedCounts === 'object' && QUESTION_STATUS.AI_VALIDATED in prefetchedCounts) {
       Promise.resolve(prefetchedCounts).then((counts) => {
-        setValidatedCount(counts.ai_validated || 0);
+        setValidatedCount(counts[QUESTION_STATUS.AI_VALIDATED] || 0);
       });
       return;
     }
     fetchQuestionCounts(signal)
       .then((counts) => {
-        setValidatedCount(counts.ai_validated || 0);
+        setValidatedCount(counts[QUESTION_STATUS.AI_VALIDATED] || 0);
       })
       .catch(() => {});
   }, []);

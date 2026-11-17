@@ -197,6 +197,7 @@ function BatchCardSummary({
             disabled={isStopping}
             className="batch-summary-stop-btn"
             title="Stop background batch"
+            aria-label="Stop background batch"
           >
             <Square size={11} />
             <span>{isStopping ? 'Stopping...' : 'Stop'}</span>
@@ -214,6 +215,7 @@ function BatchCardSummary({
             disabled={isRetrying}
             className="batch-summary-resume-btn"
             title="Resume incomplete sets from where you stopped"
+            aria-label="Resume incomplete sets"
           >
             <RotateCcw size={11} />
             <span>{isRetrying ? 'Resuming...' : 'Resume Sets'}</span>
@@ -225,6 +227,7 @@ function BatchCardSummary({
           onClick={(e) => onDeleteBatch(e, batch.id)}
           className="batch-summary-del-btn"
           title="Delete batch log"
+          aria-label="Delete batch record"
         >
           <Trash2 size={14} />
         </button>
