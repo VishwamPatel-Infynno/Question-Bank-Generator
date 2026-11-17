@@ -87,18 +87,15 @@ def _build_batch_worker_request(
         item_stimulus = None
 
     # Visual stimulus generation for science sections:
-    # Governed by autonomous AI discretion (image_needed: True/False) unless explicitly mandated by require_image.
-    # For independent/standalone questions in batches (total_qty > 1), items must NOT be forcibly assigned
-    # require_image: True; they must follow autonomous AI discretion.
+    # When visuals are enabled, independent/standalone questions require a visual stimulus
+    # (as they have no shared passage image to reference). For passage-linked questions,
+    # the shared passage carries Figure 1 unless individual items explicitly mandate one.
     sec_is_cars = is_cars(req.section)
     has_diagrams_enabled = (
         req.allow_ai_images or req.require_image or req.visual_type in KNOWN_VISUAL_TYPES
-    )
-    is_standalone_batch = (
-        req.passage_mode == "independent" or not is_passage_item
-    ) and total_qty > 1
+    ) and not sec_is_cars
     should_require_item_image = bool(
-        not sec_is_cars and req.require_image and not is_standalone_batch
+        has_diagrams_enabled and (req.require_image or not is_passage_item)
     )
 
     # Resolve AAMC Reasoning Skill:
@@ -189,8 +186,8 @@ def _determine_item_diagram_requirement(state: AgentWorkflowState, is_passage_it
         # requires a dedicated item-level visual stimulus.
         return item_image_needed
 
-    # Autonomous AI determination for independent items
-    return item_image_needed
+    # For independent items, generate visual stimulus whenever visuals are permitted or requested
+    return item_image_needed or visuals_permitted
 
 
 async def _prepare_shared_passage_and_visual(

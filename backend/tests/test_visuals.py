@@ -306,8 +306,8 @@ def test_standalone_ai_discretion_image_needed_false():
     assert route_after_review(state) == "finalize"
 
 
-def test_standalone_batch_no_predefined_modulo():
-    """Verifies that for a 5-question standalone batch, no artificial modulo or forced images are set across indices."""
+def test_standalone_batch_require_image_enabled_for_independent_items():
+    """Verifies that for an independent/standalone question batch with visuals enabled, items are assigned require_image=True so dedicated figures are generated."""
     from app.workflow.passage_prep import _build_batch_worker_request
 
     parent_req = GenerationRequest(
@@ -317,6 +317,37 @@ def test_standalone_batch_no_predefined_modulo():
         passage_mode="independent",
         passage_required="No",
         allow_ai_images=True,
+        require_image=True,
+    )
+
+    for idx in range(5):
+        item_req, _run_id, is_passage_item, _interaction = _build_batch_worker_request(
+            req=parent_req,
+            idx=idx,
+            total_qty=5,
+            batch_id="test-batch-uuid",
+            effective_passage_count=0,
+            shared_passage_id=None,
+            shared_passage_text=None,
+        )
+        assert is_passage_item is False
+        assert item_req.passage_mode == "independent"
+        assert item_req.allow_ai_images is True
+        # Standalone questions with visuals enabled must have require_image=True
+        assert item_req.require_image is True
+
+
+def test_standalone_batch_require_image_disabled_when_visuals_off():
+    """Verifies that for an independent batch with visuals disabled, require_image is strictly False."""
+    from app.workflow.passage_prep import _build_batch_worker_request
+
+    parent_req = GenerationRequest(
+        section=MCATSection.BIO_BIOCHEM,
+        difficulty=Difficulty.HARD,
+        questions_to_generate=5,
+        passage_mode="independent",
+        passage_required="No",
+        allow_ai_images=False,
         require_image=False,
     )
 
@@ -332,37 +363,5 @@ def test_standalone_batch_no_predefined_modulo():
         )
         assert is_passage_item is False
         assert item_req.passage_mode == "independent"
-        assert item_req.allow_ai_images is True
-        # Strictly False across all indices (0 through 4) - no idx % 5 in (0, 2) forcing
-        assert item_req.require_image is False
-
-
-def test_standalone_batch_require_image_suppressed_for_independent_items():
-    """Verifies that for an independent batch, item requests enforce require_image=False and allow_ai_images=True for autonomous discretion even if parent request had require_image=True."""
-    from app.workflow.passage_prep import _build_batch_worker_request
-
-    parent_req = GenerationRequest(
-        section=MCATSection.BIO_BIOCHEM,
-        difficulty=Difficulty.HARD,
-        questions_to_generate=5,
-        passage_mode="independent",
-        passage_required="No",
-        allow_ai_images=True,
-        require_image=True,  # Simulate batch where parent had require_image=True
-    )
-
-    for idx in range(5):
-        item_req, _run_id, is_passage_item, _interaction = _build_batch_worker_request(
-            req=parent_req,
-            idx=idx,
-            total_qty=5,
-            batch_id="test-batch-uuid",
-            effective_passage_count=0,
-            shared_passage_id=None,
-            shared_passage_text=None,
-        )
-        assert is_passage_item is False
-        assert item_req.passage_mode == "independent"
-        assert item_req.allow_ai_images is True
-        # Must be False so each item follows autonomous AI discretion rather than forcing
+        assert item_req.allow_ai_images is False
         assert item_req.require_image is False

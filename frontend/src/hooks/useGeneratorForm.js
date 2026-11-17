@@ -23,7 +23,7 @@ const DEFAULT_GENERATOR_FORM = {
   selectedSubskills: [],
   selectedSubtopics: [],
   additionalInstructions: '',
-  requireImage: false,
+  requireImage: true,
   allowAiImages: true,
   requirePassageImage: true,
   visual_type: 'AI_FLUX_Image'
@@ -74,7 +74,7 @@ export function useGeneratorForm(initialValues = {}) {
     setFormData(prev => ({
       ...prev,
       allowAiImages: val,
-      requireImage: false,
+      requireImage: val,
       requirePassageImage: val
     }));
   }, []);

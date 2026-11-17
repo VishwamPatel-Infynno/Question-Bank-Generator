@@ -82,7 +82,7 @@ export function applySectionRules(form, sectionId) {
     ...common,
     selectedSkill: 'Automatic',
     allowAiImages: true,
-    requireImage: false,
+    requireImage: true,
     requirePassageImage: true,
     visual_type: 'AI_FLUX_Image'
   };
