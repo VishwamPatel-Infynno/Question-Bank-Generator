@@ -80,6 +80,10 @@ def test_domain_index_resolution():
     idx = resolve_slot_domain_index(req_no_angle)
     assert 0 <= idx < 10
 
+    # Verify attempt rotation for slot replenishment
+    assert resolve_slot_domain_index(req_angle_1, attempt=1) == 1
+    assert resolve_slot_domain_index(req_angle_1, attempt=2) == 2
+
 
 def test_passage_blueprints_backward_compatibility():
     """Verify that re-exports from passage_prep.py point to the exact same objects in passage_blueprints.py."""

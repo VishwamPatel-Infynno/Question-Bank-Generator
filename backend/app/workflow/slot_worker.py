@@ -15,7 +15,7 @@ from typing import Any
 
 from app.agents.base import LLMNotConfiguredError
 from app.core.config import config
-from app.schemas import GenerationRequest, Question, WorkflowEvent
+from app.schemas import GenerationRequest, Question, WorkflowEvent, is_cars
 from app.workflow.dedup_inflight import (
     _refresh_duplicate_info_after_review,
     _run_deduplication_anti_collision_loop,
@@ -31,6 +31,11 @@ from app.workflow.engine_layout import (
 )
 from app.workflow.live_job_store import persist_live_question
 from app.workflow.nodes import finalize_node, fused_generator_node, image_node
+from app.workflow.passage_blueprints import (
+    CARS_SLOT4_APPLICATION_DOMAINS,
+    SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS,
+    resolve_slot_domain_index,
+)
 from app.workflow.passage_prep import (
     _build_batch_worker_request,
     _determine_item_diagram_requirement,
@@ -121,13 +126,24 @@ async def run_slot_worker(ctx: SlotWorkerContext) -> None:
                         shared_passage_id=ctx.shared_passage_id,
                         shared_passage_text=ctx.shared_passage_text,
                         passage_blueprints=ctx.passage_blueprints,
+                        attempt=attempt,
                     )
                 )
                 if attempt > 0:
                     base_angle = item_req.thematic_angle or ""
+                    sec_is_cars = is_cars(item_req.section)
+                    domain_idx = resolve_slot_domain_index(req, attempt=attempt)
+                    specific_focus = ""
+                    if not sec_is_cars and (idx % 5 == 4):
+                        condition = SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS[domain_idx]
+                        specific_focus = f" • ALTERNATE EXPERIMENTAL CONDITION: Base prediction on [{condition}]"
+                    elif sec_is_cars and (idx % 5 == 3):
+                        domain = CARS_SLOT4_APPLICATION_DOMAINS[domain_idx]
+                        specific_focus = f" • ALTERNATE APPLICATION DOMAIN: Formulate scenario in [{domain}]"
+
                     retry_directive = (
                         f"(Slot Replenishment Attempt {attempt + 1}: You MUST formulate a completely distinct question "
-                        f"testing a separate paragraph, claim, or variable from any previous rejected attempt)"
+                        f"testing a separate paragraph, claim, or variable from any previous rejected attempt{specific_focus})"
                     )
                     item_req.thematic_angle = (
                         f"{base_angle} • {retry_directive}" if base_angle else retry_directive

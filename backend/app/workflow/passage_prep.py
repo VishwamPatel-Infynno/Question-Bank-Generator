@@ -73,6 +73,7 @@ def _build_batch_worker_request(
     shared_passage_id: str | None,
     shared_passage_text: str | None,
     passage_blueprints: list[dict[str, str]] | None = None,
+    attempt: int = 0,
 ) -> tuple[GenerationRequest, str, bool, str]:
     """
     Builds an isolated GenerationRequest for an individual question worker within a batch,
@@ -148,7 +149,7 @@ def _build_batch_worker_request(
         item_question_type = blueprint["archetype"]
         slot_directive = blueprint["directive"]
         if not passage_blueprints:
-            domain_idx = resolve_slot_domain_index(req)
+            domain_idx = resolve_slot_domain_index(req, attempt=attempt)
             if sec_is_cars and (idx % len(blueprints)) == 3:  # Slot 4
                 domain = CARS_SLOT4_APPLICATION_DOMAINS[domain_idx]
                 slot_directive += (

@@ -59,7 +59,7 @@ The system defines 68 configuration fields in `backend/app/core/config.py` (`Set
 | `MAX_REGENERATION_ATTEMPTS`| `integer`| `3` | Maximum remediation loops before Quality Gate reject |
 | `PASSING_SCORE_THRESHOLD` | `integer`| `80` | Minimum score required to pass psychometric quality gate (> 80) across individual and batch generation |
 | `ALWAYS_INDEPENDENT_REVIEW` | `boolean` | `true` | Always run the independent Reviewer, even when the generator's own self-critique passes |
-| `MAX_LLM_CALLS_PER_SLOT` | `integer` | `16` | Hard cap on LLM calls spent on one question slot across all attempts (drafts, duplicate rewrites, regenerations, review and solve samples). When reached the slot stops with a rejection instead of spending more; `0` disables the cap |
+| `MAX_LLM_CALLS_PER_SLOT` | `integer` | `36` | Hard cap on LLM calls spent on one question slot across all attempts (drafts, duplicate rewrites, regenerations, review and solve samples). When reached the slot stops with a rejection instead of spending more; `0` disables the cap |
 | `BLIND_SOLVER_MODEL` | `string` | `""` | Optional dedicated model for the Blind Solver so it is independent of the generator (empty = the request's model); the client's `api_key` is never sent to it |
 | `BLIND_SOLVER_SAMPLES` | `integer` | `2` | Independent solver samples shown in different option layouts (reversed, rotated); a strict majority must pick the author's key, a split vote is never verified. `1` restores single-sample behavior |
 | `OFFLINE_MODE` | `boolean` | `false` | Allow mock/heuristic fixtures when no LLM credentials are configured (demos, tests). When `false`, a missing key raises a clear configuration error and the run fails fast; mock-produced questions carry `stage_outcomes.offline_mode = true` |

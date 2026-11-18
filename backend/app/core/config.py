@@ -439,7 +439,9 @@ class Settings(BaseSettings):
     ALWAYS_INDEPENDENT_REVIEW: bool = True
     # Hard cap on LLM calls spent on one question slot (drafts, dedup retries, regenerations,
     # review and solve samples, across slot replenishments). 0 disables the cap.
-    MAX_LLM_CALLS_PER_SLOT: int = 16
+    # Set to 36 to allow full multi-agent lifecycles (Question Generator, Reviewer, Blind Solver,
+    # Remediation, and Dedup anti-collision across up to 3 worker replenishment attempts).
+    MAX_LLM_CALLS_PER_SLOT: int = 36
     # Allow mock/heuristic fixtures when no LLM credentials exist (demos, tests). Off by default:
     # a missing key in production must fail loudly instead of shipping fake 'verified' questions.
     OFFLINE_MODE: bool = False

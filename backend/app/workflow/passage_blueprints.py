@@ -65,17 +65,18 @@ SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS: list[str] = [
 ]
 
 
-def resolve_slot_domain_index(req: GenerationRequest) -> int:
-    """Deterministically extracts or hashes a rotation index (0-9) for slot directives."""
+def resolve_slot_domain_index(req: GenerationRequest, attempt: int = 0) -> int:
+    """Deterministically extracts or hashes a rotation index (0-9) for slot directives, rotating across replenishment attempts."""
+    offset = max(0, attempt)
     if req.thematic_angle:
         match = re.search(r"(?:job|set)\s*#?(\d+)", req.thematic_angle, re.IGNORECASE)
         if match:
             num = int(match.group(1))
-            return (num - 1) % 10
+            return (num - 1 + offset) % 10
     seed_str = req.passage_id or req.batch_id or req.thematic_angle or req.run_id or ""
     if seed_str:
-        return abs(hash(seed_str)) % 10
-    return 0
+        return (abs(hash(seed_str)) + offset) % 10
+    return offset % 10
 
 
 # Standard AAMC CARS 5-Question Set Blueprint
