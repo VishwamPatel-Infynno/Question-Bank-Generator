@@ -455,12 +455,12 @@ class Settings(BaseSettings):
     # Largest accepted request body in megabytes (HTTP 413 above it); 0 disables
     MAX_REQUEST_BODY_MB: int = 25
     # Run the reviewer and blind solver concurrently (saves one LLM round trip per question).
-    PARALLEL_REVIEW_AND_SOLVE: bool = False
+    PARALLEL_REVIEW_AND_SOLVE: bool = True
     # Mark static system prompts cacheable for providers that need an explicit marker (Anthropic).
     ENABLE_PROMPT_CACHING: bool = True
-    DEFAULT_MAX_TOKENS: int = 3000
-    LLM_MAX_TOKENS_CEILING: int = 8000  # Upper bound when retrying a truncated completion
-    REVIEWER_MAX_TOKENS: int = 3000
+    DEFAULT_MAX_TOKENS: int = 4096
+    LLM_MAX_TOKENS_CEILING: int = 8192  # Upper bound when retrying a truncated completion
+    REVIEWER_MAX_TOKENS: int = 4096
 
     # Strict Temperature Parameters for High Instruction Fidelity
     DEFAULT_TEMPERATURE: float = 0.2
@@ -485,7 +485,7 @@ class Settings(BaseSettings):
     BLIND_SOLVER_MODEL: str = ""
     BLIND_SOLVER_SAMPLES: int = 2  # 1 = single sample; 2 = two layouts; 3 = tie-breaker on split
     BLIND_SOLVER_CONFIDENCE_THRESHOLD: int = 88
-    BLIND_SOLVER_MAX_TOKENS: int = 1200
+    BLIND_SOLVER_MAX_TOKENS: int = 2048
 
     # Global Multi-Batch Concurrency & Rate Limiting Controls
     GLOBAL_MAX_CONCURRENT_PIPELINES: int = 8  # question pipelines in flight across all runs
@@ -505,6 +505,13 @@ class Settings(BaseSettings):
     # LiteLLM Configuration (Offline resilience, instant startup, no remote cost fetch, no telemetry)
     LITELLM_LOCAL_MODEL_COST_MAP: str = "True"
     LITELLM_TELEMETRY: str = "False"
+
+    # pgvector & RAG Retrieval Configuration
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_DIMENSION: int = 1536
+    ENABLE_PGVECTOR_RAG: bool = True
+    RAG_EXEMPLAR_MIN_SCORE: int = 90
+    RAG_SEMANTIC_DEDUP_THRESHOLD: float = 0.82
 
     model_config = SettingsConfigDict(
         env_file=[str(Path(__file__).resolve().parent.parent.parent.parent / ".env"), ".env"],

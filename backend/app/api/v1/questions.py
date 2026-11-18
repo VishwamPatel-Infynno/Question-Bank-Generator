@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import base64
-import csv
-import io
 import logging
 from typing import Annotated, Any
 
@@ -30,14 +28,30 @@ from app.repositories import (
     update_question_status,
 )
 from app.schemas import (
+    BackfillEmbeddingsRequest,
     BatchDeleteRequest,
     DuplicateCheckRequest,
+    GenerationRequest,
     Question,
     QuestionStatus,
+    RAGContextRequest,
+    SemanticSearchRequest,
     SingleStatusUpdateRequest,
     StatusUpdateRequest,
 )
-from app.services import evaluate_duplicate
+from app.services import (
+    backfill_question_embeddings,
+    evaluate_duplicate,
+    evaluate_duplicate_rag,
+    find_similar_questions,
+    hybrid_search_questions,
+    retrieve_rag_exemplar_context,
+)
+from app.services.csv_export import (
+    build_csv_headers,
+    build_csv_row,
+    generate_questions_csv,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -276,90 +290,77 @@ async def override_question_duplicate_endpoint(question_id: str) -> dict[str, An
 async def check_question_duplicate_endpoint(payload: DuplicateCheckRequest) -> dict[str, Any]:
     """
     On-demand deduplication check: evaluates a candidate question draft against existing bank items.
+    Leverages pgvector RAG semantic search and in-flight references when enabled.
     """
     section = payload.section or ""
     subtopic = payload.subtopic or ""
     ref_pool = await get_subtopic_reference_questions(section=section, subtopic=subtopic, limit=50)
-    dup_res = evaluate_duplicate(
-        payload.model_dump(), ref_pool, threshold=config.DUPLICATE_API_THRESHOLD
-    )
+    if config.ENABLE_PGVECTOR_RAG:
+        dup_res = await evaluate_duplicate_rag(
+            payload.model_dump(), ref_pool, threshold=config.DUPLICATE_API_THRESHOLD
+        )
+    else:
+        dup_res = evaluate_duplicate(
+            payload.model_dump(), ref_pool, threshold=config.DUPLICATE_API_THRESHOLD
+        )
     return {"success": True, "duplicate_check": dup_res.model_dump()}
 
 
-def _build_csv_headers() -> list[str]:
-    """Returns column header labels for Question Bank CSV export."""
-    return [
-        "ID",
-        "Run_ID",
-        "Batch_ID",
-        "Combination_ID",
-        "Section",
-        "Subcategory",
-        "Difficulty",
-        "MCAT_Scaled_Score",
-        "AAMC_Skill",
-        "Content_Domain",
-        "Question_Type",
-        "Interaction_Type",
-        "Primary_Trap",
-        "Passage_Required",
-        "Visual_Type",
-        "Image_URL",
-        "Image_Description",
-        "Stimulus",
-        "Question Stem",
-        "Option A",
-        "Option B",
-        "Option C",
-        "Option D",
-        "Correct Answer",
-        "Explanation",
-        "Final Score",
-        "Cycles",
-        "Created At",
-    ]
-
-
-def _build_csv_row(q: Question) -> list[Any]:
-    """Constructs a single CSV export row for a Question schema record."""
-    opts = {opt.id: opt.text for opt in q.options}
-    if q.image_url:
-        img_val = f"/api/questions/{q.id}/image" if q.image_url.startswith("data:") else q.image_url
-    elif q.image_svg:
-        img_val = f"/api/questions/{q.id}/image"
+@router.post("/questions/semantic-search")
+async def semantic_search_questions_endpoint(payload: SemanticSearchRequest) -> dict[str, Any]:
+    """
+    Finds semantically similar questions using pgvector cosine similarity or hybrid (vector + FTS) search.
+    """
+    if payload.hybrid:
+        matches = await hybrid_search_questions(
+            payload.query,
+            section=payload.section,
+            subtopic=payload.subtopic,
+            limit=payload.limit,
+        )
     else:
-        img_val = ""
+        matches = await find_similar_questions(
+            payload.query,
+            section=payload.section,
+            subtopic=payload.subtopic,
+            limit=payload.limit,
+            min_similarity=payload.min_similarity,
+        )
+    return {
+        "success": True,
+        "count": len(matches),
+        "query": payload.query,
+        "results": [m.to_dict() for m in matches],
+    }
 
-    return [
-        q.id,
-        q.run_id or "",
-        q.batch_id or "",
-        q.combination_id or "",
-        q.section_label,
-        q.subtopic,
-        q.difficulty,
-        q.mcat_scaled_score or "",
-        q.aamc_skill or "",
-        q.content_domain or "",
-        q.question_type or "",
-        q.interaction_type or "single_choice",
-        q.primary_trap or "",
-        q.passage_required or "",
-        q.visual_type or "None",
-        img_val,
-        q.image_description or "",
-        q.stimulus_text or "",
-        q.question_stem,
-        opts.get("A", ""),
-        opts.get("B", ""),
-        opts.get("C", ""),
-        opts.get("D", ""),
-        q.correct_answer_id,
-        q.explanation,
-        q.final_score,
-        q.iteration_count,
-        q.created_at,
-    ]
+
+@router.post("/questions/rag-context")
+async def get_rag_context_endpoint(payload: RAGContextRequest) -> dict[str, Any]:
+    """
+    Retrieves high-scoring few-shot exemplars and anti-collision neighbor avoidance stems
+    to ground question generation workflows.
+    """
+    gen_req = GenerationRequest(
+        section=payload.section,
+        subtopic=payload.subtopic or None,
+        thematic_angle=payload.thematic_angle or None,
+    )
+    rag_ctx = await retrieve_rag_exemplar_context(gen_req, limit=payload.limit)
+    return {"success": True, "rag_context": rag_ctx.to_dict()}
+
+
+@router.post("/questions/backfill-embeddings")
+async def backfill_embeddings_endpoint(payload: BackfillEmbeddingsRequest) -> dict[str, Any]:
+    """
+    Triggers batch backfilling of 1536-dimensional vector embeddings for questions lacking vectors.
+    """
+    result = await backfill_question_embeddings(batch_size=payload.batch_size)
+    return {"success": True, **result}
+
+
+# Backward-compatible aliases for CSV export builders
+_build_csv_headers = build_csv_headers
+_build_csv_row = build_csv_row
 
 
 @router.get("/export")
@@ -376,12 +377,7 @@ async def export_questions(
             headers={"Content-Disposition": "attachment; filename=mcat_question_bank.json"},
         )
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(_build_csv_headers())
-    for q in questions:
-        writer.writerow(_build_csv_row(q))
-    csv_data = output.getvalue()
+    csv_data = generate_questions_csv(questions)
     return Response(
         content=csv_data,
         media_type="text/csv",

@@ -32,6 +32,13 @@ from app.workflow.state import AgentWorkflowState
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "_run_question_review_loop",
+    "count_llm_calls",
+    "llm_budget_exhausted",
+    "run_question_review_loop",
+]
+
 
 def count_llm_calls(state: AgentWorkflowState) -> int:
     """LLM calls recorded so far in this attempt (mock/heuristic results count as zero)."""
@@ -202,7 +209,7 @@ async def _regenerate_with_events(
     )
 
 
-async def _run_question_review_loop(
+async def run_question_review_loop(
     state: AgentWorkflowState,
     idx: int,
     total_qty: int,
@@ -438,3 +445,7 @@ async def _run_question_review_loop(
             )
 
         return True
+
+
+_run_question_review_loop = run_question_review_loop
+

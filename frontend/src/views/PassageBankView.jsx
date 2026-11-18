@@ -116,6 +116,7 @@ export default function PassageBankView({
           onSavePassage={handleSavePassage}
           onDeletePassage={handleRequestDeletePassage}
           onUpdateQuestion={handleUpdateQuestion}
+          onNavigateToWizard={onNavigateToWizard}
         />
       ) : (
         /* ── Master Catalog List ──────────────────────────────────────────────── */

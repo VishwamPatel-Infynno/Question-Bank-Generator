@@ -29,14 +29,16 @@ async def test_prompt_builder_includes_additional_instructions():
     assert instruction_text in prompt
 
 
-async def test_prompt_builder_falls_back_to_custom_prompt():
-    fallback_text = "Emphasize renal bicarbonate reabsorption mechanisms."
+async def test_additional_instructions_is_canonical_field():
+    instruction_text = "Emphasize renal bicarbonate reabsorption mechanisms and Na+/H+ exchangers."
     req = GenerationRequest(
         section=MCATSection.CHEM_PHYS,
         subtopic="Renal Physiology",
-        custom_prompt=fallback_text,
+        additional_instructions=instruction_text,
     )
     prompt = _build_generator_user_prompt(req)
 
     assert "CRITICAL EDUCATOR INSTRUCTION (HIGH FIDELITY MANDATE):" in prompt
-    assert fallback_text in prompt
+    assert instruction_text in prompt
+    assert hasattr(req, "additional_instructions")
+    assert not hasattr(req, "custom_prompt")

@@ -48,7 +48,9 @@ export {
   computeJobQuestionCounts,
   hasJobPassage,
   hasJobDiagram,
-  sortJobQuestions
+  sortJobQuestions,
+  resolveJobActualCount,
+  isJobShortfall
 } from './batchJobHelpers';
 
 /** Question field helpers shared across cards, tables and exports */

@@ -5,12 +5,16 @@ import { Clock, RotateCcw, CheckCircle2, AlertCircle } from 'lucide-react';
  */
 export default function BatchJobHeader({
   job,
+  actualCount,
   targetCount = 5,
   isJobRunning = false,
   isJobDone = false,
   isJobFailed = false,
   isJobPending = false
 }) {
+  const displayCount = actualCount ?? job?.actual_count ?? 0;
+  const isShortfall = displayCount < targetCount;
+
   return (
     <div className="batch-job-header">
       <div className="batch-job-header-left">
@@ -50,10 +54,20 @@ export default function BatchJobHeader({
         )}
 
         {isJobDone && (
-          <span className="badge badge-success batch-job-status-badge">
-            <CheckCircle2 size={11} />
-            <span>Completed</span>
-          </span>
+          isShortfall ? (
+            <span
+              className="badge badge-warning batch-job-status-badge"
+              title={`Shortfall: Generated ${displayCount} of ${targetCount} questions`}
+            >
+              <AlertCircle size={11} />
+              <span>Shortfall ({displayCount}/{targetCount})</span>
+            </span>
+          ) : (
+            <span className="badge badge-success batch-job-status-badge">
+              <CheckCircle2 size={11} />
+              <span>Completed</span>
+            </span>
+          )
         )}
 
         {isJobFailed && (
@@ -63,7 +77,7 @@ export default function BatchJobHeader({
           </span>
         )}
 
-        {((isJobFailed || (isJobDone && job.actual_count < targetCount)) && (job.trial_count >= 3)) && (
+        {((isJobFailed || (isJobDone && isShortfall)) && (job.trial_count >= 3)) && (
           <span
             className="badge badge-warning batch-job-status-badge"
             title="All 3 autonomous replenishment trials completed"
@@ -73,8 +87,8 @@ export default function BatchJobHeader({
         )}
       </div>
 
-      <span className={`batch-job-count-text ${isJobDone ? 'done' : ''}`}>
-        {job.actual_count} / {targetCount} Qs
+      <span className={`batch-job-count-text ${isJobDone ? (isShortfall ? 'shortfall' : 'done') : ''}`}>
+        {displayCount} / {targetCount} Qs
       </span>
     </div>
   );

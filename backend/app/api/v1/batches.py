@@ -22,6 +22,7 @@ from app.repositories import (
 )
 from app.schemas import (
     BATCH_STATUSES,
+    COMPLETED_STATES,
     BatchStatus,
     GenerationBatch,
     GenerationRequest,
@@ -121,11 +122,17 @@ async def get_single_batch(batch_id: str) -> dict[str, Any]:
         j_key = q.job_id or q.run_id or "unassigned"
         questions_by_job.setdefault(j_key, []).append(q_dump)
 
-    # Augment jobs with their questions
+    # Augment jobs with their questions and synchronized actual question counts
     jobs_with_questions = []
     for j in jobs:
         j_dump = j.model_dump()
-        j_dump["questions"] = questions_by_job.get(j.id, [])
+        job_qs = questions_by_job.get(j.id, [])
+        j_dump["questions"] = job_qs
+        # Synchronize actual_count with ground-truth visible questions when questions exist
+        if job_qs:
+            j_dump["actual_count"] = len(job_qs)
+        elif j.status in COMPLETED_STATES and j.actual_count > 0:
+            j_dump["actual_count"] = 0
         jobs_with_questions.append(j_dump)
 
     return {

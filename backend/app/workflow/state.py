@@ -6,7 +6,7 @@ multi-agent workflow pipeline (Question Generator, Option Balancer, Reviewer, Bl
 Deduplicator, and Image Generator).
 
 Every TypedDict uses total=False to accommodate progressive stage population while
-guaranteeing full static typing, IDE autocompletion, and backward-compatible serialization.
+guaranteeing full static typing, IDE autocompletion, and robust serialization.
 """
 
 from __future__ import annotations

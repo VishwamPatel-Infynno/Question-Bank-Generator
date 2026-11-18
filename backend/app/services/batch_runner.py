@@ -271,6 +271,8 @@ async def auto_resolve_batch_and_refill(
                     len(excess_to_delete),
                 )
             await update_job_progress(job.id, actual_count=job.target_count)
+        else:
+            await update_job_progress(job.id, actual_count=len(job_qs))
 
     await refresh_batch_aggregates(batch_id, allow_complete=False)
     refreshed_b = await get_batch_by_id(batch_id)

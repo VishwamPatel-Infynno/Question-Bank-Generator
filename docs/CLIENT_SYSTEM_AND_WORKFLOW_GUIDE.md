@@ -4,7 +4,7 @@
 > **Prepared by**: Infynno Solutions LLP • Infinite Innovations • [infynno.com](https://infynno.com/)  
 > **Product**: Infynno MCAT Question Bank Generator v2.0  
 > **Target Audience**: Client Leadership, Product Stakeholders, Medical Admissions Educators, Pre-Med Faculty, and Test-Prep Authors  
-> **System Status**: Fully Implemented, Tested (396 Backend + 119 Frontend Tests), and Production-Ready  
+> **System Status**: Fully Implemented, Tested (424 Backend + 119 Frontend Tests), and Production-Ready  
 
 ---
 
@@ -407,7 +407,7 @@ $$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\te
 
 ### Full-Stack Architecture Specifications
 - **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (119 unit tests across 13 test files).
-- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (396 deterministic test suite).
+- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (424 deterministic test suite across 63 modules; 434 total tests).
 - **Database**: PostgreSQL 16 with native JSONB columns for multi-stage payloads, rubrics, and token tracking; UUID4 primary keys; automated schema migrations on startup.
 - **Observability**: Prometheus `/metrics` endpoint exposing real-time worker pool occupancy, batch lifecycle states, and token expenditures.
 - **Security & Hygiene**:

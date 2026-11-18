@@ -11,7 +11,8 @@ import {
   Trash2,
   Image as ImageIcon,
   Tag,
-  Target
+  Target,
+  Sparkles
 } from 'lucide-react';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
 import SharedPassageCard from '../question/SharedPassageCard';
@@ -82,6 +83,15 @@ function QuestionBankCardRow({
               <span className="badge badge-emerald qbank-table-score-badge">
                 <Award size={10} /> {q.final_score || 95}/100
               </span>
+
+              {q.semantic_similarity != null && (
+                <span
+                  className="badge badge-cyan qbank-table-semantic-badge"
+                  title={`pgvector Semantic Cosine Match: ${Math.round(q.semantic_similarity * 100)}%`}
+                >
+                  <Sparkles size={10} /> {Math.round(q.semantic_similarity * 100)}% Match
+                </span>
+              )}
 
               {q.aamc_skill && (
                 <span

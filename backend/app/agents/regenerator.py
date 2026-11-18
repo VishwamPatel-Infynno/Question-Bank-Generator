@@ -24,7 +24,7 @@ from app.agents.base import (
     require_offline_mode,
     safe_json_loads,
 )
-from app.agents.generator import _parse_correct_keys, _parse_option_choices, _require_text
+from app.agents.draft_parser import parse_correct_keys, parse_option_choices, require_text
 from app.agents.mock_fixtures import improve_draft_heuristically
 from app.agents.prompt_builder import educator_instruction_block, format_options
 from app.agents.prompts import REGENERATOR_SYSTEM_PROMPT
@@ -119,7 +119,10 @@ Actionable Recommendations:
 ---------------------------------------
 CRITICAL REMEDIATION MANDATE:
 1. Exactly ONE single correct answer: Ensure there is exactly one indisputably correct answer among options A-D. Multiple or ambiguous keys are strictly prohibited.
-2. Complete 3-distractor explanation in accessible language: The explanation must be written in clear, student-friendly language so that any learner can understand the concepts easily without confusion. Provide a step-by-step proof for the single correct key AND individual breakdowns for ALL THREE other options (all 3 distractors) under 'Why Other Options are Incorrect (Distractor & Trap Breakdown):', strictly in alphabetical order (Option A, then Option B, then Option C, then Option D as applicable).
+2. Complete 3-part mentor explanation in accessible language: Write in clear, student-friendly language so that any learner can understand the concepts easily without confusion.
+   - Begin with 'Core Intuition & Big-Picture Takeaway' (2-3 sentences of conceptual intuition).
+   - Under 'Why Option [Key] is Correct:', walk step-by-step through the irrefutable proof.
+   - Under 'Why Other Options are Incorrect (Distractor & Trap Breakdown):', provide individual breakdowns for ALL THREE other options (all 3 distractors) strictly in alphabetical order (Option A, then Option B, then Option C, then Option D as applicable), explaining why each distractor was tempting, its exact scientific/textual flaw, and how to spot and eliminate it. Never omit or combine any distractor.
 3. Equalize option lengths: Count the words in every option. All 4 options MUST be {OPTION_PARITY_TEXT}. Do NOT make the correct key longer or more hedged than the distractors.
 4. Avoid 3-vs-1 polarity outliers: Ensure all 4 options share parallel sentence structure, length, and polarity (never have 3 options negative and 1 positive).
 5. Step-by-step proof: Provide an indisputable, cohesive step-by-step proof in the explanation without referring to prior drafts or earlier iterations.
@@ -134,10 +137,10 @@ Please re-generate and refine this question to resolve all weaknesses and produc
         if not isinstance(data, dict):
             raise ValueError(f"Model output must be a JSON object, got {type(data).__name__}")
 
-        # Reuse shared parsers from generator.py - single source of truth for option handling
-        options = _parse_option_choices(data.get("options", []), data)
+        # Reuse shared parsers from draft_parser.py - single source of truth for option handling
+        options = parse_option_choices(data.get("options", []), data)
         # Keep the draft's key only when the model omits one (never guess a new key)
-        correct_id_str, keys_list = _parse_correct_keys(
+        correct_id_str, keys_list = parse_correct_keys(
             data, options, fallback_keys=draft.correct_answer_ids or None
         )
 
@@ -164,11 +167,11 @@ Please re-generate and refine this question to resolve all weaknesses and produc
         )
         return QuestionDraft(
             stimulus_text=stimulus,
-            question_stem=_require_text(data, "question_stem"),
+            question_stem=require_text(data, "question_stem"),
             options=options,
             correct_answer_id=correct_id_str,
             correct_answer_ids=keys_list,
-            explanation=order_distractors_in_explanation(_require_text(data, "explanation")),
+            explanation=order_distractors_in_explanation(require_text(data, "explanation")),
             image_needed=resolved_img_needed,
             image_prompt_or_type=data.get("image_prompt_or_type") or draft.image_prompt_or_type,
             # Metadata describes the question's design, not this rewrite: carry it over

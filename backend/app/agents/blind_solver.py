@@ -43,13 +43,13 @@ CRITICAL INSTRUCTIONS:
    - 70-89%: Likely correct, but minor ambiguity in phrasing or one distractor is uncomfortably close.
    - <70%: Highly ambiguous question, flawed stem, or multiple defensible answers.
 6. Evaluate Ambiguity: Set "is_ambiguous" to true if there is ANY reasonable interpretation under which another choice could be argued as correct, or if the question stem lacks crucial information.
-
-7. If a figure is described rather than shown, reason only from the description and treat missing numeric detail as a source of ambiguity.
+7. Concise High-Yield Rationale: Keep "solver_rationale" crisp and focused (2-4 sentences: 1 sentence stating the direct proof for the selected key, followed by brief elimination notes for distractors). Do NOT write lengthy essays.
+8. If a figure is described rather than shown, reason only from the description and treat missing numeric detail as a source of ambiguity.
 
 OUTPUT FORMAT:
 Respond ONLY with a valid JSON object. Write your reasoning FIRST so the answer follows from it:
 {
-  "solver_rationale": "<step-by-step reasoning that rules each choice in or out>",
+  "solver_rationale": "<concise 2-4 sentence proof and distractor elimination>",
   "ambiguity_notes": "<any alternative defensible reading, or empty string>",
   "is_ambiguous": false,
   "confidence": <integer 0-100>,
@@ -125,10 +125,13 @@ def _format_blind_solver_prompt(
     prompt_lines = [f"Section: {enum_value(req.section)}"]
     if req.topic:
         prompt_lines.append(f"Topic: {req.topic}")
+    if req.question_type:
+        prompt_lines.append(f"Question Archetype: {req.question_type}")
 
-    if draft.stimulus_text and draft.stimulus_text.strip():
+    stimulus = (draft.stimulus_text or req.shared_stimulus or "").strip()
+    if stimulus:
         prompt_lines.append(
-            f"\n[READING PASSAGE / EXPERIMENTAL STIMULUS]:\n{draft.stimulus_text.strip()}"
+            f"\n[READING PASSAGE / EXPERIMENTAL STIMULUS]:\n{stimulus}"
         )
     if draft.image_needed and draft.image_prompt_or_type:
         prompt_lines.append(

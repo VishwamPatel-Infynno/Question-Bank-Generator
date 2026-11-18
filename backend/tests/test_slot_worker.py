@@ -181,3 +181,55 @@ async def test_slot_worker_successful_generation(monkeypatch):
     q_gen_evts = [e for e in events if e.get("event_type") == "question_generated"]
     assert len(q_gen_evts) == 1
     assert q_gen_evts[0]["data"]["question"]["id"] == "q_test_1"
+
+
+async def test_slot_worker_exhausted_replenishments_emits_question_failed(monkeypatch):
+    """When all replenishment attempts fail review, worker emits question_failed and logs error."""
+    ctx = _make_context(idx=4, total_qty=5)
+
+    async def mock_gen(state):
+        return {
+            "current_draft": {
+                "question_stem": "Test stem for failed slot",
+                "options": [],
+                "correct_answer": "A",
+            },
+            "current_review": {"total_score": 60},
+            "latest_usage": {"total_tokens": 50, "cost_usd": 0.0005},
+        }
+
+    async def mock_rev(state, **kwargs):
+        # Always fail review to force all replenishment attempts to exhaust
+        return False
+
+    monkeypatch.setattr("app.workflow.slot_worker.fused_generator_node", mock_gen)
+    monkeypatch.setattr(
+        "app.workflow.slot_worker._run_deduplication_anti_collision_loop", AsyncMock()
+    )
+    monkeypatch.setattr(
+        "app.workflow.slot_worker._refresh_duplicate_info_after_review", AsyncMock()
+    )
+    monkeypatch.setattr("app.workflow.slot_worker.SLOT_REPLENISH_DELAY_SECONDS", 0.0)
+    monkeypatch.setattr(config, "WORKFLOW_MAX_WORKER_RETRIES", 2)
+
+    ctx.review_loop_fn = mock_rev
+
+    await run_slot_worker(ctx)
+
+    # Question slot 4 (Q5) must remain None
+    assert ctx.outcomes_questions[4] is None
+    # Rejections recorded for each attempt
+    assert len(ctx.outcomes_rejections) == 3
+    # Error recorded in outcomes_errors
+    assert len(ctx.outcomes_errors) == 1
+    assert "Slot 5/5 failed to fulfill" in ctx.outcomes_errors[0]
+
+    # Verify question_failed event was dispatched
+    events = []
+    while not ctx.event_queue.empty():
+        events.append(await ctx.event_queue.get())
+
+    failed_evts = [e for e in events if e.get("event_type") == "question_failed"]
+    assert len(failed_evts) == 1
+    assert failed_evts[0]["data"]["index"] == 5
+    assert failed_evts[0]["data"]["total"] == 5

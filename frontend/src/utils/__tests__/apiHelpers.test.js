@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SECTION_FILTER_OPTIONS, SECTION_IDS, getSectionShortLabel } from '../../constants/mcat';
-import { fetchQuestions, updateQuestionStatus, deleteBatch } from '../../services/api';
+import {
+  fetchQuestions,
+  updateQuestionStatus,
+  deleteBatch,
+  fetchMagicSetup,
+  fetchEnhancedInstructions,
+  fetchRefinedQuestion,
+  fetchPassageAudit,
+  fetchStudyGuide
+} from '../../services/api';
 
 describe('section short labels', () => {
   it('come from one table', () => {
@@ -51,5 +60,66 @@ describe('api request helper', () => {
     res.clone = () => res;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res));
     await expect(deleteBatch('b9')).rejects.toThrow('Delete batch b9 failed (HTTP 404): Batch not found');
+  });
+
+  it('fetchMagicSetup sends prompt to /api/ai/magic-setup', async () => {
+    const fetchMock = okJson({ section: 'bio_biochem', topic: 'Renal' });
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await fetchMagicSetup('10 renal questions');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/ai/magic-setup');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ prompt: '10 renal questions' });
+    expect(result.section).toBe('bio_biochem');
+  });
+
+  it('fetchEnhancedInstructions sends payload to /api/ai/enhance-instructions', async () => {
+    const fetchMock = okJson({ enhanced_instructions: 'AAMC Mandate' });
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await fetchEnhancedInstructions({
+      instructions: 'make it hard',
+      section: 'chem_phys',
+      topic: 'Kinetics'
+    });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/ai/enhance-instructions');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body).instructions).toBe('make it hard');
+    expect(result.enhanced_instructions).toBe('AAMC Mandate');
+  });
+
+  it('fetchRefinedQuestion sends question and action to /api/ai/refine-question', async () => {
+    const fetchMock = okJson({ refined_question: { question_stem: 'Refined stem' } });
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await fetchRefinedQuestion({
+      action: 'polish_distractor',
+      question: { question_stem: 'Original stem' }
+    });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/ai/refine-question');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body).action).toBe('polish_distractor');
+    expect(result.refined_question.question_stem).toBe('Refined stem');
+  });
+
+  it('fetchPassageAudit sends passage text to /api/ai/audit-passage', async () => {
+    const fetchMock = okJson({ flesch_kincaid_grade: 12.5, aamc_alignment_score: 95 });
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await fetchPassageAudit('Sample passage text here.');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/ai/audit-passage');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ passage_text: 'Sample passage text here.' });
+    expect(result.aamc_alignment_score).toBe(95);
+  });
+
+  it('fetchStudyGuide sends questions to /api/ai/study-guide', async () => {
+    const fetchMock = okJson({ title: 'Study Guide', flashcards: [] });
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await fetchStudyGuide([{ question_stem: 'Sample stem' }]);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/ai/study-guide');
+    expect(init.method).toBe('POST');
+    expect(result.title).toBe('Study Guide');
   });
 });

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 # Regeneration attempts after a hard duplicate is found, before the draft goes on regardless
-DEDUP_REGEN_MAX_RETRIES = 3
+DEDUP_REGEN_MAX_RETRIES = 1
 
 
 # Pools at least this large are scored in a worker thread so the event loop (SSE, polling, other
@@ -31,10 +31,106 @@ async def _evaluate_duplicate_async(
 ) -> DuplicateCheckResult:
     """Asynchronously evaluates duplicate similarity against a reference pool, offloading large pools to a thread."""
     if len(ref_pool) >= _DEDUP_THREAD_POOL_MIN:
-        return await asyncio.to_thread(
+        result = await asyncio.to_thread(
             evaluate_duplicate, draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
         )
-    return evaluate_duplicate(draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold)
+    else:
+        result = evaluate_duplicate(draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold)
+
+    # Hybrid Semantic Cosine Check: catch semantic duplicates with different vocabulary
+    if config.ENABLE_PGVECTOR_RAG and not result.is_duplicate:
+        cand_stem = draft.get("question_stem") or ""
+        cand_vec = draft.get("embedding")
+        if not cand_vec and cand_stem:
+            try:
+                from app.services.embeddings import embed_text
+
+                cand_vec = await embed_text(cand_stem)
+                draft["embedding"] = cand_vec
+            except Exception as exc:
+                logger.debug("In-flight embedding generation skipped (%s)", exc)
+
+        if cand_vec:
+            from app.schemas.extractors import extract_field as _field
+            from app.services.embeddings import cosine_similarity
+
+            highest_sim = 0.0
+            matched_ref = None
+            semantic_threshold = min(config.RAG_SEMANTIC_DEDUP_THRESHOLD, 0.80)
+
+            for ref in ref_pool:
+                ref_id = _field(ref, "id")
+                cand_id = _field(draft, "id")
+                if cand_id and ref_id and str(cand_id) == str(ref_id):
+                    continue
+
+                ref_vec = (
+                    ref.get("embedding")
+                    if isinstance(ref, dict)
+                    else getattr(ref, "embedding", None)
+                )
+                if not ref_vec:
+                    ref_stem = (
+                        ref.get("question_stem")
+                        if isinstance(ref, dict)
+                        else getattr(ref, "question_stem", "")
+                    )
+                    if ref_stem:
+                        try:
+                            from app.services.embeddings import embed_text
+
+                            ref_vec = await embed_text(ref_stem)
+                            if isinstance(ref, dict):
+                                ref["embedding"] = ref_vec
+                        except Exception:
+                            pass
+
+                if ref_vec and len(ref_vec) == len(cand_vec):
+                    sim = cosine_similarity(cand_vec, ref_vec)
+                    if sim > highest_sim:
+                        highest_sim = sim
+                        matched_ref = ref
+
+            if highest_sim >= semantic_threshold and matched_ref is not None:
+                matched_id = _field(matched_ref, "id")
+                matched_stem = _field(matched_ref, "question_stem")
+                matched_expl = _field(matched_ref, "explanation")
+                raw_opts = (
+                    matched_ref.get("options")
+                    if isinstance(matched_ref, dict)
+                    else getattr(matched_ref, "options", [])
+                )
+                formatted_opts = [
+                    o
+                    if isinstance(o, dict)
+                    else {"id": getattr(o, "id", "A"), "text": getattr(o, "text", "")}
+                    for o in (raw_opts or [])
+                ]
+                return DuplicateCheckResult(
+                    is_duplicate=True,
+                    is_soft_warning=False,
+                    similarity_score=highest_sim,
+                    matched_question_id=str(matched_id) if matched_id else None,
+                    matched_question_stem=matched_stem,
+                    matched_options=formatted_opts,
+                    matched_explanation=matched_expl,
+                    match_reason=(
+                        f"pgvector Semantic In-Flight Sibling Collision ({int(highest_sim * 100)}% cosine match): "
+                        f"tests identical cognitive concept"
+                    ),
+                )
+            if (
+                highest_sim >= config.DUPLICATE_SOFT_THRESHOLD
+                and matched_ref is not None
+                and not result.is_soft_warning
+            ):
+                result.is_soft_warning = True
+                result.similarity_score = max(result.similarity_score, highest_sim)
+                result.match_reason = (
+                    f"pgvector Semantic Sibling Proximity ({int(highest_sim * 100)}% cosine match)"
+                )
+
+    return result
 
 
 _IN_FLIGHT_BATCH_STEMS: dict[str, list[dict[str, Any]]] = {}
@@ -49,7 +145,12 @@ def _slot(job_id: str | None, worker_idx: int) -> tuple[str | None, int]:
 
 
 async def register_in_flight_draft(
-    batch_id: str | None, draft: dict[str, Any], worker_idx: int, job_id: str | None = None
+    batch_id: str | None,
+    draft: dict[str, Any],
+    worker_idx: int,
+    job_id: str | None = None,
+    passage_id: str | None = None,
+    stimulus_text: str | None = None,
 ) -> None:
     """Registers a freshly drafted stem in the batch pool so concurrent siblings (same job or
     another job of the batch) can detect it before it is persisted."""
@@ -63,6 +164,25 @@ async def register_in_flight_draft(
         item["_slot"] = slot
         # Synthetic id so a collision with an in-flight sibling is recognisable as such.
         item["id"] = f"in_flight_{job_id or 'live'}_{worker_idx}"
+        if passage_id or draft.get("passage_id"):
+            item["passage_id"] = draft.get("passage_id") or passage_id
+        if stimulus_text or draft.get("stimulus_text"):
+            item["stimulus_text"] = draft.get("stimulus_text") or stimulus_text
+        if batch_id or draft.get("batch_id"):
+            item["batch_id"] = draft.get("batch_id") or batch_id
+        if draft.get("embedding"):
+            item["embedding"] = draft["embedding"]
+        elif config.ENABLE_PGVECTOR_RAG:
+            stem = draft.get("question_stem") or ""
+            if stem:
+                try:
+                    from app.services.embeddings import embed_text
+
+                    vec = await embed_text(stem)
+                    item["embedding"] = vec
+                    draft["embedding"] = vec
+                except Exception as exc:
+                    logger.debug("In-flight draft embedding generation skipped (%s)", exc)
         pool.append(item)
 
 
@@ -130,8 +250,32 @@ async def _refresh_duplicate_info_after_review(
     if state.get("iteration_count", 1) <= 1:
         return
     cur_draft = state.get("current_draft") or {}
+    passage_id = req.passage_id or (
+        state.get("request", {}).get("passage_id")
+        if isinstance(state.get("request"), dict)
+        else None
+    )
+    stimulus_text = req.shared_stimulus or (
+        state.get("request", {}).get("shared_stimulus")
+        if isinstance(state.get("request"), dict)
+        else None
+    )
+    if passage_id and not cur_draft.get("passage_id"):
+        cur_draft["passage_id"] = passage_id
+    if stimulus_text and not cur_draft.get("stimulus_text"):
+        cur_draft["stimulus_text"] = stimulus_text
+    if batch_key and not cur_draft.get("batch_id"):
+        cur_draft["batch_id"] = batch_key
+
     batch_key = batch_key or req.batch_id or req.run_id
-    await register_in_flight_draft(batch_key, cur_draft, idx, job_id=job_id)
+    await register_in_flight_draft(
+        batch_key,
+        cur_draft,
+        idx,
+        job_id=job_id,
+        passage_id=passage_id,
+        stimulus_text=stimulus_text,
+    )
     in_flight = await get_in_flight_drafts(batch_key, idx, job_id=job_id)
     ref_pool = (
         list(db_reference_pool) + [q for q in outcomes_questions if q is not None] + in_flight
@@ -169,11 +313,35 @@ async def _run_deduplication_anti_collision_loop(
     threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
     soft_threshold = config.DUPLICATE_SOFT_THRESHOLD if soft_threshold is None else soft_threshold
     cur_draft = state.get("current_draft") or {}
+    passage_id = req.passage_id or (
+        state.get("request", {}).get("passage_id")
+        if isinstance(state.get("request"), dict)
+        else None
+    )
+    stimulus_text = req.shared_stimulus or (
+        state.get("request", {}).get("shared_stimulus")
+        if isinstance(state.get("request"), dict)
+        else None
+    )
+    if passage_id and not cur_draft.get("passage_id"):
+        cur_draft["passage_id"] = passage_id
+    if stimulus_text and not cur_draft.get("stimulus_text"):
+        cur_draft["stimulus_text"] = stimulus_text
+    if batch_key and not cur_draft.get("batch_id"):
+        cur_draft["batch_id"] = batch_key
+
     # Must match the key the engine uses to remove drafts, or every run leaks its registry entry.
     batch_key = batch_key or req.batch_id or req.run_id
 
     # Immediately register candidate draft so concurrent siblings detect this stem in flight
-    await register_in_flight_draft(batch_key, cur_draft, idx, job_id=job_id)
+    await register_in_flight_draft(
+        batch_key,
+        cur_draft,
+        idx,
+        job_id=job_id,
+        passage_id=passage_id,
+        stimulus_text=stimulus_text,
+    )
 
     in_flight = await get_in_flight_drafts(batch_key, idx, job_id=job_id)
     active_siblings = [q for q in outcomes_questions if q is not None]
@@ -232,17 +400,39 @@ async def _run_deduplication_anti_collision_loop(
             f"{state.get('diversity_context') or ''} {collision_hint}".strip()
         )
         if "request" in state and isinstance(state["request"], dict):
+            curr_angle = state["request"].get("thematic_angle") or ""
+            matched_stem_snip = (dup_result.matched_question_stem or "")[:60]
+            anti_collision_directive = (
+                f"(Anti-Collision Regeneration Attempt {dedup_retry}, Alternate Trap {alt_trap}: "
+                f"You MUST formulate a completely distinct question testing a separate paragraph, claim, "
+                f"or variable than collided sibling '{matched_stem_snip}...')"
+            )
             state["request"]["thematic_angle"] = (
-                f"Question Item {idx + 1} Retry {dedup_retry} Trap {alt_trap}"
+                f"{curr_angle} • {anti_collision_directive}"
+                if curr_angle
+                else anti_collision_directive
             )
             state["request"]["primary_trap"] = alt_trap
 
         regen_res = await fused_generator_node(state)
         state.update(regen_res)
         cur_draft = state.get("current_draft") or {}
+        if passage_id and not cur_draft.get("passage_id"):
+            cur_draft["passage_id"] = passage_id
+        if stimulus_text and not cur_draft.get("stimulus_text"):
+            cur_draft["stimulus_text"] = stimulus_text
+        if batch_key and not cur_draft.get("batch_id"):
+            cur_draft["batch_id"] = batch_key
 
         # Update in-flight registration with new draft
-        await register_in_flight_draft(batch_key, cur_draft, idx, job_id=job_id)
+        await register_in_flight_draft(
+            batch_key,
+            cur_draft,
+            idx,
+            job_id=job_id,
+            passage_id=passage_id,
+            stimulus_text=stimulus_text,
+        )
         in_flight = await get_in_flight_drafts(batch_key, idx, job_id=job_id)
         ref_pool = list(db_reference_pool) + active_siblings + in_flight
         dup_result = await _evaluate_duplicate_async(

@@ -151,6 +151,9 @@ export default function WizardStep3ReviewAdvanced({ generatorForm, sectionMeta =
         setLikelyMistakePattern={setLikelyMistakePattern}
         additionalInstructions={additionalInstructions}
         setAdditionalInstructions={setAdditionalInstructions}
+        selectedSection={selectedSection}
+        selectedTopic={selectedTopic}
+        difficulty={difficulty}
       />
     </div>
   );

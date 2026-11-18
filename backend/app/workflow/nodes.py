@@ -1,10 +1,24 @@
+"""
+nodes.py - Unified workflow graph nodes module.
+
+Decomposed into:
+- `node_generator.py`: Fused generator and agent usage tracking.
+- `node_reviewer.py`: Reviewer, blind solver, and regenerator nodes.
+- `node_finalize.py`: Reject, image generation, and question finalization nodes.
+
+Consolidates all node operations and provides dynamic test monkeypatch synchronization
+across specialized workflow modules.
+"""
+
 from __future__ import annotations
 
-import asyncio
-import logging
-from dataclasses import dataclass
+import sys
+from types import ModuleType
 from typing import Any
 
+import app.workflow.node_finalize as _node_finalize
+import app.workflow.node_generator as _node_generator
+import app.workflow.node_reviewer as _node_reviewer
 from app.agents.blind_solver import BlindSolverResult, blind_solve_question
 from app.agents.generator import (
     generate_question,
@@ -17,580 +31,86 @@ from app.agents.option_balancer import (
 )
 from app.agents.regenerator import regenerate_question
 from app.agents.reviewer import review_question
-from app.core.config import config
-from app.repositories import save_question
-from app.schemas import (
-    MCAT_SECTION_LABELS,
-    GenerationRequest,
-    OptionChoice,
-    Question,
-    QuestionDraft,
-    ReviewScore,
-    TokenUsage,
-    determine_question_status,
-    is_cars,
+from app.workflow.node_finalize import (
+    finalize_node,
+    image_node,
+    reject_node,
 )
-from app.workflow.state import AgentUsageEntry, AgentWorkflowState
-
-logger = logging.getLogger(__name__)
-
-
-def agent_usage_entry(agent_name: str, usage: TokenUsage, iteration: int = 1) -> AgentUsageEntry:
-    """Constructs an itemized AgentUsageEntry record for a single agent invocation."""
-    entry: AgentUsageEntry = {
-        "agent": agent_name,
-        "iteration": iteration,
-        "prompt_tokens": usage.prompt_tokens,
-        "completion_tokens": usage.completion_tokens,
-        "total_tokens": usage.total_tokens,
-        "cost_usd": usage.cost_usd,
-        "calls": usage.calls,
-    }
-    if usage.duration_ms is not None:
-        entry["duration_ms"] = usage.duration_ms
-    return entry
-
-
-def _record_agent_usage(
-    state: AgentWorkflowState,
-    agent_name: str,
-    usage: TokenUsage,
-    iteration: int = 1,
-) -> dict[str, Any]:
-    """The state update that records one agent call: new run totals and the extended breakdown."""
-    breakdown = [
-        *state.get("agent_usage_breakdown", []),
-        agent_usage_entry(agent_name, usage, iteration),
-    ]
-    return {
-        "total_tokens": state.get("total_tokens", 0) + usage.total_tokens,
-        "total_prompt_tokens": state.get("total_prompt_tokens", 0) + usage.prompt_tokens,
-        "total_completion_tokens": state.get("total_completion_tokens", 0)
-        + usage.completion_tokens,
-        "total_cost_usd": round(state.get("total_cost_usd", 0.0) + usage.cost_usd, 7),
-        "agent_usage_breakdown": breakdown,
-    }
-
-
-async def fused_generator_node(state: AgentWorkflowState) -> dict[str, Any]:
-    """
-    Fused Draft-and-Critique node:
-    Generates the question AND self-scores it in a single LLM round-trip.
-    If self_score > passing_threshold (default 80), sets fused_self_passed=True to bypass redundant review calls.
-    If self_score <= passing_threshold or critique is missing, sets fused_self_passed=False to route
-    to the standard Reviewer node for a full independent audit and remediation loop.
-    """
-    req = GenerationRequest(**state["request"])
-    diversity_context = state.get("diversity_context")
-    if config.ALWAYS_INDEPENDENT_REVIEW:
-        # The independent reviewer re-scores every draft anyway, so a self-critique would be paid
-        # for in output tokens and then discarded. Draft only.
-        logger.info("Executing Question Generator Agent (independent review follows)...")
-        draft, usage = await generate_question(req, diversity_context=diversity_context)
-        self_review = None
-    else:
-        logger.info("Executing Fused Question Generator & Self-Critique Agent...")
-        draft, self_review, usage = await generate_question_with_self_critique(
-            req, diversity_context=diversity_context
-        )
-
-    usage_update = _record_agent_usage(state, "Question Generator", usage, iteration=1)
-
-    outcomes = dict(state.get("stage_outcomes", {}))
-    outcomes["drafting"] = draft.model_dump()
-    outcomes["option_symmetry"] = calculate_option_symmetry(draft.options, draft.correct_answer_ids)
-    if self_review:
-        outcomes["self_critique"] = self_review.model_dump()
-        outcomes["quality_audit"] = self_review.model_dump()
-
-    passing_threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
-    fused_self_passed = (
-        not config.ALWAYS_INDEPENDENT_REVIEW
-        and self_review is not None
-        and self_review.total_score > passing_threshold
-    )
-    logger.info(
-        "FUSED EVAL: fused_self_passed=%s, self_review_score=%s, threshold=%s",
-        fused_self_passed,
-        self_review.total_score if self_review else None,
-        passing_threshold,
-    )
-
-    existing_history = list(state.get("iterations_history", []))
-    if self_review:
-        existing_history.append(
-            {
-                "iteration": 1,
-                "draft": draft.model_dump(),
-                "review": self_review.model_dump(),
-                "usage": usage.model_dump(),
-            }
-        )
-
-    return {
-        "current_draft": draft.model_dump(),
-        "current_review": self_review.model_dump() if self_review else None,
-        "active_agent": "Question Generator",
-        "status": "fused_passed" if fused_self_passed else "fused_drafted",
-        "iteration_count": 1,
-        "iterations_history": existing_history,
-        **usage_update,
-        "latest_usage": usage.model_dump(),
-        "stage_outcomes": outcomes,
-        "fused_self_passed": fused_self_passed,
-    }
-
-
-def build_review_update(
-    state: AgentWorkflowState, review: ReviewScore, usage: TokenUsage
-) -> dict[str, Any]:
-    """Folds a completed review (and its usage) into a state update."""
-    draft = QuestionDraft(**state["current_draft"])
-    iteration = state.get("iteration_count", 1)
-
-    usage_update = _record_agent_usage(state, "Question Reviewer", usage, iteration=iteration)
-
-    history_entry = {
-        "iteration": iteration,
-        "draft": draft.model_dump(),
-        "review": review.model_dump(),
-        "usage": usage.model_dump(),
-    }
-
-    existing_history = list(state.get("iterations_history", []))
-    existing_history.append(history_entry)
-
-    outcomes = dict(state.get("stage_outcomes", {}))
-    outcomes["quality_audit"] = review.model_dump()
-
-    return {
-        "current_review": review.model_dump(),
-        "iterations_history": existing_history,
-        "active_agent": "Question Reviewer",
-        "status": f"reviewed_iteration_{iteration}",
-        **usage_update,
-        "latest_usage": usage.model_dump(),
-        "stage_outcomes": outcomes,
-    }
-
-
-async def reviewer_node(state: AgentWorkflowState) -> dict[str, Any]:
-    req = GenerationRequest(**state["request"])
-    draft = QuestionDraft(**state["current_draft"])
-    iteration = state.get("iteration_count", 1)
-
-    logger.info("Executing Question Reviewer Agent (Iteration %s)...", iteration)
-    review, usage = await review_question(draft, req, iteration)
-    return build_review_update(state, review, usage)
-
-
-@dataclass
-class ReviewAndSolveOutcome:
-    """Results of running the reviewer and blind solver concurrently on one draft."""
-
-    review: ReviewScore
-    review_usage: TokenUsage
-    solver_result: BlindSolverResult | None
-    solver_usage: TokenUsage | None
-    solver_error: BaseException | None
-
-
-async def run_review_and_solve(state: AgentWorkflowState) -> ReviewAndSolveOutcome:
-    """Runs the independent reviewer and the blind solver concurrently.
-
-    They are independent read-only checks of the same draft, so running them together saves one
-    full LLM round trip per question. A reviewer failure is raised immediately; a solver failure
-    is carried in the outcome and only matters if the review passes.
-    """
-    req = GenerationRequest(**state["request"])
-    draft = QuestionDraft(**state["current_draft"])
-    iteration = state.get("iteration_count", 1)
-    logger.info("Executing Reviewer and Blind-Solver concurrently (Iteration %s)...", iteration)
-
-    review_out, solve_out = await asyncio.gather(
-        review_question(draft, req, iteration),
-        blind_solve_question(draft, req),
-        return_exceptions=True,
-    )
-    if isinstance(review_out, BaseException):
-        raise review_out
-    review, review_usage = review_out
-    if isinstance(solve_out, BaseException):
-        return ReviewAndSolveOutcome(review, review_usage, None, None, solve_out)
-    solver_result, solver_usage = solve_out
-    return ReviewAndSolveOutcome(review, review_usage, solver_result, solver_usage, None)
-
-
-def build_usage_only_update(
-    state: AgentWorkflowState, agent_name: str, usage: TokenUsage
-) -> dict[str, Any]:
-    """Accounts for real spend (tokens and cost) of a result whose verdict is not used."""
-    usage_update = _record_agent_usage(
-        state, agent_name, usage, iteration=state.get("iteration_count", 1)
-    )
-    return {
-        **usage_update,
-    }
-
-
-def build_solver_update(
-    state: AgentWorkflowState, result: BlindSolverResult, usage: TokenUsage
-) -> dict[str, Any]:
-    """Folds a completed blind-solver verdict (and its usage) into a state update."""
-    draft = QuestionDraft(**state["current_draft"])
-    iteration = state.get("iteration_count", 1)
-
-    usage_update = _record_agent_usage(
-        state, "Blind-Solver Dual Validation", usage, iteration=iteration
-    )
-
-    outcomes = dict(state.get("stage_outcomes", {}))
-    outcomes["blind_solver_validation"] = result.model_dump()
-
-    blind_passed = result.is_verified
-    cur_review = dict(state.get("current_review") or {})
-
-    if not blind_passed:
-        # Build actionable critique for regenerator
-        expected_key = draft.correct_answer_id
-        critique_msg = (
-            f"Blind Solver selected Option {result.selected_key} instead of intended Option {expected_key}. "
-            f"Solver rationale: {result.solver_rationale}. "
-            f"Ambiguity noted: {result.ambiguity_notes or 'Stem or distractors permit dual interpretation.'} "
-            f"Confidence: {result.confidence}%."
-        )
-        cur_review["total_score"] = min(int(cur_review.get("total_score", 95)), 82)
-        cur_review["passed"] = False
-        weaknesses = list(cur_review.get("weaknesses", []))
-        weaknesses.append(critique_msg)
-        cur_review["weaknesses"] = weaknesses
-
-        recommendations = list(cur_review.get("recommendations", []))
-        recommendations.append(
-            f"Clarify question stem to eliminate ambiguity between intended Option {expected_key} and Option {result.selected_key}."
-        )
-        cur_review["recommendations"] = recommendations
-
-    return {
-        "blind_solver_result": result.model_dump(),
-        "blind_solver_passed": blind_passed,
-        "current_review": cur_review,
-        "active_agent": "Blind-Solver Dual Validation",
-        "status": "blind_solver_passed" if blind_passed else "blind_solver_failed",
-        **usage_update,
-        "latest_usage": usage.model_dump(),
-        "stage_outcomes": outcomes,
-    }
-
-
-async def blind_solver_node(state: AgentWorkflowState) -> dict[str, Any]:
-    """
-    Blind-Solver Dual Validation Node:
-    Tests candidate question against an independent top-score solver without
-    providing the intended key or explanation. Verifies indisputability and flags ambiguities.
-    """
-    req = GenerationRequest(**state["request"])
-    draft = QuestionDraft(**state["current_draft"])
-    iteration = state.get("iteration_count", 1)
-
-    logger.info("Executing Blind-Solver Dual Validation Agent (Iteration %s)...", iteration)
-    result, usage = await blind_solve_question(draft, req)
-    return build_solver_update(state, result, usage)
-
-
-async def regenerator_node(state: AgentWorkflowState) -> dict[str, Any]:
-    req = GenerationRequest(**state["request"])
-    draft = QuestionDraft(**state["current_draft"])
-    review = ReviewScore(**state["current_review"])
-    next_iteration = state.get("iteration_count", 1) + 1
-
-    threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
-    logger.info(
-        "Executing Question Re-Generator Agent (Score %s <= %s -> Iteration %s)...",
-        review.total_score,
-        threshold,
-        next_iteration,
-    )
-    new_draft, usage = await regenerate_question(draft, review, req, next_iteration)
-    new_draft, _ = balance_and_shuffle_options(new_draft)
-    reg_symmetry = calculate_option_symmetry(new_draft.options, new_draft.correct_answer_ids)
-
-    usage_update = _record_agent_usage(
-        state, "Question Re-Generator", usage, iteration=next_iteration
-    )
-
-    outcomes = dict(state.get("stage_outcomes", {}))
-    outcomes["option_symmetry"] = reg_symmetry
-    outcomes["polish_refine"] = {
-        "iteration": next_iteration,
-        "improved_draft": new_draft.model_dump(),
-        "usage": usage.model_dump(),
-    }
-
-    return {
-        "current_draft": new_draft.model_dump(),
-        "iteration_count": next_iteration,
-        "active_agent": "Question Re-Generator",
-        "status": f"regenerated_draft_{next_iteration}",
-        **usage_update,
-        "latest_usage": usage.model_dump(),
-        "stage_outcomes": outcomes,
-    }
-
-
-async def reject_node(state: AgentWorkflowState) -> dict[str, Any]:
-    """
-    Quality Gate Reject Node:
-    Triggered when candidate question fails to score > passing_threshold (default 80) after max attempts.
-    Halts workflow: Bypasses image generation and does NOT persist to database.
-    """
-    req = GenerationRequest(**state["request"])
-    draft = QuestionDraft(**state["current_draft"])
-    review = ReviewScore(**state["current_review"]) if state.get("current_review") else None
-
-    final_score = review.total_score if review else 0
-    iteration = state.get("iteration_count", 1)
-    passing_threshold = state.get("passing_threshold") or config.PASSING_SCORE_THRESHOLD
-
-    logger.warning(
-        "Strict Quality Gate: Question rejected. Score: %s/100 < %s after %s attempts. NOT saving to Question Bank repository.",
-        final_score,
-        passing_threshold,
-        iteration,
-    )
-
-    rejection_payload = {
-        "section": req.section.value,
-        "section_label": MCAT_SECTION_LABELS.get(req.section, req.section.value),
-        "subtopic": req.subtopic or "Core Syllabus",
-        "difficulty": req.difficulty.value,
-        "final_score": final_score,
-        "threshold": passing_threshold,
-        "review_rubric": review.model_dump() if review else None,
-        "iteration_count": iteration,
-        "iterations_history": state.get("iterations_history", []),
-        "draft": draft.model_dump(),
-        "total_tokens": state.get("total_tokens", 0),
-        "total_prompt_tokens": state.get("total_prompt_tokens", 0),
-        "total_completion_tokens": state.get("total_completion_tokens", 0),
-        "total_cost_usd": state.get("total_cost_usd", 0.0),
-        "agent_usage_breakdown": state.get("agent_usage_breakdown", []),
-        "reason": f"Question scored {final_score}/100, which is less than or equal to the required {passing_threshold}-point quality benchmark after {iteration} iteration attempts. Generation halted and question discarded from Question Bank.",
-    }
-
-    return {
-        "status": "rejected_below_threshold",
-        "active_agent": "Quality Gate",
-        "rejection_data": rejection_payload,
-    }
-
-
-async def image_node(state: AgentWorkflowState) -> dict[str, Any]:
-    req = GenerationRequest(**state["request"])
-    draft = QuestionDraft(**state["current_draft"])
-
-    logger.info("Executing Image Generator Agent...")
-    img_url, img_svg, img_desc, usage = await generate_image_stimulus(draft, req)
-
-    visual_category = None
-    if usage and isinstance(usage, dict) and "details" in usage:
-        visual_category = usage["details"].get("medical_modality") or usage["details"].get(
-            "modality"
-        )
-
-    # Accumulate image generation cost and itemized breakdown
-    current_cost = state.get("total_cost_usd", 0.0)
-    image_cost = usage.get("cost_usd", 0.0) if usage else 0.0
-    new_total_cost = round(current_cost + image_cost, 7)
-
-    usage_list = list(state.get("agent_usage_breakdown", []))
-    if usage:
-        usage_list.append(usage)
-
-    outcomes = dict(state.get("stage_outcomes", {}))
-    outcomes["visual_stimulus"] = {
-        "status": "generated",
-        "image_url": img_url,
-        "image_svg": img_svg,
-        "image_description": img_desc,
-        "usage": usage,
-        "ai_validated": True,
-        "image_needed": True,
-        "modality": visual_category,
-    }
-
-    return {
-        "image_url": img_url,
-        "image_svg": img_svg,
-        "image_description": img_desc,
-        "visual_medical_category": visual_category,
-        "visual_clinical_description": img_desc,
-        "active_agent": "Image Generator",
-        "status": "image_generated",
-        "total_cost_usd": new_total_cost,
-        "agent_usage_breakdown": usage_list,
-        "latest_usage": usage,
-        "stage_outcomes": outcomes,
-    }
-
-
-async def finalize_node(state: AgentWorkflowState) -> dict[str, Any]:
-    req = GenerationRequest(**state["request"])
-    draft = QuestionDraft(**state["current_draft"])
-    review = ReviewScore(**state["current_review"]) if state.get("current_review") else None
-
-    options = [OptionChoice(**o) if isinstance(o, dict) else o for o in draft.options]
-    section_label = MCAT_SECTION_LABELS.get(req.section, req.section.value)
-    symmetry = calculate_option_symmetry(options, draft.correct_answer_ids)
-
-    outcomes = dict(state.get("stage_outcomes", {}))
-    outcomes["option_symmetry"] = symmetry
-    if "polish_refine" not in outcomes:
-        outcomes["polish_refine"] = {
-            "status": "bypassed",
-            "reason": f"Draft achieved passing quality score ({review.total_score if review else 95}/100) on initial audit; regeneration loop was not required.",
-        }
-    if "visual_stimulus" not in outcomes:
-        draft_img_needed = bool(getattr(draft, "image_needed", False))
-        if req.allow_ai_images and not draft_img_needed:
-            bypass_reason = (
-                "AI visual necessity assessment evaluated this item and determined that the concept is "
-                "conceptual/theoretical and best tested as a clean, text-focused item without an unnecessary figure."
-            )
-        elif is_cars(req.section):
-            bypass_reason = "Visual stimuli are strictly prohibited in CARS section in accordance with official AAMC standards."
-        else:
-            bypass_reason = f"No visual stimulus needed (image_required='{req.image_required or 'No'}', visual_type='{req.visual_type or 'None'}')."
-
-        outcomes["visual_stimulus"] = {
-            "status": "bypassed",
-            "reason": bypass_reason,
-            "ai_validated": True,
-            "image_needed": draft_img_needed,
-        }
-    effective_trap = (
-        getattr(draft, "primary_trap", None)
-        or (req.primary_trap if req.primary_trap != "Automatic" else None)
-        or "SCOPE_SHIFT"
-    )
-    if req.likely_mistake_pattern == "None":
-        effective_mistake = None
-    else:
-        effective_mistake = getattr(draft, "likely_mistake_pattern", None) or (
-            req.likely_mistake_pattern
-            if req.likely_mistake_pattern not in ("Automatic", "")
-            else None
-        )
-
-    outcomes["final_payload"] = {
-        "id": draft.question_stem[:12],  # placeholder until final_q created below
-        "run_id": req.run_id,
-        "batch_id": req.batch_id,
-        "section": req.section.value,
-        "section_label": section_label,
-        "combination_id": req.combination_id,
-        "content_domain": req.content_domain,
-        "question_type": req.question_type,
-        "interaction_type": req.interaction_type or "single_choice",
-        "primary_trap": effective_trap,
-        "likely_mistake_pattern": effective_mistake,
-        "passage_required": str(req.passage_required) if req.passage_required is not None else None,
-        "passage_mode": req.passage_mode or "single_passage",
-        "passage_id": req.passage_id,
-        "passage_questions": req.passage_questions,
-        "visual_type": req.visual_type or "None",
-        "visual_medical_category": state.get("visual_medical_category")
-        or getattr(draft, "visual_medical_category", None),
-        "visual_clinical_description": state.get("visual_clinical_description")
-        or state.get("image_description"),
-        "image_svg": state.get("image_svg"),
-        "image_url": state.get("image_url"),
-        "image_description": state.get("image_description"),
-        "final_score": review.total_score if review else 95,
-        "correct_answer_id": draft.correct_answer_id,
-        "correct_answer_ids": draft.correct_answer_ids,
-        "total_tokens": state.get("total_tokens", 0),
-        "cost_usd": state.get("total_cost_usd", 0.0),
-        "option_symmetry": symmetry,
-    }
-
-    score_val = review.total_score if review else 95
-    determined_status = determine_question_status(
-        score_val, is_in_progress_batch=bool(req.batch_id)
-    )
-
-    final_q = Question(
-        run_id=req.run_id,
-        batch_id=req.batch_id,
-        status=determined_status,
-        section=req.section.value,
-        section_label=section_label,
-        subtopic=req.subtopic or "Core Syllabus",
-        difficulty=req.difficulty.value,
-        stimulus_text=draft.stimulus_text,
-        question_stem=draft.question_stem,
-        options=options,
-        correct_answer_id=draft.correct_answer_id,
-        correct_answer_ids=draft.correct_answer_ids,
-        explanation=draft.explanation,
-        image_url=state.get("image_url"),
-        image_svg=state.get("image_svg"),
-        image_description=state.get("image_description"),
-        final_score=review.total_score if review else 95,
-        review_rubric=review,
-        iteration_count=state.get("iteration_count", 1),
-        iterations_history=state.get("iterations_history", []),
-        total_tokens=state.get("total_tokens", 0),
-        prompt_tokens=state.get("total_prompt_tokens", 0),
-        completion_tokens=state.get("total_completion_tokens", 0),
-        cost_usd=state.get("total_cost_usd", 0.0),
-        token_usage_details=state.get("agent_usage_breakdown", []),
-        combination_id=req.combination_id,
-        content_domain=req.content_domain,
-        question_type=req.question_type,
-        interaction_type=req.interaction_type or "single_choice",
-        primary_trap=effective_trap,
-        passage_required=str(req.passage_required) if req.passage_required is not None else None,
-        passage_mode=req.passage_mode or "single_passage",
-        passage_id=req.passage_id,
-        passage_questions=req.passage_questions,
-        visual_type=req.visual_type or "None",
-        visual_medical_category=state.get("visual_medical_category")
-        or getattr(draft, "visual_medical_category", None),
-        visual_clinical_description=state.get("visual_clinical_description")
-        or state.get("image_description"),
-        aamc_skill=draft.aamc_skill or req.aamc_skill,
-        subject=req.subject or getattr(draft, "subject", None),
-        unit=req.unit or getattr(draft, "unit", None),
-        topic=req.topic or getattr(draft, "topic", None),
-        subskill=req.subskill or getattr(draft, "subskill", None),
-        likely_mistake_pattern=effective_mistake,
-        duplicate_info=state.get("duplicate_info"),
-        is_duplicate_override=bool(state.get("is_duplicate_override", False)),
-        stage_outcomes=outcomes,
-        option_symmetry=symmetry,
-    )
-    outcomes["final_payload"]["id"] = final_q.id
-
-    # Persist in Question Bank ONLY if auto_save is explicitly requested (e.g. testing)
-    if getattr(req, "auto_save", False):
-        await save_question(final_q)
-        logger.info(
-            "Question auto-saved to Question Bank repository: %s (Score: %s, Cost: $%.5f)",
-            final_q.id,
-            final_q.final_score,
-            final_q.cost_usd,
-        )
-    else:
-        logger.info(
-            "Question candidate verified (%s, Score: %s). Staged for Admin Review & Approval.",
-            final_q.id,
-            final_q.final_score,
-        )
-
-    return {
-        "final_question": final_q.model_dump(),
-        "status": "completed",
-        "active_agent": "Completed",
-        "stage_outcomes": outcomes,
-    }
+from app.workflow.node_generator import (
+    _record_agent_usage,
+    agent_usage_entry,
+    fused_generator_node,
+)
+from app.workflow.node_reviewer import (
+    ReviewAndSolveOutcome,
+    blind_solver_node,
+    build_review_update,
+    build_solver_update,
+    build_usage_only_update,
+    regenerator_node,
+    reviewer_node,
+    run_review_and_solve,
+)
+
+__all__ = [
+    "BlindSolverResult",
+    "ReviewAndSolveOutcome",
+    "_record_agent_usage",
+    "agent_usage_entry",
+    "balance_and_shuffle_options",
+    "blind_solve_question",
+    "blind_solver_node",
+    "build_review_update",
+    "build_solver_update",
+    "build_usage_only_update",
+    "calculate_option_symmetry",
+    "finalize_node",
+    "fused_generator_node",
+    "generate_image_stimulus",
+    "generate_question",
+    "generate_question_with_self_critique",
+    "image_node",
+    "regenerate_question",
+    "regenerator_node",
+    "reject_node",
+    "review_question",
+    "reviewer_node",
+    "run_review_and_solve",
+]
+
+_ROUTING_TARGETS: dict[str, list[ModuleType]] = {
+    # Generator module targets
+    "generate_question": [_node_generator],
+    "generate_question_with_self_critique": [_node_generator],
+    "fused_generator_node": [_node_generator],
+    # Reviewer module targets
+    "review_question": [_node_reviewer],
+    "blind_solve_question": [_node_reviewer],
+    "regenerate_question": [_node_reviewer],
+    "reviewer_node": [_node_reviewer],
+    "blind_solver_node": [_node_reviewer],
+    "regenerator_node": [_node_reviewer],
+    "run_review_and_solve": [_node_reviewer],
+    "build_review_update": [_node_reviewer],
+    "build_solver_update": [_node_reviewer],
+    "build_usage_only_update": [_node_reviewer],
+    # Finalize module targets
+    "generate_image_stimulus": [_node_finalize],
+    "reject_node": [_node_finalize],
+    "image_node": [_node_finalize],
+    "finalize_node": [_node_finalize],
+}
+
+
+class _WorkflowNodesFacade(ModuleType):
+    """Facade module ensuring test monkeypatches on app.workflow.nodes propagate to child modules."""
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        super().__setattr__(name, value)
+        for target_module in _ROUTING_TARGETS.get(name, []):
+            setattr(target_module, name, value)
+
+
+_facade = _WorkflowNodesFacade(__name__, __doc__)
+_facade.__dict__.update(sys.modules[__name__].__dict__)
+sys.modules[__name__] = _facade

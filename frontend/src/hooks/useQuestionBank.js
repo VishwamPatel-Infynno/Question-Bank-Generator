@@ -3,7 +3,7 @@ import { useCopyToClipboard } from './useCopyToClipboard';
 import { useRequestGuard } from './useRequestGuard';
 import { useDebouncedValue } from './useDebouncedValue';
 import { formatQuestionForCopy } from '../utils/questionHelpers';
-import { fetchQuestions, deleteQuestion } from '../services/api';
+import { fetchQuestions, deleteQuestion, searchSemanticQuestions } from '../services/api';
 import { DIFFICULTY, QUESTION_STATUS, normalizeDifficulty } from '../constants';
 
 /**
@@ -40,17 +40,69 @@ export function useQuestionBank() {
   const [sectionFilter, setSectionFilter] = useState('');
   const [diffFilter, setDiffFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState('keyword'); // 'keyword' | 'semantic'
+  const [fetchedSemanticKey, setFetchedSemanticKey] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery);
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'score_desc' | 'score_asc' | 'difficulty'
   const { copiedKey: copiedId, copy } = useCopyToClipboard();
   const [refreshCount, setRefreshCount] = useState(0);
   const guard = useRequestGuard();
 
+  // Derived indicator: semantic search is actively fetching for current input
+  const isSearchingSemantic = Boolean(
+    searchMode === 'semantic' &&
+    debouncedSearch &&
+    debouncedSearch.trim().length >= 2 &&
+    fetchedSemanticKey !== `${debouncedSearch.trim()}:${sectionFilter}:${refreshCount}`
+  );
+
   // Fetch questions with inflight cancellation via AbortController
   useEffect(() => {
     const request = guard.begin();
 
-    // Trigger reload when dependencies or refreshCount change
+    // AI Semantic Vector Search Mode
+    if (searchMode === 'semantic' && debouncedSearch && debouncedSearch.trim().length >= 2) {
+      const searchKey = `${debouncedSearch.trim()}:${sectionFilter}:${refreshCount}`;
+      searchSemanticQuestions(
+        {
+          query: debouncedSearch.trim(),
+          section: sectionFilter || null,
+          limit: 50,
+          hybrid: true,
+          min_similarity: 0.35
+        },
+        request.signal
+      )
+        .then((data) => {
+          if (request.isCurrent()) {
+            setLoadError(null);
+            const mapped = (data.results || []).map((r) => ({
+              ...r,
+              semantic_similarity: r.similarity,
+              retrieval_method: r.retrieval_method
+            }));
+            setRawQuestions(mapped);
+            setRepoStats((prev) => ({
+              ...prev,
+              total_count: data.count || mapped.length
+            }));
+            setLoading(false);
+            setFetchedSemanticKey(searchKey);
+          }
+        })
+        .catch((err) => {
+          if (err.name === 'AbortError') return;
+          console.error('Semantic search failed, falling back to standard search:', err);
+          if (request.isCurrent()) {
+            setLoadError(err.message || 'Semantic search failed');
+            setLoading(false);
+            setFetchedSemanticKey(searchKey);
+          }
+        });
+      return;
+    }
+
+    // Standard Keyword / Substring Filtering Mode
     fetchQuestions(
       {
         section: sectionFilter || undefined,
@@ -83,7 +135,7 @@ export function useQuestionBank() {
           setLoading(false);
         }
       });
-  }, [guard, sectionFilter, diffFilter, debouncedSearch, sortBy, refreshCount]);
+  }, [guard, sectionFilter, diffFilter, debouncedSearch, searchMode, sortBy, refreshCount]);
 
   const loadQuestions = useCallback(() => {
     setLoadError(null);
@@ -146,6 +198,9 @@ export function useQuestionBank() {
     setDiffFilter,
     searchQuery,
     setSearchQuery,
+    searchMode,
+    setSearchMode,
+    isSearchingSemantic,
     sortBy,
     setSortBy,
     copiedId,

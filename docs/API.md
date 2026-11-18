@@ -16,11 +16,16 @@ This document provides a comprehensive technical reference for all REST endpoint
 
 ---
 
-## 2. API Endpoints Summary (40 Operations / 34 Endpoint Paths)
+## 2. API Endpoints Summary (48 Operations / 42 Endpoint Paths; 49 Operations across 43 paths including root `/metrics`)
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/generate` | Triggers multi-agent workflow and streams real-time SSE events (Candidate Staged) |
+| `POST` | `/api/ai/magic-setup` | **AI Copilot**: Parses natural language prompt into pre-filled wizard configuration |
+| `POST` | `/api/ai/enhance-instructions` | **AI Copilot**: Calibrates raw educator instructions into an authentic AAMC prompt mandate |
+| `POST` | `/api/ai/refine-question` | **AI Copilot**: Performs live editorial refinement on question stem, distractors, or explanations |
+| `POST` | `/api/ai/audit-passage` | **AI Diagnostics**: Evaluates passage Flesch-Kincaid grade level, empirical density, and AAMC alignment |
+| `POST` | `/api/ai/study-guide` | **AI Synthesis**: Generates high-yield study guide, executive summaries, trap checklists, and flashcards |
 | `POST` | `/api/questions` | **Admin Review Gate**: Persists an approved candidate question into the Question Bank |
 | `POST` | `/api/questions/batch` | **Admin Review Gate**: Bulk-persists an array of approved candidates atomically |
 | `GET` | `/api/questions` | Lists saved questions with filtering, pagination (`limit`/`offset`), `slim` projection, and repository token metrics |
@@ -28,7 +33,10 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `GET` | `/api/questions/{question_id}` | Retrieves a single question by UUID4 primary key |
 | `POST` | `/api/questions/{question_id}/override-duplicate` | **Admin Review Gate**: Explicitly overrides duplicate collision alert and approves into bank |
 | `POST` | `/api/questions/{question_id}/restore` | **Admin Action**: Restores a soft-deleted question and its linked passage back to active status |
-| `POST` | `/api/questions/check-duplicate` | Evaluates a candidate question draft against the bank for similarity & collisions |
+| `POST` | `/api/questions/check-duplicate` | Evaluates candidate question draft against the bank using pgvector semantic RAG and lexical metrics |
+| `POST` | `/api/questions/semantic-search` | **Semantic Search**: Performs pgvector cosine distance or hybrid (vector + full-text) search over questions |
+| `POST` | `/api/questions/rag-context` | **RAG Prompt Grounding**: Retrieves high-yield exemplars ($\ge 90$) and anti-collision neighbor avoidance stems |
+| `POST` | `/api/questions/backfill-embeddings` | **Admin Action**: Triggers batch population of 1536-dimensional vector embeddings for questions |
 | `DELETE` | `/api/questions/{question_id}` | **Admin Action**: Soft-deletes a question by UUID4, preserving it for batch progress history |
 | `POST` | `/api/questions/delete-batch` | **Admin Action**: Bulk soft-deletes multiple questions atomically, preserving batch progress |
 | `DELETE` | `/api/questions/{question_id}/permanent` | **Admin Action**: Permanently hard-deletes a single question from PostgreSQL by ID, bypassing soft-delete flags |
@@ -105,13 +113,12 @@ Accept: text/event-stream
 | :--- | :--- | :--- | :--- | :--- |
 | `section` | `string` | **Yes** | - | `chem_phys`, `cars`, `bio_biochem`, `psych_soc` |
 | `subtopic` | `string` | No | `null` | Categorized syllabus topic |
-| `difficulty` | `string` | No | `"medium"` | `low`, `medium`, `high` (with backward-compatible support for `easy`, `hard`, `foundational`, `top percentile`) |
+| `difficulty` | `string` | No | `"medium"` | `low`, `medium`, `high` |
 | `aamc_skill` | `string` | No | `null` | Official AAMC SIRS Skill (1-4) or CARS Skill |
 | `allow_ai_images` | `boolean` | No | `false` | Whether AI is permitted to generate visual stimuli across all 7 medical/scientific modalities with full pedagogical and creative freedom |
 | `require_image` | `boolean` | No | `false` | Force visual stimulus generation for the question stem |
 | `require_passage_image`| `boolean` | No | `false` | Force visual diagram generation for the shared passage stimulus |
 | `visual_type` | `string` | No | `"None"` | Visual stimulus generation type: `"None"`, `"AI_FLUX_Image"`, `"SVG_Diagram"`, or `"AI_OpenAI_Image"` (from `KNOWN_VISUAL_TYPES`) |
-| `custom_prompt` | `string` | No | `null` | Contextual steer or clinical scenario / reading passage guidance |
 | `additional_instructions` | `string` | No | `null` | Educator instructions specifying constraints, clinical scenarios, or pedagogical rules strictly enforced across passage generation, question generation, and remediation critique cycles |
 | `questions_to_generate` | `integer` | No | `5` | Quantity to generate (Wizard UI provides `5` [1 Single Job] and `50` [10-Job Batch]; backend permits 1 to 50) |
 | `passage_mode` | `string` | No | `"single_passage"` | `"single_passage"` (all Qs linked to 1 passage) or `"independent"` (standalone discretes) |
@@ -452,7 +459,7 @@ curl -X POST http://localhost:8000/api/questions/e2a39281-b51c-4b6b-88a2-11e2f38
 ### 3.11 On-Demand Question Duplicate Check
 `POST /api/questions/check-duplicate`
 
-Evaluates a candidate question draft against the existing Question Bank repository (scoped to the same Section & Subtopic) and returns real-time similarity metrics and collision status.
+Evaluates a candidate question draft against the existing Question Bank repository (scoped to the same Section & Subtopic) using hybrid pgvector semantic cosine similarity and lexical metrics, returning real-time similarity metrics and collision status.
 
 #### Request Body
 ```json
@@ -482,6 +489,112 @@ Evaluates a candidate question draft against the existing Question Bank reposito
     "is_overridden": false,
     "overridden_at": null
   }
+}
+```
+
+---
+
+### 3.12 Semantic & Hybrid Question Search (pgvector + FTS)
+`POST /api/questions/semantic-search`
+
+Finds semantically similar questions from the Question Bank repository using native PostgreSQL `pgvector` HNSW cosine distance (`vector_cosine_ops`) or hybrid retrieval combining vector similarity with PostgreSQL full-text search (`ts_rank_cd`).
+
+#### Request Body
+```json
+{
+  "query": "What is the primary thermodynamic effect of catalyst addition?",
+  "section": "chem_phys",
+  "subtopic": "Thermodynamics & Reaction Kinetics",
+  "limit": 10,
+  "hybrid": true,
+  "min_similarity": 0.40
+}
+```
+
+#### Response (`200 OK`)
+```json
+{
+  "success": true,
+  "count": 1,
+  "query": "What is the primary thermodynamic effect of catalyst addition?",
+  "results": [
+    {
+      "id": "e2a39281-b51c-4b6b-88a2-11e2f389a9c1",
+      "section": "chem_phys",
+      "subtopic": "Thermodynamics & Reaction Kinetics",
+      "question_stem": "Under physiological conditions, which thermodynamic parameter is altered by the addition of an enzyme catalyst?",
+      "correct_answer_id": "A",
+      "explanation": "Catalysts stabilize transition states and lower activation energy without altering Gibbs free energy (delta G).",
+      "final_score": 96,
+      "similarity": 0.8842,
+      "retrieval_method": "hybrid_pgvector_fts"
+    }
+  ]
+}
+```
+
+---
+
+### 3.13 RAG Exemplar & Anti-Collision Prompt Context
+`POST /api/questions/rag-context`
+
+Retrieves psychometric benchmark exemplars ($\ge 90$ score), nearest neighbor avoidance stems, and common cognitive traps historically recorded for a section and subtopic. Injected into Generator prompts during workflow execution to anchor difficulty and guarantee novelty.
+
+#### Request Body
+```json
+{
+  "section": "bio_biochem",
+  "subtopic": "Enzymology",
+  "thematic_angle": "Allosteric regulation and cooperativity",
+  "limit": 3
+}
+```
+
+#### Response (`200 OK`)
+```json
+{
+  "success": true,
+  "rag_context": {
+    "exemplars": [
+      {
+        "id": "q-101",
+        "question_stem": "How does an uncompetitive inhibitor affect apparent Km and Vmax?",
+        "final_score": 95,
+        "correct_answer_id": "A"
+      }
+    ],
+    "avoidance_stems": [
+      "Which change occurs to Km and Vmax in competitive inhibition?"
+    ],
+    "common_traps": [
+      "Scope_Shift",
+      "Extremum_Trap"
+    ],
+    "prompt_context": "[AAMC PSYCHOMETRIC BENCHMARK EXEMPLARS]:\nExemplar #1 (Score: 95/100): Stem: How does an uncompetitive inhibitor affect apparent Km and Vmax? | Key: A\n\n[STRICT NOVELTY & ANTI-DUPLICATION CONSTRAINT]:\nThe Question Bank already contains questions testing:\n- Which change occurs to Km and Vmax in competitive inhibition?\nYou MUST formulate a completely novel scenario testing an unaddressed variable, mechanism, or relationship."
+  }
+}
+```
+
+---
+
+### 3.14 Vector Embedding Backfill Utility
+`POST /api/questions/backfill-embeddings`
+
+Scans active questions in PostgreSQL lacking 1536-dimensional vector embeddings and populates them in configurable batches. Safe to trigger at runtime or as an idempotent data migration task.
+
+#### Request Body
+```json
+{
+  "batch_size": 50
+}
+```
+
+#### Response (`200 OK`)
+```json
+{
+  "success": true,
+  "backfilled": 41,
+  "remaining": 0
 }
 ```
 
@@ -1294,6 +1407,234 @@ mcat_http_requests_total{endpoint="/api/questions/{id}",method="GET",status="200
 # TYPE mcat_http_request_duration_seconds summary
 mcat_http_request_duration_seconds_sum{endpoint="/api/sections",method="GET"} 0.048120
 mcat_http_request_duration_seconds_count{endpoint="/api/sections",method="GET"} 12
+```
+
+---
+
+### 3.35 AI Copilot & Assistive Operations
+
+Provides AI-native interactive capabilities for smart onboarding, prompt calibration, in-flight question refinement, passage quality diagnostics, and post-generation study guide synthesis.
+
+#### 1. Parse Magic Setup Prompt
+`POST /api/ai/magic-setup`
+
+Interprets free-form natural language instructions (e.g. *"Generate 10 hard questions on renal acid-base balance with visual pathways"*) and dynamically maps them to structured wizard configuration parameters (section, topic, subtopic, question count, difficulty, passage requirement, visual modality, and calibrated additional instructions).
+
+##### Request Body (`application/json`)
+```json
+{
+  "prompt": "Create 10 hard questions about enzyme kinetics with Michaelis-Menten Lineweaver-Burk plots"
+}
+```
+
+##### Response (`200 OK`)
+```json
+{
+  "section": "chem_phys",
+  "topic": "Enzyme Kinetics",
+  "subtopic": "Lineweaver-Burk & Michaelis-Menten",
+  "num_questions": 10,
+  "difficulty": "Hard",
+  "include_passage": true,
+  "visual_type": "vector_drawing",
+  "additional_instructions": "Focus on competitive and noncompetitive inhibition dynamics, Km and Vmax graphical shifts."
+}
+```
+
+##### cURL Example
+```bash
+curl -X POST "http://localhost:8000/api/ai/magic-setup" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "10 hard questions about enzyme kinetics with Lineweaver-Burk plots"}'
+```
+
+---
+
+#### 2. Enhance Educator Instructions
+`POST /api/ai/enhance-instructions`
+
+Transforms brief educator bullet points into an authentic, calibrated AAMC psychometric prompt mandate ensuring anti-guessing symmetry, cognitive trap coverage, and clinical passage relevance.
+
+##### Request Body (`application/json`)
+```json
+{
+  "instructions": "make distractors tricky around competitive inhibition Km values",
+  "section": "chem_phys",
+  "topic": "Enzyme Kinetics",
+  "difficulty": "Hard"
+}
+```
+
+##### Response (`200 OK`)
+```json
+{
+  "enhanced_instructions": "PSYCHOMETRIC AUTHORING MANDATE (Enzyme Kinetics):\n- Focus on competitive vs. noncompetitive inhibition distinctions.\n- Design distractor traps targeting student misconceptions around apparent Km increases versus unchanged Vmax.\n- Ensure strict option length symmetry within 3 words and eliminate outlier grammatical cues.\n- Contextualize through clinical pharmacodynamics and drug screening assays."
+}
+```
+
+##### cURL Example
+```bash
+curl -X POST "http://localhost:8000/api/ai/enhance-instructions" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instructions": "make distractors tricky around competitive inhibition Km values",
+    "section": "chem_phys",
+    "topic": "Enzyme Kinetics",
+    "difficulty": "Hard"
+  }'
+```
+
+---
+
+#### 3. Refine Question Item
+`POST /api/ai/refine-question`
+
+Executes targeted editorial refinements on an individual question item. Supports presets:
+- `polish_distractor`: Balances option length parity and sharpens cognitive traps.
+- `simplify_explanation`: Structures explanations into concise, high-yield clinical takeaways.
+- `invert_sibling`: Generates an inverted twin question testing the complementary principle.
+- `custom`: Applies arbitrary educator instructions.
+
+##### Request Body (`application/json`)
+```json
+{
+  "action": "simplify_explanation",
+  "instruction": "Make the explanation more concise with 3 clinical bullet points",
+  "question": {
+    "question_stem": "A competitive inhibitor is added to an enzymatic reaction. Which parameter changes?",
+    "options": [
+      {"id": "A", "text": "Apparent Km increases, while Vmax remains unaltered"},
+      {"id": "B", "text": "Apparent Km decreases, while Vmax remains unaltered"},
+      {"id": "C", "text": "Both apparent Km and Vmax decrease proportionally"},
+      {"id": "D", "text": "Vmax decreases, while apparent Km remains unchanged"}
+    ],
+    "correct_answer_id": "A",
+    "explanation": "Verbose paragraph detailing historical kinetic experiments..."
+  }
+}
+```
+
+##### Response (`200 OK`)
+```json
+{
+  "question": {
+    "question_stem": "A competitive inhibitor is added to an enzymatic reaction. Which parameter changes?",
+    "options": [
+      {"id": "A", "text": "Apparent Km increases, while Vmax remains unaltered"},
+      {"id": "B", "text": "Apparent Km decreases, while Vmax remains unaltered"},
+      {"id": "C", "text": "Both apparent Km and Vmax decrease proportionally"},
+      {"id": "D", "text": "Vmax decreases, while apparent Km remains unchanged"}
+    ],
+    "correct_answer_id": "A",
+    "explanation": "• High-Yield Rule: Competitive inhibitors bind active sites reversibly.\n• Mechanism: Higher substrate concentration overcomes inhibition, increasing apparent Km.\n• Clinical Takeaway: Vmax remains identical because saturating substrate displaces the inhibitor."
+  }
+}
+```
+
+##### cURL Example
+```bash
+curl -X POST "http://localhost:8000/api/ai/refine-question" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "simplify_explanation",
+    "instruction": "Make explanation high-yield",
+    "question": {
+      "question_stem": "Which parameter changes?",
+      "options": [
+        {"id": "A", "text": "Km increases, Vmax stays same"},
+        {"id": "B", "text": "Km decreases, Vmax stays same"},
+        {"id": "C", "text": "Both Km and Vmax decrease"},
+        {"id": "D", "text": "Vmax decreases, Km stays same"}
+      ],
+      "correct_answer_id": "A",
+      "explanation": "Detailed explanation..."
+    }
+  }'
+```
+
+---
+
+#### 4. Audit Reading Passage
+`POST /api/ai/audit-passage`
+
+Performs algorithmic and psychometric diagnostics on a reading passage, computing Flesch-Kincaid Grade Level, Flesch Reading Ease, Empirical Data Density (numerical data & statistical markers), and AAMC Alignment Index.
+
+##### Request Body (`application/json`)
+```json
+{
+  "passage_text": "Positron emission tomography (PET) measures biochemical transformations in vivo using radiolabeled tracers..."
+}
+```
+
+##### Response (`200 OK`)
+```json
+{
+  "word_count": 420,
+  "sentence_count": 18,
+  "flesch_reading_ease": 42.6,
+  "flesch_kincaid_grade": 13.4,
+  "empirical_density_score": 78,
+  "aamc_alignment_score": 92,
+  "recommendations": [
+    "Passage complexity satisfies authentic AAMC college-junior level standards (Grade 13-14).",
+    "Empirical data density is well-balanced with quantitative observations."
+  ]
+}
+```
+
+##### cURL Example
+```bash
+curl -X POST "http://localhost:8000/api/ai/audit-passage" \
+  -H "Content-Type: application/json" \
+  -d '{"passage_text": "Positron emission tomography measures biochemical transformations..."}'
+```
+
+---
+
+#### 5. Synthesize Study Guide & Flashcards
+`POST /api/ai/study-guide`
+
+Synthesizes an array of generated questions into an executive high-yield study pack, containing core concepts, cognitive trap checklists, flashcard drill pairs, and printable markdown.
+
+##### Request Body (`application/json`)
+```json
+{
+  "questions": [
+    {
+      "question_stem": "A competitive inhibitor alters which parameter?",
+      "correct_answer_id": "A",
+      "options": [{"id": "A", "text": "Apparent Km increases, Vmax unchanged"}],
+      "explanation": "Overcome by high substrate.",
+      "cognitive_trap": "Misidentifying noncompetitive vs competitive"
+    }
+  ]
+}
+```
+
+##### Response (`200 OK`)
+```json
+{
+  "title": "MCAT High-Yield Study Guide: Enzyme Kinetics",
+  "executive_summary": "Core mastery of reversible enzyme inhibition, Lineweaver-Burk graphical interpretations, and pharmacological relevance.",
+  "trap_checklist": [
+    "Trap: Assuming competitive inhibitors lower Vmax (Vmax remains identical at infinite [S]).",
+    "Trap: Confusing uncompetitive inhibition (parallel line shifts) with noncompetitive."
+  ],
+  "flashcards": [
+    {
+      "front": "What happens to Km and Vmax during competitive inhibition?",
+      "back": "Apparent Km increases; Vmax remains unaltered."
+    }
+  ],
+  "markdown_export": "# High-Yield Study Guide\n\n## Executive Summary\n..."
+}
+```
+
+##### cURL Example
+```bash
+curl -X POST "http://localhost:8000/api/ai/study-guide" \
+  -H "Content-Type: application/json" \
+  -d '{"questions": [{"question_stem": "Sample stem", "options": [{"id": "A", "text": "Sample"}], "correct_answer_id": "A", "explanation": "Sample explanation"}]}'
 ```
 
 ---

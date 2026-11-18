@@ -29,13 +29,13 @@ from app.workflow.engine_layout import (
     _is_sibling_collision,
     _resolve_passing_threshold,
 )
-from app.workflow.live_job_store import _persist_live_question
+from app.workflow.live_job_store import persist_live_question
 from app.workflow.nodes import finalize_node, fused_generator_node, image_node
 from app.workflow.passage_prep import (
     _build_batch_worker_request,
     _determine_item_diagram_requirement,
 )
-from app.workflow.review_loop import _run_question_review_loop
+from app.workflow.review_loop import run_question_review_loop
 from app.workflow.state import AgentWorkflowState
 
 logger = logging.getLogger(__name__)
@@ -72,6 +72,7 @@ class SlotWorkerContext:
     shared_used_mistakes: list[str]
     is_standalone_live_run: bool
     review_loop_fn: Callable[..., Any] | None = None
+    passage_blueprints: list[dict[str, str]] | None = None
 
 
 async def run_slot_worker(ctx: SlotWorkerContext) -> None:
@@ -103,7 +104,7 @@ async def run_slot_worker(ctx: SlotWorkerContext) -> None:
                 ledger.calls[idx],
                 attempt + 1,
             )
-            return
+            break
 
         # Reset per attempt so an error before the new state exists can never fold the
         # previous attempt's (already counted) usage a second time.
@@ -119,14 +120,37 @@ async def run_slot_worker(ctx: SlotWorkerContext) -> None:
                         effective_passage_count=ctx.effective_passage_count,
                         shared_passage_id=ctx.shared_passage_id,
                         shared_passage_text=ctx.shared_passage_text,
+                        passage_blueprints=ctx.passage_blueprints,
                     )
                 )
                 if attempt > 0:
-                    item_req.thematic_angle = f"Question Item {idx + 1} Attempt {attempt + 1}"
+                    base_angle = item_req.thematic_angle or ""
+                    retry_directive = (
+                        f"(Slot Replenishment Attempt {attempt + 1}: You MUST formulate a completely distinct question "
+                        f"testing a separate paragraph, claim, or variable from any previous rejected attempt)"
+                    )
+                    item_req.thematic_angle = (
+                        f"{base_angle} • {retry_directive}" if base_angle else retry_directive
+                    )
 
                 diversity_context = _build_diversity_context(
                     idx, total_qty, attempt, shared_used_traps, shared_used_mistakes
                 )
+
+                # Ground with pgvector RAG exemplars and anti-collision neighbor constraints
+                if config.ENABLE_PGVECTOR_RAG:
+                    try:
+                        from app.services.rag import retrieve_rag_exemplar_context
+
+                        rag_ctx = await retrieve_rag_exemplar_context(item_req, limit=2)
+                        if rag_ctx.prompt_context:
+                            diversity_context = (
+                                f"{diversity_context}\n\n{rag_ctx.prompt_context}"
+                                if diversity_context
+                                else rag_ctx.prompt_context
+                            )
+                    except Exception as exc:
+                        logger.debug("RAG exemplar grounding skipped (%s).", exc)
 
                 if total_qty > 1:
                     batch_prog_evt = make_event(
@@ -178,6 +202,16 @@ async def run_slot_worker(ctx: SlotWorkerContext) -> None:
 
                 gen_res = await fused_generator_node(state)
                 state.update(gen_res)
+
+                # Ensure candidate draft is tagged with passage and batch metadata for accurate dedup
+                cur_draft = state.get("current_draft")
+                if isinstance(cur_draft, dict):
+                    if ctx.shared_passage_id and not cur_draft.get("passage_id"):
+                        cur_draft["passage_id"] = ctx.shared_passage_id
+                    if ctx.shared_passage_text and not cur_draft.get("stimulus_text"):
+                        cur_draft["stimulus_text"] = ctx.shared_passage_text
+                    if batch_id and not cur_draft.get("batch_id"):
+                        cur_draft["batch_id"] = batch_id
 
                 # Step 1.5: Deduplication Check & Anti-Collision Loop
                 await _run_deduplication_anti_collision_loop(
@@ -244,7 +278,7 @@ async def run_slot_worker(ctx: SlotWorkerContext) -> None:
                         job_id=job_id,
                     )
 
-                review_fn = ctx.review_loop_fn or _run_question_review_loop
+                review_fn = ctx.review_loop_fn or run_question_review_loop
                 question_passed = await review_fn(
                     state=state,
                     idx=idx,
@@ -344,7 +378,7 @@ async def run_slot_worker(ctx: SlotWorkerContext) -> None:
 
                     if is_standalone_live_run:
                         completed_so_far = sum(1 for q in outcomes_questions if q is not None)
-                        await _persist_live_question(
+                        await persist_live_question(
                             final_q_dict=final_q_dict,
                             batch_id=batch_id,
                             job_id=job_id,
@@ -441,3 +475,33 @@ async def run_slot_worker(ctx: SlotWorkerContext) -> None:
             )
             await event_queue.put(err_evt)
             return
+
+    # Post-loop handling: if all attempts ended without an accepted draft
+    if outcomes_questions[idx] is None:
+        last_rej = outcomes_rejections[-1] if outcomes_rejections else None
+        reason = (
+            last_rej.get("reason", "Quality or duplication checks not met")
+            if isinstance(last_rej, dict)
+            else "Quality score threshold or deduplication requirements not satisfied after maximum attempts"
+        )
+        fail_msg = f"Slot {idx + 1}/{total_qty} failed to fulfill after {max_slot_attempts} attempts: {reason}"
+        logger.error(
+            "Worker %s exhausted all %s attempts without an accepted draft: %s",
+            idx + 1,
+            max_slot_attempts,
+            reason,
+        )
+        outcomes_errors.append(fail_msg)
+        err_evt = make_event(
+            event_type="question_failed",
+            agent_name="System",
+            message=fail_msg,
+            data={
+                "index": idx + 1,
+                "total": total_qty,
+                "error": reason,
+                "attempts_exhausted": max_slot_attempts,
+            },
+            run_id=req.run_id,
+        )
+        await event_queue.put(err_evt)

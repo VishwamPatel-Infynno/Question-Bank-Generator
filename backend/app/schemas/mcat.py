@@ -301,21 +301,6 @@ def normalize_primary_trap(trap_str: str | None) -> str | None:
     up = clean.upper().replace(" ", "_").replace("-", "_")
     if up in PRIMARY_TRAPS:
         return up
-    legacy_map = {
-        "OUT_OF_SCOPE": "UNSUPPORTED_INFERENCE",
-        "DISTORTION_OPPOSITE": "PASSAGE_CONTRADICTION",
-        "OUTSIDE_KNOWLEDGE_IN_CARS": "UNSUPPORTED_INFERENCE",
-        "EXTREME_LANGUAGE": "OVERGENERALIZATION",
-        "CALCULATION_FORMULA_TRAP": "FORMULA_MISAPPLICATION",
-        "HALF_RIGHT_FALSE_PREMISE": "ANSWER_CHOICE_CONFLATION",
-        "KEYWORD_TRAP": "DISTRACTOR_OVERINTERPRETATION",
-        "PARTIAL_MATCH": "EXCEPTION_OVERLOOKED",
-        "HALF_TRUTH": "ANSWER_CHOICE_CONFLATION",
-        "UNWARRANTED_ASSUMPTION": "ASSUMPTION_MISSED",
-        "CALCULATION_TRAP": "FORMULA_MISAPPLICATION",
-    }
-    if up in legacy_map:
-        return legacy_map[up]
     clean_lower = clean.lower().replace("_", " ").replace("-", " ")
     for item in PRIMARY_TRAPS_DETAILED:
         val = item.get("value", "").lower()

@@ -1,18 +1,20 @@
-import { Check } from 'lucide-react';
+import { Check, AlertCircle } from 'lucide-react';
 import { resolveQuestionStatus } from '../../utils';
 import { QUESTION_STATUS } from '../../constants';
 
 const EMPTY_QUESTIONS = [];
 
 /**
- * BatchJobPillStrip - Visual progress strip showing done, in-bank, drafting, or pending states for questions.
+ * BatchJobPillStrip - Visual progress strip showing done, in-bank, drafting, failed, or pending states for questions.
  */
 export default function BatchJobPillStrip({
   jobId = 'job',
   jobNumber = 1,
   targetCount = 5,
   visibleQuestions = EMPTY_QUESTIONS,
-  isJobRunning = false
+  isJobRunning = false,
+  isJobDone = false,
+  isJobFailed = false
 }) {
   return (
     <div className="job-q-pill-strip" role="group" aria-label={`Question progress for Set ${jobNumber}`}>
@@ -46,6 +48,18 @@ export default function BatchJobPillStrip({
             >
               <span className="job-q-pill-dot" />
               <span>Q{qNum} drafting</span>
+            </span>
+          );
+        }
+        if (isJobDone || isJobFailed) {
+          return (
+            <span
+              key={`failed-${slot.slotKey}`}
+              className="job-q-pill failed"
+              title={`Question ${qNum}: Generation failed after replenishment attempts`}
+            >
+              <AlertCircle size={10} />
+              <span>Q{qNum} (Failed)</span>
             </span>
           );
         }

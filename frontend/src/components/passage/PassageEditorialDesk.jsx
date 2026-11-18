@@ -4,10 +4,13 @@ import {
   Save,
   Trash2,
   BookOpen,
-  Layers
+  Layers,
+  Sparkles,
+  Activity
 } from 'lucide-react';
 import { EMPTY_ARRAY, getSectionBadgeClass, getSectionShortLabel, SECTION_IDS } from '../../constants';
 import { countWords } from '../../utils';
+import { fetchPassageAudit } from '../../services/api';
 import PassageVisualStimulusEditor from './PassageVisualStimulusEditor';
 import PassageQuestionsCarousel from './PassageQuestionsCarousel';
 
@@ -24,7 +27,9 @@ export default function PassageEditorialDesk({
   onBack,
   onSavePassage,
   onDeletePassage,
-  onUpdateQuestion
+  onUpdateQuestion,
+  onNavigateToWizard,
+  onExpandPassageSet
 }) {
   // Immutable Passage Metadata
   const title = passage?.title || '';
@@ -39,6 +44,23 @@ export default function PassageEditorialDesk({
 
   // UI state
   const [isSaving, setIsSaving] = useState(false);
+  const [auditData, setAuditData] = useState(null);
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [showAudit, setShowAudit] = useState(false);
+
+  const handleRunAudit = async () => {
+    if (isAuditing || !text.trim()) return;
+    setIsAuditing(true);
+    try {
+      const data = await fetchPassageAudit(text);
+      setAuditData(data);
+      setShowAudit(true);
+    } catch (err) {
+      console.error('Passage audit error:', err);
+    } finally {
+      setIsAuditing(false);
+    }
+  };
 
   // Dynamic Word Count
   const liveWordCount = useMemo(() => {
@@ -120,6 +142,34 @@ export default function PassageEditorialDesk({
         </div>
 
         <div className="passage-desk-topbar-actions">
+          {(onExpandPassageSet || onNavigateToWizard) && (
+            <button
+              type="button"
+              id="btn-expand-passage-set"
+              onClick={() => {
+                if (onExpandPassageSet) {
+                  onExpandPassageSet(passage);
+                } else if (onNavigateToWizard) {
+                  onNavigateToWizard({
+                    passage_id: passage?.id,
+                    section,
+                    subtopic,
+                    shared_passage_text: text,
+                    shared_stimulus: text,
+                    passage_mode: 'existing_passage',
+                    totalQuestions: 5,
+                    step: 3
+                  });
+                }
+              }}
+              className="btn-secondary passage-desk-expand-btn"
+              title="Generate a fresh, non-overlapping 5-question cognitive set for this passage"
+            >
+              <Sparkles size={13} color="var(--brand-primary)" />
+              <span>Generate 5 More Questions</span>
+            </button>
+          )}
+
           {onDeletePassage && (
             <button
               type="button"
@@ -157,10 +207,65 @@ export default function PassageEditorialDesk({
               </h3>
             </div>
 
-            <div className="passage-desk-word-count">
-              Live Word Count: <strong>{liveWordCount}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleRunAudit}
+                disabled={isAuditing || !text.trim()}
+                className="btn-secondary"
+                style={{ padding: '3px 9px', fontSize: '0.74rem', gap: '5px', display: 'inline-flex', alignItems: 'center' }}
+                title="Evaluate reading level, empirical density, and AAMC stylistic alignment"
+              >
+                <Sparkles size={12} color="var(--brand-primary)" />
+                <span>{isAuditing ? 'Analyzing...' : 'AI Diagnostics'}</span>
+              </button>
+
+              <div className="passage-desk-word-count">
+                Live Word Count: <strong>{liveWordCount}</strong>
+              </div>
             </div>
           </div>
+
+          {/* AI Passage Diagnostics Panel */}
+          {showAudit && auditData && (
+            <div
+              style={{
+                background: 'var(--bg-hover)',
+                border: '1px solid var(--border-medium)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '12px 14px',
+                marginBottom: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Activity size={13} color="var(--brand-primary)" />
+                  <span>AAMC Passage Diagnostics</span>
+                </span>
+                <span className="badge-minimal" style={{ fontSize: '0.72rem' }}>
+                  Score: {auditData.aamc_alignment_score}/100
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                <span>Grade Level: <strong>{auditData.flesch_kincaid_grade}</strong></span>
+                <span>Reading Ease: <strong>{auditData.reading_ease}</strong></span>
+                <span>Empirical Anchors: <strong>{auditData.empirical_density_score}</strong></span>
+                <span>Sentences: <strong>{auditData.sentence_count}</strong></span>
+              </div>
+
+              {auditData.diagnostics?.length > 0 && (
+                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.74rem', color: 'var(--text-primary)', lineHeight: 1.45 }}>
+                  {auditData.diagnostics.map((d, i) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {/* Passage Textarea */}
           <div>

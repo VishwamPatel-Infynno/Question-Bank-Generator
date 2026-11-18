@@ -63,7 +63,7 @@ The system defines 68 configuration fields in `backend/app/core/config.py` (`Set
 | `BLIND_SOLVER_MODEL` | `string` | `""` | Optional dedicated model for the Blind Solver so it is independent of the generator (empty = the request's model); the client's `api_key` is never sent to it |
 | `BLIND_SOLVER_SAMPLES` | `integer` | `2` | Independent solver samples shown in different option layouts (reversed, rotated); a strict majority must pick the author's key, a split vote is never verified. `1` restores single-sample behavior |
 | `OFFLINE_MODE` | `boolean` | `false` | Allow mock/heuristic fixtures when no LLM credentials are configured (demos, tests). When `false`, a missing key raises a clear configuration error and the run fails fast; mock-produced questions carry `stage_outcomes.offline_mode = true` |
-| `PARALLEL_REVIEW_AND_SOLVE` | `boolean` | `false` | `false` (default): the Blind Solver runs only for drafts the Reviewer passes, so weak drafts cost no solver tokens. `true`: review and solve run concurrently, one LLM round trip faster per question but solver tokens are spent on drafts that then fail review |
+| `PARALLEL_REVIEW_AND_SOLVE` | `boolean` | `true` | `true` (default): Reviewer and Blind Solver run concurrently via `asyncio.gather`, saving one full LLM round trip per question. `false`: Blind Solver runs only for drafts the Reviewer passes |
 | `ENABLE_PROMPT_CACHING` | `boolean` | `true` | Mark static system prompts cacheable for providers that need an explicit marker (Anthropic) |
 | `ADMIN_API_KEY` | `string` | `""` | Optional secret for the full `/api/health` and `/api/config` payloads: the `x-admin-key` header must match it. When empty, nobody gets the full payload over HTTP (the masked one is always returned) |
 | `API_ACCESS_KEY` | `string` | `""` | Optional shared secret for mutating API routes (`POST`/`PUT`/`PATCH`/`DELETE` need `X-API-Key`; reads and the duplicate pre-check stay open). Intended for deployments behind a gateway; a key built into the frontend via `VITE_API_ACCESS_KEY` is visible to browsers, so it is not a substitute for user authentication |
@@ -71,9 +71,9 @@ The system defines 68 configuration fields in `backend/app/core/config.py` (`Set
 | `MAX_ACTIVE_BATCHES` | `integer` | `5` | Background batches allowed to run at once; further start/retry/refill requests get HTTP 429. `0` disables |
 | `MAX_REQUEST_BODY_MB` | `integer` | `25` | Largest accepted request body in megabytes; larger requests get HTTP 413 (`0` disables). The bundled `frontend/nginx.conf` enforces the same `client_max_body_size` in front of the API |
 | `LOG_FORMAT` | `string` | `text` | `text` or `json`; lines carry batch, job, run and slot ids for correlation |
-| `LLM_MAX_TOKENS_CEILING` | `integer` | `8000` | Upper bound when a truncated completion is retried with a larger token budget |
-| `DEFAULT_MAX_TOKENS` | `integer`| `3000` | Default maximum completion token budget for generator nodes |
-| `REVIEWER_MAX_TOKENS` | `integer`| `3000` | Maximum completion token budget for 100-point psychometric reviewer |
+| `LLM_MAX_TOKENS_CEILING` | `integer` | `8192` | Upper bound when a truncated completion is retried with a larger token budget |
+| `DEFAULT_MAX_TOKENS` | `integer`| `4096` | Default maximum completion token budget for generator nodes |
+| `REVIEWER_MAX_TOKENS` | `integer`| `4096` | Maximum completion token budget for 100-point psychometric reviewer |
 | `COST_PER_MILLION_INPUT_TOKENS` | `float` | Dynamic | Dynamic property mapping to the active provider's configured input price (DeepInfra $0.20 standard / Anthropic $0.10 / OpenAI $0.15); rates for a specific model always follow that model's provider |
 | `COST_PER_MILLION_OUTPUT_TOKENS`| `float` | Dynamic | Dynamic property mapping to the active provider's configured output price (DeepInfra $0.60 standard / Anthropic $0.50 / OpenAI $0.60) |
 | `DEFAULT_TEMPERATURE` | `float` | `0.2` | Global default sampling temperature for call_llm |
@@ -88,7 +88,7 @@ The system defines 68 configuration fields in `backend/app/core/config.py` (`Set
 | `FAST_MODEL_CASCADE` | `list[str]` | Dynamic | Dynamic property mapping to active provider fallback model list |
 | `ENABLE_BLIND_SOLVER` | `boolean` | `true` | Enables dual-validation blind solver agent |
 | `BLIND_SOLVER_CONFIDENCE_THRESHOLD` | `integer` | `88` | Minimum blind solver confidence percentage to pass without remediation |
-| `BLIND_SOLVER_MAX_TOKENS` | `integer` | `1200` | Max completion tokens budget for blind-solver inference |
+| `BLIND_SOLVER_MAX_TOKENS` | `integer` | `2048` | Max completion tokens budget for blind-solver inference |
 | `GLOBAL_MAX_CONCURRENT_PIPELINES` | `integer` | `8` | Process-wide cap on question pipelines in flight across all live runs and batches (replaces the old per-run limiter that multiplied concurrency) |
 | `GLOBAL_MAX_CONCURRENT_JOBS` | `integer` | `4` | Global worker pool semaphore governing simultaneous batch jobs |
 | `GLOBAL_MAX_CONCURRENT_LLM_CALLS` | `integer` | `10` | Global limiter for simultaneous outward inference calls |
@@ -105,6 +105,11 @@ The system defines 68 configuration fields in `backend/app/core/config.py` (`Set
 | `IMAGE_ITERS` | `integer` | `0` | Inference step iterations (0 for flat-rate models) |
 | `LITELLM_LOCAL_MODEL_COST_MAP` | `string` | `True` | Suppress remote model price map fetch to guarantee instant startup and offline resilience |
 | `LITELLM_TELEMETRY` | `string` | `False` | Disable LiteLLM telemetry and phone-home network requests |
+| `EMBEDDING_MODEL` | `string` | `text-embedding-3-small` | Model used for vector embeddings in pgvector and RAG |
+| `EMBEDDING_DIMENSION` | `integer` | `1536` | Dimension of the vector embedding in pgvector |
+| `ENABLE_PGVECTOR_RAG` | `boolean` | `true` | Enables native pgvector semantic retrieval and RAG context grounding |
+| `RAG_EXEMPLAR_MIN_SCORE` | `integer` | `90` | Minimum score threshold for existing questions to qualify as RAG exemplars |
+| `RAG_SEMANTIC_DEDUP_THRESHOLD` | `float` | `0.82` | Cosine similarity threshold for pgvector semantic duplicate flagging |
 
 > [!NOTE]
 > `COST_PER_MILLION_INPUT_TOKENS` and `COST_PER_MILLION_OUTPUT_TOKENS` are dynamic `@property` getters with setters in `backend/app/core/config.py`: unset, they resolve to the active provider's rates (`DEEPINFRA_*`, `ANTHROPIC_*` or `OPENAI_*`); the setters allow programmatic overrides in tests. `FAST_MODEL_CASCADE` and `DEFAULT_IMAGE_MODEL` are read-only properties derived from the active providers.
@@ -187,13 +192,13 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 406-test backend verification suite across 60 modules (396 deterministic across 59 modules) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 519-test backend verification suite across 75 modules (509 deterministic across 75 modules) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 396 deterministic unit and integration tests across 59 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 275 pure unit tests pass and 78 DB tests skip cleanly
+# 1. Run all 509 deterministic unit and integration tests across 75 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 394 pure unit tests pass and 99 DB tests skip cleanly
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
@@ -207,10 +212,10 @@ ruff format --check .
 ```
 
 #### Dual Test Execution Modes
-- **Offline Mode** (PostgreSQL offline): Executes all 275 algorithmic, schema, agent, taxonomy sync, and mathematical tests in ~12 seconds (`275 passed, 78 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 396 deterministic tests across 59 modules in ~23-28 seconds (10 live tests deselected).
+- **Offline Mode** (PostgreSQL offline): Executes all 388 algorithmic, schema, agent, taxonomy sync, AI native planning, and mathematical tests in ~12 seconds (`388 passed, 84 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 472 deterministic tests across 70 modules in ~23-28 seconds (10 live tests deselected).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 406 tests across 60 test files.
+- **Total Backend Suite**: 482 tests across 71 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.

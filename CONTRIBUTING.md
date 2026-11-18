@@ -45,7 +45,7 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (396 deterministic unit & integration tests across 59 modules; 282 pass offline, 112 DB tests run cleanly with PostgreSQL; 406 total backend tests including 10 live LLM E2E tests)
+# 1. Backend pytest suite (509 deterministic unit & integration tests across 75 modules; 405 pass offline, 104 DB tests run cleanly with PostgreSQL; 519 total backend tests including 10 live LLM E2E tests)
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 
 # 2. Backend Python linter and formatting checks (E, W, F, I, UP, B, C4, SIM, RET, G004, ASYNC, PT, RUF)
@@ -57,7 +57,7 @@ pnpm --dir frontend lint
 
 # 4. Frontend production build (compiles cleanly via Vite 8)
 pnpm --dir frontend build
-pnpm --dir frontend run test        # Vitest unit tests (119 passed across 13 test files)
+pnpm --dir frontend run test        # Vitest unit tests (132 passed across 14 test files)
 pnpm run lint:all                   # ruff (backend) + oxlint (frontend)
 pnpm run test:all                   # pytest (backend) + Vitest (frontend)
 pnpm --dir frontend run check:css   # fails on CSS classes nothing uses

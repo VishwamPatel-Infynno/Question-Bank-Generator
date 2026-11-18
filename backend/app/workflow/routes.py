@@ -30,7 +30,9 @@ def route_after_review(state: AgentWorkflowState) -> str:
 
     # Quality Gate check:
     # Try to get the score strictly greater than threshold on iterations < max_attempts
-    if score <= threshold:
+    # Also remediate if the review explicitly failed (e.g. blind solver disagreement)
+    is_sub_threshold = score <= threshold or not review.get("passed", True)
+    if is_sub_threshold:
         if iteration < max_attempts:
             logger.info(
                 "Score %s <= %s and iteration %s < %s. Routing to Re-Generator to try for > %s.",

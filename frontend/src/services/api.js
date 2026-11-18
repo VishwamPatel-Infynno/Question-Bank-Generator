@@ -72,8 +72,12 @@ function withQuery(path, params) {
 async function request(path, { method = 'GET', body, signal = null, context } = {}) {
   const init = { method, signal };
   if (body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json' };
-    init.body = JSON.stringify(body);
+    if (body instanceof FormData) {
+      init.body = body;
+    } else {
+      init.headers = { 'Content-Type': 'application/json' };
+      init.body = JSON.stringify(body);
+    }
   }
   const res = await apiFetch(`${API_BASE}${path}`, init);
   await assertOk(res, context);
@@ -200,3 +204,112 @@ export const savePassage = (passageData) =>
 
 export const deletePassage = (passageId) =>
   request(`/passages/${passageId}`, { method: 'DELETE', context: `Delete passage ${passageId}` });
+
+// ── AI Copilot API ──────────────────────────────────────────────────────────
+
+export const fetchMagicSetup = (prompt, signal = null) =>
+  request('/ai/magic-setup', {
+    method: 'POST',
+    body: { prompt },
+    signal,
+    context: 'Generate wizard setup from prompt'
+  });
+
+export const fetchEnhancedInstructions = (
+  { instructions, section, topic = null, difficulty = null },
+  signal = null
+) =>
+  request('/ai/enhance-instructions', {
+    method: 'POST',
+    body: { instructions, section, topic, difficulty },
+    signal,
+    context: 'Enhance educator instructions with AI'
+  });
+
+export const fetchRefinedQuestion = (
+  { question, instruction, action = 'custom' },
+  signal = null
+) =>
+  request('/ai/refine-question', {
+    method: 'POST',
+    body: { question, instruction, action },
+    signal,
+    context: 'Refine question with AI copilot'
+  });
+
+export const fetchPassageAudit = (passageText, signal = null) =>
+  request('/ai/audit-passage', {
+    method: 'POST',
+    body: { passage_text: passageText },
+    signal,
+    context: 'Audit passage readability and metrics'
+  });
+
+export const fetchStudyGuide = (questions, signal = null) =>
+  request('/ai/study-guide', {
+    method: 'POST',
+    body: { questions },
+    signal,
+    context: 'Synthesize high-yield study guide'
+  });
+
+export const ingestSyllabusText = ({ content, title = null }, signal = null) =>
+  request('/ai/ingest-syllabus', {
+    method: 'POST',
+    body: { content, title },
+    signal,
+    context: 'Ingest syllabus text'
+  });
+
+export const ingestSyllabusFile = (file, signal = null) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request('/ai/ingest-syllabus-file', {
+    method: 'POST',
+    body: formData,
+    signal,
+    context: 'Ingest syllabus file'
+  });
+};
+
+// ── RAG & Semantic Search API ────────────────────────────────────────────────
+
+export const searchSemanticQuestions = (
+  { query, section = null, subtopic = null, limit = 10, hybrid = true, min_similarity = 0.4 },
+  signal = null
+) =>
+  request('/questions/semantic-search', {
+    method: 'POST',
+    body: { query, section, subtopic, limit, hybrid, min_similarity },
+    signal,
+    context: 'Perform semantic and hybrid question search'
+  });
+
+export const fetchRAGContext = (
+  { section, subtopic = '', thematic_angle = '', limit = 3 },
+  signal = null
+) =>
+  request('/questions/rag-context', {
+    method: 'POST',
+    body: { section, subtopic, thematic_angle, limit },
+    signal,
+    context: 'Retrieve RAG exemplars and anti-collision context'
+  });
+
+export const checkQuestionDuplicate = (payload, signal = null) =>
+  request('/questions/check-duplicate', {
+    method: 'POST',
+    body: payload,
+    signal,
+    context: 'Check question for duplicate or semantic collisions'
+  });
+
+export const backfillEmbeddings = ({ batch_size = 50 } = {}, signal = null) =>
+  request('/questions/backfill-embeddings', {
+    method: 'POST',
+    body: { batch_size },
+    signal,
+    context: 'Trigger question vector embedding backfill'
+  });
+
+

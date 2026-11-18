@@ -8,6 +8,7 @@ import {
   Code2
 } from 'lucide-react';
 import { useQuestionDraft } from '../../hooks/useQuestionDraft';
+import { fetchRefinedQuestion } from '../../services/api';
 import QuestionCardHeader from './QuestionCardHeader';
 import QuestionOptionsList from './QuestionOptionsList';
 import QuestionCardFooter from './QuestionCardFooter';
@@ -16,6 +17,7 @@ import VisualStimulusViewer from './VisualStimulusViewer';
 import MentorExplanationView from './MentorExplanationView';
 import QuestionScorecardTab from './QuestionScorecardTab';
 import QuestionInlineEditor from './QuestionInlineEditor';
+import QuestionCopilotStrip from './QuestionCopilotStrip';
 import {
   calculateOptionSymmetry,
   countWords,
@@ -31,6 +33,9 @@ function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion 
 
   // Quick Inline Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
+  const [isCopilotWorking, setIsCopilotWorking] = useState(false);
+  const [copilotStatusText, setCopilotStatusText] = useState('');
+  const [stagedRefinement, setStagedRefinement] = useState(null);
   const { draft, setDraftField, resetDraft, toQuestion } = useQuestionDraft(question);
 
   const effectiveTrapInfo = getEffectiveTrapInfo(question);
@@ -70,6 +75,43 @@ function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion 
   const handleCancelEdit = () => {
     resetDraft();
     setIsEditing(false);
+  };
+
+  const handleCopilotAction = async (action, instruction, label) => {
+    if (isCopilotWorking) return;
+    setIsCopilotWorking(true);
+    setCopilotStatusText(label || 'Polishing with AI');
+    try {
+      const res = await fetchRefinedQuestion({
+        question,
+        instruction,
+        action
+      });
+      if (res?.question) {
+        setStagedRefinement(res.question);
+      }
+    } catch (err) {
+      console.error('AI Copilot error:', err);
+    } finally {
+      setIsCopilotWorking(false);
+      setCopilotStatusText('');
+    }
+  };
+
+  const handleApplyPreview = async () => {
+    if (!stagedRefinement) return;
+    try {
+      if (onUpdateQuestion) {
+        await onUpdateQuestion(stagedRefinement);
+      }
+      setStagedRefinement(null);
+    } catch (err) {
+      console.error('Failed to apply copilot preview:', err);
+    }
+  };
+
+  const handleDiscardPreview = () => {
+    setStagedRefinement(null);
   };
 
   const review = question.review_rubric;
@@ -250,6 +292,16 @@ function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion 
               )}
             </div>
           )}
+
+          {/* AI Copilot Editorial Action Strip */}
+          <QuestionCopilotStrip
+            isCopilotWorking={isCopilotWorking}
+            copilotStatusText={copilotStatusText}
+            handleCopilotAction={handleCopilotAction}
+            previewQuestion={stagedRefinement}
+            onApplyPreview={handleApplyPreview}
+            onDiscardPreview={handleDiscardPreview}
+          />
         </div>
       )}
 

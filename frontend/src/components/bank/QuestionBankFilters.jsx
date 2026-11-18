@@ -34,6 +34,9 @@ const DIFFICULTY_FILTER_OPTIONS = [
 export default function QuestionBankFilters({
   searchQuery,
   setSearchQuery,
+  searchMode = 'keyword',
+  setSearchMode,
+  isSearchingSemantic = false,
   searchInputRef,
   sectionFilter,
   setSectionFilter,
@@ -55,20 +58,50 @@ export default function QuestionBankFilters({
     <div className="qbank-filters">
       {/* Primary Toolbar Row */}
       <div className="qbank-filters-row">
-        {/* Search Input */}
-        <div className="qbank-search">
-          <Search size={13} color="var(--text-muted)" />
-          <input
-            ref={searchInputRef}
-            id="input-bank-search"
-            aria-label="Search questions by question, passage, topic, or trap"
-            type="text"
-            placeholder="Search questions (Press /)..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="qbank-search-input"
-          />
-          <span className="kbd-hint qbank-filters-kbd">/</span>
+        {/* Search Input & AI Mode Toggle */}
+        <div className="qbank-search-group">
+          <div className="qbank-search">
+            <Search size={13} color="var(--text-muted)" />
+            <input
+              ref={searchInputRef}
+              id="input-bank-search"
+              aria-label="Search questions by question, passage, topic, or trap"
+              type="text"
+              placeholder={
+                searchMode === 'semantic'
+                  ? 'AI Semantic Search by concept (e.g. enzyme kinetics)...'
+                  : 'Search questions (Press /)...'
+              }
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="qbank-search-input"
+            />
+            {searchMode === 'keyword' && <span className="kbd-hint qbank-filters-kbd">/</span>}
+          </div>
+
+          {setSearchMode && (
+            <div className="qbank-search-mode-toggle" role="group" aria-label="Search mode toggle">
+              <button
+                type="button"
+                className={`qbank-search-mode-btn ${searchMode === 'keyword' ? 'active' : ''}`}
+                onClick={() => setSearchMode('keyword')}
+                title="Exact keyword substring search"
+                aria-pressed={searchMode === 'keyword'}
+              >
+                <span>Exact</span>
+              </button>
+              <button
+                type="button"
+                className={`qbank-search-mode-btn ${searchMode === 'semantic' ? 'active' : ''}`}
+                onClick={() => setSearchMode('semantic')}
+                title="AI Semantic vector search via pgvector"
+                aria-pressed={searchMode === 'semantic'}
+              >
+                <Sparkles size={11} className={isSearchingSemantic ? 'animate-spin' : ''} />
+                <span>AI Semantic</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Section Filter Pills */}

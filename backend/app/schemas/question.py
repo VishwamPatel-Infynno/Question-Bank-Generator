@@ -257,6 +257,9 @@ class Question(TaxonomyFields):
     visual_clinical_description: str | None = Field(
         None, description="Detailed radiological or histopathological clinical description"
     )
+    embedding: list[float] | None = Field(
+        None, description="1536-dimensional pgvector semantic embedding"
+    )
 
     # Deduplication & Collision Metadata
     duplicate_info: DuplicateInfo | None = Field(
@@ -398,6 +401,34 @@ class DuplicateCheckRequest(BaseModel):
     subtopic: str = ""
     question_stem: str
     options: list[OptionChoice] | list[dict[str, Any]] = Field(default_factory=list, max_length=10)
+
+
+class SemanticSearchRequest(BaseModel):
+    """Request payload for semantic and hybrid search."""
+
+    query: str = Field(
+        ..., min_length=2, max_length=2000, description="Natural language search query"
+    )
+    section: str | None = Field(None, description="Optional MCAT section filter")
+    subtopic: str | None = Field(None, max_length=200, description="Optional subtopic filter")
+    limit: int = Field(10, ge=1, le=50, description="Maximum number of results to return")
+    hybrid: bool = Field(True, description="Whether to use hybrid (vector + full-text) search")
+    min_similarity: float = Field(0.4, ge=0.0, le=1.0, description="Minimum similarity threshold")
+
+
+class RAGContextRequest(BaseModel):
+    """Request payload for retrieving exemplar and anti-collision RAG context."""
+
+    section: str = Field(..., description="MCAT section e.g. bio_biochem, cars")
+    subtopic: str | None = Field("", max_length=200, description="Subtopic name")
+    thematic_angle: str | None = Field("", max_length=500, description="Optional thematic angle")
+    limit: int = Field(3, ge=1, le=10, description="Number of exemplars to retrieve")
+
+
+class BackfillEmbeddingsRequest(BaseModel):
+    """Request payload for backfilling question embeddings."""
+
+    batch_size: int = Field(50, ge=1, le=500, description="Batch size for embedding backfill")
 
 
 def determine_question_status(

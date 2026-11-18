@@ -165,9 +165,17 @@
   flex-wrap: wrap;
 }
 
+.qbank-search-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 280px;
+  min-width: 240px;
+}
+
 .qbank-search {
-  flex: 1 1 200px;
-  min-width: 180px;
+  flex: 1 1 180px;
+  min-width: 140px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -186,6 +194,53 @@
   font-size: 0.78rem;
   color: var(--text-primary);
   outline: none;
+}
+
+.qbank-search-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  height: 32px;
+  box-sizing: border-box;
+}
+
+.qbank-search-mode-btn {
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  padding: 0 8px;
+  height: 26px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.qbank-search-mode-btn:hover:not(.active) {
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+}
+
+.qbank-search-mode-btn.active {
+  background: var(--bg-surface);
+  color: var(--brand-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.qbank-table-semantic-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
 }
 
 .qbank-bulk-bar {

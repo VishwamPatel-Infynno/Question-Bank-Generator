@@ -17,7 +17,6 @@ from typing import Any
 from app.agents.generator import generate_passage_stimulus
 from app.agents.image_generator import generate_image_stimulus
 from app.core.concurrency import get_global_pipeline_semaphore
-from app.core.config import config
 from app.core.errors import sanitize_error_text
 from app.core.logging import bind_log_context
 from app.repositories import get_subtopic_reference_questions
@@ -54,7 +53,11 @@ from app.workflow.passage_prep import (
     SharedPassageState,
     _prepare_shared_passage_and_visual,
 )
-from app.workflow.review_loop import _run_question_review_loop, count_llm_calls
+from app.workflow.review_loop import (
+    _run_question_review_loop,
+    count_llm_calls,
+    run_question_review_loop,
+)
 from app.workflow.slot_worker import (
     SLOT_ERROR_RETRY_DELAY_SECONDS,
     SLOT_REPLENISH_DELAY_SECONDS,
@@ -62,6 +65,11 @@ from app.workflow.slot_worker import (
     run_slot_worker,
 )
 from app.workflow.sse import iter_sse_events
+from app.workflow.stream_emitter import (
+    build_terminal_workflow_event,
+    drain_event_queue,
+    format_sse_event,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +103,11 @@ __all__ = [
     "_run_question_review_loop",
     "_shared_passage_payload",
     "_start_message",
+    "build_terminal_workflow_event",
     "count_llm_calls",
+    "drain_event_queue",
+    "format_sse_event",
+    "run_question_review_loop",
     "run_slot_worker",
     "run_workflow",
     "run_workflow_stream",
@@ -161,7 +173,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
             state=passage_state,
         )
         async for p_evt in passage_events:
-            yield f"data: {p_evt.model_dump_json()}\n\n"
+            yield format_sse_event(p_evt)
 
         shared_passage_text = passage_state.passage_text
         shared_passage_image_url = passage_state.image_url
@@ -183,7 +195,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 **_shared_passage_payload(layout, passage_state),
             },
         )
-        yield f"data: {start_evt.model_dump_json()}\n\n"
+        yield format_sse_event(start_evt)
 
         # Worker Pool Concurrency
         semaphore = get_global_pipeline_semaphore()
@@ -244,6 +256,7 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                     shared_used_mistakes=shared_used_mistakes,
                     is_standalone_live_run=is_standalone_live_run,
                     review_loop_fn=_run_question_review_loop,
+                    passage_blueprints=passage_state.blueprints,
                 )
                 await run_slot_worker(ctx)
 
@@ -269,16 +282,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
 
         monitor_task = asyncio.create_task(_monitor_tasks())
 
-        while True:
-            try:
-                evt = await asyncio.wait_for(event_queue.get(), timeout=EVENT_POLL_SECONDS)
-            except TimeoutError:
-                if monitor_done.is_set() and event_queue.empty():
-                    break
-                continue
-            if evt is None:
-                break
-            yield f"data: {evt.model_dump_json()}\n\n"
+        async for chunk in drain_event_queue(event_queue, monitor_done, EVENT_POLL_SECONDS):
+            yield chunk
 
         await monitor_task
 
@@ -290,72 +295,8 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
         cumulative_cost = usage_totals["total_cost_usd"]
         all_agent_usage.extend(ledger.all_usage())
 
-        if not all_staged_questions:
-            if is_standalone_live_run:
-                # Nothing was produced: mark the job failed instead of leaving it "running".
-                await _finalize_live_job_progress(
-                    job_id=job_id,
-                    batch_id=batch_id,
-                    completed_total=0,
-                    cumulative_tokens=cumulative_tokens,
-                    cumulative_prompt_tokens=cumulative_prompt_tokens,
-                    cumulative_completion_tokens=cumulative_completion_tokens,
-                    cumulative_cost=cumulative_cost,
-                )
-                job_finalized = True
-            if outcomes_rejections:
-                rej_msg = f"All {total_qty} questions in the run were rejected by the Quality Gate (score <= {req.passing_threshold or config.PASSING_SCORE_THRESHOLD})."
-                rej_evt = make_event(
-                    event_type="workflow_rejected",
-                    agent_name="Quality Gate",
-                    message=rej_msg,
-                    data={
-                        "rejections": outcomes_rejections,
-                        "total_rejected": len(outcomes_rejections),
-                        "cumulative_usage": usage_totals,
-                    },
-                )
-                yield f"data: {rej_evt.model_dump_json()}\n\n"
-                return
-            else:
-                error_msg = (
-                    f"All {total_qty} questions in the run failed to generate after retries."
-                )
-                if outcomes_errors:
-                    error_msg += f" Last error: {outcomes_errors[-1]}"
-                error_evt = make_event(
-                    event_type="workflow_error",
-                    agent_name="System",
-                    message=error_msg,
-                    data={
-                        "error": outcomes_errors[-1] if outcomes_errors else error_msg,
-                        "errors": outcomes_errors,
-                        # The batch worker stops reading at the first error event, so the spend
-                        # of this failed run must travel with it.
-                        "cumulative_usage": usage_totals,
-                    },
-                )
-                yield f"data: {error_evt.model_dump_json()}\n\n"
-                return
-
-        complete_evt = make_event(
-            event_type="workflow_complete",
-            agent_name="System",
-            message=_complete_message(layout, all_staged_questions, usage_totals),
-            data={
-                "questions": all_staged_questions,
-                "question": all_staged_questions[0] if all_staged_questions else None,
-                "batch_id": batch_id,
-                "passage_id": shared_passage_id if is_single_passage_set else None,
-                **_shared_passage_payload(layout, passage_state),
-                "cumulative_usage": usage_totals,
-                "usage_breakdown": all_agent_usage,
-            },
-        )
-        # Finalize BEFORE the terminal event: a client that closes the stream on
-        # workflow_complete must not leave the job cancelled or its spend unsaved.
         if is_standalone_live_run:
-            completed_total = sum(1 for q in outcomes_questions if q is not None)
+            completed_total = len(all_staged_questions)
             await _finalize_live_job_progress(
                 job_id=job_id,
                 batch_id=batch_id,
@@ -366,7 +307,25 @@ async def run_workflow_stream(req: GenerationRequest) -> AsyncGenerator[str, Non
                 cumulative_cost=cumulative_cost,
             )
             job_finalized = True
-        yield f"data: {complete_evt.model_dump_json()}\n\n"
+
+        terminal_evt = build_terminal_workflow_event(
+            make_event=make_event,
+            layout=layout,
+            req=req,
+            total_qty=total_qty,
+            all_staged_questions=all_staged_questions,
+            outcomes_rejections=outcomes_rejections,
+            outcomes_errors=outcomes_errors,
+            usage_totals=usage_totals,
+            all_agent_usage=all_agent_usage,
+            passage_state=passage_state,
+            batch_id=batch_id,
+            shared_passage_id=shared_passage_id,
+            is_single_passage_set=is_single_passage_set,
+            shared_passage_payload_fn=_shared_passage_payload,
+            complete_message_fn=_complete_message,
+        )
+        yield format_sse_event(terminal_evt)
     except asyncio.CancelledError:
         logger.info("Workflow stream cancelled by client disconnect.")
         for t in tasks:

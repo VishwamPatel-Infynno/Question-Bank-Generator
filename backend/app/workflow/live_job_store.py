@@ -17,13 +17,24 @@ from app.schemas import JobStatus, Question, determine_question_status
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "_finalize_live_job_progress",
+    "_handle_live_job_cancellation",
+    "_handle_live_job_failure",
+    "_persist_live_question",
+    "finalize_live_job_progress",
+    "handle_live_job_cancellation",
+    "handle_live_job_failure",
+    "persist_live_question",
+]
+
 
 def _warn_db_offline(what: str, err: Exception) -> None:
     """Live runs never fail because the database is away: the write is logged and skipped."""
     logger.warning("%s (DB offline): %s", what, err)
 
 
-async def _persist_live_question(
+async def persist_live_question(
     final_q_dict: dict[str, Any],
     batch_id: str,
     job_id: str,
@@ -124,3 +135,11 @@ async def _handle_live_job_failure(
         await refresh_batch_aggregates(batch_id, allow_complete=True)
     except (SQLAlchemyError, OSError) as clean_err:
         _warn_db_offline(f"Error updating failed live batch {batch_id}", clean_err)
+
+
+# Aliases for backward compatibility
+_persist_live_question = persist_live_question
+finalize_live_job_progress = _finalize_live_job_progress
+handle_live_job_cancellation = _handle_live_job_cancellation
+handle_live_job_failure = _handle_live_job_failure
+

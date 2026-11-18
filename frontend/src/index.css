@@ -6,11 +6,15 @@
 @import './styles/layout.css';
 @import './styles/wizard.css';
 @import './styles/question.css';
+@import './styles/stage-inspector.css';
+@import './styles/question-copilot.css';
 @import './styles/batch.css';
 @import './styles/batch-activity.css';
 @import './styles/batch-card-summary.css';
 @import './styles/bank.css';
 @import './styles/passage.css';
 @import './styles/modals.css';
+@import './styles/syllabus-modal.css';
+@import './styles/study-guide-modal.css';
 @import './styles/print.css';
 @import './styles/accessibility.css';

@@ -187,6 +187,12 @@ def test_usage_from_response_applies_cache_pricing_and_provider_totals():
 def strict_no_keys(monkeypatch):
     """Real-credentials behaviour: conftest enables OFFLINE_MODE, which would mock the run."""
     monkeypatch.setattr(config, "OFFLINE_MODE", False)
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(config, "DEEPINFRA_API_KEY", "")
+    monkeypatch.setattr(config, "OPENAI_API_KEY", "")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
 async def test_failed_single_question_run_reports_one_workflow_error(strict_no_keys):

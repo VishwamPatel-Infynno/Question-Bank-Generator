@@ -124,3 +124,76 @@ def test_same_passage_deduplication_catches_semantic_clones():
 
     res = evaluate_duplicate(q2, [q1], threshold=0.75)
     assert res.is_duplicate is True
+
+
+def test_section_aware_batch_thematic_angles():
+    from app.services.batch_worker import (
+        BIO_BIOCHEM_THEMATIC_ANGLES,
+        CARS_THEMATIC_ANGLES,
+        CHEM_PHYS_THEMATIC_ANGLES,
+        PSYCH_SOC_THEMATIC_ANGLES,
+        _batch_thematic_angle,
+    )
+
+    req_cars = GenerationRequest(section=MCATSection.CARS, questions_to_generate=5)
+    req_bio = GenerationRequest(section=MCATSection.BIO_BIOCHEM, questions_to_generate=5)
+    req_cp = GenerationRequest(section=MCATSection.CHEM_PHYS, questions_to_generate=5)
+    req_ps = GenerationRequest(section=MCATSection.PSYCH_SOC, questions_to_generate=5)
+
+    # Verify CARS gets CARS angles
+    angle_cars_1 = _batch_thematic_angle(1, req_cars)
+    assert "Set #1:" in angle_cars_1
+    assert CARS_THEMATIC_ANGLES[0] in angle_cars_1
+
+    # Verify Bio/Biochem gets Bio angles
+    angle_bio_1 = _batch_thematic_angle(1, req_bio)
+    assert "Set #1:" in angle_bio_1
+    assert BIO_BIOCHEM_THEMATIC_ANGLES[0] in angle_bio_1
+
+    # Verify Chem/Phys gets Chem/Phys angles
+    angle_cp_1 = _batch_thematic_angle(1, req_cp)
+    assert "Set #1:" in angle_cp_1
+    assert CHEM_PHYS_THEMATIC_ANGLES[0] in angle_cp_1
+
+    # Verify Psych/Soc gets Psych/Soc angles
+    angle_ps_1 = _batch_thematic_angle(1, req_ps)
+    assert "Set #1:" in angle_ps_1
+    assert PSYCH_SOC_THEMATIC_ANGLES[0] in angle_ps_1
+
+    # Rotation across jobs
+    angle_cars_2 = _batch_thematic_angle(2, req_cars)
+    assert CARS_THEMATIC_ANGLES[1] in angle_cars_2
+    assert angle_cars_1 != angle_cars_2
+
+
+def test_cars_slot4_domain_rotation():
+    from app.workflow.passage_prep import (
+        CARS_SLOT4_APPLICATION_DOMAINS,
+        _build_batch_worker_request,
+    )
+
+    domains_seen = []
+    for set_num in range(1, 4):
+        req = GenerationRequest(
+            section=MCATSection.CARS,
+            passage_mode="single_passage",
+            questions_to_generate=5,
+            thematic_angle=f"Set #{set_num}: Epistemology",
+        )
+        item_req, _, _, _ = _build_batch_worker_request(
+            req=req,
+            idx=3,  # Slot 4 (0-indexed 3)
+            total_qty=5,
+            batch_id=f"batch-cars-{set_num}",
+            effective_passage_count=5,
+            shared_passage_id=f"passage-{set_num}",
+            shared_passage_text="Passage text...",
+        )
+        assert "MANDATORY APPLICATION DOMAIN:" in item_req.thematic_angle
+        assert "Forbid using screening instruments" in item_req.thematic_angle
+        expected_domain = CARS_SLOT4_APPLICATION_DOMAINS[set_num - 1]
+        assert expected_domain in item_req.thematic_angle
+        domains_seen.append(expected_domain)
+
+    # Verify distinct domains across sets
+    assert len(set(domains_seen)) == 3

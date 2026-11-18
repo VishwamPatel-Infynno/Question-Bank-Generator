@@ -201,11 +201,15 @@ export function useAppState() {
         passageMode: cfg.passageMode,
         questionType: cfg.passageMode === 'single_passage' ? 'PASSAGE_BASED_MCQ' : 'DISCRETE_MCQ'
       }),
-      ...(cfg.primaryTrap && { primaryTrap: cfg.primaryTrap })
+      ...(cfg.primaryTrap && { primaryTrap: cfg.primaryTrap }),
+      ...((cfg.topic || cfg.selectedTopic) && { selectedTopic: cfg.topic || cfg.selectedTopic }),
+      ...((cfg.subtopic || cfg.selectedSubtopic) && { selectedSubtopic: cfg.subtopic || cfg.selectedSubtopic }),
+      ...(cfg.visualType && { visualType: cfg.visualType, allowAiImages: cfg.visualType !== 'None' }),
+      ...(cfg.additionalInstructions && { additionalInstructions: cfg.additionalInstructions })
     });
     showToast({
       type: 'info',
-      title: 'Preset Applied',
+      title: 'Configuration Applied',
       message: `${cfg.totalQuestions || 50} questions configured for ${getSectionShortLabel(cfg.section) || 'MCAT'}.`
     });
   }, [updateFields, showToast, generatorForm.formData]);

@@ -1,0 +1,267 @@
+/* Infynno MCAT Question Bank Generator - Question Copilot Drawer Styles | Infynno Solutions LLP */
+
+/* AI Copilot Editorial Action Strip & Interactive Drawer */
+.qcard-ai-copilot-drawer {
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  margin-top: 14px;
+  transition: all 0.2s ease;
+}
+
+.qcard-ai-copilot-drawer.open {
+  background: var(--bg-surface);
+  border-color: var(--border-medium);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.qcard-ai-copilot-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+}
+
+.qcard-ai-copilot-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.qcard-ai-copilot-title {
+  color: var(--brand-primary);
+}
+
+.qcard-ai-copilot-quick-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.qcard-ai-copilot-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qcard-ai-copilot-btn:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  background: var(--bg-surface);
+}
+
+.qcard-ai-copilot-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.qcard-ai-copilot-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.73rem;
+  color: var(--brand-primary);
+  font-weight: 500;
+}
+
+.qcard-ai-copilot-body {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qcard-ai-copilot-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qcard-ai-copilot-input {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.qcard-ai-copilot-input:focus {
+  border-color: var(--brand-primary);
+}
+
+.qcard-ai-copilot-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--brand-primary);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.qcard-ai-copilot-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.qcard-ai-copilot-chips-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.qcard-ai-copilot-chips-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.qcard-ai-copilot-preview-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qcard-ai-copilot-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 6px;
+}
+
+.qcard-ai-copilot-preview-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--brand-primary);
+}
+
+.qcard-ai-copilot-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qcard-ai-copilot-apply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--status-success);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.qcard-ai-copilot-apply-btn:hover {
+  opacity: 0.9;
+}
+
+.qcard-ai-copilot-discard-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qcard-ai-copilot-discard-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.qcard-ai-copilot-preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.qcard-ai-copilot-preview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.qcard-ai-copilot-preview-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qcard-ai-copilot-preview-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-surface-hover);
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+}
+
+.qcard-ai-copilot-preview-opt.correct {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.qcard-ai-copilot-opt-id {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.qcard-ai-copilot-preview-explanation {
+  background: var(--bg-surface-hover);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+  margin: 0;
+}

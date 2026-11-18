@@ -3,7 +3,8 @@ import {
   computeJobQuestionCounts,
   hasJobPassage,
   hasJobDiagram,
-  sortJobQuestions
+  sortJobQuestions,
+  resolveJobActualCount
 } from '../../utils';
 import BatchJobHeader from './BatchJobHeader';
 import BatchJobPillStrip from './BatchJobPillStrip';
@@ -27,7 +28,7 @@ export default function BatchJobCard({
   if (!job) return null;
 
   const jobQuestions = job.questions || [];
-  const isJobDone = job.status === JOB_STATUS.COMPLETED;
+  const isJobDone = job.status === JOB_STATUS.COMPLETED || job.status === JOB_STATUS.PARTIALLY_COMPLETED;
   const isJobRunning = job.status === JOB_STATUS.RUNNING;
   const isJobFailed = job.status === JOB_STATUS.FAILED;
   const isJobPending = job.status === JOB_STATUS.PENDING;
@@ -38,12 +39,14 @@ export default function BatchJobCard({
   const hasDiagram = hasJobDiagram(jobQuestions);
   const sortedQuestions = sortJobQuestions(jobQuestions);
   const visibleQuestions = jobQuestions.filter((q) => q.status !== QUESTION_STATUS.DISCARDED);
+  const actualCount = resolveJobActualCount(job, visibleQuestions);
 
   return (
     <div className={`batch-job-card ${isJobRunning ? 'running' : ''}`}>
       {/* Job Card Header */}
       <BatchJobHeader
         job={job}
+        actualCount={actualCount}
         targetCount={targetCount}
         isJobRunning={isJobRunning}
         isJobDone={isJobDone}
@@ -58,6 +61,8 @@ export default function BatchJobCard({
         targetCount={targetCount}
         visibleQuestions={visibleQuestions}
         isJobRunning={isJobRunning}
+        isJobDone={isJobDone}
+        isJobFailed={isJobFailed}
       />
 
       {/* Telemetry and Feature Badges */}

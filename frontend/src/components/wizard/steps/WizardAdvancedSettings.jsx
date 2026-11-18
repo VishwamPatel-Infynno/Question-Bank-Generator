@@ -1,5 +1,7 @@
-import { ChevronDown, ChevronUp, Sliders, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, ChevronUp, Sliders, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { COGNITIVE_TRAPS, EMPTY_ARRAY, LIKELY_MISTAKE_PATTERNS } from '../../../constants';
+import { fetchEnhancedInstructions } from '../../../services/api';
 
 /**
  * WizardAdvancedSettings
@@ -25,8 +27,32 @@ export default function WizardAdvancedSettings({
   onToggleMistakePattern,
   setLikelyMistakePattern,
   additionalInstructions = '',
-  setAdditionalInstructions
+  setAdditionalInstructions,
+  selectedSection = 'chem_phys',
+  selectedTopic = '',
+  difficulty = 'medium'
 }) {
+  const [isEnhancing, setIsEnhancing] = useState(false);
+
+  const handleEnhanceWithAi = async () => {
+    if (isEnhancing) return;
+    setIsEnhancing(true);
+    try {
+      const res = await fetchEnhancedInstructions({
+        instructions: additionalInstructions || 'Standard high-yield AAMC mastery',
+        section: selectedSection,
+        topic: selectedTopic,
+        difficulty
+      });
+      if (res?.enhanced_instructions) {
+        setAdditionalInstructions?.(res.enhanced_instructions);
+      }
+    } catch (err) {
+      console.error('Failed to enhance instructions with AI:', err);
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
   return (
     <div className="wizard-advanced-card">
       <button
@@ -204,18 +230,41 @@ export default function WizardAdvancedSettings({
 
           {/* Additional Authoring Instructions */}
           <div>
-            <div className="wizard-advanced-header-row">
-              <label
-                htmlFor="wizard-additional-instructions"
-                className="wizard-advanced-section-title no-margin"
+            <div className="wizard-advanced-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label
+                  htmlFor="wizard-additional-instructions"
+                  className="wizard-advanced-section-title no-margin"
+                >
+                  Additional Instructions
+                </label>
+                {hasInstructions && (
+                  <span className="badge-minimal">
+                    Active
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleEnhanceWithAi}
+                disabled={isEnhancing}
+                className="btn-secondary"
+                style={{ padding: '3px 10px', fontSize: '0.74rem', gap: '5px', display: 'inline-flex', alignItems: 'center' }}
+                title="Expand and calibrate instructions with AAMC AI psychometrics"
               >
-                Additional Instructions
-              </label>
-              {hasInstructions && (
-                <span className="badge-minimal">
-                  Active
-                </span>
-              )}
+                {isEnhancing ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>Enhancing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={12} color="var(--brand-primary)" />
+                    <span>Enhance with AI</span>
+                  </>
+                )}
+              </button>
             </div>
             <textarea
               id="wizard-additional-instructions"

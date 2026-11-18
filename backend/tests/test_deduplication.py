@@ -1,3 +1,4 @@
+import pytest
 from app.services.deduplication import (
     DuplicateCheckResult,
     cluster_questions,
@@ -369,6 +370,49 @@ def test_intra_passage_identical_answer_key_collision():
     assert res.similarity_score >= 0.75
 
 
+def test_same_passage_shared_answer_key_concept_substantive_tokens():
+    from app.services.deduplication import compute_question_similarity, evaluate_duplicate
+
+    q1 = {
+        "id": "q1",
+        "passage_id": "passage-transition-state-456",
+        "question_stem": "According to the passage, the transition state was known to chemists primarily through which of the following?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Inference from reaction rates, structural sensitivity, and stereochemical outcomes",
+            },
+            {"id": "B", "text": "Crystallographic images of transition-state analogs"},
+            {"id": "C", "text": "Measurement of the energy released as substrates become products"},
+            {"id": "D", "text": "Direct spectroscopic observation of enzyme-bound intermediates"},
+        ],
+        "correct_answer": "A",
+    }
+    q2 = {
+        "id": "q2",
+        "passage_id": "passage-transition-state-456",
+        "question_stem": "According to the passage, which claim about how chemists came to accept the transition state is best supported by the text?",
+        "options": [
+            {"id": "A", "text": "Chemists detected the transition state spectroscopically"},
+            {"id": "B", "text": "Chemists measured the enzyme conformational ensemble directly"},
+            {
+                "id": "C",
+                "text": "Chemists inferred the transition state from measured rates, rate sensitivity, and stereochemical outcomes of reactions",
+            },
+            {"id": "D", "text": "Chemists confirmed the transition state physical existence"},
+        ],
+        "correct_answer": "C",
+    }
+
+    score, reason = compute_question_similarity(q1, q2)
+    assert score >= 0.75
+    assert "Same-passage shared answer key concept" in reason
+
+    res = evaluate_duplicate(q2, [q1], threshold=0.75)
+    assert res.is_duplicate is True
+    assert res.similarity_score >= 0.75
+
+
 def test_intra_passage_stem_collision():
     from app.services.deduplication import compute_question_similarity, evaluate_duplicate
 
@@ -393,3 +437,180 @@ def test_intra_passage_stem_collision():
 
     res = evaluate_duplicate(q2, [q1], threshold=0.75)
     assert res.is_duplicate is True
+
+
+def test_intra_passage_plural_normalized_key_collision():
+    """Verifies that plural variations (lesion vs lesions, doses vs dose) trigger collision detection."""
+    from app.services.deduplication import compute_question_similarity, evaluate_duplicate
+
+    q1 = {
+        "id": "q1",
+        "passage_id": "passage-radiation-789",
+        "question_stem": "According to the passage, why do critics reject the linear no-threshold model for radiation risk?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Presence of a lesion does not establish outcome given cellular repair capacity",
+            },
+            {"id": "B", "text": "High doses overwhelm DNA repair enzymes immediately"},
+            {"id": "C", "text": "Linear extrapolations underestimate radiation damage"},
+            {"id": "D", "text": "Radiation hormesis occurs exclusively in vitro"},
+        ],
+        "correct_answer": "A",
+    }
+    q2 = {
+        "id": "q2",
+        "passage_id": "passage-radiation-789",
+        "question_stem": "Which of the following findings most directly supports the critics' argument regarding low-dose radiation?",
+        "options": [
+            {"id": "A", "text": "High-dose radiation triggers irreversible apoptosis"},
+            {
+                "id": "B",
+                "text": "Lesions present at low doses may fall within a cell's repair capacity",
+            },
+            {"id": "C", "text": "Every radiation encounter inevitably leads to mutagenesis"},
+            {"id": "D", "text": "Cellular repair mechanisms only function during mitosis"},
+        ],
+        "correct_answer": "B",
+    }
+
+    score, reason = compute_question_similarity(q1, q2)
+    assert score >= 0.75
+    assert "Same-passage shared answer key concept" in reason
+
+    res = evaluate_duplicate(q2, [q1], threshold=0.75)
+    assert res.is_duplicate is True
+    assert res.similarity_score >= 0.75
+
+
+def test_intra_passage_inverse_question_collision():
+    """
+    Verifies that inverse questions on the same passage (Stem A tests Key B, Stem B tests Key A)
+    are caught as duplicates despite different surface phrasing.
+    """
+    from app.services.deduplication import compute_question_similarity, evaluate_duplicate
+
+    # Q2 in Set 4
+    q2 = {
+        "id": "q2",
+        "passage_id": "passage-isotopes-101",
+        "question_stem": "According to the passage, what is the role of the heavier atomic counterpart in determining enzyme kinetics?",
+        "options": [
+            {
+                "id": "A",
+                "text": "It took part directly in the rate-limiting step of the reaction",
+            },
+            {"id": "B", "text": "It altered the overall equilibrium constant"},
+            {"id": "C", "text": "It denatured the active site cooperativity"},
+            {"id": "D", "text": "It stabilized the enzyme substrate transition state"},
+        ],
+        "correct_answer": "A",
+    }
+    # Q5 in Set 4 (inverse of Q2)
+    q5 = {
+        "id": "q5",
+        "passage_id": "passage-isotopes-101",
+        "question_stem": "To determine which atom participated in the rate-limiting step, which experimental modification was performed?",
+        "options": [
+            {"id": "A", "text": "The reaction temperature was lowered by ten degrees"},
+            {"id": "B", "text": "The target atom was swapped for its heavier counterpart"},
+            {"id": "C", "text": "An irreversible competitive inhibitor was added"},
+            {"id": "D", "text": "The cofactor concentration was doubled"},
+        ],
+        "correct_answer": "B",
+    }
+
+    score, reason = compute_question_similarity(q5, q2)
+    assert score >= 0.75
+    assert "inverse" in reason.lower()
+
+    res = evaluate_duplicate(q5, [q2], threshold=0.75)
+    assert res.is_duplicate is True
+    assert res.similarity_score >= 0.75
+
+
+@pytest.mark.asyncio
+async def test_judge_semantic_duplicate_offline(monkeypatch):
+    from app.core.config import config
+    from app.services.deduplication import judge_semantic_duplicate
+
+    monkeypatch.setattr(config, "OFFLINE_MODE", True)
+    q1 = {
+        "id": "q1",
+        "question_stem": "What is the net charge of aspartic acid at pH 7.4?",
+        "options": [{"id": "A", "text": "-1"}],
+        "explanation": "Aspartate is deprotonated at pH 7.4.",
+    }
+    q2 = {
+        "id": "q2",
+        "question_stem": "At physiological pH 7.4, what is the net charge of an aspartate residue?",
+        "options": [{"id": "A", "text": "-1"}],
+        "explanation": "Aspartate carries a -1 net charge at pH 7.4.",
+    }
+
+    is_dup, score, _reason = await judge_semantic_duplicate(q1, q2)
+    assert is_dup is True
+    assert score >= 0.70
+
+
+def test_same_passage_distinct_questions_no_false_positive_collision():
+    """
+    Verifies that distinct questions for the same reading passage do NOT falsely collide:
+    1. A Slot 5 question stem mentioning a passage premise discussed in an earlier answer.
+    2. Answer options sharing 1-2 generic topical vocabulary terms from the shared stimulus.
+    """
+    from app.services.deduplication import compute_question_similarity, evaluate_duplicate
+
+    # Slot 2 (Rhetorical function)
+    q2 = {
+        "id": "q2",
+        "passage_id": "passage-cars-set1",
+        "question_stem": (
+            "In the second half of the passage, the author describes Kant's regarding Hume's sentiment-based "
+            "morality as a 'surrender of morality's dignity.' Which of the following best describes the rhetorical "
+            "function of this characterization within the passage?"
+        ),
+        "options": [
+            {
+                "id": "C",
+                "text": "It frames Kant's objection as a concern that contingent feeling cannot ground binding obligation.",
+            },
+            {"id": "A", "text": "It signals sympathy as the basis for genuine duty."},
+            {"id": "B", "text": "It shows empirical observations are factually flawed."},
+            {"id": "D", "text": "It presents Hume as refuting rational faculties."},
+        ],
+        "correct_answer_id": "C",
+    }
+
+    # Slot 5 (Evaluating Counter-Evidence / Challenging an Assumption)
+    q5 = {
+        "id": "q5",
+        "passage_id": "passage-cars-set1",
+        "question_stem": (
+            "Which of the following hypothetical findings, if true, would most directly weaken Kant's "
+            "objection that contingent feeling cannot ground binding obligation?"
+        ),
+        "options": [
+            {
+                "id": "B",
+                "text": "Cross-cultural neuroimaging demonstrates that moral sentiment activates invariant neural circuitry.",
+            },
+            {
+                "id": "A",
+                "text": "Philosophers rarely agree on the definition of categorical imperative.",
+            },
+            {"id": "C", "text": "Legal codes incorporate emotional mitigation in sentencing."},
+            {
+                "id": "D",
+                "text": "Moral sentiment varies markedly between different historical eras.",
+            },
+        ],
+        "correct_answer_id": "B",
+    }
+
+    score, reason = compute_question_similarity(q5, q2)
+    assert score < 0.60
+    assert "distinct" in reason.lower()
+
+    res = evaluate_duplicate(q5, [q2], threshold=0.75)
+    assert res.is_duplicate is False

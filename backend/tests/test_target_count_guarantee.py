@@ -273,3 +273,100 @@ async def test_interactive_slot_replenishment_recovers_from_quality_rejection(mo
     assert len(complete_evts) == 1
     staged_qs = complete_evts[0]["data"]["questions"]
     assert len(staged_qs) == 5
+
+
+async def test_shortfall_job_and_batch_actual_count_synchronization():
+    """
+    Verifies that when a job produces fewer questions than target (e.g. 4/5 after Q5 fails),
+    refresh_batch_aggregates and get_single_batch accurately synchronize both job.actual_count
+    and batch.actual_count to 4 without falsely claiming 5/5.
+    """
+    from app.api.v1.batches import get_single_batch
+    from app.repositories import get_jobs_by_batch_id
+
+    batch_id = str(uuid.uuid4())
+    job_id = str(uuid.uuid4())
+    now_iso = datetime.now(UTC).isoformat()
+
+    batch = GenerationBatch(
+        id=batch_id,
+        section="chem_phys",
+        subtopic="Thermodynamics",
+        difficulty="medium",
+        passage_mode="independent",
+        target_count=5,
+        actual_count=0,
+        total_jobs=1,
+        completed_jobs=1,
+        failed_jobs=0,
+        status="completed",
+        created_at=now_iso,
+    )
+    await save_batch(batch)
+
+    job = GenerationJob(
+        id=job_id,
+        batch_id=batch_id,
+        job_number=1,
+        status="completed",
+        target_count=5,
+        actual_count=0,
+        trial_count=3,
+        created_at=now_iso,
+    )
+    await save_job(job)
+
+    distinct_shortfall_stems = [
+        "What is the rate law for a reaction where doubling reactant A quadruples reaction velocity?",
+        "Explain how transition state stabilization lowers activation energy according to Arrhenius theory.",
+        "Calculate the half-life of a first-order radioactive decay process with rate constant k = 0.05 s^-1.",
+        "How does temperature elevation influence the Maxwell-Boltzmann kinetic energy distribution of gas particles?",
+    ]
+
+    # Save only 4 questions for this job in the database (Q5 failed)
+    for stem in distinct_shortfall_stems:
+        q = Question(
+            id=str(uuid.uuid4()),
+            batch_id=batch_id,
+            job_id=job_id,
+            section="chem_phys",
+            section_label="Chemical and Physical Foundations of Biological Systems",
+            subtopic="Thermodynamics",
+            difficulty="medium",
+            question_stem=stem,
+            options=[
+                {"id": "A", "text": "Option A"},
+                {"id": "B", "text": "Option B"},
+                {"id": "C", "text": "Option C"},
+                {"id": "D", "text": "Option D"},
+            ],
+            correct_answer_id="A",
+            explanation="Explanation",
+            final_score=85,
+            status="ai_validated",
+            created_at=now_iso,
+        )
+        await save_question(q)
+
+    # 1. Refresh aggregates must synchronize job.actual_count and batch.actual_count to 4
+    refreshed_batch = await refresh_batch_aggregates(batch_id)
+    assert refreshed_batch is not None
+    assert refreshed_batch.actual_count == 4
+
+    db_jobs = await get_jobs_by_batch_id(batch_id)
+    assert len(db_jobs) == 1
+    assert db_jobs[0].actual_count == 4
+
+    # 2. API endpoint get_single_batch must return ground truth actual_count 4
+    api_payload = await get_single_batch(batch_id)
+    assert api_payload["batch"]["actual_count"] == 4
+    assert api_payload["total_questions_count"] == 4
+    assert len(api_payload["jobs"]) == 1
+    api_job = api_payload["jobs"][0]
+    assert api_job["actual_count"] == 4
+    assert len(api_job["questions"]) == 4
+
+    # 3. auto_resolve_batch_and_refill must preserve job.actual_count = 4 when trials exhausted
+    await auto_resolve_batch_and_refill(batch_id, current_cycle=3, max_cycles=3)
+    post_resolve_jobs = await get_jobs_by_batch_id(batch_id)
+    assert post_resolve_jobs[0].actual_count == 4

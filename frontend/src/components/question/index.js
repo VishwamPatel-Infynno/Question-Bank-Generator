@@ -6,6 +6,7 @@ export { default as QuestionCardFooter } from './QuestionCardFooter';
 export { default as StageJsonInspector } from './StageJsonInspector';
 export { default as QuestionScorecardTab } from './QuestionScorecardTab';
 export { default as QuestionInlineEditor } from './QuestionInlineEditor';
+export { default as QuestionCopilotStrip } from './QuestionCopilotStrip';
 export { default as SharedPassageCard } from './SharedPassageCard';
 export { default as VisualStimulusViewer } from './VisualStimulusViewer';
 export { default as VisualStimulusLightboxModal } from './VisualStimulusLightboxModal';

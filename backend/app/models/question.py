@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -139,6 +140,9 @@ class QuestionModel(Base):
 
     # Multi-Stage Raw Outcome JSON
     stage_outcomes: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+
+    # pgvector Semantic Vector Embedding (1536-dimensional)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
 
     # Bidirectional relationships
     passage: Mapped[PassageModel | None] = relationship("PassageModel", back_populates="questions")

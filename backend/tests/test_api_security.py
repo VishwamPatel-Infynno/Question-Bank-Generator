@@ -35,7 +35,6 @@ def test_request_inputs_are_length_limited():
     GenerationRequest(**base, additional_instructions="x" * 4000)
     for field, size in (
         ("additional_instructions", 4001),
-        ("custom_prompt", 4001),
         ("subtopic", 301),
         ("shared_stimulus", 20001),
     ):

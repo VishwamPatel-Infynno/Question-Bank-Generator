@@ -63,7 +63,7 @@ function keyedByIdAndCode(pick) {
 }
 
 /**
- * Resolves a section id, short code, or legacy label to a canonical id (chem_phys, cars,
+ * Resolves a section id or short code to a canonical id (chem_phys, cars,
  * bio_biochem, psych_soc), or null when it cannot be recognized.
  */
 export function normalizeSectionId(section) {
@@ -354,6 +354,7 @@ export const JOB_STATUS = Object.freeze({
   PENDING: 'pending',
   RUNNING: 'running',
   COMPLETED: 'completed',
+  PARTIALLY_COMPLETED: 'partially_completed',
   FAILED: 'failed',
   CANCELLED: 'cancelled',
   STOPPED: 'stopped'

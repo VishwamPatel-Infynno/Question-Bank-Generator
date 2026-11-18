@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { computeJobQuestionCounts, resolveQuestionStatus } from '../batchJobHelpers';
+import {
+  computeJobQuestionCounts,
+  resolveQuestionStatus,
+  resolveJobActualCount,
+  isJobShortfall
+} from '../batchJobHelpers';
 
 describe('resolveQuestionStatus', () => {
   it('prefers discarded, then deleted, then the explicit status', () => {
@@ -47,5 +52,32 @@ describe('computeJobQuestionCounts', () => {
       discardedCount: 1,
       belowCount: 1
     });
+  });
+});
+
+describe('resolveJobActualCount', () => {
+  it('prefers visibleQuestions count when job.questions is present', () => {
+    const job = { questions: [{ id: 'q1' }, { id: 'q2' }], actual_count: 5 };
+    const visibleQuestions = [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }, { id: 'q4' }];
+    expect(resolveJobActualCount(job, visibleQuestions)).toBe(4);
+  });
+
+  it('falls back to job.actual_count when job.questions is missing or empty', () => {
+    expect(resolveJobActualCount({ actual_count: 3 }, [])).toBe(3);
+    expect(resolveJobActualCount({ questions: [], actual_count: 4 }, [])).toBe(4);
+    expect(resolveJobActualCount(null, [])).toBe(0);
+  });
+});
+
+describe('isJobShortfall', () => {
+  it('returns true when actual count is less than target count', () => {
+    expect(isJobShortfall({ target_count: 5 }, 4)).toBe(true);
+    expect(isJobShortfall({ target_count: 5, actual_count: 3 })).toBe(true);
+  });
+
+  it('returns false when actual count meets or exceeds target count', () => {
+    expect(isJobShortfall({ target_count: 5 }, 5)).toBe(false);
+    expect(isJobShortfall({ target_count: 5 }, 6)).toBe(false);
+    expect(isJobShortfall({ target_count: 5, actual_count: 5 })).toBe(false);
   });
 });

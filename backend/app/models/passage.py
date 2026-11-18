@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +35,9 @@ class PassageModel(Base):
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True
     )
+
+    # pgvector Semantic Vector Embedding (1536-dimensional)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
 
     # Bidirectional relationships
     questions: Mapped[list[QuestionModel]] = relationship(

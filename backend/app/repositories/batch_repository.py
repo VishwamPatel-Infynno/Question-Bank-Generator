@@ -276,6 +276,31 @@ async def refresh_batch_aggregates(
         active_q_count = int(q_count_res.scalar() or 0)
         actual_count = active_q_count if active_q_count > 0 else job_sum_actual
 
+        # Synchronize each constituent job's actual_count with its active questions in the database when questions exist
+        if active_q_count > 0:
+            job_q_counts_stmt = (
+                select(QuestionModel.job_id, func.count(QuestionModel.id))
+                .where(
+                    QuestionModel.batch_id == batch_id,
+                    QuestionModel.job_id.isnot(None),
+                    active_question_clause(),
+                    QuestionModel.status.in_(sorted(ACTIVE_QUESTION_STATUSES)),
+                )
+                .group_by(QuestionModel.job_id)
+            )
+            job_q_counts_res = await session.execute(job_q_counts_stmt)
+            job_active_counts = dict(job_q_counts_res.all())
+
+            batch_jobs_stmt = select(GenerationJobModel).where(
+                GenerationJobModel.batch_id == batch_id
+            )
+            batch_jobs = (await session.execute(batch_jobs_stmt)).scalars().all()
+            for j_model in batch_jobs:
+                if j_model.id in job_active_counts:
+                    j_model.actual_count = int(job_active_counts[j_model.id])
+                elif j_model.status in COMPLETED_STATES:
+                    j_model.actual_count = 0
+
         batch_model.completed_jobs = completed_jobs
         batch_model.failed_jobs = failed_jobs
         batch_model.actual_count = actual_count

@@ -757,6 +757,19 @@
   gap: 5px;
 }
 
+.passage-desk-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-primary);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.passage-desk-expand-btn:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--brand-primary);
+}
+
 .passage-desk-stepper-btn {
   padding: 4px 8px;
   font-size: 0.75rem;

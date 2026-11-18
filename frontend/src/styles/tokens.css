@@ -52,6 +52,15 @@
     border-color var(--transition-normal), box-shadow var(--transition-normal),
     opacity var(--transition-normal), transform var(--transition-normal),
     filter var(--transition-normal), fill var(--transition-normal), stroke var(--transition-normal);
+
+  /* Ergonomic & backwards-compatible token aliases conforming to DESIGN.md */
+  --bg-card: var(--bg-surface);
+  --bg-hover: var(--bg-surface-hover);
+  --border-focus: var(--border-brand);
+  --status-error: var(--status-danger);
+  --status-error-bg: var(--status-danger-bg);
+  --status-error-border: var(--status-danger-border);
+  --state-danger: var(--status-danger);
 }
 
 /* --- LIGHT THEME (DEFAULT) --- */

@@ -8,394 +8,53 @@ or active batch siblings to prevent repetitive questions.
 
 from __future__ import annotations
 
-import contextlib
-import difflib
 import logging
-import re
-from collections import OrderedDict
-from typing import Any, TypedDict
-
-from pydantic import BaseModel
+from typing import Any
 
 from app.core.config import config
-from app.schemas.extractors import extract_correct_answer_text
 from app.schemas.extractors import extract_field as _field
+from app.services.dedup_clustering import cluster_questions
+from app.services.dedup_metrics import (
+    _MAX_STEM_CACHE_SIZE,
+    _STEM_TOKEN_CACHE,
+    STOP_WORDS,
+    DuplicateCheckResult,
+    DuplicateCluster,
+    DuplicateMember,
+    compute_options_overlap,
+    compute_question_similarity,
+    compute_sequence_ratio,
+    compute_stem_similarity,
+    extract_content_tokens,
+    extract_normalized_stem_set,
+    get_or_create_stem_tokens,
+    normalize_text,
+    normalize_token_stem,
+)
 
 logger = logging.getLogger(__name__)
 
-
-# Common English stop words to exclude during token normalization
-STOP_WORDS = frozenset(
-    {
-        "a",
-        "an",
-        "the",
-        "and",
-        "or",
-        "but",
-        "in",
-        "on",
-        "at",
-        "to",
-        "for",
-        "of",
-        "with",
-        "by",
-        "from",
-        "up",
-        "about",
-        "into",
-        "over",
-        "after",
-        "is",
-        "are",
-        "was",
-        "were",
-        "be",
-        "been",
-        "being",
-        "have",
-        "has",
-        "had",
-        "do",
-        "does",
-        "did",
-        "shall",
-        "will",
-        "should",
-        "would",
-        "may",
-        "might",
-        "must",
-        "can",
-        "could",
-        "which",
-        "what",
-        "who",
-        "whom",
-        "this",
-        "that",
-        "these",
-        "those",
-        "it",
-        "its",
-        "as",
-        "if",
-        "than",
-        "then",
-        "so",
-    }
-)
-
-
-class DuplicateCheckResult(BaseModel):
-    """Encapsulates the evaluation outcome of duplicate collision checks."""
-
-    is_duplicate: bool = False
-    is_soft_warning: bool = False
-    similarity_score: float = 0.0
-    matched_question_id: str | None = None
-    matched_question_stem: str | None = None
-    matched_options: list[dict[str, Any]] | None = None
-    matched_explanation: str | None = None
-    match_reason: str | None = None
-
-
-class DuplicateMember(TypedDict, total=False):
-    """Represents a redundant duplicate question within a duplicate cluster, along with similarity metrics."""
-
-    question: dict[str, Any]
-    similarity_score: float
-    reason: str
-
-
-class DuplicateCluster(TypedDict, total=False):
-    """
-    Represents an equivalence class of semantically identical or near-identical questions.
-
-    Identifies the elected leader question (retained in the bank based on psychometric score or custom override)
-    and the list of redundant duplicate members earmarked for purging or remediation.
-    """
-
-    cluster_id: str
-    size: int
-    leader_question: dict[str, Any]
-    duplicates: list[DuplicateMember]
-    highest_similarity: float
-
-
-def normalize_text(text: str | None) -> str:
-    """
-    Normalizes text for linguistic comparison:
-    - Strips LaTeX delimiters and HTML/XML tags
-    - Replaces punctuation and special symbols with spaces
-    - Lowercases and collapses multiple whitespace characters
-    """
-    if not text:
-        return ""
-    # Strip HTML tags
-    clean = re.sub(r"<[^>]+>", " ", text)
-    # Strip LaTeX delimiters: $, $$, \(, \), \[, \]
-    clean = re.sub(r"(\$\$?|\\\(|\\\)|\\\[|\\\])", " ", clean)
-    # Remove LaTeX commands like \frac, \text, \times, etc.
-    clean = re.sub(r"\\[a-zA-Z]+", " ", clean)
-    # Replace non-alphanumeric characters with spaces (preserve digits and letters)
-    clean = re.sub(r"[^a-zA-Z0-9\s]", " ", clean)
-    # Lowercase and normalize whitespace
-    tokens = clean.lower().split()
-    return " ".join(tokens)
-
-
-def extract_content_tokens(text: str | None) -> list[str]:
-    """Returns filtered content tokens with stop words removed."""
-    normalized = normalize_text(text)
-    if not normalized:
-        return []
-    return [t for t in normalized.split() if t not in STOP_WORDS and len(t) > 1]
-
-
-# In-memory LRU token cache keyed by the normalized stem text itself. Keying by question id (as
-# before) served stale tokens after an edit and never cached the candidate; the text is the
-# truth, so equal stems share one entry whoever owns them.
-_StemTokens = tuple[str, list[str], set[str], set[tuple[str, str]]]
-_STEM_TOKEN_CACHE: OrderedDict[str, _StemTokens] = OrderedDict()
-_MAX_STEM_CACHE_SIZE = 2000
-
-
-def get_or_create_stem_tokens(stem: str | None) -> _StemTokens:
-    """
-    Returns normalized text, filtered tokens list, tokens set, and bigrams set for a stem.
-
-    Entries are keyed by the normalized stem text, so equal stems share one cache entry.
-    Least-recently-used entries are evicted one at a time instead of flushing the whole cache.
-    """
-    norm = normalize_text(stem)
-    cached = _STEM_TOKEN_CACHE.get(norm)
-    if cached is not None:
-        # A concurrent worker thread may have evicted it; the cached value is still valid
-        with contextlib.suppress(KeyError):
-            _STEM_TOKEN_CACHE.move_to_end(norm)
-        return cached
-
-    tokens = [t for t in norm.split() if t not in STOP_WORDS and len(t) > 1] if norm else []
-    token_set = set(tokens)
-    bigrams = (
-        {tuple(tokens[i : i + 2]) for i in range(len(tokens) - 1)} if len(tokens) >= 2 else set()
-    )
-    item: _StemTokens = (norm, tokens, token_set, bigrams)
-
-    _STEM_TOKEN_CACHE[norm] = item
-    with contextlib.suppress(KeyError):  # another thread may already have trimmed it
-        while len(_STEM_TOKEN_CACHE) > _MAX_STEM_CACHE_SIZE:
-            _STEM_TOKEN_CACHE.popitem(last=False)
-    return item
-
-
-def compute_sequence_ratio(text1: str, text2: str) -> float:
-    """Calculates string gestalt pattern matching ratio via difflib.SequenceMatcher."""
-    n1 = normalize_text(text1)
-    n2 = normalize_text(text2)
-    if not n1 or not n2:
-        return 0.0
-    if n1 == n2:
-        return 1.0
-    matcher = difflib.SequenceMatcher(None, n1, n2)
-    return round(matcher.ratio(), 4)
-
-
-# A pair whose stem similarity is below this can never be flagged: compute_question_similarity
-# short-circuits to 0.7 * stem_sim (< 0.25), unless substantive answer keys collide.
-_STEM_PRUNE_BELOW = 0.35
-
-# Two answer options count as the same when their text similarity exceeds this
-_OPTION_MATCH_RATIO = 0.70
-# Options whose lengths differ by more than this ratio cannot reach _OPTION_MATCH_RATIO
-_OPTION_LENGTH_RATIO_FLOOR = 0.55
-
-# How the stem and option similarities combine into one verdict (compute_question_similarity)
-_STEM_NEAR_DUPLICATE = 0.70  # the stem alone drives the collision
-_STEM_SUBSTANTIAL = 0.50
-_STEM_MODERATE = 0.40
-_OPTIONS_NEAR_IDENTICAL = 0.75
-_OPTIONS_SUBSTANTIAL = 0.50
-
-
-def compute_stem_similarity(stem1: str, stem2: str, *, prune: bool = False) -> float:
-    """
-    Hybrid stem similarity combining token containment, 1-gram Jaccard, 2-gram Jaccard,
-    and character sequence ratio.
-
-    With ``prune=True`` the expensive SequenceMatcher ratio is skipped when cheap upper bounds
-    already prove the blended score stays under ``_STEM_PRUNE_BELOW``; the returned value is then
-    an upper bound (still below the cut-off), not the exact score. Callers that only need to know
-    whether a pair can be a duplicate use this; the default stays exact.
-    """
-    norm1, tokens1, s1, b1 = get_or_create_stem_tokens(stem1)
-    norm2, tokens2, s2, b2 = get_or_create_stem_tokens(stem2)
-    if not tokens1 or not tokens2:
-        return 0.0
-
-    min_len = min(len(s1), len(s2))
-    containment = len(s1 & s2) / min_len if min_len > 0 else 0.0
-
-    u1 = len(s1 | s2)
-    jaccard_1 = len(s1 & s2) / u1 if u1 > 0 else 0.0
-
-    u2 = len(b1 | b2)
-    jaccard_2 = len(b1 & b2) / u2 if u2 > 0 else 0.0
-
-    seq_ratio = 0.0
-    if norm1 and norm2:
-        matcher = difflib.SequenceMatcher(None, norm1, norm2)
-        if prune:
-            base = (0.35 * containment) + (0.25 * jaccard_1) + (0.20 * jaccard_2)
-            # real_quick_ratio >= quick_ratio >= ratio, each cheaper than the next
-            for bound in (matcher.real_quick_ratio, matcher.quick_ratio):
-                upper = base + 0.20 * bound()
-                if upper < _STEM_PRUNE_BELOW - 1e-4:
-                    return round(upper, 4)
-        seq_ratio = matcher.ratio()
-
-    # Weighted blend: 35% containment, 25% 1-gram Jaccard, 20% 2-gram Jaccard, 20% SequenceMatcher
-    score = (0.35 * containment) + (0.25 * jaccard_1) + (0.20 * jaccard_2) + (0.20 * seq_ratio)
-    return round(score, 4)
-
-
-def compute_options_overlap(
-    opts1: list[dict[str, Any] | Any],
-    opts2: list[dict[str, Any] | Any],
-) -> float:
-    """
-    Computes overlap between answer options based on normalized text matching with fast checks.
-    """
-    texts1 = [
-        normalize_text(_field(o, "text", str(o) if not isinstance(o, dict) else ""))
-        for o in (opts1 or [])
-    ]
-    texts2 = [
-        normalize_text(_field(o, "text", str(o) if not isinstance(o, dict) else ""))
-        for o in (opts2 or [])
-    ]
-    texts1 = [t for t in texts1 if t]
-    texts2 = [t for t in texts2 if t]
-
-    if not texts1 or not texts2:
-        return 0.0
-
-    matches = 0
-    for t1 in texts1:
-        # Check if t1 has high similarity with any option in texts2
-        for t2 in texts2:
-            # Fast check: exact text match
-            if t1 == t2:
-                matches += 1
-                break
-            # Length ratio heuristic before SequenceMatcher: below the floor the sequence ratio
-            # cannot exceed _OPTION_MATCH_RATIO
-            l1, l2 = len(t1), len(t2)
-            if max(l1, l2) > 0 and (min(l1, l2) / max(l1, l2)) < _OPTION_LENGTH_RATIO_FLOOR:
-                continue
-            if compute_sequence_ratio(t1, t2) > _OPTION_MATCH_RATIO:
-                matches += 1
-                break
-
-    return round(matches / max(len(texts1), len(texts2)), 4)
-
-
-def compute_question_similarity(
-    candidate: dict[str, Any] | Any,
-    reference: dict[str, Any] | Any,
-    *,
-    prune: bool = False,
-) -> tuple[float, str]:
-    """
-    Computes comprehensive similarity between two questions.
-    Returns (similarity_score, reason). ``prune=True`` may return a score for clearly distinct
-    pairs that is an upper bound rather than exact (see ``compute_stem_similarity``).
-    """
-    stem1 = (
-        candidate.get("question_stem")
-        if isinstance(candidate, dict)
-        else getattr(candidate, "question_stem", "")
-    )
-    stem2 = (
-        reference.get("question_stem")
-        if isinstance(reference, dict)
-        else getattr(reference, "question_stem", "")
-    )
-    stem_sim = compute_stem_similarity(stem1, stem2, prune=prune)
-
-    cand_key_text = extract_correct_answer_text(candidate)
-    ref_key_text = extract_correct_answer_text(reference)
-    key_sim = 0.0
-    is_substantive_key = False
-    if cand_key_text and ref_key_text:
-        key_sim = compute_stem_similarity(cand_key_text, ref_key_text)
-        min_words = min(len(cand_key_text.split()), len(ref_key_text.split()))
-        is_substantive_key = min_words >= 3
-
-    p_cand = _field(candidate, "passage_id")
-    p_ref = _field(reference, "passage_id")
-    same_passage = bool(p_cand and p_ref and str(p_cand) == str(p_ref))
-    if not same_passage:
-        stim_cand = _field(candidate, "stimulus_text")
-        stim_ref = _field(reference, "stimulus_text")
-        if stim_cand and stim_ref and len(str(stim_cand)) > 80 and str(stim_cand) == str(stim_ref):
-            same_passage = True
-
-    # Early-exit prune: below cutoff and not an identical substantive answer key
-    if stem_sim < _STEM_PRUNE_BELOW and not (is_substantive_key and key_sim >= 0.55):
-        overall = round(0.70 * stem_sim, 4)
-        return overall, f"Distinct question stem ({int(stem_sim * 100)}%)"
-
-    opts1 = (
-        candidate.get("options")
-        if isinstance(candidate, dict)
-        else getattr(candidate, "options", [])
-    )
-    opts2 = (
-        reference.get("options")
-        if isinstance(reference, dict)
-        else getattr(reference, "options", [])
-    )
-
-    opts_sim = compute_options_overlap(opts1, opts2)
-
-    # 1. Intra-passage anti-collision (questions on the same reading passage)
-    if same_passage:
-        if is_substantive_key and key_sim >= 0.55:
-            overall = max(0.76, round(0.50 * key_sim + 0.50 * stem_sim, 4))
-            return overall, f"Same-passage identical answer insight ({int(key_sim * 100)}% match)"
-        if stem_sim >= 0.50:
-            overall = max(0.76, stem_sim)
-            return overall, f"Same-passage stem collision ({int(stem_sim * 100)}% match)"
-
-    # 2. General cross-question correct answer collision (substantive keys)
-    if is_substantive_key and key_sim >= 0.70 and (stem_sim >= 0.35 or opts_sim >= 0.50):
-        overall = max(0.76, round(0.50 * key_sim + 0.35 * stem_sim + 0.15 * opts_sim, 4))
-        return overall, f"Identical correct answer rationale ({int(key_sim * 100)}% key match)"
-
-    # 3. If stems are nearly identical, that alone drives the collision
-    if stem_sim >= _STEM_NEAR_DUPLICATE:
-        overall = stem_sim
-        reason = f"High question stem textual overlap ({int(stem_sim * 100)}%)"
-    # 4. If options are identical or near-identical and the stem has moderate-to-high overlap
-    elif opts_sim >= _OPTIONS_NEAR_IDENTICAL and stem_sim >= _STEM_MODERATE:
-        overall = round((0.50 * stem_sim) + (0.50 * opts_sim), 4)
-        reason = f"Identical answer choices ({int(opts_sim * 100)}%) and conceptual stem match ({int(stem_sim * 100)}%)"
-    # 5. If both stem and options have substantial overlap
-    elif stem_sim >= _STEM_SUBSTANTIAL and opts_sim >= _OPTIONS_SUBSTANTIAL:
-        overall = round((0.60 * stem_sim) + (0.40 * opts_sim), 4)
-        reason = f"Question stem ({int(stem_sim * 100)}%) and answer choice ({int(opts_sim * 100)}%) collision"
-    else:
-        if is_substantive_key and key_sim >= 0.50:
-            overall = round((0.50 * stem_sim) + (0.30 * opts_sim) + (0.20 * key_sim), 4)
-            reason = f"Overall conceptual & key similarity ({int(overall * 100)}%)"
-        else:
-            overall = round((0.70 * stem_sim) + (0.30 * opts_sim), 4)
-            reason = f"Overall conceptual similarity ({int(overall * 100)}%)"
-
-    return overall, reason
+__all__ = [
+    "STOP_WORDS",
+    "_MAX_STEM_CACHE_SIZE",
+    "_STEM_TOKEN_CACHE",
+    "DuplicateCheckResult",
+    "DuplicateCluster",
+    "DuplicateMember",
+    "cluster_questions",
+    "compute_options_overlap",
+    "compute_question_similarity",
+    "compute_sequence_ratio",
+    "compute_stem_similarity",
+    "evaluate_duplicate",
+    "evaluate_duplicate_rag",
+    "extract_content_tokens",
+    "extract_normalized_stem_set",
+    "get_or_create_stem_tokens",
+    "judge_semantic_duplicate",
+    "normalize_text",
+    "normalize_token_stem",
+]
 
 
 def evaluate_duplicate(
@@ -463,7 +122,6 @@ def evaluate_duplicate(
             else getattr(matched_ref, "options", [])
         )
 
-        # Format options as dicts for serialization
         formatted_opts = [
             o
             if isinstance(o, dict)
@@ -489,111 +147,120 @@ def evaluate_duplicate(
     )
 
 
-def cluster_questions(
-    questions: list[dict[str, Any] | Any],
+async def evaluate_duplicate_rag(
+    candidate: dict[str, Any] | Any,
+    reference_pool: list[dict[str, Any] | Any] | None = None,
     threshold: float | None = None,
-) -> list[DuplicateCluster]:
+    soft_threshold: float | None = None,
+) -> DuplicateCheckResult:
     """
-    Groups questions into duplicate clusters using graph connected components.
-
-    For each cluster with >= 2 items, identifies the leader question (highest final_score or manual override)
-    and list of redundant sibling duplicates with similarity metrics.
+    Evaluates a candidate question using hybrid pgvector semantic search AND in-memory reference pool.
+    1. First checks pgvector for existing semantic neighbors in the Question Bank.
+    2. Then evaluates against in-flight sibling references.
+    3. Combines both to return the highest similarity match with vector + lexical explanations.
     """
     threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
-    n = len(questions)
-    if n < 2:
-        return []
+    soft_threshold = config.DUPLICATE_SOFT_THRESHOLD if soft_threshold is None else soft_threshold
+    ref_pool = list(reference_pool or [])
 
-    parent = list(range(n))
+    # If pgvector is enabled, retrieve top semantic neighbors from the database
+    if config.ENABLE_PGVECTOR_RAG:
+        try:
+            from app.services.rag import find_similar_questions
 
-    def find(i: int) -> int:
-        path = []
-        curr = i
-        while parent[curr] != curr:
-            path.append(curr)
-            curr = parent[curr]
-        for node in path:
-            parent[node] = curr
-        return curr
+            cand_stem = _field(candidate, "question_stem") or ""
+            cand_id = _field(candidate, "id")
+            if cand_stem:
+                db_matches = await find_similar_questions(
+                    cand_stem,
+                    limit=5,
+                    min_similarity=soft_threshold,
+                    exclude_ids=[str(cand_id)] if cand_id else None,
+                )
+                for m in db_matches:
+                    ref_pool.append(
+                        {
+                            "id": m.id,
+                            "question_stem": m.question_stem,
+                            "explanation": m.explanation,
+                            "options": [],
+                            "_vector_similarity": m.similarity,
+                        }
+                    )
+        except Exception as exc:
+            logger.debug("pgvector neighbor retrieval for dedup skipped (%s).", exc)
 
-    def union(i: int, j: int) -> None:
-        root_i = find(i)
-        root_j = find(j)
-        if root_i != root_j:
-            parent[root_i] = root_j
+    return evaluate_duplicate(
+        candidate, ref_pool, threshold=threshold, soft_threshold=soft_threshold
+    )
 
-    pairwise_sims: dict[tuple[int, int], tuple[float, str]] = {}
 
-    for i in range(n):
-        for j in range(i + 1, n):
-            score, reason = compute_question_similarity(questions[i], questions[j])
-            stem_sim = compute_stem_similarity(
-                questions[i].get("question_stem")
-                if isinstance(questions[i], dict)
-                else getattr(questions[i], "question_stem", ""),
-                questions[j].get("question_stem")
-                if isinstance(questions[j], dict)
-                else getattr(questions[j], "question_stem", ""),
+async def judge_semantic_duplicate(
+    cand: dict[str, Any] | Any,
+    ref: dict[str, Any] | Any,
+) -> tuple[bool, float, str]:
+    """
+    Evaluates whether candidate and reference questions are semantic duplicates.
+    For borderline lexical matches (0.60 <= score < 0.75), leverages LLM disambiguation
+    in live mode, with fast deterministic score evaluation in offline mode.
+    """
+    score, reason = compute_question_similarity(cand, ref)
+
+    # Fast vector cosine similarity check if embeddings are present
+    cand_vec = cand.get("embedding") if isinstance(cand, dict) else getattr(cand, "embedding", None)
+    ref_vec = ref.get("embedding") if isinstance(ref, dict) else getattr(ref, "embedding", None)
+    if cand_vec and ref_vec and len(cand_vec) == len(ref_vec):
+        from app.services.embeddings import cosine_similarity
+
+        v_sim = cosine_similarity(cand_vec, ref_vec)
+        if v_sim >= config.RAG_SEMANTIC_DEDUP_THRESHOLD:
+            return (
+                True,
+                v_sim,
+                f"pgvector Semantic Duplicate ({int(v_sim * 100)}% cosine similarity): tests identical cognitive concept",
             )
-            effective_sim = max(score, stem_sim)
-            if effective_sim >= threshold:
-                union(i, j)
-                pairwise_sims[(min(i, j), max(i, j))] = (round(effective_sim, 4), reason)
+    if score >= config.DUPLICATE_HARD_THRESHOLD:
+        return True, score, f"Deterministic duplicate ({int(score * 100)}%): {reason}"
+    if score < config.DUPLICATE_SOFT_THRESHOLD:
+        return False, score, f"Distinct ({int(score * 100)}%): {reason}"
 
-    # Collect grouped indices
-    groups: dict[int, list[int]] = {}
-    for idx in range(n):
-        root = find(idx)
-        groups.setdefault(root, []).append(idx)
+    # Borderline zone: 0.60 <= score < 0.75
+    if config.OFFLINE_MODE:
+        is_dup = score >= 0.70
+        return is_dup, score, f"Borderline offline evaluation ({int(score * 100)}%): {reason}"
 
-    clusters: list[dict[str, Any]] = []
-    cluster_num = 1
+    cand_stem = _field(cand, "question_stem") or ""
+    ref_stem = _field(ref, "question_stem") or ""
+    cand_expl = _field(cand, "explanation") or ""
+    ref_expl = _field(ref, "explanation") or ""
 
-    for members in groups.values():
-        if len(members) < 2:
-            continue
+    system_prompt = (
+        "You are an expert MCAT psychometrician judging whether two candidate questions "
+        "test the exact same concept (duplicate) or distinct concepts. Return ONLY a JSON object."
+    )
+    user_prompt = (
+        f"Question A:\nStem: {cand_stem}\nExplanation: {cand_expl}\n\n"
+        f"Question B:\nStem: {ref_stem}\nExplanation: {ref_expl}\n\n"
+        "Do these two questions test the exact same scientific principle or pedagogical relationship? "
+        'Return JSON: {"is_duplicate": bool, "confidence": float, "reason": string}'
+    )
 
-        # Sort members by final_score descending (best first)
-        def _get_score(q_idx: int) -> float:
-            q = questions[q_idx]
-            s = q.get("final_score") if isinstance(q, dict) else getattr(q, "final_score", 0)
-            return float(s) if s is not None else 0.0
+    try:
+        from app.agents.base import call_llm, safe_json_loads
 
-        sorted_members = sorted(members, key=_get_score, reverse=True)
-        leader_idx = sorted_members[0]
-        leader_q = questions[leader_idx]
-        leader_dict = leader_q if isinstance(leader_q, dict) else leader_q.model_dump()
-
-        duplicates = []
-        for dup_idx in sorted_members[1:]:
-            dup_q = questions[dup_idx]
-            dup_dict = dup_q if isinstance(dup_q, dict) else dup_q.model_dump()
-            pair_key = (min(leader_idx, dup_idx), max(leader_idx, dup_idx))
-            sim_score, sim_reason = pairwise_sims.get(pair_key, (0.0, "Cluster collision"))
-            if sim_score == 0.0:
-                # Calculate directly against leader if not directly paired
-                sim_score, sim_reason = compute_question_similarity(leader_q, dup_q)
-            duplicates.append(
-                {
-                    "question": dup_dict,
-                    "similarity_score": round(sim_score, 4),
-                    "reason": sim_reason,
-                }
-            )
-
-        clusters.append(
-            {
-                "cluster_id": f"cluster-{cluster_num}",
-                "size": len(members),
-                "leader_question": leader_dict,
-                "duplicates": duplicates,
-                "highest_similarity": max(d["similarity_score"] for d in duplicates)
-                if duplicates
-                else 1.0,
-            }
+        raw, _ = await call_llm(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model=config.DEFAULT_TEXT_MODEL,
+            temperature=0.1,
+            max_tokens=600,
         )
-        cluster_num += 1
+        data = safe_json_loads(raw)
+        if isinstance(data, dict) and "is_duplicate" in data:
+            is_dup = bool(data["is_duplicate"])
+            adj_score = max(score, 0.85) if is_dup else min(score, 0.55)
+            return is_dup, adj_score, f"AI Semantic Verdict: {data.get('reason', reason)}"
+    except Exception as exc:
+        logger.warning("Semantic duplicate judgment failed (%s); using score.", exc)
 
-    # Sort clusters by size descending, then highest_similarity descending
-    clusters.sort(key=lambda c: (c["size"], c["highest_similarity"]), reverse=True)
-    return clusters
+    return score >= 0.70, score, reason

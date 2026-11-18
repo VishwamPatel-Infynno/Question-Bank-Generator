@@ -71,3 +71,24 @@ export function sortJobQuestions(jobQuestions = []) {
   });
 }
 
+/**
+ * Resolves the ground-truth actual count of active questions in a job,
+ * preferring visible questions if array is provided.
+ */
+export function resolveJobActualCount(job, visibleQuestions = []) {
+  if (Array.isArray(job?.questions) && job.questions.length > 0) {
+    return visibleQuestions.length;
+  }
+  return job?.actual_count ?? 0;
+}
+
+/**
+ * Checks whether a job has a shortfall against its target count.
+ */
+export function isJobShortfall(job, actualCount) {
+  const target = job?.target_count || 5;
+  const actual = actualCount ?? job?.actual_count ?? 0;
+  return actual < target;
+}
+
+

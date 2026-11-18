@@ -9,14 +9,18 @@ import {
   Copy, 
   Clock, 
   BookOpen, 
-  GraduationCap
+  GraduationCap,
+  Sparkles
 } from 'lucide-react';
-import { fetchQuestions } from '../../services/api';
+import { fetchQuestions, fetchStudyGuide } from '../../services/api';
 import { useExportActions, useRequestGuard } from '../../hooks';
 import { Modal } from '../common';
 import { formatExamTime } from '../../utils';
 import { pickExportQuestions } from '../../utils/questionHelpers';
 import ExportPaperPreview from './ExportPaperPreview';
+import ExportScopeSelector from './ExportScopeSelector';
+import ExportDataFormatPane from './ExportDataFormatPane';
+import StudyGuideExportPane from './StudyGuideExportPane';
 import { EMPTY_ARRAY, QUESTION_STATUS } from '../../constants';
 
 const CODE_FORMATS = {
@@ -50,9 +54,12 @@ export default function ExportPrintModal({
     : (hasActiveFilters && filteredQuestions.length > 0 ? 'filtered' : 'all');
 
   const [scope, setScope] = useState(initialScope);
-  const [format, setFormat] = useState('paper'); // 'paper' | 'csv' | 'json'
+  const [format, setFormat] = useState('paper'); // 'paper' | 'csv' | 'json' | 'study_guide'
   const [paperMode, setPaperMode] = useState('student'); // 'student' | 'studypack'
   const [fetchedAll, setFetchedAll] = useState(null);
+  const [studyGuide, setStudyGuide] = useState(null);
+  const [isSynthesizingGuide, setIsSynthesizingGuide] = useState(false);
+  const [guideCopied, setGuideCopied] = useState(false);
   const previewRef = useRef(null);
 
   const guard = useRequestGuard();
@@ -82,9 +89,56 @@ export default function ExportPrintModal({
 
   const timeAllowed = useMemo(() => formatExamTime(exportQuestions), [exportQuestions]);
 
+  const handleSynthesizeGuide = async () => {
+    if (isSynthesizingGuide || exportQuestions.length === 0) return;
+    setIsSynthesizingGuide(true);
+    try {
+      const data = await fetchStudyGuide(exportQuestions);
+      setStudyGuide(data);
+    } catch (err) {
+      onShowToast?.({
+        type: 'danger',
+        title: 'Study Guide Error',
+        message: err.message || 'Failed to synthesize study guide.'
+      });
+    } finally {
+      setIsSynthesizingGuide(false);
+    }
+  };
+
+  const handleCopyGuide = async () => {
+    if (!studyGuide?.markdown_guide) return;
+    try {
+      await navigator.clipboard.writeText(studyGuide.markdown_guide);
+      setGuideCopied(true);
+      setTimeout(() => setGuideCopied(false), 2000);
+      onShowToast?.({
+        type: 'success',
+        title: 'Copied to Clipboard',
+        message: 'High-Yield Study Guide copied as Markdown.'
+      });
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+    }
+  };
+
+  const handleDownloadGuide = () => {
+    if (!studyGuide?.markdown_guide) return;
+    const blob = new Blob([studyGuide.markdown_guide], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `MCAT_Study_Guide_${exportQuestions.length}Qs.md`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const { formats, printPaper } = useExportActions({ questions: exportQuestions, paperMode, onShowToast });
-  const codeFormat = format === 'paper' ? null : formats[format];
-  const codeMeta = format === 'paper' ? null : CODE_FORMATS[format];
+  const isCodeFormat = format === 'csv' || format === 'json';
+  const codeFormat = isCodeFormat ? formats[format] : null;
+  const codeMeta = isCodeFormat ? CODE_FORMATS[format] : null;
 
   const footer = (
     <>
@@ -97,7 +151,7 @@ export default function ExportPrintModal({
           Cancel
         </button>
 
-        {format === 'paper' ? (
+        {format === 'paper' && (
           <button
             type="button"
             className="btn-primary"
@@ -108,7 +162,32 @@ export default function ExportPrintModal({
             <Printer size={14} />
             <span>Print / Save as PDF</span>
           </button>
-        ) : (
+        )}
+
+        {format === 'study_guide' && (
+          <>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleCopyGuide}
+              disabled={!studyGuide?.markdown_guide}
+            >
+              {guideCopied ? <Check size={14} color="var(--status-success)" /> : <Copy size={14} />}
+              <span>{guideCopied ? 'Copied' : 'Copy Guide Markdown'}</span>
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleDownloadGuide}
+              disabled={!studyGuide?.markdown_guide}
+            >
+              <FileDown size={14} />
+              <span>Download Guide (.md)</span>
+            </button>
+          </>
+        )}
+
+        {isCodeFormat && codeFormat && codeMeta && (
           <>
             <button type="button" className="btn-secondary" onClick={codeFormat.copy}>
               {codeFormat.copied ? <Check size={14} color="var(--status-success)" /> : <Copy size={14} />}
@@ -145,38 +224,15 @@ export default function ExportPrintModal({
           {/* Top Scope & Format Bar */}
           <div className="exam-export-topbar">
             {/* Scope Selection */}
-            <div className="exam-export-group">
-              <span className="exam-export-group-label">
-                Questions ({exportQuestions.length})
-              </span>
-              <div className="pill-track">
-                {selectedIds.length > 0 && (
-                  <button
-                    type="button"
-                    className={`pill-track-btn ${scope === 'selected' ? 'active' : ''}`}
-                    onClick={() => setScope('selected')}
-                  >
-                    <span>Selected ({selectedIds.length})</span>
-                  </button>
-                )}
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    className={`pill-track-btn ${scope === 'filtered' ? 'active' : ''}`}
-                    onClick={() => setScope('filtered')}
-                  >
-                    <span>Filtered ({filteredQuestions.length})</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={`pill-track-btn ${scope === 'all' ? 'active' : ''}`}
-                  onClick={() => setScope('all')}
-                >
-                  <span>All ({allCount})</span>
-                </button>
-              </div>
-            </div>
+            <ExportScopeSelector
+              scope={scope}
+              onScopeChange={setScope}
+              exportCount={exportQuestions.length}
+              selectedCount={selectedIds.length}
+              filteredCount={filteredQuestions.length}
+              allCount={allCount}
+              hasActiveFilters={hasActiveFilters}
+            />
 
             {/* Format Selection */}
             <div className="exam-export-group">
@@ -207,6 +263,14 @@ export default function ExportPrintModal({
                 >
                   <Code size={13} />
                   <span>JSON</span>
+                </button>
+                <button
+                  type="button"
+                  className={`pill-track-btn ${format === 'study_guide' ? 'active' : ''}`}
+                  onClick={() => setFormat('study_guide')}
+                >
+                  <Sparkles size={13} color="var(--brand-primary)" />
+                  <span>AI Study Guide</span>
                 </button>
               </div>
             </div>
@@ -259,11 +323,21 @@ export default function ExportPrintModal({
           )}
 
           {/* TAB 2/3: CSV or JSON code preview */}
-          {codeFormat && (
-            <div className="exam-export-tab-pane">
-              <div className="exam-export-callout">{codeMeta.callout}</div>
-              <div className="exam-export-code-preview">{codeFormat.content}</div>
-            </div>
+          {codeFormat && codeMeta && (
+            <ExportDataFormatPane
+              callout={codeMeta.callout}
+              content={codeFormat.content}
+            />
+          )}
+
+          {/* TAB 4: AI High-Yield Study Guide */}
+          {format === 'study_guide' && (
+            <StudyGuideExportPane
+              studyGuide={studyGuide}
+              isSynthesizingGuide={isSynthesizingGuide}
+              exportQuestions={exportQuestions}
+              handleSynthesizeGuide={handleSynthesizeGuide}
+            />
           )}
     </Modal>
   );

@@ -435,7 +435,10 @@ async def call_llm(
         max_retries = config.LLM_MAX_RETRIES
         # Usage of truncated completions that were retried: those calls were billed too
         truncated_usage: list[TokenUsage] = []
-        for attempt in range(max_retries + 1):
+        truncation_retries = 0
+        max_truncation_retries = 2
+        attempt = 0
+        while attempt <= max_retries:
             try:
                 # Hold a global LLM slot only for the call itself, never while backing off.
                 async with semaphore:
@@ -449,17 +452,28 @@ async def call_llm(
 
                 # A cut-off completion is never trustworthy: json_repair would silently
                 # "complete" a truncated explanation. Retry with a larger budget instead.
-                if getattr(response.choices[0], "finish_reason", None) == "length":
+                choice = response.choices[0]
+                finish_reason = getattr(choice, "finish_reason", None)
+                stop_reason = getattr(choice, "stop_reason", None)
+                is_truncated = finish_reason in ("length", "max_tokens") or stop_reason in (
+                    "length",
+                    "max_tokens",
+                )
+                if is_truncated:
                     current_max = int(kwargs["max_tokens"])
                     ceiling = config.LLM_MAX_TOKENS_CEILING
-                    if current_max < ceiling:
+                    if current_max < ceiling and truncation_retries < max_truncation_retries:
+                        truncation_retries += 1
                         truncated_usage.append(_usage_from_response(response, candidate))
                         kwargs["max_tokens"] = min(ceiling, current_max * 2)
+                        kwargs["request_timeout"] = max(60.0, kwargs["max_tokens"] / 25)
                         logger.warning(
-                            "Output truncated at %s tokens on '%s'. Retrying with max_tokens=%s.",
+                            "Output truncated at %s tokens on '%s'. Retrying with max_tokens=%s (truncation retry %s/%s).",
                             current_max,
                             candidate,
                             kwargs["max_tokens"],
+                            truncation_retries,
+                            max_truncation_retries,
                         )
                         continue
                     raise ValueError(
@@ -500,6 +514,7 @@ async def call_llm(
                         max_retries + 1,
                     )
                     await asyncio.sleep(backoff_secs)
+                    attempt += 1
                     continue
                 if retry_kind == "connection" and attempt < max_retries:
                     backoff_secs = 1.0 + random.uniform(0.1, 0.4)
@@ -510,6 +525,7 @@ async def call_llm(
                         backoff_secs,
                     )
                     await asyncio.sleep(backoff_secs)
+                    attempt += 1
                     continue
 
                 logger.warning(
@@ -553,7 +569,11 @@ async def call_llm_validated(
             f"Previous reply (truncated):\n{raw[:4000]}\n\n"
             "Return ONLY the corrected, complete JSON object in the required schema."
         )
-        repair_kwargs = {**llm_kwargs, "temperature": 0.0}
+        repair_kwargs = {
+            **llm_kwargs,
+            "temperature": 0.0,
+            "max_tokens": max(llm_kwargs.get("max_tokens") or 0, config.DEFAULT_MAX_TOKENS),
+        }
         raw2, usage2 = await call_llm(
             prompt=repair_prompt, system_prompt=system_prompt, **repair_kwargs
         )

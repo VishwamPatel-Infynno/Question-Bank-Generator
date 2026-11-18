@@ -1,0 +1,117 @@
+/* Infynno MCAT Question Bank Generator - Study Guide Modal Styles | Infynno Solutions LLP */
+
+/* Study Guide Export Pane */
+.study-guide-tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.study-guide-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.study-guide-btn-synthesize {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.study-guide-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.study-guide-header-card {
+  background: var(--bg-surface-hover);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.study-guide-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.study-guide-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.study-guide-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.study-guide-action-btn:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.study-guide-title {
+  margin: 0 0 6px 0;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.study-guide-summary {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.study-guide-traps-card {
+  background: var(--status-warning-bg);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--status-warning-border);
+}
+
+.study-guide-traps-title {
+  font-size: 0.8rem;
+  color: var(--status-warning);
+}
+
+.study-guide-traps-list {
+  margin: 6px 0 0 16px;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+
+.study-guide-code-preview {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.study-guide-empty-state {
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}

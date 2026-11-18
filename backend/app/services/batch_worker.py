@@ -15,9 +15,17 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 
+from app.agents.batch_planner import resolve_batch_thematic_angle
 from app.core.config import config
 from app.core.errors import sanitize_error_text
 from app.core.logging import bind_log_context
+from app.data.thematic_angles import (
+    BIO_BIOCHEM_THEMATIC_ANGLES,
+    CARS_THEMATIC_ANGLES,
+    CHEM_PHYS_THEMATIC_ANGLES,
+    PSYCH_SOC_THEMATIC_ANGLES,
+    batch_thematic_angle,
+)
 from app.repositories import (
     batch_exists,
     get_active_job_question_heads,
@@ -46,17 +54,20 @@ MAX_JOB_TRIALS: int = 3
 # Duplicate-resolution/refill rounds a batch may go through before it is finalized
 MAX_REFILL_CYCLES: int = 3
 
-BATCH_THEMATIC_ANGLES = [
-    "Experimental & Analytical Instrumentation (e.g. Mass Spectrometry, deflection in electric/magnetic fields, detectors)",
-    "Biomedical, Clinical & Pharmacological Diagnostics (e.g. PET radiotracers, radioactive decay therapy, cellular imaging)",
-    "Nuclear Forces, Binding Energy & Stability (e.g. Strong nuclear force vs Coulomb repulsion, N/Z stability valley, decay modes)",
-    "Chemical Reactivity, Bonding & Kinetic Isotope Effects (e.g. Rate-limiting transitions, zero-point energy, deuterated substrates)",
-    "Historical Experiments & Foundational Atomic Models (e.g. Rutherford alpha-scattering, Thomson cathode rays, Chadwick neutrons)",
-    "Metabolic Pathways & Enzyme Catalysis Mechanisms (e.g. Substrate binding, transition-state theory, cofactor kinetics)",
-    "Spectroscopic Analysis & Quantum Transitions (e.g. Atomic emission/absorption, orbital transitions, selection rules)",
-    "Cellular & Membrane Transport Dynamics (e.g. Ion channels, electrochemical gradients, isotopic flux)",
-    "Thermodynamics, Phase Equilibria & Collisional Dynamics (e.g. Kinetic theory, vapor pressure isotope effects)",
-    "Radiation Biophysics & Molecular Damage (e.g. Ionizing radiation, reactive oxygen species, DNA repair mechanisms)",
+# Aliases for backward compatibility
+_batch_thematic_angle = batch_thematic_angle
+
+__all__ = [
+    "BIO_BIOCHEM_THEMATIC_ANGLES",
+    "CARS_THEMATIC_ANGLES",
+    "CHEM_PHYS_THEMATIC_ANGLES",
+    "MAX_JOB_TRIALS",
+    "MAX_REFILL_CYCLES",
+    "PSYCH_SOC_THEMATIC_ANGLES",
+    "QUESTIONS_PER_JOB",
+    "_batch_thematic_angle",
+    "_run_single_job",
+    "batch_thematic_angle",
 ]
 
 
@@ -130,11 +141,6 @@ class _JobUsage:
             "completion_tokens": self.completion,
             "cost_usd": self.cost,
         }
-
-
-def _batch_thematic_angle(job_number: int) -> str:
-    """The pedagogical angle a job gets by its position in the batch (rotates through the list)."""
-    return BATCH_THEMATIC_ANGLES[(job_number - 1) % len(BATCH_THEMATIC_ANGLES)]
 
 
 def _is_passage_mode(req: GenerationRequest) -> bool:
@@ -305,13 +311,15 @@ async def _run_single_job_impl(
             if existing_active_qs and existing_active_qs[0].passage_id:
                 passage_id_for_job = existing_active_qs[0].passage_id
 
+            base_thematic_angle = await resolve_batch_thematic_angle(
+                job.job_number, total_jobs, base_req, batch_id=batch_id
+            )
             if trial > 1:
                 thematic_angle = (
-                    f"{_batch_thematic_angle(job.job_number)} • "
-                    f"In-Set Replenishment (Trial {trial}/{max_trials})"
+                    f"{base_thematic_angle} • In-Set Replenishment (Trial {trial}/{max_trials})"
                 )
             else:
-                thematic_angle = _batch_thematic_angle(job.job_number)
+                thematic_angle = base_thematic_angle
 
             attempt_req = _build_attempt_request(
                 base_req,
@@ -477,9 +485,10 @@ async def _run_single_job_refill_impl(
         if is_passage_mode and not passage_id_for_job:
             passage_id_for_job = str(uuid.uuid4())
 
-        refill_thematic_angle = (
-            f"{_batch_thematic_angle(job.job_number)} • In-Set Replenishment Item"
+        base_thematic_angle = await resolve_batch_thematic_angle(
+            job.job_number, job.job_number, base_req, batch_id=batch_id
         )
+        refill_thematic_angle = f"{base_thematic_angle} • In-Set Replenishment Item"
 
         refill_req = _build_attempt_request(
             base_req,
@@ -508,7 +517,8 @@ async def _run_single_job_refill_impl(
             ):
                 return
 
-            total_active = len(job_existing_qs) + len(refill_qs)
+            final_active_qs = await _get_active_job_questions(batch_id, job.id)
+            total_active = len(final_active_qs)
             completed_now = datetime.now(UTC).isoformat()
             await update_job_progress(
                 job.id,

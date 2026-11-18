@@ -34,6 +34,9 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     setDiffFilter,
     searchQuery,
     setSearchQuery,
+    searchMode,
+    setSearchMode,
+    isSearchingSemantic,
     sortBy,
     setSortBy,
     copiedId,
@@ -185,6 +188,9 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       <QuestionBankFilters
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
+        searchMode={searchMode}
+        setSearchMode={setSearchMode}
+        isSearchingSemantic={isSearchingSemantic}
         searchInputRef={searchInputRef}
         sectionFilter={sectionFilter}
         setSectionFilter={setSectionFilter}

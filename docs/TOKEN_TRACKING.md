@@ -171,7 +171,7 @@ Each question persisted in PostgreSQL stores both aggregate summary metrics and 
 | `token_usage_details` | `JSONB` | Granular array of `agent_usage_breakdown` objects |
 
 ### Repository-Wide Aggregation
-When the client calls `GET /api/questions`, the backend queries repository totals via [`question_repository.py`](../backend/app/repositories/question_repository.py):
+When the client calls `GET /api/questions/metrics`, the backend computes repository totals via `get_repository_metrics` in [`question_queries.py`](../backend/app/repositories/question_queries.py) (re-exported through [`question_repository.py`](../backend/app/repositories/question_repository.py)):
 
 ```python
 total_tokens = sum(q.total_tokens or 0 for q in questions)

@@ -8,7 +8,7 @@ This document details the software architecture, multi-agent design patterns, st
 
 ## 1. High-Level Architecture Overview
 
-The system is constructed as an asynchronous, event-driven multi-agent workflow orchestrated by the engine in `app/workflow/engine.py` (agent nodes in `nodes.py`, review loop in `review_loop.py`, gate routing in `routes.py`; there is no LangGraph runtime) and served via **FastAPI** with **Server-Sent Events (SSE)** to a high-performance **React 19** frontend featuring a streamlined **3-Step Guided Question Wizard**, a dedicated full-width **Generation & Review Workspace**, and an enterprise **Batch Execution Engine**.
+The system is constructed as an asynchronous, event-driven multi-agent workflow orchestrated by the engine in `app/workflow/engine.py` (with per-slot execution isolated in `slot_worker.py`, lifecycle agent nodes partitioned across `node_generator.py`, `node_reviewer.py`, and `node_finalize.py` unified by the `nodes.py` facade, review loop in `review_loop.py`, gate routing in `routes.py`; there is no LangGraph runtime) and served via **FastAPI** with **Server-Sent Events (SSE)** to a high-performance **React 19** frontend featuring a streamlined **3-Step Guided Question Wizard**, a dedicated full-width **Generation & Review Workspace**, and an enterprise **Batch Execution Engine**.
 
 ```mermaid
 graph TD
@@ -178,7 +178,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
   - Accepts educator-specified pedagogical directives (`additional_instructions`) from `GenerationRequest` via Guided Wizard Step 3.
   - Bound directly to the `AgentWorkflowState` and injected with high-priority mandate into prompt builders (`app/agents/prompt_builder.py`, `app/agents/generator.py`, and `app/agents/regenerator.py`).
   - Governs scientific constraints, clinical scenarios, calculation traps, and reasoning boundaries across passage generation, question generation, and all remediation critique cycles.
-- **Modular Prompt Construction (`prompt_builder.py`)**: User-turn prompt assembly, section instructions, cognitive trap specifications, and cross-item diversity calibration strings are decoupled into [`backend/app/agents/prompt_builder.py`](../backend/app/agents/prompt_builder.py) (`_build_generator_user_prompt`), ensuring pure deterministic string assembly without external LLM side effects.
+- **Modular Prompt Construction (`prompt_builder.py`)**: User-turn prompt assembly, section instructions, cognitive trap specifications, and cross-item diversity calibration strings are decoupled into [`backend/app/agents/prompt_builder.py`](../backend/app/agents/prompt_builder.py) (`_build_generator_user_prompt`). The builder is decomposed into focused, single-responsibility sub-builders: `_build_pedagogy_and_trap_block` (incorporating `_build_topic_coordinates`, `_build_skill_and_domain_metadata`, `_build_mistake_pattern_directive`, and `_build_primary_trap_directive`), `_build_stimulus_context_block` (CARS constraints, shared passages, and discrete directives), `_build_visual_stimulus_block` (imaging modalities and AI necessity assessment), and `_build_mandates_and_critique_block` (option symmetry, distractor order, and self-critique rubric), ensuring pure deterministic string assembly without external LLM side effects and strict cyclomatic complexity control (< 10).
 - **Inference Gateway & Fast Model Cascade**: High-throughput enterprise reasoning model (~110-140 tok/s, Temperature: `0.5` for drafting variety, with schema and rule adherence enforced by the validator and one repair retry). Powered by `DEFAULT_TEXT_MODEL` with the `FAST_MODEL_CASCADE` property naming the active provider's fallback model.
 
 ### 3.2 Blind-Solver Dual-Validation Agent (`blind_solver.py` / `blind_solver_node`)
@@ -298,11 +298,20 @@ The system coordinates specialized autonomous engines with a deterministic quali
   2. *1-Gram Jaccard Metric* ($S_{\text{jaccard\_1gram}}$, 25% weight): Evaluates vocabulary overlap $\frac{|T_1 \cap T_2|}{|T_1 \cup T_2|}$.
   3. *2-Gram Jaccard Metric* ($S_{\text{jaccard\_2gram}}$, 20% weight): Measures preservation of adjacent scientific bigrams (e.g., "activation energy", "uncompetitive inhibition", "capillary hydrostatic pressure").
   4. *SequenceMatcher Ratio* ($S_{\text{sequence\_ratio}}$, 20% weight): Captures character-level longest contiguous matching sub-sequences via Gestalt pattern matching.
-  - **Cost gating**: `evaluate_duplicate` calls the stem scorer with `prune=True`. When cheap upper bounds (`real_quick_ratio`, `quick_ratio`) prove the blended score stays under 0.40 the expensive ratio is skipped; such pairs can never be flagged, so duplicate verdicts, matched ids and flagged scores are identical (a randomized test checks this). Pools of 150+ references are scored in a worker thread so the event loop stays responsive.
-  5. *Distractor Options Overlap Booster*: Evaluates pairwise lexical similarity across candidate and reference option sets ($A, B, C, D$). If $\ge 75\%$ of options are identical or near-identical, the engine applies an options collision penalty that elevates overall similarity or establishes an empirical collision floor.
-- **Collision Decision Boundary**:
-  - **Threshold $\ge 0.80$ (80%)**: Flagged as a duplicate collision (`is_duplicate = True`). Triggers the autonomous anti-collision loop or flags the item for educator review.
-  - **Score $< 0.80$**: Cleared as a distinct pedagogical item (`is_duplicate = False`).
+  - **Cost gating**: `evaluate_duplicate` calls the stem scorer with `prune=True`. When cheap upper bounds (`real_quick_ratio`, `quick_ratio`) prove the blended score stays under 0.35 the expensive ratio is skipped; such pairs can never be flagged, so duplicate verdicts, matched ids and flagged scores are identical (a randomized test checks this). Pools of 150+ references are scored in a worker thread so the event loop stays responsive.
+  5. *Distractor Options Overlap Booster*: Evaluates pairwise lexical similarity across candidate and reference option sets ($A, B, C, D$). If $\ge 70\%$ of options are identical or near-identical (`_OPTION_MATCH_RATIO = 0.70`), the engine applies an options collision penalty that elevates overall similarity or establishes an empirical collision floor.
+- **Calibrated Decision Boundaries**:
+  - **Near-Duplicate ($\ge 0.70$)**: Flagged as a duplicate collision (`is_duplicate = True`). Triggers the autonomous anti-collision loop or flags the item for educator review.
+  - **Substantial Overlap ($\ge 0.50$)**: High-similarity threshold triggering cautionary anti-collision remediation.
+  - **Same-Passage Key Overlap & Containment Guard**: When two items share the exact same reading passage, the engine computes substantive key token containment. If the candidate and reference share $\ge 3$ substantive content tokens, have a key containment ratio $\ge 0.45$, or key similarity $\ge 0.40$ (or stem similarity $\ge 0.50$), it triggers a collision. This prevents different slots from asking about the same conclusion with slight rephrasings.
+  - **Retry Guidance Preservation**: When an in-flight collision triggers replenishment, the engine appends the collision directive to the existing `thematic_angle` rather than overwriting it, preserving the psychometric archetype.
+- **Passage Set Cognitive Blueprints (`passage_prep.py`)**:
+  Multi-question passage sets follow deterministic psychometric schedules (`CARS_PASSAGE_SET_BLUEPRINTS` and `SCIENCE_PASSAGE_SET_BLUEPRINTS`):
+  - **Slot 1 (Central Thesis / Primary Claim)**: Main idea, overarching hypothesis, or foundational finding.
+  - **Slot 2 (Local Detail & Contextual Meaning)**: Specific mechanism, definition in context, or paragraph-level argument.
+  - **Slot 3 (Author Stance & Rhetorical Function)**: Tone, author purpose, or structural rationale for citing an observation.
+  - **Slot 4 (Novel Scenario Application & Extrapolation)**: Applying passage principles to an unmentioned clinical case or hypothetical system (strictly forbidden from re-testing Slot 1 definitions).
+  - **Slot 5 (Critique / Alternative Evidence / Challenge)**: Identifying assumptions, counterarguments, or findings that weaken/strengthen passage arguments.
 - **Autonomous Anti-Collision Loop (`_run_deduplication_anti_collision_loop`)**:
   When drafting questions during batch or live generation, the candidate is compared against:
   1. Existing questions in PostgreSQL matching the exact **Section** and **Subtopic**.
@@ -389,11 +398,18 @@ At each node execution, token consumption from the LLM response is unpacked and 
 5. `finalize_node`: Binds final accumulated totals and itemized breakdown directly into the `Question` schema for database persistence.
 
 ### 4.2 Modular Execution Architecture (`engine.py` and its helper modules)
-The streaming execution pipeline is implemented in [`backend/app/workflow/engine.py`](../backend/app/workflow/engine.py) via `run_workflow_stream` and `run_workflow`. The engine resolves the run layout (`RunLayout`), keeps per-slot spend in a `SlotLedger`, and runs one worker per question slot; the orchestration helpers live in one module per concern:
-- [`passage_prep.py`](../backend/app/workflow/passage_prep.py): `_build_batch_worker_request` (per-item request), `_determine_item_diagram_requirement`, and `_prepare_shared_passage_and_visual`, which drafts the shared reading passage and its diagram.
+The streaming execution pipeline is implemented in [`backend/app/workflow/engine.py`](../backend/app/workflow/engine.py) via `run_workflow_stream` and `run_workflow`. The engine resolves the run layout (`RunLayout`), keeps per-slot spend in a `SlotLedger`, and delegates per-question slot lifecycles to an isolated worker; orchestration helpers live in dedicated modules:
+- [`stream_emitter.py`](../backend/app/workflow/stream_emitter.py): `drain_event_queue` encapsulates bounded queue polling, consumer timeout handling, and backpressure enforcement, while `format_sse_event` and `build_terminal_workflow_event` manage SSE event data framing and terminal completion/rejection/error event assembly.
+- [`slot_worker.py`](../backend/app/workflow/slot_worker.py): `run_slot_worker(ctx: SlotWorkerContext)` encapsulates the attempt/replenishment lifecycle for a single slot, handling generation attempts, in-flight anti-duplication, review loops, image generation, and slot finalization.
+- [`passage_prep.py`](../backend/app/workflow/passage_prep.py): `_build_batch_worker_request` (per-item request), `_determine_item_diagram_requirement`, `_prepare_shared_passage_and_visual` (drafts shared stimulus and diagram), and deterministic cognitive slot blueprints (`CARS_PASSAGE_SET_BLUEPRINTS` and `SCIENCE_PASSAGE_SET_BLUEPRINTS`).
 - [`review_loop.py`](../backend/app/workflow/review_loop.py): `_run_question_review_loop` runs the free deterministic gate, the reviewer, the Blind-Solver and the Question Improver remediation cycles against the 100-point rubric, under the per-slot LLM call budget.
-- [`dedup_inflight.py`](../backend/app/workflow/dedup_inflight.py): duplicate detection against the database pool, staged siblings and in-flight sibling drafts, with anti-collision regeneration.
+- [`dedup_inflight.py`](../backend/app/workflow/dedup_inflight.py): duplicate detection against the database pool, staged siblings and in-flight sibling drafts, with anti-collision regeneration and retry guidance preservation.
 - [`live_job_store.py`](../backend/app/workflow/live_job_store.py): `_persist_live_question` and the job/batch finalisation, cancellation and failure handlers for standalone live runs.
+- **Lifecycle Node Partitioning**: The discrete graph nodes are partitioned across specialized modules:
+  - [`node_generator.py`](../backend/app/workflow/node_generator.py): `fused_generator_node`, `agent_usage_entry`, and `_record_agent_usage`.
+  - [`node_reviewer.py`](../backend/app/workflow/node_reviewer.py): `reviewer_node`, `ReviewAndSolveOutcome`, `run_review_and_solve`, `blind_solver_node`, and `regenerator_node`.
+  - [`node_finalize.py`](../backend/app/workflow/node_finalize.py): `reject_node`, `image_node`, and `finalize_node`.
+  - [`nodes.py`](../backend/app/workflow/nodes.py): Transparent facade re-exporting all symbols in `__all__` with dynamic `_WorkflowNodesFacade` monkeypatch routing.
 
 ---
 
@@ -726,6 +742,40 @@ The deduplication subsystem extends the PostgreSQL schema with two persistent fi
    ```
 2. `is_duplicate_override BOOLEAN DEFAULT FALSE`: Indexed boolean enabling lightning-fast administrative filtering of overridden questions in the Question Bank table.
 - **Database Self-Healing**: Automated migration in [`init_db.py`](../backend/app/db/init_db.py) applies idempotent DDL statements (`ALTER TABLE questions ADD COLUMN IF NOT EXISTS duplicate_info JSONB;` and `ALTER TABLE questions ADD COLUMN IF NOT EXISTS is_duplicate_override BOOLEAN DEFAULT FALSE;`) upon application bootstrap.
+
+### 6.4 Data Access Layer (DAL) & CQRS Decomposition
+
+The question repository layer is structured following **Command Query Responsibility Segregation (CQRS)** to isolate high-throughput read operations from transactional write operations:
+
+1. **Query Module ([`backend/app/repositories/question_queries.py`](../backend/app/repositories/question_queries.py))**:
+   - `get_questions`: Paginated, filtered search with hybrid full-text search and deferred column loading (`SLIM_DEFER`).
+   - `count_questions`: Native SQL count queries matching filter criteria.
+   - `get_question_by_id`: Single-item lookup with active question filtering.
+   - `get_active_batch_questions`: Active batch items matching `ACTIVE_QUESTION_STATUSES` for deficit and refill tracking.
+   - `get_active_job_question_heads`: Lightweight projection returning immutable `QuestionHead(id, status, stimulus_text, passage_id)` instances, eliminating ~11 KB of JSONB serialization overhead per item during worker progress evaluation.
+   - `get_question_status_counts`: Native SQL aggregation of repository questions grouped by lifecycle status.
+   - `get_repository_metrics`: Aggregates total questions, accumulated tokens, and total cost with zero Python memory overhead.
+   - `get_subtopic_reference_questions`: Fetches the collision reference pool for deduplication.
+
+2. **Mutation Module ([`backend/app/repositories/question_mutations.py`](../backend/app/repositories/question_mutations.py))**:
+   - `save_question`: Inserts or updates a question in PostgreSQL, auto-syncing Passage (`PassageModel`) and Batch (`GenerationBatchModel`) records atomically.
+   - `save_questions_batch`: Atomic bulk upsert pre-grouping passage and batch upserts to minimize database roundtrips.
+   - `delete_question` & `delete_questions_batch`: Soft-deletes questions by setting `is_deleted = True` and recording timestamps, preserving batch statistics.
+   - `hard_delete_question` & `hard_delete_questions_batch`: Permanently purges questions from PostgreSQL during duplicate resolution.
+   - `restore_question`: Restores soft-deleted questions and reactivates soft-deleted linked passages.
+   - `update_question_status` & `batch_update_question_status`: Lifecycle status updates with automatic un-deletion when transitioning to visible statuses (`_VISIBLE_STATUSES`).
+   - `override_question_duplicate`: Records administrative duplicate overrides and approves candidate items into the Question Bank.
+
+3. **Unified Facade ([`backend/app/repositories/question_repository.py`](../backend/app/repositories/question_repository.py))**:
+   - Re-exports all query and mutation functions and classes in `__all__`, providing a single, consolidated entrypoint for callers (`app.repositories`, `metrics.py`, `batch_worker.py`, and test suites).
+
+### 6.5 Polymorphic Question Extractors (`extractors.py`)
+
+To eliminate fragile duck-typing and inconsistent attribute access across dictionaries, Pydantic schemas, and ORM entities, [`backend/app/schemas/extractors.py`](../backend/app/schemas/extractors.py) centralizes question extraction routines:
+- `extract_field(obj, key, default=None)`: Safely extracts attributes from dictionaries, objects, or dataclasses.
+- `extract_option_choices(question)`: Polymorphically extracts a list of `OptionChoice` objects from dict options, model options, or raw lists.
+- `extract_correct_answer_ids(question)`: Retrieves correct answer keys as a list of strings (e.g. `["B"]`).
+- `extract_correct_answer_text(question)`: Extracts the full text corresponding to the correct answer choice across single-choice and multi-choice formats.
 
 ---
 

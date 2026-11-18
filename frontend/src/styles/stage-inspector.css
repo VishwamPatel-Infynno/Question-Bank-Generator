@@ -1,0 +1,110 @@
+/* Infynno MCAT Question Bank Generator - Stage JSON Inspector Styles | Infynno Solutions LLP */
+
+/* --- STAGE JSON INSPECTOR STYLES --- */
+.stage-inspector-wrapper {
+  margin-top: 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.stage-inspector-header-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--bg-surface-elevated);
+  border: none;
+  cursor: pointer;
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: background var(--transition-fast);
+}
+
+.stage-inspector-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.stage-inspector-nav-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 10px;
+}
+
+.stage-inspector-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.stage-inspector-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-ui);
+}
+
+.stage-inspector-tab-btn.is-active {
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  border: 1px solid var(--border-brand);
+}
+
+.stage-inspector-tab-btn:not(.is-active) {
+  background: var(--bg-surface-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.stage-inspector-meta-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.stage-inspector-code-box {
+  background: var(--bg-canvas);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  max-height: 280px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 0.775rem;
+  line-height: 1.5;
+  border: 1px solid var(--border-subtle);
+}
+
+.stage-inspector-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--brand-primary);
+}
+
+.stage-inspector-empty {
+  padding: 24px;
+  text-align: center;
+  background: var(--bg-canvas);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-medium);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}

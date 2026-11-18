@@ -18,10 +18,16 @@ from app.workflow.slot_worker import (
     SlotWorkerContext,
     run_slot_worker,
 )
+from app.workflow.stream_emitter import (
+    drain_event_queue,
+    format_sse_event,
+)
 
 __all__ = [
     "SlotWorkerContext",
+    "drain_event_queue",
     "finalize_node",
+    "format_sse_event",
     "fused_generator_node",
     "image_node",
     "reject_node",

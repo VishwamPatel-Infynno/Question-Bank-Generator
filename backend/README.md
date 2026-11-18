@@ -28,12 +28,17 @@ backend/
 │   │       └── metrics.py    # Prometheus text exposition endpoint serving application, database, batch concurrency, and HTTP telemetry
 │   ├── workflow/            # Orchestration Layer (async workflow engine)
 │   │   ├── engine.py        # Core streaming execution engine & event emitters
+│   │   ├── stream_emitter.py # Asynchronous SSE queue consumer, backpressure polling & terminal event construction
+│   │   ├── slot_worker.py   # Isolated single-slot worker lifecycle & attempt replenishment
 │   │   ├── engine_layout.py # Run layout, SlotLedger & SSE event formatting
 │   │   ├── review_loop.py   # Deterministic gate, reviewer, Blind-Solver and remediation loop for one draft
-│   │   ├── passage_prep.py  # Per-item requests, diagram requirement, shared passage & visual drafting
+│   │   ├── passage_prep.py  # Per-item requests, cognitive blueprints (Slots 1-5), shared stimulus & visual drafting
 │   │   ├── dedup_inflight.py # Duplicate detection vs. DB pool, staged siblings and in-flight drafts
 │   │   ├── live_job_store.py # Question and job/batch persistence for standalone live runs
-│   │   ├── nodes.py         # Discrete agent worker nodes (Generator, Reviewer, etc.)
+│   │   ├── node_generator.py # Fused Question Generator and agent usage accounting helpers
+│   │   ├── node_reviewer.py # Quality audit, dual validation blind solver, and remediation nodes
+│   │   ├── node_finalize.py # Visual stimulus, quality gate rejection, and final assembly nodes
+│   │   ├── nodes.py         # Unified workflow nodes module with dynamic monkeypatch routing
 │   │   ├── routes.py        # route_after_review: Quality Gate routing used by the review loop
 │   │   ├── sse.py           # SSE event formatting, keepalive pings, and client-safe payload serialization
 │   │   └── state.py         # AgentWorkflowState typed dictionary
@@ -61,8 +66,10 @@ backend/
 │   │   └── metrics.py       # Real-time Prometheus metric collectors, counter updates & histogram exposition
 │   ├── repositories/        # Data Access Layer (DAL)
 │   │   ├── _filters.py            # Shared soft-delete clauses (active_question_clause, active_passage_clause)
-│   │   ├── question_repository.py # Clean CRUD, soft-deletion, restoration, duplicate overrides, reference queries, hybrid FTS & token analytics
-│   │   ├── mappers.py             # Pure model mapping functions for Questions (model_to_schema, schema_to_model) and Passages (passage_model_to_schema, passage_schema_to_model)
+│   │   ├── question_queries.py    # Query operations, paginated search, metrics, status counts & QuestionHead
+│   │   ├── question_mutations.py  # Atomic writes, single/batch upserts, deletions, restorations & status updates
+│   │   ├── question_repository.py # Unified CQRS facade re-exporting all DAL operations
+│   │   ├── mappers.py             # Pure model mapping functions for Questions and Passages
 │   │   ├── query_builders.py      # Shared SQLAlchemy query filters, difficulty aliases & deferred loading
 │   │   ├── batch_repository.py    # Staged batch run queries & persistence
 │   │   ├── job_repository.py      # Background worker job state tracking
@@ -76,6 +83,7 @@ backend/
 │   │   ├── mcat.py          # MCAT sections, difficulty tiers (low/medium/high) & subtopic taxonomy
 │   │   ├── token.py         # TokenUsage & TokenCostAccumulator schemas
 │   │   ├── question.py      # QuestionOption, QuestionDraft, Question, determine_question_status helper
+│   │   ├── extractors.py    # Polymorphic question extractors (field, options, keys, answer text)
 │   │   └── workflow.py      # GenerationRequest, ReviewScore, WorkflowEvent
 │   ├── core/                # Configuration & Settings
 │   │   ├── config.py        # Pydantic SettingsConfigDict, dual-provider defaults & settings (68 fields)
@@ -90,7 +98,7 @@ backend/
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (59 deterministic modules / 396 tests + 1 live E2E module with 10 tests = 406 total backend tests)
+└── tests/                   # Deterministic Automated Test Suite (73 deterministic modules / 493 tests + 1 live E2E module with 10 tests = 503 total backend tests)
     ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
     ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
     ├── test_additional_instructions.py     # Educator custom authoring instructions and prompt builder integration
@@ -119,6 +127,7 @@ backend/
     ├── test_e2e_live.py                    # Live end-to-end integration tests (10 tests marked live_e2e)
     ├── test_engine_cleanup.py              # The workflow stream must not leak worker tasks when its consumer stops reading
     ├── test_engine_slices.py               # Unit tests for the pure, closure-free pieces sliced out of ``workflow.engine``
+    ├── test_extractors.py                  # Polymorphic question extractors (field, options, keys, answer text)
     ├── test_http_caching.py                # HTTP Cache-Control, ETag headers & 304 conditional revalidation
     ├── test_image_calls.py                 # Retry behaviour and response handling of the provider image calls (HTTP mocked)
     ├── test_in_flight_pool_and_dedup.py    # Per-job in-flight dedup pool and cross-slot collision checks
@@ -134,25 +143,31 @@ backend/
     ├── test_offline_mode.py                # Mocks are an explicit opt-in: no credentials without OFFLINE_MODE must fail loudly
     ├── test_openai.py                      # OpenAI text and image provider wiring (HTTP mocked)
     ├── test_ops_and_resolution.py          # Request ids, body limits, error sanitising, liveness, batch resolution helpers
+    ├── test_passage_set_blueprints_and_dedup.py # CARS & Science slot blueprints, psychometric archetypes, and slot specialization directives
     ├── test_pedagogy.py                    # Pedagogical format & 3-card explanation tests
     ├── test_pricing_table.py               # Verified provider prices, model-based rate resolution, cache billing and image costs
     ├── test_projected_reads.py             # Lightweight repository reads used by the batch worker
     ├── test_prometheus_metrics.py          # Prometheus/OpenMetrics exposition and telemetry middleware tracking
+    ├── test_prompt_builder_blocks.py       # Decomposed generator user prompt sub-blocks (pedagogy, traps, stimulus)
+    ├── test_question_repository_decomposition.py # DAL CQRS decomposition, queries/mutations domain separation, and QuestionHead immutability
     ├── test_question_status_refill.py      # Status enums, active question helpers and deficit calculations
     ├── test_recovery.py                    # Startup recovery: orphaned running jobs must not stay 'running' forever
     ├── test_repository_mappers.py          # Pure mapping functions between SQLAlchemy models & Pydantic schemas
     ├── test_request_secrets.py             # Client-supplied API keys must never be persisted or returned
     ├── test_schemas.py                     # Pydantic schema validation tests
     ├── test_shared_helpers.py              # Shared helpers extracted during cleanup keep their exact semantics
+    ├── test_slot_worker.py                 # Isolated question slot execution, attempt replenishment, quality gate routing, and SlotWorkerContext
     ├── test_soft_delete_batch_integrity.py # Soft-delete & restore preserving batch progress metrics
     ├── test_sse_keepalive.py               # SSE keep-alive comments while the engine is quiet
+    ├── test_stream_emitter.py              # Workflow SSE queue draining, timeout polling & terminal event assembly
     ├── test_structured_output.py           # Model output is validated strictly, repaired once, and never silently defaulted
     ├── test_target_count_guarantee.py      # Dynamic job allocation, slot replenishment and target count guarantees
     ├── test_taxonomy_sync.py               # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
     ├── test_tokens.py                      # Token cost accumulation across providers and config cascade
     ├── test_validators.py                  # Unit tests for the deterministic question validators (no LLM, no database)
     ├── test_visuals.py                     # AI image generation, visual stimulus routing and cost accumulation
-    └── test_workflow.py                    # Streaming workflow execution and event metadata
+    ├── test_workflow.py                    # Streaming workflow execution and event metadata
+    └── test_workflow_nodes_decomposition.py # Lifecycle node decomposition, facade re-exports, object identity, and monkeypatch synchronization
 ```
 
 ---
@@ -265,7 +280,7 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (396 deterministic tests across 59 modules, 406 total backend tests)
+# Run all unit and integration tests (509 deterministic tests across 75 modules, 519 total backend tests)
 # Smart auto-skip: pure unit tests pass offline, DB-dependent tests skip cleanly if PostgreSQL is offline
 uv run pytest backend/tests -v
 # or using activated virtual environment:

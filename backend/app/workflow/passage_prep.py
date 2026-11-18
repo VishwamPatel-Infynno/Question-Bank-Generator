@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
@@ -19,7 +20,32 @@ from app.schemas import (
     is_cars,
 )
 from app.workflow.nodes import agent_usage_entry
+from app.workflow.passage_blueprints import (
+    CARS_PASSAGE_SET_BLUEPRINTS,
+    CARS_SLOT4_APPLICATION_DOMAINS,
+    MODALITY_ROTATION_BY_SECTION,
+    SCIENCE_PASSAGE_SET_BLUEPRINTS,
+    SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS,
+    extract_passage_slot_blueprints,
+    resolve_slot_domain_index,
+)
 from app.workflow.state import AgentUsageEntry, AgentWorkflowState
+
+logger = logging.getLogger(__name__)
+
+__all__ = [
+    "CARS_PASSAGE_SET_BLUEPRINTS",
+    "CARS_SLOT4_APPLICATION_DOMAINS",
+    "MODALITY_ROTATION_BY_SECTION",
+    "SCIENCE_PASSAGE_SET_BLUEPRINTS",
+    "SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS",
+    "SharedPassageState",
+    "_build_batch_worker_request",
+    "_determine_item_diagram_requirement",
+    "_prepare_shared_passage_and_visual",
+    "extract_passage_slot_blueprints",
+    "resolve_slot_domain_index",
+]
 
 
 @dataclass
@@ -35,116 +61,7 @@ class SharedPassageState:
     completion_tokens: int = 0
     cost: float = 0.0
     usage_breakdown: list[AgentUsageEntry] = field(default_factory=list)
-
-
-MODALITY_ROTATION_BY_SECTION: dict[str, list[str]] = {
-    "bio_biochem": [
-        "histopathology (e.g. H&E tissue biopsy, cellular histology, blood smear)",
-        "scientific_diagram (e.g. enzyme kinetics plot, SDS-PAGE gel, metabolic pathway)",
-        "gross_anatomy (e.g. organ cross-section, cardiac chambers, renal architecture)",
-        "cellular_microscopy (e.g. TEM micrograph of mitochondrial cristae, sarcomere ultrastructure)",
-        "physiology_trace (e.g. 12-lead ECG strip, cardiac action potential, PV loop)",
-    ],
-    "chem_phys": [
-        "scientific_diagram (e.g. reaction mechanism, titration curve, optics diagram, circuit)",
-        "diagnostic_radiology (e.g. plain radiograph X-ray, CT attenuation, ultrasound, MRI)",
-        "physiology_trace (e.g. cardiac electrical trace, respiratory pressure-volume curve)",
-        "cellular_microscopy (e.g. membrane channel ultrastructure, electron micrograph)",
-    ],
-    "psych_soc": [
-        "scientific_diagram (e.g. experimental scatter plot with regression line, psychophysics curve)",
-        "diagnostic_radiology (e.g. fMRI BOLD cortical activation scan, PET neuroimaging)",
-        "gross_anatomy (e.g. neuroanatomical structures: limbic system, hippocampus, amygdala)",
-        "clinical_pathology (e.g. neurological examination findings, emotion processing stimuli)",
-    ],
-}
-
-# Standard AAMC CARS 5-Question Set Blueprint
-CARS_PASSAGE_SET_BLUEPRINTS: list[dict[str, str]] = [
-    {
-        "skill": "CARS1",
-        "archetype": "Central Claim / Main Thesis",
-        "directive": (
-            "SLOT 1 FOCUS: Test the author's overarching thesis, central argument, or primary communicative purpose across the entire passage. "
-            "Formulate an unambiguous stem asking for the author's core claim or purpose."
-        ),
-    },
-    {
-        "skill": "CARS1",
-        "archetype": "Local Detail & Passage Evidence",
-        "directive": (
-            "SLOT 2 FOCUS: Test direct textual comprehension of a specific concept, term, or relationship discussed in the early paragraphs (Paragraph 1 or 2). "
-            "Do NOT ask about the overarching thesis; test local textual evidence."
-        ),
-    },
-    {
-        "skill": "CARS2",
-        "archetype": "Rhetorical Function / Author's Stance",
-        "directive": (
-            "SLOT 3 FOCUS: Test the logical or rhetorical function of a specific phrase, metaphor, or cited example in the middle of the passage "
-            "(e.g., why the author mentions X, or how Paragraph 3 functions relative to Paragraph 2). Do NOT repeat the main claim."
-        ),
-    },
-    {
-        "skill": "CARS3",
-        "archetype": "Reasoning Beyond the Text: Novel Scenario Application",
-        "directive": (
-            "SLOT 4 FOCUS: Extrapolate the author's reasoning to a NEW, hypothetical real-world scenario, historical event, or modern policy NOT described in the text. "
-            "Ask how the author's philosophy or framework would apply to this new situation."
-        ),
-    },
-    {
-        "skill": "CARS3",
-        "archetype": "Reasoning Beyond the Text: Challenge / Weaken Assumptions",
-        "directive": (
-            "SLOT 5 FOCUS: Present a new piece of hypothetical evidence or counter-argument and ask which finding or observation would most directly weaken, challenge, or invalidate the author's argument."
-        ),
-    },
-]
-
-# Standard AAMC Science 5-Question Set Blueprint (CPBS, BBLS, PSBB)
-SCIENCE_PASSAGE_SET_BLUEPRINTS: list[dict[str, str]] = [
-    {
-        "skill": "Skill_1",
-        "archetype": "Scientific Concept & Principle Foundation",
-        "directive": (
-            "SLOT 1 FOCUS: Test foundational biochemical, physical, or physiological concepts referenced in the passage (Knowledge of Scientific Concepts and Principles). "
-            "Focus on the underlying scientific definitions and laws."
-        ),
-    },
-    {
-        "skill": "Skill_4",
-        "archetype": "Data, Figure & Graph Interpretation",
-        "directive": (
-            "SLOT 2 FOCUS: Test data-based and statistical reasoning (Skill 4). "
-            "Require the examinee to analyze a quantitative trend, data relationship, experimental baseline, or table/figure described in the passage."
-        ),
-    },
-    {
-        "skill": "Skill_3",
-        "archetype": "Experimental Design & Methodological Rationale",
-        "directive": (
-            "SLOT 3 FOCUS: Test reasoning about research design and execution (Skill 3). "
-            "Evaluate why a specific control was chosen, how a variable was isolated, or the rationale for a specific experimental assay."
-        ),
-    },
-    {
-        "skill": "Skill_2",
-        "archetype": "Scientific Reasoning & Problem Solving / Mechanism",
-        "directive": (
-            "SLOT 4 FOCUS: Test multi-step mechanistic deduction or problem solving (Skill 2). "
-            "Require combining a passage observation with outside foundational knowledge to deduce a mechanism."
-        ),
-    },
-    {
-        "skill": "Skill_2",
-        "archetype": "Novel Experimental Condition / Hypothesis Testing",
-        "directive": (
-            "SLOT 5 FOCUS: Predict the outcome of a hypothetical follow-up experiment or modification to the experimental protocol (Reasoning Beyond the Passage). "
-            "Ask what would happen if a novel inhibitor, gene knockout, or condition were introduced."
-        ),
-    },
-]
+    blueprints: list[dict[str, str]] | None = None
 
 
 def _build_batch_worker_request(
@@ -155,6 +72,7 @@ def _build_batch_worker_request(
     effective_passage_count: int,
     shared_passage_id: str | None,
     shared_passage_text: str | None,
+    passage_blueprints: list[dict[str, str]] | None = None,
 ) -> tuple[GenerationRequest, str, bool, str]:
     """
     Builds an isolated GenerationRequest for an individual question worker within a batch,
@@ -219,11 +137,27 @@ def _build_batch_worker_request(
 
     item_question_type = req.question_type
     if is_passage_item and effective_passage_count > 1:
-        blueprints = CARS_PASSAGE_SET_BLUEPRINTS if sec_is_cars else SCIENCE_PASSAGE_SET_BLUEPRINTS
+        if passage_blueprints and len(passage_blueprints) >= 5:
+            blueprints = passage_blueprints
+        else:
+            blueprints = (
+                CARS_PASSAGE_SET_BLUEPRINTS if sec_is_cars else SCIENCE_PASSAGE_SET_BLUEPRINTS
+            )
         blueprint = blueprints[idx % len(blueprints)]
         item_skill = blueprint["skill"] if is_automatic_skill else user_skill
         item_question_type = blueprint["archetype"]
         slot_directive = blueprint["directive"]
+        if not passage_blueprints:
+            domain_idx = resolve_slot_domain_index(req)
+            if sec_is_cars and (idx % len(blueprints)) == 3:  # Slot 4
+                domain = CARS_SLOT4_APPLICATION_DOMAINS[domain_idx]
+                slot_directive += (
+                    f" MANDATORY APPLICATION DOMAIN: Formulate the scenario specifically within [{domain}]. "
+                    "Forbid using screening instruments or generic public health thresholds."
+                )
+            elif not sec_is_cars and (idx % len(blueprints)) == 4:  # Slot 5
+                condition = SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS[domain_idx]
+                slot_directive += f" MANDATORY EXPERIMENTAL FOLLOW-UP CONDITION: Base the prediction on [{condition}]."
         if req.thematic_angle:
             item_thematic_angle = f"{req.thematic_angle} • {slot_directive}"
         else:
@@ -382,6 +316,9 @@ async def _prepare_shared_passage_and_visual(
         )
         yield passage_done_evt
 
+    if is_single_passage_set and state.passage_text:
+        state.blueprints = await extract_passage_slot_blueprints(state.passage_text, req)
+
     requires_passage_image = bool(
         not is_cars(req.section)
         and (
@@ -420,7 +357,7 @@ async def _prepare_shared_passage_and_visual(
             explanation="Shared passage visual stimulus reference",
             image_needed=True,
             image_prompt_or_type=passage_image_prompt
-            or req.custom_prompt
+            or req.additional_instructions
             or f"Scientific clinical diagram for: {state.passage_text[:120]}",
         )
 

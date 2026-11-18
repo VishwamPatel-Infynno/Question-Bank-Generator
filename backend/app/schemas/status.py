@@ -42,7 +42,12 @@ LIVE_STATES: frozenset[str] = frozenset(
 
 # A batch/job that delivered its questions (a short job is "completed" too)
 COMPLETED_STATES: frozenset[str] = frozenset(
-    {BatchStatus.COMPLETED, BatchStatus.PARTIALLY_COMPLETED}
+    {
+        BatchStatus.COMPLETED,
+        BatchStatus.PARTIALLY_COMPLETED,
+        JobStatus.COMPLETED,
+        JobStatus.PARTIALLY_COMPLETED,
+    }
 )
 
 # Nothing will run any more unless a user retries
@@ -53,6 +58,11 @@ TERMINAL_STATES: frozenset[str] = frozenset(
         BatchStatus.FAILED,
         BatchStatus.CANCELLED,
         BatchStatus.STOPPED,
+        JobStatus.COMPLETED,
+        JobStatus.PARTIALLY_COMPLETED,
+        JobStatus.FAILED,
+        JobStatus.CANCELLED,
+        JobStatus.STOPPED,
     }
 )
 
@@ -69,5 +79,10 @@ EXECUTABLE_JOB_STATES: frozenset[str] = frozenset(
 
 # Jobs a user-triggered retry may reset to pending
 RETRYABLE_JOB_STATES: frozenset[str] = frozenset(
-    {JobStatus.FAILED, JobStatus.CANCELLED, JobStatus.PENDING}
+    {
+        JobStatus.FAILED,
+        JobStatus.CANCELLED,
+        JobStatus.PENDING,
+        JobStatus.PARTIALLY_COMPLETED,
+    }
 )

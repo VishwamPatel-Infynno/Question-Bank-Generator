@@ -341,7 +341,8 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
-.spin-animate {
+.spin-animate,
+.animate-spin {
   animation: spin 0.8s linear infinite;
 }
 

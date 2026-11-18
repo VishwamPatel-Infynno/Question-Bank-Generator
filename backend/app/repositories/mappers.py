@@ -87,6 +87,7 @@ def model_to_schema(m: QuestionModel, slim: bool = False) -> Question:
         is_deleted=bool(getattr(m, "is_deleted", False)),
         deleted_at=to_iso_str(m.deleted_at) if getattr(m, "deleted_at", None) else None,
         stage_outcomes={} if slim else (m.stage_outcomes or {}),
+        embedding=getattr(m, "embedding", None),
     )
 
 
@@ -150,6 +151,7 @@ def schema_to_model(q: Question) -> QuestionModel:
         is_deleted=bool(q.is_deleted),
         deleted_at=to_datetime(q.deleted_at) if q.deleted_at else None,
         stage_outcomes=q.stage_outcomes,
+        embedding=getattr(q, "embedding", None),
     )
 
 

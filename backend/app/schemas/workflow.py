@@ -34,7 +34,6 @@ class GenerationRequest(TaxonomyFields):
         default=False,
         description="Whether the shared reading passage stimulus requires an image diagram",
     )
-    custom_prompt: str | None = Field(default=None, max_length=4000)
     additional_instructions: str | None = Field(
         default=None,
         max_length=4000,
