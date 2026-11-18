@@ -18,7 +18,9 @@ The frontend provides an intuitive, real-time command canvas for AAMC MCAT quest
 - **Live Background Batch Activity & Telemetry**: Real-time batch and worker job monitoring dashboard displaying live progress, per-job question cards, duplicate audit clusters, and manual or automated in-place refills.
 - **AI-Validated Editorial Review Desk**: High-speed triage desk where educators inspect, inline-edit, discard, or approve validated questions into the canonical Question Bank.
 - **Question Quality & Cost Breakdown**: Comprehensive 100-point 4-pillar quality check with itemized token tracking and micro-dollar cost calculations.
-- **Export & Print Studio**: Professional modal for exporting PDF Exam Papers (with candidate headers and page breaks), Study Packs, CSV, and JSON bundles.
+- **AI Copilot Studio (`QuestionCopilotStrip.jsx`)**: Real-time context-aware assistant strip anchored to the generation and review workspace, offering 5 in-flight cognitive tools: Magic Setup (`/magic-setup`), Prompt Enhancement (`/enhance-instructions`), Question Refinement (`/refine-question`), Passage Audit (`/audit-passage`), and High-Yield Study Guide Generation (`/study-guide`).
+- **Syllabus Ingestion Desk (`SyllabusIngestionModal.jsx`)**: Multi-modal curriculum parser allowing educators to upload `.pdf`, `.docx`, `.txt` course syllabi or paste raw text. Automatically classifies learning objectives into official AAMC foundational concepts, content categories, and subtopics, enabling instant 1-click batch generation.
+- **Comprehensive 6-Format Publication & Export Studio**: Decomposed modal architecture (`ExportPrintModal.jsx`, `ExportScopeSelector.jsx`, `ExportDataFormatPane.jsx`, `StudyGuideExportPane.jsx`) supporting Official Exam Booklet (Standard PDF), Exam Simulation Booklet (Split-Pane AAMC Layout PDF), Comprehensive Study Pack (Annotated Review PDF), Anki Flashcard Deck (TSV with Cloze / QA Tags), Standardized CSV, and Normalized JSON.
 - **Publication-Grade Medical & Scientific Visual Studio**: Dedicated figure renderer supporting all 7 clinical and experimental modalities (Radiology, Histopathology, Gross Anatomy, Cellular Electron Microscopy, Physiology/ECG Traces, Clinical Pathology, and SVG Vector Diagrams) with modality badging, autonomous AI visual discretion for standalone and passage questions ("Include Images When Needed"), high-contrast dark container rendering for radiographic clarity, and click-to-zoom accessible lightbox inspection (`VisualStimulusLightboxModal.jsx`).
 - **Enterprise Question Bank**: High-speed searchable, filterable repository with multi-format export, lifecycle status management, and copy-to-clipboard actions.
 - **WCAG AA Semantic Controls & Accessibility**: All interactive buttons across wizards, filter bars, cards, and modal dialogs are implemented as native semantic `<button>` elements with explicit `aria-pressed`, `aria-current="step"`, `aria-expanded`, and descriptive `aria-label`s on selection checkboxes and bulk actions.
@@ -72,12 +74,19 @@ frontend/src/
 │   │   ├── index.js              # Layout barrel export
 │   │   ├── Footer.jsx            # Infynno Solutions LLP attribution & resource footer
 │   │   └── Navbar.jsx            # Header with branding, navigation tabs, status, and theme toggle
+│   ├── copilot/
+│   │   ├── index.js              # Copilot barrel export
+│   │   └── QuestionCopilotStrip.jsx # Interactive in-flight educator assistance strip
 │   ├── modals/
 │   │   ├── index.js              # Modals barrel export
 │   │   ├── ConfirmationModal.jsx # Accessible WCAG AA confirmation modal replacing native window.confirm
 │   │   ├── DeletePassageModal.jsx# Dedicated passage deletion and cascade warning dialog
 │   │   ├── ExportPaperPreview.jsx# Live print layout previewer
-│   │   └── ExportPrintModal.jsx  # Exam Paper (PDF), Study Pack, CSV and JSON export modal (Focus Trapped)
+│   │   ├── ExportPrintModal.jsx  # 6-format Export Studio modal (Focus Trapped)
+│   │   ├── ExportScopeSelector.jsx# Decomposed export scope & filter selector
+│   │   ├── ExportDataFormatPane.jsx# Decomposed CSV / JSON / Anki TSV format configuration
+│   │   ├── StudyGuideExportPane.jsx# Decomposed study guide settings pane
+│   │   └── SyllabusIngestionModal.jsx # Multi-modal syllabus & curriculum ingestion modal
 │   ├── passage/
 │   │   ├── index.js              # Passage bank barrel export
 │   │   ├── PassageBankFilters.jsx# Passage search, section, and difficulty filters
@@ -152,7 +161,7 @@ frontend/src/
 │   └── useTheme.js               # Dark/light mode persistence
 ├── services/
 │   ├── index.js                  # Services barrel export
-│   └── api.js                    # FastAPI client & SSE stream reader (question CRUD/restore, batches, passages; sends the optional X-API-Key header)
+│   └── api.js                    # FastAPI client & SSE stream reader (32 methods: question CRUD/restore, pgvector search, AI Copilot, syllabus ingestion, batches, passages)
 ├── utils/
 │   ├── index.js                  # Utilities barrel export
 │   ├── batchHelpers.js           # Calculates current execution stage, badges, descriptions, and refill status for a batch
@@ -160,7 +169,7 @@ frontend/src/
 │   ├── batchPayload.js           # The POST /batches/start payload builder with defense-in-depth CARS visual suppression
 │   ├── download.js               # Text file download helper
 │   ├── explanationHelpers.js     # Pure JS distractor line & trap parser
-│   ├── export/                   # csv.js, json.js, htmlDoc.js (print builder), printPaperCss.js, escape.js, index.js
+│   ├── export/                   # csv.js, json.js, htmlDoc.js (print builder), printPaperCss.js, escape.js, anki.js, index.js
 │   ├── formatters.js             # Currency, pacing, and token formatting
 │   ├── generatorFormState.js     # Pure wizard form reducers: subtopic toggles, section rules
 │   ├── ids.js                    # RFC4122-style random id. crypto.randomUUID only exists in secure contexts (HTTPS/localhost),
@@ -180,6 +189,10 @@ frontend/src/
 │   ├── layout.css                # App shell, Navbar, Footer, Toast, Pagination
 │   ├── wizard.css                # Hero landing & 3-step authoring wizard
 │   ├── question.css              # Master Question Card, Mentor explanation, Stimulus, Scorecard
+│   ├── question-copilot.css      # Floating AI Copilot strip styles
+│   ├── stage-inspector.css       # Pipeline stage inspector accordion styles
+│   ├── syllabus-modal.css        # Multi-modal syllabus ingestion modal styles
+│   ├── study-guide-modal.css     # Decomposed study guide export pane styles
 │   ├── batch.css                 # Batch base: concurrency gauge, progress pills
 │   ├── batch-activity.css        # Batch Activity Monitor styles
 │   ├── batch-card-summary.css    # Batch card summary styles
@@ -202,8 +215,10 @@ In the repository root or `frontend` directory, you can run:
 # Automatically runs 'predev' hook to clean ports 8000 and 5173
 pnpm dev
 
-# Run Vitest automated test suite (119 tests across 13 test files)
+# Run Vitest automated test suite (132 tests across 14 test files, 100% pass rate)
 pnpm test
+# or from root:
+pnpm run test:frontend
 
 # Run Oxlint high-speed linter across frontend sources (0 errors, 0 warnings policy)
 pnpm lint

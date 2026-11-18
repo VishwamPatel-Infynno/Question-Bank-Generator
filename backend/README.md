@@ -14,12 +14,13 @@ The backend is engineered with clear separation of concerns across presentation,
 ```
 backend/
 ├── app/
-│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 40 operations across 34 paths; 41 operations across 35 paths including root /metrics)
+│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 51 operations across 45 unique paths including root /metrics)
 │   │   ├── router.py        # Central API v1 router aggregator (applies the optional API_ACCESS_KEY gate)
 │   │   ├── security.py      # Optional X-API-Key dependency for mutating routes
 │   │   └── v1/
+│   │       ├── ai_copilot.py # Real-time AI Copilot tools (/magic-setup, /refine, /audit, /study-guide) & syllabus ingestion
 │   │       ├── generation.py # SSE streaming multi-agent orchestrator endpoint
-│   │       ├── questions.py  # Question Bank CRUD, review approval, duplicate check & override, restoration, permanent purge & exports
+│   │       ├── questions.py  # Question Bank CRUD, pgvector semantic search, approval, duplicate check & override, restoration, permanent purge & exports
 │   │       ├── passages.py   # Shared clinical stimulus passages endpoints (list, retrieve, save, soft-delete)
 │   │       ├── batches.py    # Multi-question batch execution run endpoints, clustering & refill
 │   │       ├── taxonomy.py   # AAMC syllabus hierarchy & dependent taxonomy tree endpoints
@@ -30,6 +31,8 @@ backend/
 │   │   ├── engine.py        # Core streaming execution engine & event emitters
 │   │   ├── stream_emitter.py # Asynchronous SSE queue consumer, backpressure polling & terminal event construction
 │   │   ├── slot_worker.py   # Isolated single-slot worker lifecycle & attempt replenishment
+│   │   ├── draft_parser.py  # Strict JSON parsing, markdown stripping, schema validation & deterministic repair
+│   │   ├── passage_blueprints.py # CARS & Science 5-slot cognitive blueprint definitions, skill mapping & archetypes
 │   │   ├── engine_layout.py # Run layout, SlotLedger & SSE event formatting
 │   │   ├── review_loop.py   # Deterministic gate, reviewer, Blind-Solver and remediation loop for one draft
 │   │   ├── passage_prep.py  # Per-item requests, cognitive blueprints (Slots 1-5), shared stimulus & visual drafting
@@ -57,7 +60,13 @@ backend/
 │   │   ├── mock_fixtures.py # Deterministic fallback fixtures for offline resilience
 │   │   ├── mock_drafts.py   # Table of the seven canned mock drafts (section x passage/independent)
 │   │   └── base.py          # LiteLLM execution wrapper & sub-micro-cent token cost engine (DeepInfra + Anthropic)
-│   ├── services/            # Background Worker & Asynchronous Services
+│   ├── services/            # Background Worker & AI Subsystems
+│   │   ├── ai_copilot.py    # Real-time educator copilot tooling (magic setup, refine, audit, study guide)
+│   │   ├── syllabus_ingestion.py # Multi-modal curriculum parser & autonomous taxonomy mapper
+│   │   ├── rag.py           # Semantic RAG retrieval & exemplar extraction via pgvector
+│   │   ├── embeddings.py    # Real-time OpenAI text-embedding-3-small vector generation
+│   │   ├── dedup_clustering.py # Hierarchical duplicate clustering & cluster querying
+│   │   ├── dedup_metrics.py # Multi-metric similarity calculations (token containment, jaccard, sequence matcher)
 │   │   ├── batch_runner.py  # High-level pool managing 5 Questions (1-job) and 50 Questions (10-job batch)
 │   │   ├── batch_worker.py  # Dedicated background worker executing parallel job attempts, trial counts & recovery
 │   │   ├── batch_concurrency.py # Process-wide worker semaphores, active run tracking & rate-limiting throttles
@@ -66,8 +75,8 @@ backend/
 │   │   └── metrics.py       # Real-time Prometheus metric collectors, counter updates & histogram exposition
 │   ├── repositories/        # Data Access Layer (DAL)
 │   │   ├── _filters.py            # Shared soft-delete clauses (active_question_clause, active_passage_clause)
-│   │   ├── question_queries.py    # Query operations, paginated search, metrics, status counts & QuestionHead
-│   │   ├── question_mutations.py  # Atomic writes, single/batch upserts, deletions, restorations & status updates
+│   │   ├── question_queries.py    # Query operations, paginated search, pgvector similarity, metrics, status counts & QuestionHead
+│   │   ├── question_mutations.py  # Atomic writes, single/batch upserts, embeddings persistence, deletions, restorations & status updates
 │   │   ├── question_repository.py # Unified CQRS facade re-exporting all DAL operations
 │   │   ├── mappers.py             # Pure model mapping functions for Questions and Passages
 │   │   ├── query_builders.py      # Shared SQLAlchemy query filters, difficulty aliases & deferred loading
@@ -75,7 +84,7 @@ backend/
 │   │   ├── job_repository.py      # Background worker job state tracking
 │   │   └── passage_repository.py  # Shared stimulus reading passage queries, soft-deletion, and cascade question removal
 │   ├── models/              # Persistence Layer (SQLAlchemy 2.0 ORM Entities)
-│   │   ├── question.py      # QuestionModel with JSONB duplicate_info, is_deleted, deleted_at & 7 composite indexes
+│   │   ├── question.py      # QuestionModel with VECTOR(1536) embedding, JSONB duplicate_info, is_deleted, deleted_at & composite + HNSW indexes
 │   │   ├── passage.py       # PassageModel for multi-item shared reading stimuli with is_deleted & deleted_at
 │   │   ├── batch.py         # GenerationBatchModel for multi-question generation runs
 │   │   └── job.py           # GenerationJobModel for background batch jobs with persisted trial_count
@@ -90,15 +99,16 @@ backend/
 │   │   ├── pricing.py       # Model price fallback tables and LiteLLM registry lookup
 │   │   ├── concurrency.py   # Process-wide pipeline semaphore shared by all runs
 │   │   └── logging.py       # Centralized console logging handler & formatter
-│   ├── db/                  # Database Lifecycle
+│   ├── db/                  # Database Lifecycle & Migrations
 │   │   ├── base.py          # Declarative Base
-│   │   ├── init_db.py       # Ordered idempotent migration steps (columns, indexes, backfills, FKs, status reconcile); skips DDL that already exists
+│   │   ├── init_db.py       # Ordered idempotent migration steps, pgvector extension, composite indexes & FTS
+│   │   ├── schema_migrations.py # Schema migrations, HNSW cosine index (idx_questions_embedding_hnsw), foreign keys & column additions
 │   │   └── session.py       # Async engine, connection pool & startup migrations
 │   └── data/                # Static Taxonomy & Curricula
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (73 deterministic modules / 493 tests + 1 live E2E module with 10 tests = 503 total backend tests)
+└── tests/                   # Deterministic Automated Test Suite (75 deterministic modules / 509 tests + 1 live E2E module with 10 tests = 519 total backend tests across 76 files)
     ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
     ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
     ├── test_additional_instructions.py     # Educator custom authoring instructions and prompt builder integration
@@ -123,7 +133,9 @@ backend/
     ├── test_cpu_async_hygiene.py           # Dedup pruning keeps verdicts, big pools leave the loop, litellm stays lazy
     ├── test_database_structure.py          # SQLAlchemy models, cascade deletion and constraint tests
     ├── test_deduplication.py               # Multi-metric similarity, token containment, options overlap and auto-resolve
+    ├── test_dedup_decomposition.py         # Decomposed dedup clustering and multi-metric similarity unit tests
     ├── test_deterministic_gate.py          # Tests that the deterministic validator gate runs before LLM review in the review loop
+    ├── test_draft_parser.py                # Strict JSON repair, markdown stripping, schema validation & deterministic repair
     ├── test_e2e_live.py                    # Live end-to-end integration tests (10 tests marked live_e2e)
     ├── test_engine_cleanup.py              # The workflow stream must not leak worker tasks when its consumer stops reading
     ├── test_engine_slices.py               # Unit tests for the pure, closure-free pieces sliced out of ``workflow.engine``
@@ -139,10 +151,12 @@ backend/
     ├── test_logging_context.py             # Correlation ids bound with bind_log_context appear on log records, including in child tasks
     ├── test_medical_imaging.py             # All 7 medical modalities detection, gross anatomy safety sanitization & OpenAI content moderation fallback retry
     ├── test_mock_fixture_table.py          # The seven canned mock drafts must stay byte-identical when their source representation changes
+    ├── test_modular_cleanup.py             # Regression checks for modular service extractions
     ├── test_multi_batch_concurrency.py     # Multi-batch semaphore stress tests and rate-limit backoff
     ├── test_offline_mode.py                # Mocks are an explicit opt-in: no credentials without OFFLINE_MODE must fail loudly
     ├── test_openai.py                      # OpenAI text and image provider wiring (HTTP mocked)
     ├── test_ops_and_resolution.py          # Request ids, body limits, error sanitising, liveness, batch resolution helpers
+    ├── test_passage_blueprints_decomposition.py # Unit tests for decomposed 5-slot passage blueprint structures
     ├── test_passage_set_blueprints_and_dedup.py # CARS & Science slot blueprints, psychometric archetypes, and slot specialization directives
     ├── test_pedagogy.py                    # Pedagogical format & 3-card explanation tests
     ├── test_pricing_table.py               # Verified provider prices, model-based rate resolution, cache billing and image costs
@@ -155,12 +169,14 @@ backend/
     ├── test_repository_mappers.py          # Pure mapping functions between SQLAlchemy models & Pydantic schemas
     ├── test_request_secrets.py             # Client-supplied API keys must never be persisted or returned
     ├── test_schemas.py                     # Pydantic schema validation tests
+    ├── test_schema_migrations_decomposition.py # Schema migrations & HNSW vector index creation tests
     ├── test_shared_helpers.py              # Shared helpers extracted during cleanup keep their exact semantics
     ├── test_slot_worker.py                 # Isolated question slot execution, attempt replenishment, quality gate routing, and SlotWorkerContext
     ├── test_soft_delete_batch_integrity.py # Soft-delete & restore preserving batch progress metrics
     ├── test_sse_keepalive.py               # SSE keep-alive comments while the engine is quiet
     ├── test_stream_emitter.py              # Workflow SSE queue draining, timeout polling & terminal event assembly
     ├── test_structured_output.py           # Model output is validated strictly, repaired once, and never silently defaulted
+    ├── test_syllabus_ingestion.py          # Syllabus parsing, section classification & batch job generation
     ├── test_target_count_guarantee.py      # Dynamic job allocation, slot replenishment and target count guarantees
     ├── test_taxonomy_sync.py               # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
     ├── test_tokens.py                      # Token cost accumulation across providers and config cascade
@@ -219,6 +235,32 @@ The backend integrates an unrestricted medical and scientific imaging engine cap
 - **Scientific Diagrams (`scientific_diagram`)**: Pure Python programmatic SVG vector graphics for enzyme kinetics, metabolic pathways, and optical schematics.
 
 **Safety Moderation Fallback**: If an image generation provider (such as OpenAI DALL-E / GPT Image) rejects a raw clinical/anatomical prompt with an HTTP 400 content policy exception, the engine automatically reformulates the request into an educational textbook diagram style and retries transparently without interrupting the generation pipeline.
+
+### 2.2 5-Slot Cognitive Blueprints & Modulo Replenishment Rotation (`passage_blueprints.py`, `slot_worker.py`)
+
+To ensure passage sets reflect the multi-faceted cognitive demands of the authentic MCAT, the backend organizes 5-question passage sets into specialized cognitive slots:
+- **CARS Archetypes**: Slot 1 (Foundations of Comprehension), Slot 2 (Within the Text - Inferential), Slot 3 (Within the Text - Contrasting Arguments), Slot 4 (Beyond the Text - Novel Application), Slot 5 (Beyond the Text - Challenge Assumption).
+- **Science Archetypes**: Slot 1 (Foundational Scientific Knowledge), Slot 2 (Scientific Reasoning & Deduction), Slot 3 (Research Design & Methodology), Slot 4 (Data-based & Statistical Reasoning), Slot 5 (Novel Hypothesis / Experimental Manipulation).
+- **Deterministic Domain Rotation**: When a candidate slot fails review or requires replenishment during batch execution, `resolve_slot_domain_index` rotates deterministically through 8 curated CARS application domains or 8 Science experimental conditions:
+  $$\text{domain\_index} = (\text{base\_index} + \text{attempt} - 1) \pmod 8$$
+- **Hard 36-Call LLM Slot Budget**: Enforces `MAX_LLM_CALLS_PER_SLOT = 36` (3 attempts $\times$ 12 calls) per slot to guarantee finite execution and prevent runaway inference expenses.
+
+### 2.3 pgvector Semantic RAG & Anti-Collision Subsystem (`rag.py`, `embeddings.py`, `dedup_clustering.py`)
+
+- **Vector Persistence**: Uses `pgvector/pgvector:pg16` Docker container with 1536-dimensional float vectors stored in `questions.embedding`.
+- **HNSW Cosine Indexing**: Automatically builds `idx_questions_embedding_hnsw` on startup (`m=16`, `ef_construction=64`, distance metric `vector_cosine_ops`), configured with runtime `hnsw.ef_search = 40`.
+- **Dual-Shield Anti-Collision Loop**: Combines pgvector semantic similarity distance ($1 - \text{cosine\_similarity}$) with n-gram lexical overlap ($>75\%$). If a collision is flagged, the generator is prompted with an explicit anti-collision directive to re-steer the item.
+- **Hierarchical Clustering**: Groups repository items into semantic clusters for batch duplicate resolution and portfolio pruning.
+
+### 2.4 AI Copilot Studio & Syllabus Ingestion Pipelines (`ai_copilot.py`, `syllabus_ingestion.py`)
+
+- **AI Copilot Suite**: Powers real-time educator assistance across 5 specialized endpoints:
+  - `/api/v1/ai/magic-setup`: Deduces target AAMC section, difficulty tier, subtopic, and passage constraints from rough educator notes.
+  - `/api/v1/ai/enhance-instructions`: Refines authoring prompts with explicit AAMC phrasing, SIRS reasoning verbs, and distractor constraints.
+  - `/api/v1/ai/refine-question`: Proposes targeted fixes for ambiguous wording, key clarity, distractor symmetry, or cognitive trap calibration.
+  - `/api/v1/ai/audit-passage`: Reviews stimulus length (500-600 words for CARS, 200-400 for Science), reading grade level, vocabulary density, and empirical data validity.
+  - `/api/v1/ai/study-guide`: Synthesizes high-yield clinical takeaway sheets and active recall summaries from passage sets.
+- **Syllabus Ingestion Pipeline**: Ingests raw course syllabi or curriculum documents (`.pdf`, `.docx`, `.txt`, or raw text), extracts foundational concepts and content categories, maps them to the official AAMC taxonomy, and generates 1-click batch generation jobs.
 
 ---
 

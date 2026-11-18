@@ -63,6 +63,65 @@ The multi-agent workflow is architected with a decoupled, provider-agnostic infe
 
 Both engines strictly enforce model parameter constraints (`GENERATOR_TEMPERATURE = 0.5` for drafting variety, `PASSAGE_TEMPERATURE = 0.7`, `REGENERATOR_TEMPERATURE = 0.2`, `REVIEWER_TEMPERATURE = 0.1`, `BLIND_SOLVER_TEMPERATURE = 0.1`) and feed identical Pydantic transfer schemas into the workflow state.
 
+### 1.3 AI Copilot Studio & Ingestion Architecture
+
+The application integrates an autonomous Copilot Studio (`app/services/ai_copilot.py`) and academic curriculum ingestion engine (`app/services/syllabus_ingestion.py`). Educators can either supply natural-language generation goals, paste syllabus outlines, or upload institution syllabi (PDF, TXT, MD) to automatically construct pedagogical batch proposals aligned with the AAMC MCAT taxonomy:
+
+```mermaid
+flowchart TD
+    DocUpload[Syllabus Document Upload / Raw Text] --> FileExtract[Text Extraction Engine<br>pypdf Stream + Regex Fallback]
+    FileExtract --> ContextBound[Token Budget Boundary<br>Truncate to 30,000 chars]
+    ContextBound --> TaxonomyMap[AAMC Taxonomy Mapping Engine<br>mcat_dependent_taxonomy.json]
+    TaxonomyMap --> ConceptMatch[Concept & Subtopic Alignment<br>Foundational Concepts 1-10]
+    ConceptMatch --> ProposalGen[Curriculum Tree & Batch Proposal Generator]
+    ProposalGen --> BatchConfig[Pre-Populated Wizard Configuration<br>Thematic Angle + Skill Directives]
+    BatchConfig --> LaunchBatch[Execute 5-Question Blueprinted Batch]
+```
+
+### 1.4 pgvector Semantic RAG & Anti-Collision Loop
+
+To guarantee semantic variety and prevent conceptual collisions across generations, the repository utilizes native PostgreSQL `pgvector` indexing with high-dimensional embeddings (`vector(1536)`). High-scoring exemplars are retrieved to ground prompts, while nearest-neighbor avoidance stems steer the generator away from previously tested hypotheses:
+
+```mermaid
+flowchart LR
+    subgraph "Vector Ingestion"
+        QItem[Approved / Staged Question] --> EmbedGen[1536-dim Embedding Generator<br>OpenAI / Transformer / Mock]
+        EmbedGen --> PGVector[(PostgreSQL pgvector<br>HNSW Cosine Index)]
+    end
+
+    subgraph "Retrieval-Augmented Generation"
+        DraftPrompt[Slot Blueprint Directives] --> RAGQuery[POST /api/questions/rag-context]
+        RAGQuery --> PGVector
+        PGVector -->|Cosine Distance <= 0.12| Avoidance[Anti-Collision Negative Avoidance Stems]
+        PGVector -->|Final Score >= 90| Exemplars[Psychometric Benchmark Exemplars]
+        Avoidance --> PromptAssembler[Dynamic Prompt Assembler]
+        Exemplars --> PromptAssembler
+        PromptAssembler --> FusedDraft[Fused Generator Drafting Pass]
+    end
+```
+
+### 1.5 5-Slot Cognitive Passage Set Specialization & Attempt Rotation
+
+Passage-based sets enforce a five-tier cognitive blueprint (`app/workflow/passage_blueprints.py`) ensuring distinct pedagogical archetypes for CARS and Science sections. When replenishment attempts occur, slot-specific domain and experimental conditions rotate deterministically to guarantee that retries never regenerate redundant variations:
+
+```mermaid
+flowchart TD
+    Passage[Passage Synthesis / Input] --> Slots{Cognitive Blueprint Router}
+    Slots --> Slot1[Slot 1: Foundations & Main Idea]
+    Slots --> Slot2[Slot 2: Graphic / Quantitative Data]
+    Slots --> Slot3[Slot 3: Scientific Reasoning & Methods]
+    Slots --> Slot4[Slot 4: Application Across Domains<br>Rotates Domain on Retries]
+    Slots --> Slot5[Slot 5: Experimental / Assumption Critique<br>Rotates Condition on Retries]
+
+    Slot4 -->|Attempt 0: Domain idx 0| Worker4[Worker Slot 4]
+    Slot4 -->|Attempt 1: Domain idx 1| Worker4
+    Slot4 -->|Attempt 2: Domain idx 2| Worker4
+
+    Slot5 -->|Attempt 0: Condition idx 0| Worker5[Worker Slot 5]
+    Slot5 -->|Attempt 1: Condition idx 1| Worker5
+    Slot5 -->|Attempt 2: Condition idx 2| Worker5
+```
+
 ---
 
 ## 2. Multi-Agent Quality-Gated Workflow
@@ -150,6 +209,36 @@ The system implements a unified psychometric quality threshold model to ensure u
 | Gate | Governing Threshold | Scope & Application | System Consequence |
 | :--- | :---: | :--- | :--- |
 | **Quality Gate** | **$> 80$ Points**<br>`PASSING_SCORE_THRESHOLD = 80` | Applied uniformly to every candidate question drafted in live sessions or batch workers. | Questions scoring $> 80$ qualify for admission into the permanent **Question Bank** or promotion to the dedicated **AI Validated** repository (`status = 'ai_validated'`). Candidate items scoring $\le 80$ are remediated or discarded. |
+
+### 2.4 Passage Set Cognitive Blueprints & Attempt Replenishment Rotation
+
+For passage-based question sets (standard 5-question passage blocks), the generator enforces pedagogical slot blueprints defined in [`backend/app/workflow/passage_blueprints.py`](../backend/app/workflow/passage_blueprints.py):
+
+#### Cognitive Slot Archetypes
+- **Critical Analysis and Reasoning Skills (CARS)**:
+  - **Slot 1 (Foundations of Comprehension)**: Literal meaning, central thesis, and primary purpose.
+  - **Slot 2 (Reasoning Within the Text)**: Authorial tone, rhetorical role of evidence, and paragraph relationships.
+  - **Slot 3 (Reasoning Beyond the Text)**: Extrapolation to external scenarios and analogical transfers.
+  - **Slot 4 (Cross-Domain Application)**: Contextual adaptation across philosophy, ethics, epistemology, and social sciences, drawing from `CARS_SLOT4_APPLICATION_DOMAINS`.
+  - **Slot 5 (Argument Critique & Vulnerability)**: Latent assumptions, counter-evidence evaluation, and argumentative weaknesses.
+- **Science Sections (Chem/Phys, Bio/Biochem, Psych/Soc)**:
+  - **Slot 1 (Foundational Knowledge & Direct Concept)**: Core pathway, biochemical definition, physical equation, or sociological model.
+  - **Slot 2 (Data-Based & Graphical Interpretation)**: Lineweaver-Burk plots, Western blot assays, titration curves, or behavioral reaction rates.
+  - **Slot 3 (Scientific Reasoning & Mechanism)**: Molecular pathway deductions, stoichiometry, and multi-step physiological regulation.
+  - **Slot 4 (Research Design & Variables)**: Identification of positive/negative controls, independent variables, and experimental validity.
+  - **Slot 5 (Experimental Perturbation & Novel Conditions)**: Evaluation of hypothetical follow-up interventions drawn from `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS` (e.g. competitive inhibitor addition, genetic knockout, thermal denaturation, altered pH).
+
+#### Dynamic Replenishment Attempt Rotation (`resolve_slot_domain_index`)
+When a candidate question in a passage set is rejected at the psychometric quality gate and re-attempted during shortfall replenishment:
+- The system calls `resolve_slot_domain_index(req, attempt)`:
+  $$\text{index} = (\text{base\_seed} + \text{attempt}) \pmod{|\text{rotation\_pool}|}$$
+- Slot 4 for CARS rotates deterministically to the next domain in `CARS_SLOT4_APPLICATION_DOMAINS` on each retry attempt.
+- Slot 5 for Science sections rotates deterministically to the next condition in `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`.
+- This ensures that retries never regenerate redundant variations or repeat identical experimental perturbations.
+
+#### Per-Slot Hard Call Budget
+- **Budget Ceiling**: `MAX_LLM_CALLS_PER_SLOT = 36` (calibrated for 3 full worker attempts $\times$ 12 calls per attempt: Generator draft, self-critique, validator retry, reviewer sample, blind solver samples 1-2, tie-breaker sample, remediation cycles 1-2, and deduplication check).
+- Once the budget is exhausted, the slot worker immediately halts further LLM expenditure, fails closed, and logs an itemized budget exhaustion report.
 
 ---
 
@@ -602,6 +691,54 @@ stateDiagram-v2
 4. **Idempotent Batch Counter Synchronization**:
    [`backend/app/repositories/question_repository.py`](../backend/app/repositories/question_repository.py) enforces idempotent batch counter updates in `save_question`. When editing an existing question or re-saving an approved item, the repository detects the existing record and skips counter increments, preventing counter inflation across re-edits or stage-to-bank transitions.
 
+### 5.5 AI Copilot Studio & In-Line Refinement (`app/services/ai_copilot.py`)
+
+The AI Copilot Studio provides specialized LLM intelligence services accessible directly from the question wizard, live review cards, and passage inspection modals:
+1. **Magic Setup Parser (`parse_magic_setup`)**:
+   - Accepts free-form educator prompts (e.g. *"I need 5 hard questions on renal acid-base balance and carbonic anhydrase inhibitors"*).
+   - Extracts MCAT section, subtopic, cognitive difficulty, AAMC skill, visual necessity, and custom authoring instructions.
+   - Emits structured JSON pre-populating Guided Wizard Steps 1-3.
+2. **Instruction Calibrator (`enhance_instructions`)**:
+   - Takes raw user notes or informal instructor guidance and transforms them into an authoritative AAMC prompt mandate with authentic clinical terminology, distractors, and calculation trap directives.
+3. **Question Draft Refinement (`refine_question`)**:
+   - Powers the interactive `QuestionCopilotStrip` in the review workspace.
+   - Executes 4 targeted editorial actions: `polish_distractor` (enhances plausibility and length parity), `simplify_explanation` (makes mentor proof more concise), `invert_sibling` (creates an inverse question targeting the opposite mechanism), and `custom` (free-form educator directives).
+4. **Passage Readability & Empirical Density Auditor (`audit_passage`)**:
+   - Calculates Flesch-Kincaid Reading Ease, Flesch-Kincaid Grade Level, average sentence length, paragraph counts, and experimental density (e.g. data tables, quantitative assays, hypothesis testing presence).
+5. **High-Yield Study Guide Synthesizer (`synthesize_study_guide`)**:
+   - Aggregates an array of verified questions to synthesize an executive summary, a checklist of high-yield cognitive traps, and flashcard drill pairs formatted for study and export.
+
+### 5.6 Academic Curriculum & Syllabus Ingestion Pipeline (`app/services/syllabus_ingestion.py`)
+
+The curriculum ingestion engine enables educators to upload institutional course documents and immediately generate custom question batches:
+1. **Multi-Format Document Extraction (`extract_text_from_file_bytes`)**:
+   - Reads PDF documents natively using `pypdf.PdfReader` with stream chunking.
+   - Supports plain text (`.txt`) and Markdown (`.md`) files with UTF-8 / Latin-1 decoding fallbacks.
+   - Enforces a strict $30,000$-character token budget cap to protect LLM context windows.
+2. **AAMC Taxonomy Mapping (`ingest_and_map_syllabus`)**:
+   - Analyzes syllabus text against [`backend/app/data/mcat_dependent_taxonomy.json`](../backend/app/data/mcat_dependent_taxonomy.json).
+   - Identifies matching Foundational Concepts (1-10) and subtopics with numerical confidence scoring ($0.0 - 1.0$).
+   - Recommends section classification, cognitive difficulty level, and a concise curriculum summary.
+3. **Automated Batch Blueprint Proposals**:
+   - Proposes structured 5-question generation batches with specific pedagogical thematic angles (e.g. *"Competitive vs. Uncompetitive Inhibition Kinetics"*).
+   - Formulates tailored authoring instructions ready to inject into the background batch runner.
+
+### 5.7 pgvector Semantic RAG & Anti-Collision Shield (`app/services/rag.py`)
+
+The pgvector RAG subsystem prevents conceptual repetition and guarantees novelty across large repositories:
+1. **Vector Embedding Ingestion (`app/services/embeddings.py`)**:
+   - Computes 1536-dimensional dense vector representations using pluggable backends: OpenAI `text-embedding-3-small`, local HuggingFace `sentence-transformers`, or a deterministic hash fallback for offline environments.
+   - Embeds concatenated stem, options, and explanation text into `QuestionModel.embedding`.
+2. **Exemplar Retrieval for In-Context Learning**:
+   - Queries historical questions with `final_score >= 90` within the target section and subtopic.
+   - Injects top-scoring exemplars into Generator prompts to demonstrate authentic MCAT tone, option symmetry, and trap construction.
+3. **Nearest-Neighbor Anti-Collision Shield**:
+   - Calculates cosine distance over the HNSW index (`vector_cosine_ops`) against existing questions in the bank.
+   - Stems within a cosine distance $\le 0.12$ ($> 88\%$ semantic similarity) are extracted as **Avoidance Stems**.
+   - Avoidance stems and observed cognitive traps are passed directly into prompt builders to enforce explicit differentiation.
+4. **Decomposed Deduplication Metrics (`app/services/dedup_metrics.py` & `dedup_clustering.py`)**:
+   - Combines vector cosine similarity with lexical token overlap (Jaccard similarity and SequenceMatcher) to detect verbatim copies, near-duplicates, and conceptual clones without false positives.
+
 ---
 
 ## 6. PostgreSQL 16 Database Architecture
@@ -706,6 +843,7 @@ erDiagram
         JSONB duplicate_info "Collision metrics, matched stem & override timestamp"
         BOOLEAN is_duplicate_override "Explicit administrative override flag"
         TSVECTOR tsv_content "PostgreSQL FTS token vector for hybrid search"
+        VECTOR(1536) embedding "1536-dimensional vector embedding indexed via HNSW vector_cosine_ops"
         VARCHAR(64) created_at "ISO-8601 UTC timestamp"
     }
 ```
@@ -716,6 +854,20 @@ When multiple questions are generated as a passage set, they share a foreign key
 - **Non-Destructive Soft-Deletion (`DELETE /api/passages/{passage_id}`)**: When an administrator deletes a reading passage via `delete_passage`, the repository soft-deletes both the passage and all associated questions (`is_deleted = true`, `deleted_at = now()`) in a single atomic SQL transaction.
 - **Batch History Preservation**: Crucially, soft-deletion does **not** clear `job.passage_id` and does **not** decrement job or batch `actual_count` metrics. This guarantees that Batch Progress monitors and audit historical execution records remain 100% intact even if an educator deletes questions from the Question Bank.
 - **Restoration Architecture**: Soft-deleted questions can be restored at any time via `POST /api/questions/{question_id}/restore` (`restore_question`). If the restored question references a soft-deleted passage, the parent passage is automatically restored (`is_deleted = false`, `deleted_at = null`) alongside it.
+- **pgvector Extension & HNSW Indexing**:
+  - The repository utilizes PostgreSQL's native `pgvector` extension for sub-millisecond approximate nearest neighbor (ANN) vector search.
+  - Initialized via `CREATE EXTENSION IF NOT EXISTS vector;`.
+  - Indexed via Hierarchical Navigable Small World (HNSW) cosine metric:
+    `CREATE INDEX IF NOT EXISTS idx_questions_embedding_hnsw ON questions USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);`
+  - Memory tuning: `maintenance_work_mem = 64MB` during index builds; runtime probe search depth `hnsw.ef_search = 40`.
+- **Decomposed Database Migration Suite ([`backend/app/db/schema_migrations.py`](../backend/app/db/schema_migrations.py))**:
+  - Replaces monolithic schema migrations with atomic, single-responsibility step functions:
+    - `_step_create_pgvector_extension`: Creates pgvector extension idempotently.
+    - `_step_add_embedding_column`: Adds 1536-dim vector column with safety checks.
+    - `_step_create_hnsw_index`: Builds HNSW cosine index.
+    - `_step_add_tsv_column`: Adds full-text search tsvector and GIN index.
+    - `_step_drop_redundant_indexes`: Drops single-column indexes covered by composite indexes.
+    - `_step_add_soft_delete_columns`: Idempotently adds soft delete tracking flags and composite index.
 - **Composite Index Optimization**: To maintain high-velocity querying across thousands of questions, the `questions` table maintains 7 composite indexes:
   - `ix_questions_status_created` (`status`, `created_at`)
   - `ix_questions_section_created` (`section`, `created_at`)
@@ -779,35 +931,47 @@ To eliminate fragile duck-typing and inconsistent attribute access across dictio
 
 ---
 
-## 7. Export & Print Studio Architecture
+## 7. Export & Study Studio Architecture
 
-The **Export & Print Studio** ([`ExportPrintModal.jsx`](../frontend/src/components/modals/ExportPrintModal.jsx)) provides client-side document synthesis and multi-format export capabilities for educators and candidates.
+The **Export & Study Studio** ([`ExportPrintModal.jsx`](../frontend/src/components/modals/ExportPrintModal.jsx)) provides client-side document synthesis, AI study guide compilation, and multi-format export capabilities for educators and candidates. The modal is decomposed into modular sub-panes for scope selection, data formatting, and study guide synthesis:
+- **Scope Selector ([`ExportScopeSelector.jsx`](../frontend/src/components/modals/ExportScopeSelector.jsx))**: Configures item selection across the active Question Bank (`in_bank`), review queue (`ai_validated`), or explicitly checked candidate items.
+- **Data Format Pane ([`ExportDataFormatPane.jsx`](../frontend/src/components/modals/ExportDataFormatPane.jsx))**: Manages document compilation for PDF exam simulations, study packs, CSV tables, JSON bundles, and Anki flashcard decks.
+- **Study Guide Export Pane ([`StudyGuideExportPane.jsx`](../frontend/src/components/modals/StudyGuideExportPane.jsx))**: Interacts with `POST /api/ai/study-guide` to synthesize high-yield summaries, cognitive trap checklists, and interactive flashcard previews.
 
 ```mermaid
 graph TD
-    QB[Question Bank / Filtered Items] --> Studio[Export & Print Studio Engine]
+    QB[Question Bank / Filtered Items] --> Scope[ExportScopeSelector<br>in_bank / ai_validated / selected]
+    Scope --> Studio[Export & Study Studio Engine]
     
-    Studio --> PDF[PDF Exam Paper]
-    Studio --> StudyPack[Comprehensive Study Pack]
-    Studio --> CSV[Standardized CSV Export]
+    Studio --> PDF[Official AAMC Exam Simulation PDF]
+    Studio --> StudyPack[Comprehensive Study Pack PDF]
+    Studio --> Anki[Anki Flashcard Deck Package .csv]
+    Studio --> CSV[Standardized CSV Spreadsheet]
     Studio --> JSON[Normalized JSON Bundle]
+    Studio --> Guide[AI High-Yield Study Guide]
     
     PDF --> PrintStyles["@media print Layout Engine<br>(Header block, timer, page-break rules)"]
     StudyPack --> PrintStyles
-    CSV --> BrowserDL[Browser Direct Download]
+    Anki --> BrowserDL[Browser Direct Download]
+    CSV --> BrowserDL
     JSON --> BrowserDL
+    Guide --> BrowserDL
 ```
 
-### 7.1 Export Modes
-1. **Official Exam Paper (PDF / Print)**:
+### 7.1 Export Modes & Formats
+1. **Official AAMC Exam Simulation Paper (PDF / Print)**:
    - Formatted for classroom and mock exam printing with candidate name/date header, official section specifications, and clean typographic separation.
    - Enforces `.page-break { break-before: page; }` CSS print rules to ensure reading passages and question options never split awkwardly across page folds.
 2. **Comprehensive Study Pack (PDF / Print)**:
    - Includes reading stimulus, question stem, answer key, and the complete step-by-step cognitive proof and distractor trap analysis.
-3. **CSV Export Engine**:
+3. **Anki Flashcard Deck Package (`.csv`)**:
+   - Formats questions into Anki-ready comma-separated rows with HTML formatting. Front field holds the scenario and question stem; back field contains the correct key, complete 3-card mentor proof, and cognitive trap warning; tagged with AAMC section, skill, and difficulty.
+4. **Standardized CSV Spreadsheet Export**:
    - Converts relational questions into standardized comma-separated columns (`id`, `section`, `subtopic`, `difficulty`, `stem`, `option_a` through `option_d`, `key`, `explanation`, `score`).
-4. **JSON Relational Bundle**:
-   - Serializes question items including full 4-pillar review rubrics, per-agent token tracking telemetry, and evolution histories.
+5. **Normalized JSON Relational Bundle**:
+   - Serializes complete question items including full 4-pillar review rubrics, per-agent token tracking telemetry, vector metadata, and evolution histories.
+6. **AI Synthesized High-Yield Study Guide**:
+   - Formatted Markdown and PDF summary including an executive thematic synthesis, a checklist of common candidate pitfalls, and quick-drill flashcard pairs.
 
 ---
 
@@ -867,6 +1031,7 @@ frontend/src/
 │   ├── question/                 # Question presentation & editing
 │   │   ├── MentorExplanationView.jsx # 3-card mentor explanation view (Intuition, Distractors, Trap)
 │   │   ├── QuestionCard.jsx      # Interactive student practice & review card
+│   │   ├── QuestionCopilotStrip.jsx # Interactive AI Copilot editorial refinement strip
 │   │   ├── QuestionInlineEditor.jsx # In-place authoring & remediation editor
 │   │   ├── QuestionScorecardTab.jsx # 100-point rubric breakdown accordion
 │   │   ├── ReviewAuditView.jsx   # 100-point rubric breakdown & token cost modal (Focus Trapped)
@@ -903,8 +1068,12 @@ frontend/src/
 │   ├── modals/                   # Accessible dialog modals (WCAG AA Focus Trapped)
 │   │   ├── ConfirmationModal.jsx # Accessible confirmation modal replacing window.confirm
 │   │   ├── DeletePassageModal.jsx# Dedicated passage deletion and cascade warning dialog (Hoisted)
+│   │   ├── ExportDataFormatPane.jsx # Export format selection sub-pane (PDF, CSV, JSON, Anki)
 │   │   ├── ExportPaperPreview.jsx# Live print layout previewer
 │   │   ├── ExportPrintModal.jsx  # Exam Paper (PDF), Study Pack, CSV and JSON export modal
+│   │   ├── ExportScopeSelector.jsx # Export scope selection sub-pane (All in bank, validated, selected)
+│   │   ├── StudyGuideExportPane.jsx # High-yield study guide preview & synthesis pane
+│   │   ├── SyllabusIngestionModal.jsx # Academic syllabus document upload & taxonomy mapping modal
 │   │   └── index.js              # Modals barrel export
 │   ├── layout/                   # Global layout
 │   │   ├── Footer.jsx            # Infynno Solutions LLP attribution & resource footer
@@ -934,16 +1103,16 @@ frontend/src/
 │   ├── useQuestionBank.js        # Debounced search, sorting, and bank fetching
 │   └── useTheme.js               # Dual-theme engine (dark / light with localStorage)
 ├── services/
-│   ├── api.js                    # FastAPI client (question, batch and passage functions; optional X-API-Key header)
+│   ├── api.js                    # FastAPI client (question, batch, passage, and AI copilot functions)
 │   └── index.js                  # Services barrel export
 ├── utils/                        # Pure utility helpers
 │   ├── explanationHelpers.js     # Structured explanation parser
-│   ├── exportUtils.js            # A4 HTML print document builder, CSV & JSON serializers
+│   ├── exportUtils.js            # A4 HTML print document builder, CSV, JSON & Anki serializers
 │   ├── formatters.js             # Time, word count, token & currency formatters
 │   ├── index.js                  # Utilities barrel export
 │   ├── optionHelpers.js          # Option length parity & calculateOptionSymmetry engine
 │   └── trapHelpers.js            # Cognitive trap resolution & text detectors
-├── styles/                       # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print)
+├── styles/                       # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print, syllabus-modal, study-guide-modal, question-copilot, stage-inspector)
 ├── index.css                     # Aggregator hub importing all domain stylesheets
 └── main.jsx                      # React 19 application root
 ```
@@ -952,7 +1121,7 @@ For complete UI design tokens, color scales, typography guidelines, and componen
 
 ---
 
-## 9. Reliability, Recovery & Observability
+## 10. Reliability, Recovery & Observability
 
 - **Graceful shutdown**: the FastAPI lifespan hook stops all running batches (progress and generated questions are preserved) and disposes the database engine.
 - **Restart recovery**: on startup, `in_progress` batches become `stopped`, their qualifying questions are promoted, and jobs left `pending`/`running` become `stopped` so the UI never shows phantom running work. Stopped jobs below target remain retryable through the standard retry flow (3-trial ceiling).
@@ -982,7 +1151,7 @@ For complete UI design tokens, color scales, typography guidelines, and componen
 
 ---
 
-## 10. Python Type Precision, Zero-Suppression & Quality Contracts
+## 11. Python Type Precision, Zero-Suppression & Quality Contracts
 
 The backend enforces strict type precision and zero-suppression code hygiene across all agent, repository, workflow, and data layers:
 

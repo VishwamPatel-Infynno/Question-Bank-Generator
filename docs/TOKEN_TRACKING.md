@@ -63,6 +63,20 @@ Results are rounded to **7 decimal places** (sub-micro-cent precision). A model 
 
 The same micro benchmark on Claude Haiku 5.5 is $0.000600 ($0.10 in + $0.50 out) and on `gpt-4o-mini` $0.000750.
 
+### 2.1 AI Copilot & Vector Embedding Pricing
+
+In addition to question generation workflow runs, the platform tracks token usage for interactive AI Copilot endpoints and vector embeddings:
+
+| Operation | Typical Prompt Tokens | Typical Completion Tokens | Avg Cost (DeepInfra standard) | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| **Magic Setup** (`/api/ai/magic-setup`) | ~300 | ~180 | **$0.000168** | Converts free-form prompt to wizard config |
+| **Enhance Instructions** (`/api/ai/enhance-instructions`) | ~450 | ~320 | **$0.000282** | Calibrates educator notes to AAMC mandate |
+| **Refine Question** (`/api/ai/refine-question`) | ~1,200 | ~750 | **$0.000690** | In-place editorial refinement (distractor polish, etc.) |
+| **Passage Audit** (`/api/ai/audit-passage`) | 0 (pure algorithmic) | 0 | **$0.000000** | Free local Flesch-Kincaid & sentence analysis |
+| **Study Guide Synthesis** (`/api/ai/study-guide`) | ~3,500 | ~1,600 | **$0.001660** | Synthesizes executive summary & flashcards |
+| **Syllabus Ingestion** (`/api/ai/ingest-syllabus`) | ~2,500 - 8,000 | ~800 | **$0.000980 - $0.002080** | Ingests PDF/TXT syllabus and proposes batches |
+| **Vector Embedding** (`text-embedding-3-small`) | ~350 / question | 0 | **$0.000007** | $0.02 / 1M tokens for pgvector 1536-dim vector |
+
 ---
 
 ## 3. Dedicated AI Image Generation Pricing
@@ -154,6 +168,19 @@ Each usage entry records `calls` (LLM calls it covers; the blind solver's sample
 
 #### Prompt Caching
 Static system prompts are sent as `cache_control: ephemeral` blocks for Anthropic models (`ENABLE_PROMPT_CACHING`). Cache reads and writes already appear in the cost math above. OpenAI and DeepInfra apply automatic prefix caching and need no marker. Prompts shorter than the provider minimum are not cached.
+
+### 4.2 Per-Slot Call Budget & Token Ceilings
+
+To protect infrastructure spend and prevent runaway loops during multi-turn remediation, the engine enforces strict limits:
+1. **Hard Per-Slot LLM Call Budget (`MAX_LLM_CALLS_PER_SLOT = 36`)**:
+   - Caps total LLM calls spent on an individual question slot across all attempts (initial drafts, self-critiques, validator retries, reviewer samples, blind solver samples 1-2, tie-breaker evaluations, and remediation cycles 1-2).
+   - Mathematical allocation: 3 worker attempts $\times$ 12 calls per attempt = 36 calls.
+   - Once 36 calls are reached, the slot worker terminates LLM expenditure immediately, flags the item as budget-exhausted, and halts cleanly.
+2. **Calibrated Completion Token Ceilings**:
+   - `DEFAULT_MAX_TOKENS = 4096`: Default output token allowance for drafting nodes.
+   - `REVIEWER_MAX_TOKENS = 4096`: Calibrated ceiling ensuring comprehensive 4-pillar review rubrics and detailed remediation recommendations never truncate prematurely.
+   - `BLIND_SOLVER_MAX_TOKENS = 2048`: Deterministic budget for step-by-step candidate derivations.
+   - `LLM_MAX_TOKENS_CEILING = 8192`: Absolute upper limit for truncation retries.
 
 ---
 

@@ -177,3 +177,64 @@ Beyond standard cognitive traps, the engine operationalizes pedagogical misconce
 1. **Automatic (Smart AI Choice)**: The generator agent analyzes the scientific research study, equations, and question stem to autonomously diagnose the most authentic student calculation or conceptual error for the tested concept (e.g., `USES_WRONG_REFERENCE_VALUE`, `INVERTS_FRACTION`, `FORGETS_SQUARE_ROOT`, `CONFUSES_ENANTIOMERS_DIASTEREOMERS`, `MISREADS_GRAPH_AXES`, `FAILS_TO_SUBTRACT_BASELINE`, `CONFUSES_KM_VMAX`, `DROPS_NEGATIVE_SIGN`).
 2. **Explicit Distractor Targeting**: At least one distractor option is engineered specifically to attract students committing that exact misconception, and the complete error mechanism is detailed in the 3-card mentor explanation.
 3. **Audit Trail Persistence**: The diagnosed pattern is saved to PostgreSQL in `likely_mistake_pattern` and displayed on question cards and audit modals.
+
+---
+
+## 9. Cognitive Slot Blueprints & Replenishment Rotation for Passage Sets
+
+When generating 5-question passage sets, the multi-agent pipeline enforces structured pedagogical archetypes defined in [`backend/app/workflow/passage_blueprints.py`](../backend/app/workflow/passage_blueprints.py). This prevents the common LLM failure mode of drafting 5 questions that test identical passage recall facts.
+
+### 9.1 Slot Blueprints Specification
+
+#### Critical Analysis and Reasoning Skills (CARS)
+| Slot Index | Cognitive Archetype | AAMC Reasoning Skill | Core Pedagogical Mandate |
+| :---: | :--- | :--- | :--- |
+| **Slot 1** | **Foundations of Comprehension** | Skill 1: Foundations | Literal meaning, central thesis, author's primary communicative intent, or central claim. |
+| **Slot 2** | **Reasoning Within the Text** | Skill 2: Within the Text | Rhetorical function of evidence, authorial tone, implicit assumptions, or logical transitions. |
+| **Slot 3** | **Reasoning Beyond the Text** | Skill 3: Beyond the Text | Analogical reasoning, applying passage principles to novel external scenarios, or evaluating hypothetical counter-evidence. |
+| **Slot 4** | **Cross-Domain Adaptation** | Skill 3: Beyond the Text | Adapting the author's argument into a distinct external academic domain drawn from `CARS_SLOT4_APPLICATION_DOMAINS`. |
+| **Slot 5** | **Argument Critique & Vulnerability** | Skill 2 / 3: Synthesis | Identifying latent weaknesses, unstated presuppositions, or identifying which finding most severely undermines the central thesis. |
+
+#### Natural, Behavioral & Social Sciences (Chem/Phys, Bio/Biochem, Psych/Soc)
+| Slot Index | Cognitive Archetype | AAMC SIRS Skill | Core Pedagogical Mandate |
+| :---: | :--- | :--- | :--- |
+| **Slot 1** | **Foundational Concept & Mechanism** | Skill 1: Knowledge of Concepts | Direct recognition of core biochemical pathways, physiological mechanisms, or physical equations referenced in the passage. |
+| **Slot 2** | **Quantitative & Graphical Data Analysis** | Skill 4: Data-Based Reasoning | Interpreting experimental figures: Lineweaver-Burk plots, Western blots, dose-response curves, titration graphs, or reaction rate tables. |
+| **Slot 3** | **Scientific Reasoning & Problem Solving** | Skill 2: Problem Solving | Deducing mechanistic explanations, executing stoichiometric or thermodynamic calculations, and evaluating theoretical predictions. |
+| **Slot 4** | **Research Design & Experimental Execution** | Skill 3: Research Design | Evaluating positive/negative controls, independent/dependent variables, instrumentation limitations, or assay reliability. |
+| **Slot 5** | **Experimental Perturbation & Novel Conditions** | Skill 2 / 3: Novel Scenarios | Proposing hypothetical follow-up experiments under altered conditions drawn from `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`. |
+
+---
+
+### 9.2 Replenishment Rotation Pools & Modulo Arithmetic
+
+When candidate questions in a passage set fail the psychometric quality gate and trigger shortfall replenishment, the engine prevents regeneration loops by deterministically rotating experimental conditions and application domains:
+
+```python
+domain_idx = resolve_slot_domain_index(request, attempt=attempt)
+# Calculated as: (base_seed + attempt) % len(rotation_pool)
+```
+
+#### CARS Slot 4 Application Domains (`CARS_SLOT4_APPLICATION_DOMAINS`)
+| Index | Application Domain | Focus |
+| :---: | :--- | :--- |
+| `0` | **Medical Ethics & Bioethics** | Clinical triage, patient autonomy, institutional review boards |
+| `1` | **Legal Philosophy & Jurisprudence** | Constitutional interpretation, precedent, statutory intent |
+| `2` | **Cognitive Psychology & Decision Theory** | Heuristics, cognitive biases, bounded rationality |
+| `3` | **Epistemology & Philosophy of Science** | Empirical falsification, paradigm shifts, demarcation |
+| `4` | **Public Policy & Resource Economics** | Externalities, distributive justice, utilitarian optimization |
+| `5` | **Historiography & Archival Analysis** | Narrative bias, revisionist history, primary source validity |
+| `6` | **Cultural Anthropology & Linguistics** | Semiotics, cultural relativism, social constructivism |
+| `7` | **Aesthetic Theory & Literary Criticism** | Structuralism, intentional fallacy, reader-response theory |
+
+#### Science Slot 5 Experimental Conditions (`SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`)
+| Index | Experimental Condition | Biochemical / Physical Perturbation |
+| :---: | :--- | :--- |
+| `0` | **Competitive Inhibitor Addition** | Excess substrate titration, $K_m$ shift without $V_{\max}$ change |
+| `1` | **Uncompetitive / Noncompetitive Inhibition** | Allosteric site binding, parallel Lineweaver-Burk shift, $V_{\max}$ depression |
+| `2` | **Target Gene Knockout / siRNA Silencing** | Complete loss-of-function phenotype, pathway accumulation |
+| `3` | **Thermal Denaturation / Temperature Shift** | Disruption of tertiary/quaternary hydrogen bonds and hydrophobic interactions |
+| `4` | **pH Perturbation (Acidosis / Alkalosis)** | Alteration of histidine imidazole protonation, active site electrostatic disruption |
+| `5` | **Osmotic & Tonicity Challenge** | Hypertonic/hypotonic cellular response, membrane transport kinetics |
+| `6` | **Allosteric Activator / Effector Co-Incubation** | Cooperative sigmoidal shift, Hill coefficient ($n_H > 1$) alteration |
+| `7` | **Isotopic Tracer Labeling ($^{14}\text{C}$, $^{32}\text{P}$)** | Radio-labeling to trace metabolic flux and reaction intermediate sequences |

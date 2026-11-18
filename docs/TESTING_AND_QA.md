@@ -19,7 +19,7 @@ graph TD
 
     subgraph "Tier 2: Backend Pytest Engine"
         UnitTests[509 Deterministic Unit & Integration Tests across 75 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests (508 Total Backend Tests)]
+        LiveE2E[10 Live LLM API E2E Integration Tests - 519 Total Backend Tests across 76 Files]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -43,7 +43,7 @@ graph TD
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms, zero debug artifacts | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (156 frontend files, 100% ruff compliance across 145 backend files; 0 TODO / 0 FIXME / 0 console.log) |
 | **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **509 passing tests across 75 modules** (509 deterministic) (~33s) |
 | **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **132 passing tests across 14 test files** (~500ms) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (508 total backend tests across 74 modules: 73 deterministic + 1 live E2E) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (519 total backend tests across 76 modules: 75 deterministic + 1 live E2E) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 80$ points (`PASSING_SCORE_THRESHOLD`) |
 
@@ -85,9 +85,11 @@ backend/tests/
 ├── test_deduplication.py             # Multi-metric similarity scoring, clustering & auto-refill
 ├── test_dedup_decomposition.py       # CQRS & structural decomposition of the deduplication engine
 ├── test_deterministic_gate.py        # Pure-Python validator gate runs before LLM review; fail-closed
+├── test_draft_parser.py              # Decoupled candidate question JSON drafting parser & fallback extractors
 ├── test_e2e_live.py                  # 10 live end-to-end multi-agent integration tests (marked as live_e2e)
 ├── test_engine_cleanup.py            # Event stream cleanup & worker task cancellation on client disconnect
 ├── test_engine_slices.py             # Pure engine pieces: run layout, slot ledger, diversity context & sibling collision
+├── test_extractors.py                # Polymorphic question extractors across dicts, Pydantic & ORM models
 ├── test_http_caching.py              # HTTP Cache-Control, ETag headers & 304 conditional revalidation
 ├── test_image_calls.py               # Provider image generation retries & response parsing (HTTP mocked)
 ├── test_in_flight_pool_and_dedup.py  # Per-job in-flight dedup pool & cross-slot collision checks
@@ -99,42 +101,49 @@ backend/tests/
 ├── test_logging_context.py           # Correlation IDs bound across async tasks & background jobs
 ├── test_medical_imaging.py           # All 7 medical modalities detection, safety sanitization, Reviewer visual audit boundary & Regenerator retention
 ├── test_mock_fixture_table.py        # Snapshot of the seven canned mock drafts (section x passage/independent)
+├── test_modular_cleanup.py           # Codebase structural modularity, line budget enforcement & decoupling checks
 ├── test_multi_batch_concurrency.py   # Global worker semaphores, rate-limiting throttles & metrics
 ├── test_offline_mode.py              # OFFLINE_MODE gating: no mocks without it, tagged runs with it, fails loudly
 ├── test_openai.py                    # OpenAI text & image providers, pricing & vendor-masked config
 ├── test_ops_and_resolution.py        # Request IDs, body size limits, error sanitization & liveness
+├── test_passage_blueprints_decomposition.py # Modulo attempt-based domain/condition replenishment rotation
+├── test_passage_set_blueprints_and_dedup.py # 5-slot cognitive blueprints for CARS and natural sciences
 ├── test_pedagogy.py                  # Option length symmetry (±15%), distractor traps & taxonomy parity
 ├── test_pgvector_rag.py              # pgvector RAG, normalized embeddings, cosine metrics & hybrid search
 ├── test_pricing_table.py             # Verified provider rates, model pricing resolution & cache billing
 ├── test_projected_reads.py           # Lightweight repository reads for batch monitoring performance
 ├── test_prometheus_metrics.py        # Prometheus /metrics exposition & telemetry middleware tracking
 ├── test_prompt_builder_blocks.py     # Decomposed generator user prompt sub-blocks (pedagogy, traps, stimulus)
+├── test_question_repository_decomposition.py # DAL decomposition into question_queries and question_mutations
 ├── test_question_status_refill.py    # QuestionStatus enum, active question helpers & refill deficit
 ├── test_recovery.py                  # Startup recovery: orphaned running jobs marked failed cleanly
 ├── test_repository_mappers.py        # Pure mapping functions between SQLAlchemy models & Pydantic schemas
 ├── test_request_secrets.py           # Client API keys never persisted or returned; legacy payloads scrubbed
-├── test_round6_backend_fixes.py      # Per-job in-flight dedup pool, live thresholds & bounded request cache
+├── test_schema_migrations_decomposition.py # Schema migrations decomposition into focused DDL steps
 ├── test_schemas.py                   # Pydantic V2 model validation, serialization & constraint checks
 ├── test_shared_helpers.py            # Shared helper semantics (usage sums, mock usage, CARS checks)
+├── test_slot_worker.py               # Isolated per-slot worker execution, retry tracking & budget guards
 ├── test_soft_delete_batch_integrity.py # Soft-delete & restore preserving batch progress metrics
 ├── test_sse_keepalive.py             # SSE keepalive comments during long LLM inferences
 ├── test_stream_emitter.py            # Workflow SSE queue draining, timeout polling & terminal event assembly
 ├── test_structured_output.py         # call_llm_validated repair retry and billing; strict JSON parsing
+├── test_syllabus_ingestion.py        # Document text extraction (PDF/TXT/MD) and AAMC taxonomy mapping
 ├── test_target_count_guarantee.py    # Dynamic job allocation, slot replenishment & target count guarantee
 ├── test_taxonomy_sync.py             # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
 ├── test_tokens.py                    # Sub-micro-cent token cost math ($0.20/$0.60 DeepInfra, Anthropic tiers)
 ├── test_validators.py                # Deterministic question validators (A-D options, dashes, word counts)
 ├── test_visuals.py                   # AI image generation, SVG routing & visual stimulus persistence
-└── test_workflow.py                  # Workflow streaming, event serialization & routing
+├── test_workflow.py                  # Workflow streaming, event serialization & routing
+└── test_workflow_nodes_decomposition.py # Decomposed lifecycle nodes (generator, reviewer, finalize facade)
 ```
 
 ### 2.2 Test Suite Execution Commands & Execution Modes
 
 #### Execution Modes Breakdown
-- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the 79 database-dependent tests, executing all 388 algorithmic, schema, prompt builder, taxonomy sync, HTTP caching, Prometheus metrics, AI native planning, and token pricing unit tests in ~12 seconds.
+- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the database-dependent tests, executing all algorithmic, schema, prompt builder, taxonomy sync, HTTP caching, Prometheus metrics, AI native planning, and token pricing unit tests in ~12 seconds.
 - **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 509 deterministic unit and integration tests execute across all 75 modules in ~23-28 seconds (10 live tests deselected).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 508 backend tests across 74 test files.
+- **Total Suite**: 519 total backend tests across 76 test files (509 deterministic across 75 test files + 10 live E2E in `test_e2e_live.py`).
 
 ```bash
 # 1. Activate backend virtual environment

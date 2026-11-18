@@ -171,4 +171,3 @@ async def test_in_flight_semantic_duplicate_cosine_detection(monkeypatch):
     assert result.is_duplicate is True
     assert result.similarity_score >= 0.80
     assert "In-Flight Sibling Collision" in (result.match_reason or "")
-

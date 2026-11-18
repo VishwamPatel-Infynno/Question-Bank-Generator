@@ -118,9 +118,9 @@ The system defines 68 configuration fields in `backend/app/core/config.py` (`Set
 
 ## 3. Step-by-Step Installation
 
-### Step 1: Start PostgreSQL Database (Docker)
+### Step 1: Start PostgreSQL Database (Docker with pgvector)
 
-Spin up the official PostgreSQL 16 container using the included `docker-compose.yml`:
+Spin up the containerized PostgreSQL 16 database with pre-installed `pgvector` extension using the included `docker-compose.yml`:
 
 ```bash
 docker compose up -d
@@ -131,10 +131,25 @@ Verify that the database container is healthy:
 docker ps --filter "name=mcat_postgres"
 ```
 
-*Expected output: Container `mcat_postgres` running on `0.0.0.0:5432->5432/tcp`.*
+*Expected output: Container `mcat_postgres` running `pgvector/pgvector:pg16` on `127.0.0.1:5432->5432/tcp`.*
+
+> [!NOTE]
+> The database initialization service (`init_db()` in `backend/app/db/session.py`) automatically runs `CREATE EXTENSION IF NOT EXISTS vector;` and constructs the Hierarchical Navigable Small World (HNSW) cosine index `idx_questions_embedding_hnsw` on first boot. For large question banks, you can tune vector indexing memory in PostgreSQL via `SET maintenance_work_mem = '64MB';` and query recall depth via `SET hnsw.ef_search = 40;`.
 
 ### Step 2: Backend Setup & Launch
 
+You can run the backend using standard Python `venv` or ultra-fast `uv`:
+
+#### Option A: Using `uv` (Recommended)
+```bash
+# 1. Sync dependencies into virtual environment
+uv sync
+
+# 2. Launch FastAPI hot-reload server
+PYTHONPATH=backend uv run uvicorn app.main:app --port 8000 --reload
+```
+
+#### Option B: Using standard `venv` & `pip`
 ```bash
 # 1. Create a Python 3.11 virtual environment
 python3 -m venv .venv

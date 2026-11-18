@@ -303,9 +303,7 @@ async def generate_question(
     diversity_context: str | None = None,
 ) -> tuple[QuestionDraft, TokenUsage]:
     """Invokes the Question Generator Agent to draft a publication-grade AAMC MCAT question."""
-    user_prompt = build_generator_user_prompt(
-        req, fused=False, diversity_context=diversity_context
-    )
+    user_prompt = build_generator_user_prompt(req, fused=False, diversity_context=diversity_context)
 
     try:
         draft, usage = await call_llm_validated(

@@ -20,7 +20,23 @@ The Infynno MCAT Question Studio is built for pre-med educators, test-prep autho
 
 ## 2. Color System & Design Tokens
 
-Design tokens are defined as CSS custom properties in [`frontend/src/styles/tokens.css`](frontend/src/styles/tokens.css) (aggregated via [`frontend/src/index.css`](frontend/src/index.css)) and automatically respond to the `[data-theme="dark"]` and `[data-theme="light"]` attributes on the root `<html>` element.
+Design tokens are defined as CSS custom properties in [`frontend/src/styles/tokens.css`](frontend/src/styles/tokens.css) and aggregated with domain stylesheets via [`frontend/src/index.css`](frontend/src/index.css). The design system automatically responds to the `[data-theme="dark"]` and `[data-theme="light"]` attributes on the root `<html>` element.
+
+The styling architecture is strictly modularized across domain-specific CSS files:
+- `tokens.css`: Core design tokens, brand gradients, radii, z-index layers (`--z-*`), and dark/light color palettes.
+- `base.css`: Global CSS reset, font declarations, accessible button primitives, and base form controls.
+- `layout.css`: Application shell, Navbar, Footer, Toast notifications, and pagination footer.
+- `wizard.css`: Hero landing screen, 3-step question generation wizard dock, decision cards, and presets.
+- `question.css`: QuestionCard, 3-card mentor explanation view, stimulus viewer container, scorecard.
+- `question-copilot.css`: Floating AI Copilot strip, tool popovers, streaming state chips.
+- `stage-inspector.css`: Deep 5-stage pipeline outcome JSON inspector accordion.
+- `syllabus-modal.css`: Multi-modal drag-and-drop syllabus upload zone and extracted taxonomy preview.
+- `study-guide-modal.css`: Decomposed study pack and high-yield takeaway options pane.
+- `batch.css`, `batch-activity.css`, `batch-card-summary.css`: Concurrency gauges, progress strips, batch cards.
+- `bank.css`: Canonical Question Bank editorial cards and AI-Validated review queue.
+- `passage.css`: Passage catalog cards, editorial desk, and figure attachment editor.
+- `modals.css`: Standardized modal backdrop, card shells, and focus-trapped dialog wrappers.
+- `print.css`: Professional `@media print` paper styling and page-break rules.
 
 ### 2.1 Infynno Corporate Brand Palette
 These core gradient tokens anchor the brand identity across buttons, active tab indicators, and progress tracks:
@@ -191,12 +207,18 @@ Streamlined 3-step authoring workflow with quick-launch hero presets:
 - Displays the 4-pillar breakdown (Authenticity, Clarity, Distractor Traps, Explanation Rigor) scored out of 25 each.
 - Itemized per-cycle token usage table detailing prompt tokens, completion tokens, execution time, and sub-micro-cent USD cost.
 
-### 4.5 Export & Print Studio (`ExportPrintModal.jsx`, `ExportPaperPreview.jsx`)
-- Accessible modal dialog providing live print preview and multi-format export:
-  1. **Exam Paper (PDF / Print)**: Formatted with title blocks, candidate name lines, timing guidelines, and `.page-break` rules preventing awkward page splits.
-  2. **Comprehensive Study Pack**: Includes full passages, question stems, answers, and in-depth step-by-step rationales.
-  3. **CSV Export**: Standardized comma-delimited export ready for LMS and spreadsheet ingestion.
-  4. **JSON Bundle**: Full relational representation including evolution histories and token metrics.
+### 4.5 Comprehensive 6-Format Publication & Export Studio (`ExportPrintModal.jsx`, `ExportPaperPreview.jsx`)
+- **Decomposed Modular Panes**:
+  - `ExportScopeSelector.jsx`: Target scope configuration (All In-Bank, Current Page, or Staged Review Queue).
+  - `ExportDataFormatPane.jsx`: Format configurations for tabular and spaced-repetition exports (CSV, JSON, Anki TSV).
+  - `StudyGuideExportPane.jsx`: Custom study guide compilation parameters, active recall questions, and takeaway depth.
+- **6 Standardized Publication Formats**:
+  1. **Official Exam Booklet (Standard PDF)**: Formatted with examination title blocks, candidate name/ID lines, section timing guidelines, and `.page-break` rules preventing awkward page splits across stems and options.
+  2. **Exam Simulation Booklet (Split-Pane AAMC Layout PDF)**: Authentic full-length test day layout with reading passage on the left, paired questions on the right, and dedicated answer bubble sheets.
+  3. **Comprehensive Study Pack (Annotated Review PDF)**: Pairs every research or CARS stimulus with its question stem, correct key, cognitive trap analysis, and complete step-by-step cognitive proof rationales.
+  4. **Anki Flashcard Deck (TSV with Cloze / QA Tags)**: Clean TSV export formatted with front/back fields, tags for AAMC section and difficulty, and formatted explanation proofs for instant import into Anki.
+  5. **Standardized CSV (`mcat_question_bank.csv`)**: Normalized tabular dataset of all questions, options, keys, rubrics, and token metrics for spreadsheet manipulation.
+  6. **Normalized JSON (`mcat_question_bank.json`)**: Complete hierarchical schema export preserving full JSONB metadata, agent evolutions, and psychometric scores.
 
 ### 4.6 Conversational Mentor Explanation View (`MentorExplanationView.jsx`)
 Renders pedagogical rationales across three distinct, beautifully styled visual cards:
@@ -330,6 +352,28 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Backdrop Blur & Scrim**: Smooth animated backdrop fade with keyboard escape listener.
   - **WCAG AA Focus Trap**: Intercepts `Tab` and `Shift+Tab` keystrokes to ensure focus cycles within the modal boundaries, restoring focus to the origin element upon close.
   - **Standardized Size Constraints**: Accommodates `sm`, `md`, `lg`, `xl`, and `full` widths with automatic vertical scrolling on overflow.
+
+### 4.17 AI Copilot Studio (`QuestionCopilotStrip.jsx`, `question-copilot.css`)
+- **Component**: [`frontend/src/components/copilot/QuestionCopilotStrip.jsx`](frontend/src/components/copilot/QuestionCopilotStrip.jsx) delivers a context-aware floating educator assistance strip anchored directly to the question generation and review workspace.
+- **Design Tokens & Styling**:
+  - Backdrop: `var(--bg-surface-elevated)` with hairline border `1px solid var(--border-medium)` and elevation shadow `var(--shadow-lg)`.
+  - Border Radius: `var(--radius-full)` (`9999px`) for the floating pill capsule, with `var(--radius-sm)` (`8px`) on popover panels.
+  - Accent Gradient: Active states glow with `var(--infynno-gradient)` and `var(--infynno-glow)`.
+- **5 Cognitive Tool Actions**:
+  - **Magic Setup (`/magic-setup`)**: Sparkles icon, analyzes educator notes to configure section, difficulty, and subtopics.
+  - **Prompt Enhancement (`/enhance-instructions`)**: Wand icon, expands rough prompts with authentic AAMC phrasing and distractor rules.
+  - **Question Refinement (`/refine-question`)**: Edit icon, proposes targeted fixes for ambiguous wording or flawed distractors.
+  - **Passage Audit (`/audit-passage`)**: Shield icon, checks stimulus length, vocabulary density, and scientific validity.
+  - **Study Guide (`/study-guide`)**: BookOpen icon, compiles high-yield clinical takeaway sheets.
+- **Accessibility & Focus**: Implements full keyboard navigation (`Tab`, `Space`, `Enter`, `Escape` to close active tool popovers) and dynamic `aria-expanded` attributes.
+
+### 4.18 Syllabus & Curriculum Ingestion Desk (`SyllabusIngestionModal.jsx`, `syllabus-modal.css`)
+- **Component**: [`frontend/src/components/modals/SyllabusIngestionModal.jsx`](frontend/src/components/modals/SyllabusIngestionModal.jsx) allows educators to transform existing medical school curricula and pre-med course syllabi into AAMC-aligned question batches.
+- **Visual Design & Layout**:
+  - Dual Ingestion Modes: Tabbed switch between **File Upload** (drag-and-drop zone supporting `.pdf`, `.docx`, `.txt`) and **Direct Text Paste** (monospace textarea with live character counter).
+  - Drag-and-Drop Zone: Border `2px dashed var(--border-medium)`, background `var(--bg-surface-subtle)` transitioning to `rgba(51, 90, 207, 0.08)` on drag hover.
+  - Taxonomy Preview Card: Renders extracted foundational concepts, content categories, and matched subtopics in an interactive hierarchical tree.
+  - Batch Launch Action: Single-click trigger (`btn-primary` with `var(--infynno-gradient)`) creating 5-question or 50-question batch jobs directly from extracted units with pre-calibrated difficulty distribution.
 
 ---
 

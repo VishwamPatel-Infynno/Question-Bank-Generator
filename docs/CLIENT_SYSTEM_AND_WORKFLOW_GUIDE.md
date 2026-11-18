@@ -4,7 +4,7 @@
 > **Prepared by**: Infynno Solutions LLP • Infinite Innovations • [infynno.com](https://infynno.com/)  
 > **Product**: Infynno MCAT Question Bank Generator v2.0  
 > **Target Audience**: Client Leadership, Product Stakeholders, Medical Admissions Educators, Pre-Med Faculty, and Test-Prep Authors  
-> **System Status**: Fully Implemented, Tested (424 Backend + 119 Frontend Tests), and Production-Ready  
+> **System Status**: Fully Implemented, Tested (509 Deterministic Backend Tests across 75 Modules, 519 Total Backend Tests + 132 Frontend Tests across 14 Test Files), and Production-Ready  
 
 ---
 
@@ -13,14 +13,20 @@
 2. [Official AAMC MCAT Foundations & Pacing Rules](#2-official-aamc-mcat-foundations--pacing-rules)
 3. [Autonomous Multi-Agent AI Pipeline](#3-autonomous-multi-agent-ai-pipeline)
 4. [Pedagogical Quality, Anti-Guessability & Distractor Traps](#4-pedagogical-quality-anti-guessability--distractor-traps)
-5. [Anti-Collision, Deduplication & Editorial Overrides](#5-anti-collision-deduplication--editorial-overrides)
+5. [Anti-Collision, Deduplication & pgvector Semantic RAG](#5-anti-collision-deduplication--pgvector-semantic-rag)
+   - 5.1 [Multi-Metric Similarity Algorithm](#51-multi-metric-similarity-algorithm)
+   - 5.2 [Intra-Batch Clustering & Autonomous Replenishment](#52-intra-batch-clustering--autonomous-replenishment)
+   - 5.3 [pgvector Semantic RAG & Anti-Collision Shield](#53-pgvector-semantic-rag--anti-collision-shield)
+   - 5.4 [Protected Audit Trail (🛡️ Overridden)](#54-protected-audit-trail--overridden)
 6. [The 5 Top-Level Workstation Views](#6-the-5-top-level-workstation-views)
    - 6.1 [Create Questions: Question Studio & 3-Step Wizard](#61-create-questions-question-studio--3-step-wizard)
    - 6.2 [Batch Progress: Concurrency Monitor & Resilient Processing](#62-batch-progress-concurrency-monitor--resilient-processing)
    - 6.3 [Review Queue: AI-Validated Triage & Editorial Staging](#63-review-queue-ai-validated-triage--editorial-staging)
    - 6.4 [Question Bank: Canonical Repository & Inline Editorial Desk](#64-question-bank-canonical-repository--inline-editorial-desk)
    - 6.5 [Passage Bank: Stimulus Curation & Cascading Management](#65-passage-bank-stimulus-curation--cascading-management)
-7. [Export & Print Studio](#7-export--print-studio)
+   - 6.6 [AI Copilot Studio & In-Line Refinement](#66-ai-copilot-studio--in-line-refinement)
+   - 6.7 [Syllabus Ingestion & Curriculum Mapping Desk](#67-syllabus-ingestion--curriculum-mapping-desk)
+7. [Export & Study Studio (Anki, Exam Simulation PDF, Study Guide)](#7-export--study-studio)
 8. [Financial Telemetry & Micro-Dollar Cost Accounting](#8-financial-telemetry--micro-dollar-cost-accounting)
 9. [UI Design System, Ergonomics & Accessibility](#9-ui-design-system-ergonomics--accessibility)
 10. [Technical Architecture, Security & Production Readiness](#10-technical-architecture-security--production-readiness)
@@ -218,7 +224,7 @@ The system incorporates an exhaustive taxonomy of official MCAT cognitive traps:
 
 ---
 
-## 5. Anti-Collision, Deduplication & Editorial Overrides
+## 5. Anti-Collision, Deduplication & pgvector Semantic RAG
 
 In high-stakes MCAT preparation, duplicate questions damage student outcomes by creating artificially inflated scores and wasting timed practice stamina.
 
@@ -246,7 +252,13 @@ If distractor choices match an existing item by $\ge 75\%$, a severe options-ove
 ### 5.2 Intra-Batch Clustering & Autonomous Replenishment
 In background multi-job batches (e.g. 50 questions), the system performs autonomous pairwise clustering (>75% similarity). Duplicate items within the same batch are permanently purged (`action="delete"`) and automatically replenished with fresh drafts, guaranteeing delivery of the exact target quota without passage drift.
 
-### 5.3 Protected Audit Trail (`🛡️ Overridden`)
+### 5.3 pgvector Semantic RAG & Anti-Collision Shield
+Beyond lexical string overlap, the system integrates **native PostgreSQL 16 `pgvector`** semantic indexing:
+- **1536-Dimensional Vector Embeddings**: Every candidate and published question stem, options set, and mentor proof is translated into a 1536-dimensional vector embedding (`vector(1536)`).
+- **In-Context Exemplar Retrieval**: Queries historical bank questions scoring $\ge 90$ points within the identical section and subtopic. Injects these top-performing items into generator prompts as concrete stylistic and cognitive benchmarks.
+- **Negative Avoidance Shielding**: Searches the HNSW cosine vector index (`vector_cosine_ops`) for nearest neighbors. Questions within a cosine distance $\le 0.12$ ($> 88\%$ conceptual similarity) are supplied to the LLM generator as explicit **Avoidance Stems**, commanding the model to explore distinct clinical angles, unaddressed enzymatic conditions, or novel sociological theories.
+
+### 5.4 Protected Audit Trail (`🛡️ Overridden`)
 When an educator determines that two questions examine distinct principles (e.g., competitive vs. uncompetitive enzyme inhibition using the same substrate), clicking **"Override & Approve"** stamps the database with an audit timestamp and marks the question with a protected royal blue badge: `🛡️ Overridden`.
 
 ---
@@ -344,17 +356,52 @@ A specialized repository (`PassageBankView.jsx`) dedicated to reading passages a
 
 ---
 
-## 7. Export & Print Studio
+### 6.6 AI Copilot Studio & In-Line Refinement
+The platform integrates an interactive AI Copilot Studio embedded directly into editorial review and generation workflows:
 
-The platform includes a built-in accessible export modal (`ExportPrintModal.jsx`) supporting 4 distinct publication formats:
+1. **Question Copilot Strip (`QuestionCopilotStrip.jsx`)**:
+   - Rendered directly inside candidate question cards in the Review Queue and Question Bank.
+   - Provides 1-click intelligent refinement actions:
+     - **Polish Distractors**: Enhances plausibility, eliminates giveaway length differences, and tightens distractor trap subtlety.
+     - **Simplify Explanation**: Sharpens mentor explanations into concise step-by-step proofs without sacrificing scientific rigor.
+     - **Invert Sibling**: Synthesizes a reverse question testing the opposing physiological mechanism or inverted mathematical ratio.
+     - **Custom Instruction Drawer**: An expandable drawer allowing educators to enter custom editorial commands (e.g., *"Shift focus to Lineweaver-Burk y-intercept changes under competitive inhibition"*).
+   - Generates an in-place preview with side-by-side diffing before the educator commits changes.
+
+2. **Copilot Setup Wizard Integration (`/api/ai/magic-setup` & `/api/ai/enhance-instructions`)**:
+   - **Magic Setup**: Educators can paste a raw prompt (*"Give me 5 hard questions on Michaelis-Menten kinetics and competitive inhibitors"*) to instantly auto-fill all 3 wizard steps.
+   - **Enhance Instructions**: Enhances informal instructor notes into an authentic AAMC prompt mandate with authentic clinical terminology and calculation trap directives.
+
+---
+
+### 6.7 Syllabus Ingestion & Curriculum Mapping Desk
+A dedicated curriculum ingestion modal (`SyllabusIngestionModal.jsx`) that turns academic course materials into structured question sets:
+
+- **Universal Document Ingestion**: Pre-med departments and professors can drag and drop course syllabi, lecture outlines, or exam review sheets in **PDF, TXT, or Markdown** format.
+- **Native Document Parsing**: Extracts plain text via server-side `pypdf` stream processing, enforcing a $30,000$-character token budget cap to protect LLM context windows.
+- **AAMC Taxonomy Mapping**: Automatically compares curriculum topics against the official AAMC MCAT taxonomy, matching them to Foundational Concepts (1-10) and subtopics with numerical confidence scoring.
+- **One-Click Batch Blueprint Launch**: Generates tailored 5-question batch proposals with customized pedagogical thematic angles and pre-populated authoring instructions ready to launch directly into the background batch runner.
+
+---
+
+## 7. Export & Study Studio
+
+The platform includes a comprehensive, accessible export studio (`ExportPrintModal.jsx`) decomposed into specialized sub-panes for scope selection, data formatting, and study guide compilation:
+
+- **Scope Selector (`ExportScopeSelector.jsx`)**: Allows educators to export all approved bank items (`in_bank`), the staging review queue (`ai_validated`), or a custom selection of checked items.
+- **Data Format Pane (`ExportDataFormatPane.jsx`)**: Formats questions for classroom mock exams, digital flashcards, or LMS ingestion.
+- **Study Guide Export Pane (`StudyGuideExportPane.jsx`)**: Interfaces with `POST /api/ai/study-guide` to synthesize executive summaries, trap checklists, and interactive flashcards.
 
 ```mermaid
 graph TD
-    Repo[(Question Bank Repository)] --> ExportModal[Export & Print Studio]
-    ExportModal --> F1["1. Exam Paper (PDF / Print)<br/>• Candidate header & timing block<br/>• Official AAMC layout<br/>• @media print CSS rules (zero awkward page breaks)"]
-    ExportModal --> F2["2. Comprehensive Study Pack<br/>• Full reading passages<br/>• Question stems & correct keys<br/>• Complete 3-card mentor explanations"]
-    ExportModal --> F3["3. Standardized CSV Export<br/>• Comma-delimited spreadsheet<br/>• Formatted for Canvas, Blackboard, or LMS import"]
-    ExportModal --> F4["4. Normalized JSON Bundle<br/>• Full relational schemas<br/>• Multi-agent stage outcomes & token telemetry"]
+    Repo[(Question Bank Repository)] --> Scope[ExportScopeSelector<br/>All in Bank / Validated / Selected]
+    Scope --> Studio[Export & Study Studio]
+    Studio --> F1["1. Official AAMC Exam Simulation PDF<br/>• Candidate header & timer block<br/>• 2-column passage & question layout<br/>• @media print CSS rules (zero awkward page breaks)"]
+    Studio --> F2["2. Comprehensive Study Pack PDF<br/>• Full reading passages & visual figures<br/>• Complete 3-card mentor explanations<br/>• Cognitive trap error spotlights"]
+    Studio --> F3["3. Anki Flashcard Package (.csv)<br/>• Front: Clinical stimulus & question stem<br/>• Back: Answer key, explanation & trap warning<br/>• Formatted HTML with section & skill tags"]
+    Studio --> F4["4. Standardized CSV Spreadsheet<br/>• Comma-delimited rows for Excel, Google Sheets<br/>• Compatible with Canvas, Blackboard, and Moodle"]
+    Studio --> F5["5. Normalized JSON Bundle<br/>• Full relational schemas, vector metadata<br/>• Multi-agent review rubrics & token telemetry"]
+    Studio --> F6["6. High-Yield Markdown Study Guide<br/>• Thematic executive summary<br/>• Cognitive trap checklists & flashcard drill pairs"]
 ```
 
 ---
@@ -406,8 +453,8 @@ $$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\te
 ## 10. Technical Architecture, Security & Production Readiness
 
 ### Full-Stack Architecture Specifications
-- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (119 unit tests across 13 test files).
-- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (424 deterministic test suite across 63 modules; 434 total tests).
+- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (132 unit tests across 14 test files).
+- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (509 deterministic test suite across 75 modules; 519 total tests).
 - **Database**: PostgreSQL 16 with native JSONB columns for multi-stage payloads, rubrics, and token tracking; UUID4 primary keys; automated schema migrations on startup.
 - **Observability**: Prometheus `/metrics` endpoint exposing real-time worker pool occupancy, batch lifecycle states, and token expenditures.
 - **Security & Hygiene**:

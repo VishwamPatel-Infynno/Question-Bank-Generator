@@ -215,7 +215,9 @@ async def extract_passage_slot_blueprints(
     p2_summary = _clean_excerpt(paragraphs[1] if len(paragraphs) > 1 else paragraphs[0])
     p3_summary = _clean_excerpt(paragraphs[2] if len(paragraphs) > 2 else p2_summary)
     p4_summary = _clean_excerpt(
-        paragraphs[3] if len(paragraphs) > 3 else (paragraphs[2] if len(paragraphs) > 2 else p2_summary)
+        paragraphs[3]
+        if len(paragraphs) > 3
+        else (paragraphs[2] if len(paragraphs) > 2 else p2_summary)
     )
     p_last_summary = _clean_excerpt(paragraphs[-1])
     total_paras = len(paragraphs)

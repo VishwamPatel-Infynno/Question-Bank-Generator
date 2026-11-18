@@ -16,7 +16,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 
 ---
 
-## 2. API Endpoints Summary (48 Operations / 42 Endpoint Paths; 49 Operations across 43 paths including root `/metrics`)
+## 2. API Endpoints Summary (51 Operations across 45 Unique Endpoint Paths)
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -26,6 +26,8 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `POST` | `/api/ai/refine-question` | **AI Copilot**: Performs live editorial refinement on question stem, distractors, or explanations |
 | `POST` | `/api/ai/audit-passage` | **AI Diagnostics**: Evaluates passage Flesch-Kincaid grade level, empirical density, and AAMC alignment |
 | `POST` | `/api/ai/study-guide` | **AI Synthesis**: Generates high-yield study guide, executive summaries, trap checklists, and flashcards |
+| `POST` | `/api/ai/ingest-syllabus` | **Curriculum Ingestion**: Ingests raw syllabus text, maps to AAMC taxonomy, and proposes batch generation plan |
+| `POST` | `/api/ai/ingest-syllabus-file` | **Curriculum Ingestion**: Uploads PDF/TXT/MD document, extracts text, and maps to AAMC taxonomy with generation plan |
 | `POST` | `/api/questions` | **Admin Review Gate**: Persists an approved candidate question into the Question Bank |
 | `POST` | `/api/questions/batch` | **Admin Review Gate**: Bulk-persists an array of approved candidates atomically |
 | `GET` | `/api/questions` | Lists saved questions with filtering, pagination (`limit`/`offset`), `slim` projection, and repository token metrics |
@@ -67,7 +69,8 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `GET` | `/api/config` | Retrieves active model configuration, runtime parameters, and pricing constants |
 | `GET` | `/api/sections` | Returns official AAMC MCAT sections, syllabus hierarchy, skills, and pacing |
 | `GET` | `/api/taxonomy` | Returns the complete official AAMC Dependent Taxonomy JSON tree |
-| `GET` | `/metrics`, `/api/metrics` | Real-time Prometheus/OpenMetrics text exposition endpoint (concurrency, status counts, token burn, HTTP traffic) |
+| `GET` | `/metrics` | Root Prometheus/OpenMetrics text exposition endpoint (concurrency, status counts, token burn, HTTP traffic) |
+| `GET` | `/api/metrics` | Versioned alias for Prometheus/OpenMetrics exposition |
 
 ---
 
@@ -600,7 +603,7 @@ Scans active questions in PostgreSQL lacking 1536-dimensional vector embeddings 
 
 ---
 
-### 3.12 Delete Question
+### 3.15 Delete Question
 `DELETE /api/questions/{question_id}`
 
 Soft-deletes a question by UUID4 primary key (`is_deleted = true`, `deleted_at = ISO UTC timestamp`). This removes the item from active Question Bank and Review Queue views while preserving batch progress counts and foreign key relations.
@@ -614,7 +617,7 @@ Soft-deletes a question by UUID4 primary key (`is_deleted = true`, `deleted_at =
 
 ---
 
-### 3.13 Bulk Delete Questions
+### 3.16 Bulk Delete Questions
 `POST /api/questions/delete-batch`
 
 Soft-deletes multiple questions atomically in a single SQL transaction (`is_deleted = true`, `deleted_at = ISO UTC timestamp`), preserving batch progress and integrity.
@@ -636,7 +639,7 @@ Soft-deletes multiple questions atomically in a single SQL transaction (`is_dele
 
 ---
 
-### 3.14 Permanently Delete Single Question
+### 3.17 Permanently Delete Single Question
 `DELETE /api/questions/{question_id}/permanent`
 
 Permanently hard-deletes a single question from PostgreSQL by its UUID4 primary key via `hard_delete_question`, completely bypassing soft-deletion flags. This action permanently frees foreign keys and cleanses the database of duplicate or discarded test artifacts.
@@ -668,7 +671,7 @@ curl -X DELETE "http://localhost:8000/api/questions/e2a39281-b51c-4b6b-88a2-11e2
 
 ---
 
-### 3.15 Bulk Permanently Purge Questions
+### 3.18 Bulk Permanently Purge Questions
 `POST /api/questions/purge-batch`
 
 Permanently purges multiple questions from PostgreSQL in a single atomic SQL transaction via `hard_delete_questions_batch`. Eliminates ghost artifacts, discarded batch duplicates, and orphaned draft items permanently from database tables.
@@ -704,7 +707,7 @@ curl -X POST "http://localhost:8000/api/questions/purge-batch" \
 
 ---
 
-### 3.16 Restore Soft-Deleted Question
+### 3.19 Restore Soft-Deleted Question
 `POST /api/questions/{question_id}/restore`
 
 Restores a soft-deleted question back to active status (`is_deleted = false`, `deleted_at = null`). If the question is linked to a shared reading passage that was also soft-deleted, the linked passage is automatically restored to active status as well.
@@ -756,7 +759,7 @@ Restores a soft-deleted question back to active status (`is_deleted = false`, `d
 
 ---
 
-### 3.17 Start Background Batch Generation (50 Qs)
+### 3.20 Start Background Batch Generation (50 Qs)
 `POST /api/batches/start`
 
 Launches an asynchronous background batch generation. Creates 1 batch record and 10 parallel job records (each job producing 5 questions for 50 total items). Returns `202 Accepted` immediately while generation runs in the background.
@@ -790,7 +793,7 @@ Accepts a `GenerationRequest` payload (same schema as `POST /api/generate`).
 
 ---
 
-### 3.18 List Batches & Concurrency Metrics
+### 3.21 List Batches & Concurrency Metrics
 `GET /api/batches`
 
 Lists generation batches with job progress counts, active running batch numbers, and real-time global concurrency metrics.
@@ -829,7 +832,7 @@ Lists generation batches with job progress counts, active running batch numbers,
 
 ---
 
-### 3.19 Get Single Batch with Grouped Jobs & Questions
+### 3.22 Get Single Batch with Grouped Jobs & Questions
 `GET /api/batches/{batch_id}`
 
 Retrieves a generation batch along with all 10 jobs (augmented with their generated questions) and flat question records.
@@ -861,7 +864,7 @@ Retrieves a generation batch along with all 10 jobs (augmented with their genera
 
 ---
 
-### 3.20 Stop Single Batch
+### 3.23 Stop Single Batch
 `POST /api/batches/{batch_id}/stop`
 
 Gracefully halts active background jobs for a specific batch. Cancels running asyncio sub-tasks and updates remaining pending jobs to `"cancelled"` status without deleting questions already generated and saved to PostgreSQL.
@@ -880,7 +883,7 @@ Gracefully halts active background jobs for a specific batch. Cancels running as
 
 ---
 
-### 3.21 Resume Incomplete Batch Jobs (3-Trials Policy)
+### 3.24 Resume Incomplete Batch Jobs (3-Trials Policy)
 `POST /api/batches/{batch_id}/retry`
 
 Resumes incomplete, failed, or cancelled jobs for a batch into the global worker pool. 
@@ -922,7 +925,7 @@ Optionally accepts an updated `GenerationRequest` payload to override parameters
 
 ---
 
-### 3.22 Cancel All Active Batches
+### 3.25 Cancel All Active Batches
 `POST /api/batches/cancel-all`
 
 System-wide administrative action that gracefully halts all currently executing background batches. Cancels active worker tasks, sets status to `"cancelled"` or `"partially_completed"`, and safely flushes aggregate metrics to the database.
@@ -938,7 +941,7 @@ System-wide administrative action that gracefully halts all currently executing 
 
 ---
 
-### 3.23 Delete Batch
+### 3.26 Delete Batch
 `DELETE /api/batches/{batch_id}`
 
 Cancels any active runner task for the batch, then permanently deletes the generation batch record and cascades deletion to all associated jobs and question items.
@@ -953,7 +956,7 @@ Cancels any active runner task for the batch, then permanently deletes the gener
 
 ---
 
-### 3.24 Create or Update Batch Record
+### 3.27 Create or Update Batch Record
 `POST /api/batches`
 
 Admin endpoint to create or update a generation batch entity directly in PostgreSQL.
@@ -972,7 +975,7 @@ Admin endpoint to create or update a generation batch entity directly in Postgre
 
 ---
 
-### 3.25 Get Batch Duplicate Clusters
+### 3.28 Get Batch Duplicate Clusters
 `GET /api/batches/{batch_id}/duplicate-clusters`
 
 Performs pairwise similarity clustering on questions within a batch to identify redundant items and designate primary leader questions. Automatically excludes previously discarded questions.
@@ -1018,7 +1021,7 @@ Performs pairwise similarity clustering on questions within a batch to identify 
 
 ---
 
-### 3.26 Resolve Batch Duplicates
+### 3.29 Resolve Batch Duplicates
 `POST /api/batches/{batch_id}/resolve-duplicates`
 
 Resolves duplicate clusters in a batch by preserving the designated leader question and permanently deleting (`action="delete"`, default) or archiving (`action="archive"`) redundant duplicate questions. Under `action="delete"`, duplicates are hard-deleted from PostgreSQL via `hard_delete_questions_batch` to eliminate ghost records in the UI and ensure clean subsequent refills. Refreshes batch aggregates and computes any remaining question deficit.
@@ -1054,7 +1057,7 @@ Resolves duplicate clusters in a batch by preserving the designated leader quest
 
 ---
 
-### 3.27 Refill Batch Question Deficit
+### 3.30 Refill Batch Question Deficit
 `POST /api/batches/{batch_id}/refill`
 
 Replenishes a batch up to its target question count by launching targeted background jobs for archived or missing questions with diverse pedagogical thematic angles to avoid re-generating similar concepts.
@@ -1084,7 +1087,7 @@ Replenishes a batch up to its target question count by launching targeted backgr
 
 ---
 
-### 3.28 Passages Management Endpoints
+### 3.31 Passages Management Endpoints
 `GET /api/passages` | `GET /api/passages/{passage_id}` | `POST /api/passages` | `DELETE /api/passages/{passage_id}` | `POST /api/passages/{passage_id}/restore`
 
 - **List Passages (`GET /api/passages`)**: Lists reading passages with optional `section`, `subtopic`, and `search` query parameters. Soft-deleted passages are excluded by default.
@@ -1210,7 +1213,7 @@ curl -X DELETE "http://localhost:8000/api/passages/550e8400-e29b-41d4-a716-44665
 
 ---
 
-### 3.29 Export Repository
+### 3.32 Export Repository
 `GET /api/export`
 
 Exports the entire Question Bank (or filtered subsets) in standardized JSON or CSV format.
@@ -1228,7 +1231,7 @@ curl -X GET "http://localhost:8000/api/export?format=csv" -o mcat_question_bank.
 
 ---
 
-### 3.30 Service Health Check
+### 3.33 Service Health Check
 `GET /api/health`
 
 Evaluates system status, database connectivity, active text reasoning model, neural image model, provider configuration, and active token pricing.
@@ -1259,7 +1262,7 @@ Evaluates system status, database connectivity, active text reasoning model, neu
 
 ---
 
-### 3.31 Runtime Configuration & Settings
+### 3.34 Runtime Configuration & Settings
 `GET /api/config`
 
 Retrieves active runtime engine configuration, active provider (`deepinfra` or `anthropic`), cascade fallbacks, worker concurrency limits, gateway secrets status (masked booleans), and pricing parameters across all 28 runtime fields.
@@ -1301,7 +1304,7 @@ Retrieves active runtime engine configuration, active provider (`deepinfra` or `
 
 ---
 
-### 3.32 Official AAMC Sections & Syllabus Hierarchy
+### 3.35 Official AAMC Sections & Syllabus Hierarchy
 `GET /api/sections`
 
 Returns the complete cached syllabus hierarchy across all 4 official AAMC MCAT sections, including subjects, units, topics, subtopics, reasoning skills, and target pacing.
@@ -1348,7 +1351,7 @@ Returns the complete cached syllabus hierarchy across all 4 official AAMC MCAT s
 
 ---
 
-### 3.33 Official AAMC Dependent Taxonomy Tree
+### 3.36 Official AAMC Dependent Taxonomy Tree
 `GET /api/taxonomy`
 
 Returns the comprehensive hierarchical AAMC Dependent Taxonomy tree powering the multi-level Guided Wizard selection flow.
@@ -1358,7 +1361,7 @@ Returns the raw taxonomy document: `schema_version`, `exam`, `selection_flow`, `
 
 ---
 
-### 3.34 Prometheus & OpenMetrics Telemetry
+### 3.37 Prometheus & OpenMetrics Telemetry
 `GET /metrics` and `GET /api/metrics`
 
 Native zero-dependency Prometheus/OpenMetrics exposition endpoint for real-time observability. Exposes application health, database connectivity, background batch concurrency limits, active worker jobs, question repository distributions, cumulative token and micro-cost consumption, and HTTP request counters and latencies with normalized route paths.
@@ -1411,7 +1414,7 @@ mcat_http_request_duration_seconds_count{endpoint="/api/sections",method="GET"} 
 
 ---
 
-### 3.35 AI Copilot & Assistive Operations
+### 3.38 AI Copilot & Assistive Operations
 
 Provides AI-native interactive capabilities for smart onboarding, prompt calibration, in-flight question refinement, passage quality diagnostics, and post-generation study guide synthesis.
 
@@ -1635,6 +1638,105 @@ Synthesizes an array of generated questions into an executive high-yield study p
 curl -X POST "http://localhost:8000/api/ai/study-guide" \
   -H "Content-Type: application/json" \
   -d '{"questions": [{"question_stem": "Sample stem", "options": [{"id": "A", "text": "Sample"}], "correct_answer_id": "A", "explanation": "Sample explanation"}]}'
+```
+
+---
+
+#### 6. Ingest Syllabus & Curriculum Text
+`POST /api/ai/ingest-syllabus`
+
+Ingests raw syllabus text, course outlines, or learning objectives, maps content against the official AAMC MCAT taxonomy (foundational concepts, categories, and subtopics), calibrates recommended question difficulty, and synthesizes an optimized batch generation plan.
+
+##### Request Body (`application/json`)
+```json
+{
+  "content": "Course: MCAT Biochemistry (BIOC 301)\nWeek 4: Enzyme Kinetics and Inhibition\nObjectives: Understand Michaelis-Menten kinetics, steady-state approximation, Lineweaver-Burk plots, competitive, noncompetitive, and uncompetitive inhibition, and physiological regulation via allostery and phosphorylation.",
+  "title": "BIOC 301 - Enzyme Kinetics Syllabus"
+}
+```
+
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `content` | `string` | Yes | Syllabus text, course syllabus, or lecture topic outline (10 to 50,000 characters). |
+| `title` | `string` | No | Optional document title or course identifier (up to 200 characters). |
+
+##### Response (`200 OK`)
+```json
+{
+  "section": "chem_phys",
+  "section_name": "Chemical and Physical Foundations of Biological Systems",
+  "topic": "Chemical Kinetics & Catalysis",
+  "subtopic": "Thermodynamics & Reaction Kinetics",
+  "difficulty": "hard",
+  "confidence": 0.94,
+  "summary": "Covers enzyme kinetics, reversible inhibition mechanisms, and Lineweaver-Burk graphical analysis.",
+  "matched_concepts": [
+    "Foundational Concept 5: Chemical and Physical Principles",
+    "5A: Rate of reactions, catalysis, and enzyme kinetics"
+  ],
+  "matched_topics": [
+    "Enzyme Kinetics",
+    "Thermodynamics & Reaction Kinetics",
+    "Bioenergetics"
+  ],
+  "suggested_batches": [
+    {
+      "thematic_angle": "Competitive vs Noncompetitive Inhibitor Kinetics",
+      "question_count": 5,
+      "topic": "Chemical Kinetics & Catalysis",
+      "subtopic": "Thermodynamics & Reaction Kinetics"
+    },
+    {
+      "thematic_angle": "Allosteric Cooperativity and Hill Coefficients",
+      "question_count": 5,
+      "topic": "Chemical Kinetics & Catalysis",
+      "subtopic": "Thermodynamics & Reaction Kinetics"
+    }
+  ],
+  "suggested_instructions": "Emphasize Lineweaver-Burk double-reciprocal interpretations with numerical Km/Vmax shifts and distractor traps confusing uncompetitive with noncompetitive inhibition."
+}
+```
+
+##### cURL Example
+```bash
+curl -X POST "http://localhost:8000/api/ai/ingest-syllabus" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Course: MCAT Biochemistry. Week 4: Enzyme Kinetics and Inhibition. Covers Michaelis-Menten kinetics, Lineweaver-Burk plots, competitive and noncompetitive inhibition.",
+    "title": "Biochemistry Syllabus"
+  }'
+```
+
+---
+
+#### 7. Ingest Syllabus Document File
+`POST /api/ai/ingest-syllabus-file`
+
+Ingests an uploaded syllabus file (`.pdf`, `.txt`, `.md`), extracts plain text natively via `pypdf` with fallback, bounds token consumption within safe limits ($30,000$ characters max), and analyzes academic content against the AAMC MCAT taxonomy to produce an actionable batch generation proposal.
+
+##### Request Headers
+```http
+Content-Type: multipart/form-data
+X-API-Key: <configured-access-key>
+```
+
+##### Form Parameters
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `file` | `UploadFile` | Yes | Document file in PDF, plain text (`.txt`), or Markdown (`.md`) format. |
+
+##### Response (`200 OK`)
+Returns identical `SyllabusIngestionResult` schema as `POST /api/ai/ingest-syllabus`.
+
+##### Error Responses
+- `400 Bad Request`: If text cannot be extracted from the file (e.g. image-only PDF lacking OCR or empty document).
+- `413 Payload Too Large`: If file upload exceeds `MAX_REQUEST_BODY_MB` (default: 25 MB).
+- `500 Internal Server Error`: If background LLM extraction or taxonomy mapping fails.
+
+##### cURL Example
+```bash
+curl -X POST "http://localhost:8000/api/ai/ingest-syllabus-file" \
+  -F "file=@/path/to/biochemistry_syllabus.pdf"
 ```
 
 ---

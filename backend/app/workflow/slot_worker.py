@@ -136,10 +136,14 @@ async def run_slot_worker(ctx: SlotWorkerContext) -> None:
                     specific_focus = ""
                     if not sec_is_cars and (idx % 5 == 4):
                         condition = SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS[domain_idx]
-                        specific_focus = f" • ALTERNATE EXPERIMENTAL CONDITION: Base prediction on [{condition}]"
+                        specific_focus = (
+                            f" • ALTERNATE EXPERIMENTAL CONDITION: Base prediction on [{condition}]"
+                        )
                     elif sec_is_cars and (idx % 5 == 3):
                         domain = CARS_SLOT4_APPLICATION_DOMAINS[domain_idx]
-                        specific_focus = f" • ALTERNATE APPLICATION DOMAIN: Formulate scenario in [{domain}]"
+                        specific_focus = (
+                            f" • ALTERNATE APPLICATION DOMAIN: Formulate scenario in [{domain}]"
+                        )
 
                     retry_directive = (
                         f"(Slot Replenishment Attempt {attempt + 1}: You MUST formulate a completely distinct question "

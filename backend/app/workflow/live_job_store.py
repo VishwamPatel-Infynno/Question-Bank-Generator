@@ -142,4 +142,3 @@ _persist_live_question = persist_live_question
 finalize_live_job_progress = _finalize_live_job_progress
 handle_live_job_cancellation = _handle_live_job_cancellation
 handle_live_job_failure = _handle_live_job_failure
-

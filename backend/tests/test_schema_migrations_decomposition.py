@@ -57,6 +57,7 @@ def test_init_db_facade_reexports():
 @pytest.mark.asyncio
 async def test_idempotent_connection_filter():
     """Verify that _IdempotentConnection skips statements whose effect already exists."""
+
     class FakeConn:
         def __init__(self):
             self.executed = []
@@ -71,7 +72,9 @@ async def test_idempotent_connection_filter():
     proxy = schema_migrations._IdempotentConnection(fake, columns, indexes)
 
     # Already existing column -> should be bypassed (return None, not appended to executed)
-    res1 = await proxy.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS status VARCHAR(32);"))
+    res1 = await proxy.execute(
+        text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS status VARCHAR(32);")
+    )
     assert res1 is None
     assert len(fake.executed) == 0
 
@@ -81,7 +84,9 @@ async def test_idempotent_connection_filter():
     assert len(fake.executed) == 1
 
     # Already existing index -> should be bypassed
-    res3 = await proxy.execute(text("CREATE INDEX IF NOT EXISTS ix_questions_status ON questions (status);"))
+    res3 = await proxy.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_questions_status ON questions (status);")
+    )
     assert res3 is None
     assert len(fake.executed) == 1
 

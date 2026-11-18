@@ -130,9 +130,7 @@ def _format_blind_solver_prompt(
 
     stimulus = (draft.stimulus_text or req.shared_stimulus or "").strip()
     if stimulus:
-        prompt_lines.append(
-            f"\n[READING PASSAGE / EXPERIMENTAL STIMULUS]:\n{stimulus}"
-        )
+        prompt_lines.append(f"\n[READING PASSAGE / EXPERIMENTAL STIMULUS]:\n{stimulus}")
     if draft.image_needed and draft.image_prompt_or_type:
         prompt_lines.append(
             f"\n[FIGURE - described, not shown]:\n{str(draft.image_prompt_or_type).strip()}"

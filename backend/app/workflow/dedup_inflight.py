@@ -35,7 +35,9 @@ async def _evaluate_duplicate_async(
             evaluate_duplicate, draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
         )
     else:
-        result = evaluate_duplicate(draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold)
+        result = evaluate_duplicate(
+            draft, ref_pool, threshold=threshold, soft_threshold=soft_threshold
+        )
 
     # Hybrid Semantic Cosine Check: catch semantic duplicates with different vocabulary
     if config.ENABLE_PGVECTOR_RAG and not result.is_duplicate:

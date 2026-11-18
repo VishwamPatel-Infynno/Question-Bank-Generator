@@ -136,7 +136,9 @@ def test_detect_primary_trap():
     assert draft_parser.detect_primary_trap({"explanation": expl}, req) == "PROPORTIONALITY_ERROR"
 
     # Default fallback
-    assert draft_parser.detect_primary_trap({"explanation": "General question."}, req) == "SCOPE_SHIFT"
+    assert (
+        draft_parser.detect_primary_trap({"explanation": "General question."}, req) == "SCOPE_SHIFT"
+    )
 
 
 def test_detect_mistake_pattern():

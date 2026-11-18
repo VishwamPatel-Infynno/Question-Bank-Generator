@@ -45,7 +45,9 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (509 deterministic unit & integration tests across 75 modules; 405 pass offline, 104 DB tests run cleanly with PostgreSQL; 519 total backend tests including 10 live LLM E2E tests)
+# 1. Backend pytest suite (509 deterministic unit & integration tests across 75 modules; 394 pass offline, 115 DB tests run cleanly with PostgreSQL; 519 total backend tests across 76 files including 10 live LLM E2E tests)
+uv run pytest backend/tests -v
+# or using activated virtual environment:
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 
 # 2. Backend Python linter and formatting checks (E, W, F, I, UP, B, C4, SIM, RET, G004, ASYNC, PT, RUF)
@@ -80,7 +82,7 @@ pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
    - Anthropic: Claude Haiku 5.5 ($0.10 in / $0.50 out per 1M), Claude 3.5 Sonnet, Claude 3 Opus, and prompt cache read/write rates.
    - Image: FLUX-2-klein $0.014 per image (scaled by $(\text{width}/1024) \times (\text{height}/1024)$); gpt-image-2.5-flare is token-billed from the returned usage.
 8. **Modular Layer Separation**:
-   - Routing: `backend/app/api/v1/` (40 endpoint operations)
+   - Routing: `backend/app/api/v1/` (51 endpoint operations across 45 unique paths including root `/metrics`)
    - Business/Agent Logic: `backend/app/agents/` (Generator, Blind Solver, Reviewer, Regenerator, Visuals)
    - Data Access Layer: `backend/app/repositories/`
    - Database Entities: `backend/app/models/`
@@ -94,6 +96,12 @@ pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
 14. **Medical Imaging Freedom & Prompt Safety**: Unrestricted visual stimulus synthesis across all 7 clinical modalities (Radiology, Histopathology, Gross Anatomy, Cellular Microscopy, Physiology/ECG, Clinical Pathology, Scientific Diagrams) for natural science sections (CP, BB). Prompts must use academic textbook illustration framing and avoid raw trauma/gore descriptors to prevent commercial content moderation false positives.
 15. **Zero-Suppression Linting Policy (0 # noqa)**: The backend enforces a strict 0 `# noqa` rule across all production and test code. Do not suppress linter errors with `# noqa`; resolve them structurally (e.g. immutable ContextVar defaults, parameter disambiguation, formal `__all__` export manifests, `.values()` loops).
 16. **UI Spatial Radius Scale Conformance**: All user interface elements must conform to the 5-tier spatial hierarchy defined in `DESIGN.md` §3.2: `--radius-lg` (`16px`) for primary workspace cards/modals, `--radius-md` (`12px`) for sub-cards/option boxes, `--radius-sm` (`8px`) for buttons/inputs, `--radius-xs` (`4px`) for micro badges, and `--radius-full` (`9999px`) for status pills.
+17. **pgvector Semantic RAG & Anti-Collision Shield**: All question embeddings must be generated via OpenAI `text-embedding-3-small` (1536-dimensional float vector) and stored in `questions.embedding`. HNSW cosine index `idx_questions_embedding_hnsw` (`m=16`, `ef_construction=64`) powers real-time semantic retrieval and anti-collision checks, combining cosine distance ($1 - \text{cosine\_similarity}$) with n-gram lexical overlap ($>75\%$).
+18. **5-Slot Cognitive Blueprints & Modulo Replenishment Rotation**: Passage sets must adhere to 5-slot cognitive blueprints (CARS & Science archetypes), rotating deterministically through 8 application domains or 8 experimental conditions on retry via `resolve_slot_domain_index`:
+    $$\text{domain\_index} = (\text{base\_index} + \text{attempt} - 1) \pmod 8$$
+19. **Hard LLM Slot Budget**: Every slot execution is constrained to `MAX_LLM_CALLS_PER_SLOT = 36` (3 attempts $\times$ 12 calls). Never exceed this budget or introduce infinite retry loops.
+20. **Modular Stylesheet Architecture**: Follow modular CSS conventions (`frontend/src/styles/`). Never place domain styles in `base.css` or `index.css`. All CSS classes must be used; run `pnpm check:css` to ensure zero unused or missing styles.
+21. **AI Copilot & Multi-Modal Ingestion Protocols**: AI Copilot endpoints (`/magic-setup`, `/enhance-instructions`, `/refine-question`, `/audit-passage`, `/study-guide`) and syllabus ingestion must follow strict JSON schemas, handle client disconnects gracefully, and validate inputs before invoking downstream LLMs.
 
 ---
 
