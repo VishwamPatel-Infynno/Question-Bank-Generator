@@ -84,12 +84,14 @@ logger = logging.getLogger(__name__)
 
 async def init_db_schema(engine: AsyncEngine) -> None:
     """Initializes PostgreSQL tables, verifies schema columns, backfills passages/batches, and ensures FTS indexes."""
-    async with engine.begin() as conn:
-        # Enable pgvector extension before creating models that use the Vector type
-        try:
+    # Enable pgvector extension before creating models that use the Vector type
+    try:
+        async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-        except Exception as e:
-            logger.debug("Could not enable pgvector extension before create_all (%s).", e)
+    except Exception as e:
+        logger.debug("Could not enable pgvector extension before create_all (%s).", e)
+
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     await run_schema_migrations(engine)
