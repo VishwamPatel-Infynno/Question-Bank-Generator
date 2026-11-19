@@ -127,11 +127,9 @@ function PassageLinkedQuestionCard({
             {formatDifficulty(question.difficulty)}
           </span>
 
-          {question.final_score && (
-            <span className="badge badge-emerald">
-              Score: {question.final_score}/100
-            </span>
-          )}
+          <span className="badge badge-emerald">
+            {question.status === 'in_bank' ? 'In Bank' : 'Ready for Review'}
+          </span>
 
           {trapInfo?.label && (
             <span

@@ -188,11 +188,11 @@ export function useBatchActivity({
 
   const hasActiveBatches = activeCount > 0 || batches.some((b) => b.status === BATCH_STATUS.IN_PROGRESS);
 
-  // Auto-polling effect (every 2.5s if active batches, else 8s, paused if window hidden)
+  // Auto-polling effect (adaptive: 1.5s active / 10s idle, paused if window hidden, immediate on focus)
   useEffect(() => {
     if (!autoRefresh) return;
 
-    const intervalMs = hasActiveBatches ? 2500 : 8000;
+    const intervalMs = hasActiveBatches ? 1500 : 10000;
 
     pollTimerRef.current = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
@@ -200,16 +200,19 @@ export function useBatchActivity({
       loadBatches(true);
     }, intervalMs);
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         loadBatches(true);
       }
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
 
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
     };
   }, [autoRefresh, hasActiveBatches, loadBatches]);
 

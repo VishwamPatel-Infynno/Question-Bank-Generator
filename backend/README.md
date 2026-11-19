@@ -337,7 +337,7 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (512 deterministic tests across 76 modules, 522 total backend tests)
+# Run all unit and integration tests (515 deterministic tests across 77 modules, 525 total backend tests)
 # Smart auto-skip: pure unit tests pass offline, DB-dependent tests skip cleanly if PostgreSQL is offline
 uv run pytest backend/tests -v
 # or using activated virtual environment:

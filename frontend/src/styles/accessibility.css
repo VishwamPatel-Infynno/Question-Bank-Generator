@@ -9,3 +9,22 @@
     backdrop-filter: none;
   }
 }
+
+/* Universal WCAG AA :focus-visible contract for interactive controls */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex="0"]:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-ghost:focus-visible,
+.pill-track-btn:focus-visible,
+.wizard-preset-pill:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--brand-ring);
+  transition: var(--transition-ui);
+}
+

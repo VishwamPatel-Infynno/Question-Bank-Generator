@@ -153,6 +153,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const handleOpenExportModal = useCallback(() => setShowExportModal(true), []);
   const handleCloseExportModal = useCallback(() => setShowExportModal(false), []);
   const handleCloseInspection = useCallback(() => setInspectingQuestion(null), []);
+  const handleCreateFirstQuestions = useCallback(() => onNavigateToWizard?.(1), [onNavigateToWizard]);
 
   return (
     <div className="question-bank-container">
@@ -177,7 +178,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
           <button
             type="button"
             id="btn-open-export-studio"
-            onClick={() => setShowExportModal(true)}
+            onClick={handleOpenExportModal}
             className="btn-secondary qbank-export-trigger-btn"
             disabled={questions.length === 0}
             title={questions.length > 0 ? 'Export & Print' : 'No questions to export'}
@@ -238,7 +239,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
             <button
               type="button"
               id="btn-bank-empty-create"
-              onClick={onNavigateToWizard}
+              onClick={handleCreateFirstQuestions}
               className="btn-primary"
             >
               <Sparkles size={14} />

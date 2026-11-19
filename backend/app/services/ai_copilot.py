@@ -17,12 +17,9 @@ from typing import Any
 from app.agents.base import call_llm, safe_json_loads
 from app.core.config import config
 from app.schemas import enum_value
-from app.services.readability import audit_passage_text, count_syllables
+from app.services.readability import audit_passage_text
 
 logger = logging.getLogger(__name__)
-
-# Backward-compatible alias
-_count_syllables = count_syllables
 
 
 # ---------------------------------------------------------------------------

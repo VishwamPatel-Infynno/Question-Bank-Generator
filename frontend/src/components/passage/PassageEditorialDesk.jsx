@@ -207,17 +207,16 @@ export default function PassageEditorialDesk({
               </h3>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="passage-desk-actions-wrap">
               <button
                 type="button"
                 onClick={handleRunAudit}
                 disabled={isAuditing || !text.trim()}
-                className="btn-secondary"
-                style={{ padding: '3px 9px', fontSize: '0.74rem', gap: '5px', display: 'inline-flex', alignItems: 'center' }}
-                title="Evaluate reading level, empirical density, and AAMC stylistic alignment"
+                className="btn-secondary passage-desk-audit-btn"
+                title="Evaluate reading level, vocabulary density, and AAMC stylistic alignment"
               >
                 <Sparkles size={12} color="var(--brand-primary)" />
-                <span>{isAuditing ? 'Analyzing...' : 'AI Diagnostics'}</span>
+                <span>{isAuditing ? 'Analyzing...' : 'Passage Readability'}</span>
               </button>
 
               <div className="passage-desk-word-count">
@@ -226,31 +225,20 @@ export default function PassageEditorialDesk({
             </div>
           </div>
 
-          {/* AI Passage Diagnostics Panel */}
+          {/* Passage Readability & Diagnostics Panel */}
           {showAudit && auditData && (
-            <div
-              style={{
-                background: 'var(--bg-hover)',
-                border: '1px solid var(--border-medium)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '12px 14px',
-                marginBottom: '14px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="passage-diagnostics-card">
+              <div className="passage-diagnostics-header">
+                <span className="passage-diagnostics-title">
                   <Activity size={13} color="var(--brand-primary)" />
-                  <span>AAMC Passage Diagnostics</span>
+                  <span>Passage Readability &amp; Alignment</span>
                 </span>
-                <span className="badge-minimal" style={{ fontSize: '0.72rem' }}>
-                  Score: {auditData.aamc_alignment_score}/100
+                <span className={`badge-minimal passage-diagnostics-score ${auditData.aamc_alignment_score >= 80 ? 'status-pass' : 'status-caution'}`}>
+                  {auditData.aamc_alignment_score >= 80 ? 'Alignment: Strong' : 'Alignment: Calibrating'}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              <div className="passage-diagnostics-grid">
                 <span>Grade Level: <strong>{auditData.flesch_kincaid_grade}</strong></span>
                 <span>Reading Ease: <strong>{auditData.reading_ease}</strong></span>
                 <span>Empirical Anchors: <strong>{auditData.empirical_density_score}</strong></span>
@@ -258,7 +246,7 @@ export default function PassageEditorialDesk({
               </div>
 
               {auditData.diagnostics?.length > 0 && (
-                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.74rem', color: 'var(--text-primary)', lineHeight: 1.45 }}>
+                <ul className="passage-diagnostics-list">
                   {auditData.diagnostics.map((d, i) => (
                     <li key={i}>{d}</li>
                   ))}

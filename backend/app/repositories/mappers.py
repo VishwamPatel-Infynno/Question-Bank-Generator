@@ -25,7 +25,7 @@ def model_to_schema(m: QuestionModel, slim: bool = False) -> Question:
     rubric = ReviewScore(**m.review_rubric) if m.review_rubric else None
     dup_info = (
         DuplicateInfo(**m.duplicate_info)
-        if getattr(m, "duplicate_info", None) and isinstance(m.duplicate_info, dict)
+        if m.duplicate_info and isinstance(m.duplicate_info, dict)
         else None
     )
 
@@ -37,8 +37,8 @@ def model_to_schema(m: QuestionModel, slim: bool = False) -> Question:
         id=m.id,
         run_id=m.run_id,
         batch_id=m.batch_id,
-        job_id=getattr(m, "job_id", None),
-        status=getattr(m, "status", None) or "in_bank",
+        job_id=m.job_id,
+        status=m.status or "in_bank",
         section=m.section,
         section_label=m.section_label,
         subtopic=m.subtopic,
@@ -70,24 +70,24 @@ def model_to_schema(m: QuestionModel, slim: bool = False) -> Question:
         primary_trap=m.primary_trap,
         passage_required=m.passage_required,
         passage_questions=m.passage_questions,
-        passage_id=getattr(m, "passage_id", None),
-        passage_mode=getattr(m, "passage_mode", None),
+        passage_id=m.passage_id,
+        passage_mode=m.passage_mode,
         visual_type=m.visual_type or "None",
-        visual_medical_category=getattr(m, "visual_medical_category", None),
-        visual_clinical_description=getattr(m, "visual_clinical_description", None),
-        mcat_scaled_score=getattr(m, "mcat_scaled_score", None),
-        aamc_skill=getattr(m, "aamc_skill", None),
-        subject=getattr(m, "subject", None),
-        unit=getattr(m, "unit", None),
-        topic=getattr(m, "topic", None),
-        subskill=getattr(m, "subskill", None),
-        likely_mistake_pattern=getattr(m, "likely_mistake_pattern", None),
+        visual_medical_category=m.visual_medical_category,
+        visual_clinical_description=m.visual_clinical_description,
+        mcat_scaled_score=m.mcat_scaled_score,
+        aamc_skill=m.aamc_skill,
+        subject=m.subject,
+        unit=m.unit,
+        topic=m.topic,
+        subskill=m.subskill,
+        likely_mistake_pattern=m.likely_mistake_pattern,
         duplicate_info=dup_info,
-        is_duplicate_override=bool(getattr(m, "is_duplicate_override", False)),
-        is_deleted=bool(getattr(m, "is_deleted", False)),
-        deleted_at=to_iso_str(m.deleted_at) if getattr(m, "deleted_at", None) else None,
+        is_duplicate_override=bool(m.is_duplicate_override),
+        is_deleted=bool(m.is_deleted),
+        deleted_at=to_iso_str(m.deleted_at) if m.deleted_at else None,
         stage_outcomes={} if slim else (m.stage_outcomes or {}),
-        embedding=getattr(m, "embedding", None),
+        embedding=m.embedding,
     )
 
 
@@ -101,8 +101,8 @@ def schema_to_model(q: Question) -> QuestionModel:
         id=q.id,
         run_id=q.run_id,
         batch_id=q.batch_id,
-        job_id=getattr(q, "job_id", None),
-        status=getattr(q, "status", None) or "in_bank",
+        job_id=q.job_id,
+        status=q.status or "in_bank",
         section=q.section,
         section_label=q.section_label,
         subtopic=q.subtopic,
@@ -137,8 +137,8 @@ def schema_to_model(q: Question) -> QuestionModel:
         passage_id=q.passage_id,
         passage_mode=q.passage_mode,
         visual_type=q.visual_type,
-        visual_medical_category=getattr(q, "visual_medical_category", None),
-        visual_clinical_description=getattr(q, "visual_clinical_description", None),
+        visual_medical_category=q.visual_medical_category,
+        visual_clinical_description=q.visual_clinical_description,
         mcat_scaled_score=q.mcat_scaled_score,
         aamc_skill=q.aamc_skill,
         subject=q.subject,
@@ -151,7 +151,7 @@ def schema_to_model(q: Question) -> QuestionModel:
         is_deleted=bool(q.is_deleted),
         deleted_at=to_datetime(q.deleted_at) if q.deleted_at else None,
         stage_outcomes=q.stage_outcomes,
-        embedding=getattr(q, "embedding", None),
+        embedding=q.embedding,
     )
 
 

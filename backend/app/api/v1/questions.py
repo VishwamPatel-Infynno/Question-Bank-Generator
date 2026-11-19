@@ -42,8 +42,6 @@ from app.schemas import (
 )
 from app.services import (
     backfill_question_embeddings,
-    build_csv_headers,
-    build_csv_row,
     evaluate_duplicate,
     evaluate_duplicate_rag,
     find_similar_questions,
@@ -357,11 +355,6 @@ async def backfill_embeddings_endpoint(payload: BackfillEmbeddingsRequest) -> di
     """
     result = await backfill_question_embeddings(batch_size=payload.batch_size)
     return {"success": True, **result}
-
-
-# Backward-compatible aliases for CSV export builders
-_build_csv_headers = build_csv_headers
-_build_csv_row = build_csv_row
 
 
 @router.get("/export")

@@ -17,6 +17,7 @@ from typing import cast
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -198,6 +199,7 @@ class RequestContextMiddleware:
 core_app.add_middleware(SecurityHeadersMiddleware)
 core_app.add_middleware(RequestContextMiddleware)
 core_app.add_middleware(TelemetryMiddleware)
+core_app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 # Enable hardened CORS - origins sourced from Settings (localhost defaults + env overrides)

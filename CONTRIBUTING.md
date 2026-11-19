@@ -45,7 +45,7 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (512 deterministic unit & integration tests across 76 modules; 394 pass offline, 118 DB tests run cleanly with PostgreSQL; 522 total backend tests across 77 files including 10 live LLM E2E tests)
+# 1. Backend pytest suite (515 deterministic unit & integration tests across 77 modules; 394 pass offline, 121 DB tests run cleanly with PostgreSQL; 525 total backend tests across 78 files including 10 live LLM E2E tests)
 uv run pytest backend/tests -v
 # or using activated virtual environment:
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
