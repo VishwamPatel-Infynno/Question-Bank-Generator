@@ -11,10 +11,10 @@ def test_taxonomy_files_are_synchronized():
     assert backend_path.exists(), f"Backend taxonomy not found at {backend_path}"
     assert frontend_path.exists(), f"Frontend taxonomy not found at {frontend_path}"
 
-    with open(backend_path, encoding="utf-8") as f:
+    with backend_path.open(encoding="utf-8") as f:
         backend_data = json.load(f)
 
-    with open(frontend_path, encoding="utf-8") as f:
+    with frontend_path.open(encoding="utf-8") as f:
         frontend_data = json.load(f)
 
     assert backend_data == frontend_data, (

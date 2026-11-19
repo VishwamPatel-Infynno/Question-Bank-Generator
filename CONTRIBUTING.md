@@ -10,7 +10,7 @@ Thank you for your interest in contributing to the **Infynno MCAT Question Bank 
 
 ### 1. Prerequisites
 - **Python 3.11+**
-- **Node.js 24** & **pnpm 10** (pinned by `packageManager`; Vitest/jsdom need Node 22.12+)
+- **Node.js 24** & **pnpm 12** (pinned by `packageManager`: `pnpm@12.21.0`; Vitest/jsdom need Node 22.12+)
 - **Docker & Docker Compose** (for PostgreSQL 16)
 - High-Throughput Inference Gateway credentials
 
@@ -62,6 +62,11 @@ pnpm --dir frontend build
 pnpm --dir frontend run test        # Vitest unit tests (140 passed across 16 test files)
 pnpm run lint:all                   # ruff (backend) + oxlint (frontend)
 pnpm run test:all                   # pytest (backend) + Vitest (frontend)
+pnpm run format                     # formats python code with ruff
+pnpm run format:check                # checks formatting compliance
+pnpm run sync:taxonomy              # syncs backend taxonomy JSON to frontend
+pnpm run db:clean-duplicates        # purges discarded duplicates from database
+pnpm run db:seed                    # seeds initial mock questions
 pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
 ```
 
@@ -82,7 +87,7 @@ pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
    - Anthropic: Claude Haiku 5.5 ($0.10 in / $0.50 out per 1M), Claude 3.5 Sonnet, Claude 3 Opus, and prompt cache read/write rates.
    - Image: FLUX-2-klein $0.014 per image (scaled by $(\text{width}/1024) \times (\text{height}/1024)$); gpt-image-2.5-flare is token-billed from the returned usage.
 8. **Modular Layer Separation**:
-   - Routing: `backend/app/api/v1/` (51 endpoint operations across 45 unique paths including root `/metrics`)
+   - Routing: `backend/app/api/v1/` (48 endpoint operations across 42 unique paths including root `/metrics`)
    - Business/Agent Logic: `backend/app/agents/` (Generator, Blind Solver, Reviewer, Regenerator, Visuals)
    - Data Access Layer: `backend/app/repositories/`
    - Database Entities: `backend/app/models/`

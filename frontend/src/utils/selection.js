@@ -10,8 +10,8 @@ export function toggleId(selected, id) {
  * otherwise adds the missing ones (ids selected elsewhere are kept either way).
  */
 export function toggleAll(selected, visibleIds) {
-  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.includes(id));
-  if (allSelected) return selected.filter((id) => !visibleIds.includes(id));
+  const isAllSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.includes(id));
+  if (isAllSelected) return selected.filter((id) => !visibleIds.includes(id));
   return Array.from(new Set([...selected, ...visibleIds]));
 }
 

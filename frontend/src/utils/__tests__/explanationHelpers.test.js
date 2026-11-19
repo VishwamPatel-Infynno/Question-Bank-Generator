@@ -88,8 +88,8 @@ Why Other Options are Incorrect (Distractor & Trap Breakdown):
     const items = extractDistractorLines(distractorsRaw);
 
     expect(items).toHaveLength(3);
-    expect(items.map((it) => it.label)).toEqual(['Option B', 'Option C', 'Option D']);
-    expect(items.map((it) => it.trap)).toEqual(['Distortion', 'Out of Scope', 'Calculation Slip']);
+    expect(items.map((item) => item.label)).toEqual(['Option B', 'Option C', 'Option D']);
+    expect(items.map((item) => item.trap)).toEqual(['Distortion', 'Out of Scope', 'Calculation Slip']);
   });
 
   it('sorts distractor choices strictly in alphabetical order (A then B then C then D as applicable)', () => {
@@ -101,7 +101,7 @@ Why Other Options are Incorrect (Distractor & Trap Breakdown):
 
     const result = extractDistractorLines(raw);
     expect(result).toHaveLength(3);
-    expect(result.map((it) => it.label)).toEqual(['Option A', 'Option B', 'Option D']);
+    expect(result.map((item) => item.label)).toEqual(['Option A', 'Option B', 'Option D']);
     expect(result[0].trap).toBe('Distortion');
     expect(result[1].trap).toBe('Extreme Language');
     expect(result[2].trap).toBe('Calculation Slip');

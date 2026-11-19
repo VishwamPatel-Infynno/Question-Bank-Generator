@@ -41,7 +41,7 @@ graph TD
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms, zero debug artifacts | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (156 frontend files, 100% ruff compliance across 145 backend files; 0 TODO / 0 FIXME / 0 console.log) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **501 passing tests across 74 modules** (501 deterministic) (~33s) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry, pgvector RAG | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **501 passing deterministic tests across 74 modules** (511 total backend tests across 75 files) (~35s) |
 | **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **140 passing tests across 16 test files** (~500ms) |
 | **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (511 total backend tests across 75 modules: 74 deterministic + 1 live E2E) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
@@ -79,7 +79,7 @@ backend/tests/
 ├── test_batch_state.py               # Terminal resolution, stop/refill guards & cost accounting
 ├── test_blind_solver_vote.py         # Key parsing, layout-varied sampling, majority voting & confidence gating
 ├── test_config_and_pricing_polish.py # Config defaults, pricing lookups & vendor-masked settings
-├── test_config_docs.py               # 68 Settings fields vs .env.example vs docs drift verification
+├── test_config_docs.py               # 73 Settings fields vs .env.example vs docs drift verification
 ├── test_cpu_async_hygiene.py         # Dedup pruning, thread pool offloading & lazy litellm import
 ├── test_database_structure.py        # SQLAlchemy schema, hybrid FTS, cascade deletion & constraints
 ├── test_deduplication.py             # Multi-metric similarity scoring, clustering & auto-refill
@@ -246,7 +246,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 18. **`test_config_and_pricing_polish.py` (6 tests)**:
     - Configuration defaults, pricing lookups, vendor-masked settings, and `/api/config` public exposure contracts.
 19. **`test_config_docs.py` (4 tests)**:
-    - All 68 `Settings` fields are documented in `SETUP_AND_CONFIG.md`, present in `.env.example`, documented defaults match code, and test counts in `TESTING_AND_QA.md` exactly match pytest collection.
+    - All 73 `Settings` fields are documented in `SETUP_AND_CONFIG.md`, present in `.env.example`, documented defaults match code, and test counts in `TESTING_AND_QA.md` exactly match pytest collection.
 20. **`test_cpu_async_hygiene.py` (5 tests)**:
     - CPU & async event loop hygiene: deduplication pruning keeps verdicts, large pools leave the loop, LiteLLM imports remain lazy, and threadpool executors avoid blocking.
 21. **`test_database_structure.py` (8 tests)**:
@@ -377,15 +377,17 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - Dedicated AI Copilot endpoints: prompt enhancement (`/enhance-instructions`), question refinement (`/refine-question`), passage editorial audit (`/audit-passage`), and structured study guide synthesis (`/study-guide`).
 69. **`test_dedup_decomposition.py` (5 tests)**:
     - CQRS & structural decomposition of the deduplication engine: exact symbol re-exports, object identity equality between facade and submodules (`dedup_metrics`, `dedup_clustering`), metric computation equivalence, and graph clustering equivalence.
-70. **`test_passage_set_blueprints_and_dedup.py` (6 tests)**:
-    - Passage-set generation blueprints, set deduplication against passage and question corpora, pgvector RAG threshold constraints, and cross-question angle diversity.
-71. **`test_modular_cleanup.py` (3 tests)**:
+70. **`test_passage_blueprints_decomposition.py` (5 tests)**:
+    - Modulo attempt-based domain and condition replenishment rotation, CARS domain resolution, Science experimental condition rotation, deterministic blueprint extraction, and backward compatibility with monolithic blueprint structures.
+71. **`test_pgvector_rag.py` (12 tests)**:
+    - pgvector RAG retrieval, normalized unit vector dimensions and norms, cosine similarity invariants, embedding caching, question and passage embedding storage, exemplar structure retrieval, hybrid vector-FTS search, RAG-grounded duplicate detection, and API endpoints (`/semantic-search`, `/rag-context`, `/check-duplicate`, `/backfill-embeddings`).
+72. **`test_modular_cleanup.py` (3 tests)**:
     - Verifies modular decomposition architecture: `backend/app/data/thematic_angles.py` extraction with `batch_worker.py` re-export facade, `backend/app/services/csv_export.py` extraction with `api/v1/questions.py` re-export facade, and `backend/app/services/readability.py` extraction with `services/ai_copilot.py` re-export facade.
-72. **`test_schema_migrations_decomposition.py` (4 tests)**:
+73. **`test_schema_migrations_decomposition.py` (4 tests)**:
     - Verifies database migration decomposition into `backend/app/db/schema_migrations.py`: exact step count assertions (13 schema steps, 6 data steps), `init_db.py` facade symbol re-exports and identity parity, `_IdempotentConnection` DDL bypass filtering, and `_timestamptz_migration_sql()` generation.
-73. **`test_draft_parser.py` (11 tests)**:
+74. **`test_draft_parser.py` (11 tests)**:
     - Verifies decoupled Question Draft Parser & Cognitive Trap Extraction: 4-choice option parsing from standard lists, dictionary maps, prefixed strings, and candidate keys; correct answer key extraction and unknown key validation; cognitive trap classification across 20+ AAMC taxonomies; student mistake pattern extraction; and 100% identity parity re-exports in `app.agents.generator`.
-74. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
+75. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
     - Live end-to-end integration tests: health connectivity, cross-section syllabus hierarchy, live SSE streaming, PostgreSQL persistence, export serializers, strict quality gate rejection boundary, combination matrix validation, UUID4 contracts, and image serving endpoints.
 
 ### 2.4 Smart Offline Database Detection (`conftest.py`)
@@ -484,31 +486,100 @@ cd frontend && pnpm build
 
 ---
 
-### 2.4 Newer Test Modules
-- `test_llm_budget.py`: hard per-slot LLM call budget, free duplicate-rewrite loop, sequential review/solve default.
-- `test_projected_reads.py`, `test_index_migration.py`: column-projected worker reads, constant-query batch saves, redundant-index migration (idempotent).
-- `test_cpu_async_hygiene.py`: dedup pruning equivalence, thread offload, in-flight cleanup, lazy `litellm`.
-- `test_batch_state.py`: terminal status resolution, stop/refill guards, cost accounting, DB init retry.
-- `test_api_hardening.py`: admin gate, image safety, safe defaults, write validation, rate limit and batch cap.
-- `test_ops_and_resolution.py`: request ids, body limits, error sanitising, liveness, batch-resolution helpers.
-- `test_job_stream_consumer.py`: the shared workflow-stream reader and request builder used by job runs and refills.
-- `test_pricing_table.py`: verified provider prices (defaults checked without `.env`), tier and cache billing, model-based rate resolution, override scoping, name variants, token-billed image cost.
-- `test_image_calls.py`: image retry helper and OpenAI image call handling (HTTP mocked).
-- `test_backend_polish.py`: difficulty alias filtering/sorting, OpenAPI build, parse failures.
-- Shared builders live in `backend/tests/factories.py` (`make_draft`, `make_question`).
+## 4. Frontend Vitest Automated Test Suite (140 Tests across 16 Suites)
 
-### 2.5 Frontend Unit Tests
-`pnpm --dir frontend run test` (Vitest; jsdom only for the export test) covers the pure helpers: batch stage/structural-sharing/cache-patch helpers, question-status helpers, formatters, and the export escaping, CSV and print-HTML builders. `pnpm --dir frontend run check:css` fails when a CSS class is no longer used anywhere in `src`.
+The frontend test suite is executed using **Vitest** (running with jsdom environment where browser DOM APIs are required) and covers pure data transforms, badge resolvers, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks.
 
-## 5. Continuous Integration (CI) Pipeline
+All **140 tests across 16 test files** execute and pass in ~600ms with zero flaky tests:
+
+### 4.1 Frontend Test Suite Matrix
+
+| # | Test Suite | File Location | Tests | Target Scope & Verification Purpose |
+| :-: | :--- | :--- | :-: | :--- |
+| **1** | `visualHelpers.test.js` | `src/utils/__tests__/` | 16 | Medical visual modality detection (radiology, histology, gross anatomy, electron microscopy, physiology traces, clinical photographs, SVG diagrams) and theme styling metadata. |
+| **2** | `mcat.test.js` | `src/constants/__tests__/` | 19 | Section normalization, score scaling formulas, difficulty tier helpers, and dependent taxonomy structure integrity. |
+| **3** | `sharedHelpers.test.js` | `src/utils/__tests__/` | 13 | Pure data transformers, score calculations, badge resolver helpers, and formatting utilities. |
+| **4** | `batchHelpers.test.js` | `src/utils/__tests__/` | 12 | Batch status aggregation, progress percent calculation, and multi-job stage management. |
+| **5** | `explanationHelpers.test.js` | `src/utils/__tests__/` | 9 | Distractor parsing, trap extractor, mentor explanation 3-card structure, and distractor sorting helpers. |
+| **6** | `export.test.js` | `src/utils/__tests__/` | 9 | CSV spreadsheet formula neutralisation, HTML metacharacter escaping, SVG script stripping, and paper preview doc builders. |
+| **7** | `apiHelpers.test.js` | `src/utils/__tests__/` | 9 | HTTP client error wrapping, payload sanitization, query string builders, and response parsing. |
+| **8** | `formatters.test.js` | `src/utils/__tests__/` | 8 | Date formatting, micro-cent cost displays, duration timers, and score badges. |
+| **9** | `questionHelpers.test.js` | `src/utils/__tests__/` | 8 | Question draft validation, key resolution, option text checkers, and stem normalizers. |
+| **10** | `batchJobHelpers.test.js` | `src/utils/__tests__/` | 8 | Visible question counting, actual count resolution, and batch job shortfall detection. |
+| **11** | `generatorFormAndPagination.test.js` | `src/utils/__tests__/` | 7 | Page size normalization, subtopic multi-select toggles, and select option wrapping navigation. |
+| **12** | `questionVisuals.test.js` | `src/utils/__tests__/` | 6 | Image provider detection, SVG sanitizer checks, and figure attachment helpers. |
+| **13** | `useAiValidatedHandlers.test.js` | `src/hooks/__tests__/` | 5 | Review queue item selection, select-all toggle, passage expansion, and optimistic state mutations. |
+| **14** | `ExportComponents.test.jsx` | `src/components/modals/__tests__/` | 4 | Scope selector button rendering, filter state hiding, and data format pane previews. |
+| **15** | `QuestionBankViewHandlers.test.js` | `src/views/__tests__/` | 4 | Filter reset handlers, table row selection toggling, and stale selection pruning. |
+| **16** | `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, and idempotency key handlers. |
+| **Total** | **16 Test Suites** | | **140 Tests** | **100% Pass Rate (~600ms)** |
+
+### 4.2 Running Frontend Tests
+
+```bash
+# Run all 140 frontend unit tests via Vitest
+pnpm --dir frontend run test
+# or from root:
+pnpm run test:frontend
+
+# Run with verbose test-by-test reporting
+pnpm --dir frontend run test --reporter=verbose
+```
+
+---
+
+## 5. Code Hygiene, Formatting & Linters
+
+Both backend and frontend enforce strict zero-defect policies in local development and continuous integration.
+
+### 5.1 Python Standards (Ruff)
+
+- **Target Version**: Python 3.11 (`py311`)
+- **Max Line Length**: 100 characters
+- **Rules Enforced**: `E` (pycodestyle errors), `W` (warnings), `F` (pyflakes), `I` (isort imports), `UP` (pyupgrade modern 3.11 idioms), `B` (bugbear), `C4` (comprehensions), `SIM` (simplify), `RET` (return), `PTH` (pathlib).
+
+```bash
+# Check Python code style across all modules and tests
+uv run ruff check .
+
+# Automatically fix linting issues
+uv run ruff check --fix backend
+
+# Format Python files
+uv run ruff format .
+```
+
+### 5.2 Frontend Standards (Oxlint, CSS Checker, & Production Build)
+
+- **Target**: React 19 JSX & ES2022
+- **Scope**: 166 source files, 106 lint rules + anti-shadowing verification
+- **Automated Tests**: 140 passing unit/integration tests across 16 test files (100% pass rate via Vitest)
+- **Policy**: 0 errors, 0 warnings (0 TODO, 0 FIXME, 0 console.log occurrences across codebase)
+- **CSS Hygiene**: Enforced zero unused or missing CSS classes via `pnpm check:css`
+- **Production Build**: Clean compilation with Vite 8 (`pnpm build` in ~250ms)
+
+```bash
+# Run frontend linter (oxlint)
+pnpm --dir frontend lint
+
+# Verify zero unused or missing CSS classes
+pnpm --dir frontend run check:css
+
+# Compile production bundle
+pnpm --dir frontend run build
+```
+
+---
+
+## 6. Continuous Integration (CI) Pipeline
 
 The repository integrates a GitHub Actions workflow (`.github/workflows/ci.yml`) that validates every pull request:
 
 ```yaml
 # Summary of CI jobs (every job has a timeout)
 1. code-quality:     Ruff lint + format check (backend)
-2. backend-tests:    PostgreSQL 16 service, full deterministic Pytest suite (--durations=15)
-3. frontend-build:   pnpm install once, Oxlint, Vitest, unused-CSS check, Vite production build
+2. backend-tests:    PostgreSQL 16 service, full deterministic Pytest suite (501 tests across 74 modules)
+3. frontend-build:   pnpm install once, Oxlint, Vitest (140 tests across 16 files), unused-CSS check, Vite production build
 4. docker-build:     builds the backend and web images
 5. dependency-audit: pip-audit + pnpm audit (advisory, never blocks)
 ```

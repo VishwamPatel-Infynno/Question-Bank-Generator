@@ -14,7 +14,7 @@ Before starting, ensure your system meets the following requirements:
 | :--- | :--- | :--- |
 | **Python** | `3.11+` | Backend runtime & FastAPI application |
 | **Node.js** | `24` (LTS; Vitest and jsdom need 22.12+) | Frontend runtime & Vite build engine |
-| **pnpm** | `10` (pinned by `packageManager`) | Fast, disk space efficient package manager |
+| **pnpm** | `12` (pinned by `packageManager`: `pnpm@12.21.0`) | Fast, disk space efficient package manager |
 | **Docker & Docker Compose** | `20.10+` / `v2+` | Containerized PostgreSQL 16 database |
 | **Git** | `2.30+` | Version control |
 
@@ -30,7 +30,7 @@ cp .env.example .env
 
 ### Configuration Variables Reference
 
-The system defines 68 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
+The system defines 73 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
 
 | Variable | Type | Default Value | Description |
 | :--- | :--- | :--- | :--- |
@@ -348,3 +348,22 @@ DATABASE_URL=postgresql+asyncpg://<USER>:<PASSWORD>@<HOST>:<PORT>/<DATABASE>?ssl
 
 ### CORS Errors in Browser Console
 - If hosting the backend and frontend on separate domains, set `ALLOWED_ORIGINS` (comma-separated) so the `CORSMiddleware` configured in [`backend/app/main.py`](../backend/app/main.py) allows your frontend domain; `VITE_ALLOWED_HOSTS` does the same for the Vite dev server's host check.
+
+---
+
+## 8. Monorepo Orchestration CLI Reference
+
+The repository provides high-level monorepo orchestration scripts defined in the root [`package.json`](../package.json) for day-to-day development, maintenance, testing, and formatting:
+
+| Command | Underlying Action | Purpose & Scope |
+| :--- | :--- | :--- |
+| `pnpm dev` | `predev` (`clean:ports`) + concurrently running backend & frontend | Primary development entry point. Starts FastAPI (port 8000) and Vite (port 5173). |
+| `pnpm run clean:ports` | `node scripts/clean-ports.mjs` | Kills any dangling or orphaned processes on ports 8000 and 5173 before launching. |
+| `pnpm run sync:taxonomy` | Node script copying taxonomy JSON | Copies `backend/app/data/mcat_dependent_taxonomy.json` to `frontend/src/constants/mcat_dependent_taxonomy.json`. |
+| `pnpm run db:seed` | `uv run python backend/scripts/seed_questions.py` | Seeds high-yield MCAT questions, stimuli passages, and rubrics into PostgreSQL. |
+| `pnpm run db:clean-duplicates` | `uv run python scripts/clean_duplicate_artifacts.py` | Permanently purges discarded duplicate drafts and archived question slots. |
+| `pnpm run lint:all` | `pnpm run lint:backend && pnpm run lint` | Runs full-stack linting across the codebase (`uv run ruff check .` + `oxlint`). |
+| `pnpm run test:all` | `pnpm run test:backend && pnpm run test:frontend` | Runs both backend pytest (501 tests) and frontend Vitest (140 tests). |
+| `pnpm run format` | `uv run ruff format .` | Formats all Python files according to the project's Ruff styling rules. |
+| `pnpm run format:check` | `uv run ruff format --check .` | Verifies code formatting compliance in CI pipelines without mutating files. |
+| `pnpm --dir frontend run check:css` | `node scripts/check-unused-css.mjs` | Scans all JSX and CSS files to enforce 0 unused or missing classes. |

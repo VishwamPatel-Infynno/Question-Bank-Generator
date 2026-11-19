@@ -158,9 +158,11 @@ def validate_question_draft(
         found.append(
             Violation("option_ids", f"Options must be exactly A, B, C, D once each; got {ids}")
         )
-    for opt in draft.options:
-        if not opt.text or not opt.text.strip():
-            found.append(Violation("empty_option", f"Option {opt.id} is empty"))
+    found.extend(
+        Violation("empty_option", f"Option {opt.id} is empty")
+        for opt in draft.options
+        if not opt.text or not opt.text.strip()
+    )
 
     if not (draft.question_stem or "").strip():
         found.append(Violation("empty_stem", "Question stem is empty"))

@@ -15,8 +15,10 @@ The backend is engineered with clear separation of concerns across presentation,
 backend/
 ├── app/
 │   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 48 operations across 42 unique paths including root /metrics)
+│   │   ├── admin.py         # Admin authorization dependencies & protected gates
 │   │   ├── router.py        # Central API v1 router aggregator (applies the optional API_ACCESS_KEY gate)
-│   │   ├── security.py      # Optional X-API-Key dependency for mutating routes
+│   │   ├── security.py      # Optional X-API-Key dependency & rate limiting for mutating routes
+│   │   ├── utils.py         # Shared API response serialization & parameter validation helpers
 │   │   └── v1/
 │   │       ├── ai.py        # Real-time AI Copilot tools (/enhance-instructions, /refine-question, /audit-passage, /study-guide)
 │   │       ├── generation.py # SSE streaming multi-agent orchestrator endpoint
@@ -46,20 +48,23 @@ backend/
 │   │   ├── sse.py           # SSE event formatting, keepalive pings, and client-safe payload serialization
 │   │   └── state.py         # AgentWorkflowState typed dictionary
 │   ├── agents/              # Cognitive Reasoning & Synthesis Layer
-│   │   ├── generator.py     # Fused clinical question synthesis & self-critique agent
+│   │   ├── _mock_tokens.py  # Mock token cost fixtures
+│   │   ├── base.py          # LiteLLM execution wrapper & sub-micro-cent token cost engine (DeepInfra + Anthropic)
+│   │   ├── batch_planner.py # AI native batch thematic planning & blueprint claim extraction
 │   │   ├── blind_solver.py  # Blind-solver dual-validation candidate verification agent (fail-closed)
-│   │   ├── validators.py    # Free deterministic structural validators & dash repair, run before LLM review
-│   │   ├── reviewer.py      # 100-point 4-pillar psychometric auditor agent (with Accompanying Visual Stimulus anti-deduction mandate)
-│   │   ├── regenerator.py   # Autonomous remediation agent (<= 80 score trigger; Rule 12 visual retention)
-│   │   ├── option_balancer.py # Mathematical option length balancing (±15%) & anti-guessability
+│   │   ├── draft_parser.py  # Strict draft JSON parsing, markdown stripping & cognitive trap extraction
+│   │   ├── generator.py     # Fused clinical question synthesis & self-critique agent
 │   │   ├── image_generator.py # FLUX-2-klein-4b neural visual & SVG vector generator
 │   │   ├── medical_imaging.py # High-fidelity anatomical & clinical diagnostic prompt synthesis (radiology, ECG, histology)
-│   │   ├── prompt_builder.py # User prompt assembly & cross-item diversity calibration
-│   │   ├── prompts.py       # Centralized system prompts, pacing rules & rubrics
-│   │   ├── standards.py     # Shared option-length and passage-length authoring standards
 │   │   ├── mock_fixtures.py # Deterministic fallback fixtures for offline resilience
 │   │   ├── mock_drafts.py   # Table of the seven canned mock drafts (section x passage/independent)
-│   │   └── base.py          # LiteLLM execution wrapper & sub-micro-cent token cost engine (DeepInfra + Anthropic)
+│   │   ├── option_balancer.py # Mathematical option length balancing (±15%) & anti-guessability
+│   │   ├── prompt_builder.py # User prompt assembly & cross-item diversity calibration
+│   │   ├── prompts.py       # Centralized system prompts, pacing rules & rubrics
+│   │   ├── regenerator.py   # Autonomous remediation agent (<= 80 score trigger; Rule 12 visual retention)
+│   │   ├── reviewer.py      # 100-point 4-pillar psychometric auditor agent (with Accompanying Visual Stimulus anti-deduction mandate)
+│   │   ├── standards.py     # Shared option-length and passage-length authoring standards
+│   │   └── validators.py    # Free deterministic structural validators & dash repair, run before LLM review
 │   ├── services/            # Background Worker & AI Subsystems
 │   │   ├── ai_copilot.py    # Real-time educator copilot tooling (prompt enhancement, refine, audit, study guide)
 │   │   ├── rag.py           # Semantic RAG retrieval & exemplar extraction via pgvector
@@ -70,8 +75,10 @@ backend/
 │   │   ├── batch_worker.py  # Dedicated background worker executing parallel job attempts, trial counts & recovery
 │   │   ├── batch_concurrency.py # Process-wide worker semaphores, active run tracking & rate-limiting throttles
 │   │   ├── batch_resolution.py  # Duplicate cluster leader selection & automated deficit replenishment calculation
+│   │   ├── csv_export.py        # Tabular CSV streaming serialization
 │   │   ├── deduplication.py # Multi-metric similarity scoring, pairwise clustering & anti-collision service
-│   │   └── metrics.py       # Real-time Prometheus metric collectors, counter updates & histogram exposition
+│   │   ├── metrics.py       # Real-time Prometheus metric collectors, counter updates & histogram exposition
+│   │   └── readability.py   # Flesch-Kincaid & vocabulary density heuristics
 │   ├── repositories/        # Data Access Layer (DAL)
 │   │   ├── _filters.py            # Shared soft-delete clauses (active_question_clause, active_passage_clause)
 │   │   ├── question_queries.py    # Query operations, paginated search, pgvector similarity, metrics, status counts & QuestionHead
@@ -91,20 +98,26 @@ backend/
 │   │   ├── mcat.py          # MCAT sections, difficulty tiers (low/medium/high) & subtopic taxonomy
 │   │   ├── token.py         # TokenUsage & TokenCostAccumulator schemas
 │   │   ├── question.py      # QuestionOption, QuestionDraft, Question, determine_question_status helper
+│   │   ├── status.py        # QuestionStatus enum & lifecycle transitions
 │   │   ├── extractors.py    # Polymorphic question extractors (field, options, keys, answer text)
 │   │   └── workflow.py      # GenerationRequest, ReviewScore, WorkflowEvent
 │   ├── core/                # Configuration & Settings
-│   │   ├── config.py        # Pydantic SettingsConfigDict, dual-provider defaults & settings (68 fields)
+│   │   ├── config.py        # Pydantic SettingsConfigDict, dual-provider defaults & settings (73 fields)
 │   │   ├── pricing.py       # Model price fallback tables and LiteLLM registry lookup
 │   │   ├── concurrency.py   # Process-wide pipeline semaphore shared by all runs
-│   │   └── logging.py       # Centralized console logging handler & formatter
+│   │   ├── logging.py       # Centralized console logging handler & formatter
+│   │   └── errors.py        # Standardized domain exceptions & error codes
+│   ├── middleware/          # ASGI Middlewares
+│   │   ├── telemetry.py     # Prometheus HTTP request timing, status code counters & latency histograms
+│   │   └── __init__.py
 │   ├── db/                  # Database Lifecycle & Migrations
 │   │   ├── base.py          # Declarative Base
 │   │   ├── init_db.py       # Ordered idempotent migration steps, pgvector extension, composite indexes & FTS
 │   │   ├── schema_migrations.py # Schema migrations, HNSW cosine index (idx_questions_embedding_hnsw), foreign keys & column additions
 │   │   └── session.py       # Async engine, connection pool & startup migrations
 │   └── data/                # Static Taxonomy & Curricula
-│       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
+│       ├── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
+│       └── thematic_angles.py # Curated science and CARS thematic angle distributions
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
 └── tests/                   # Deterministic Automated Test Suite (74 deterministic modules / 501 tests + 1 live E2E module with 10 tests = 511 total backend tests across 75 files)
@@ -112,7 +125,9 @@ backend/
     ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
     ├── test_additional_instructions.py     # Educator custom authoring instructions and prompt builder integration
     ├── test_agents.py                      # Multi-agent worker nodes, heuristics, blind solver routing & quality gates
+    ├── test_ai_native_planning.py          # Dynamic batch brainstorming, AI slot blueprinting, and passage claim extraction
     ├── test_anthropic.py                   # Multi-provider switching, Anthropic models, prompt cache pricing & API keys
+    ├── test_api_ai.py                      # AI Copilot endpoints: prompt enhancement, question refinement & study guides
     ├── test_api_duplicates_passages_health.py # Duplicate detection, passage lifecycle, CORS and health endpoints
     ├── test_api_generation.py              # Generation flows through the API: batches, passage sets, visuals
     ├── test_api_hardening.py               # API hardening: admin gate, image safety, safe defaults, write validation
@@ -158,6 +173,7 @@ backend/
     ├── test_passage_blueprints_decomposition.py # Unit tests for decomposed 5-slot passage blueprint structures
     ├── test_passage_set_blueprints_and_dedup.py # CARS & Science slot blueprints, psychometric archetypes, and slot specialization directives
     ├── test_pedagogy.py                    # Pedagogical format & 3-card explanation tests
+    ├── test_pgvector_rag.py                # pgvector RAG, normalized embeddings, cosine metrics & hybrid search
     ├── test_pricing_table.py               # Verified provider prices, model-based rate resolution, cache billing and image costs
     ├── test_projected_reads.py             # Lightweight repository reads used by the batch worker
     ├── test_prometheus_metrics.py          # Prometheus/OpenMetrics exposition and telemetry middleware tracking

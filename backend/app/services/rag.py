@@ -355,8 +355,7 @@ async def retrieve_rag_exemplar_context(
     if avoidance_stems:
         prompt_lines.append("\n[STRICT NOVELTY & ANTI-DUPLICATION CONSTRAINT]:")
         prompt_lines.append("The Question Bank already contains questions testing:")
-        for stem in avoidance_stems:
-            prompt_lines.append(f"- {stem}")
+        prompt_lines.extend(f"- {stem}" for stem in avoidance_stems)
         prompt_lines.append(
             "You MUST formulate a completely novel scenario testing an unaddressed variable, mechanism, or relationship."
         )

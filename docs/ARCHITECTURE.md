@@ -498,6 +498,9 @@ The streaming execution pipeline is implemented in [`backend/app/workflow/engine
 - [`review_loop.py`](../backend/app/workflow/review_loop.py): `_run_question_review_loop` runs the free deterministic gate, the reviewer, the Blind-Solver and the Question Improver remediation cycles against the 100-point rubric, under the per-slot LLM call budget.
 - [`dedup_inflight.py`](../backend/app/workflow/dedup_inflight.py): duplicate detection against the database pool, staged siblings and in-flight sibling drafts, with anti-collision regeneration and retry guidance preservation.
 - [`live_job_store.py`](../backend/app/workflow/live_job_store.py): `_persist_live_question` and the job/batch finalisation, cancellation and failure handlers for standalone live runs.
+- [`routes.py`](../backend/app/workflow/routes.py): `route_after_review` implements Quality Gate routing for review outcomes (advancing passing items, routing to remediation, or rejecting upon retry exhaustion).
+- [`sse.py`](../backend/app/workflow/sse.py): SSE event serialization, keepalive comment emission every 15 seconds, and client disconnect handling.
+- [`state.py`](../backend/app/workflow/state.py): `AgentWorkflowState` typed data contracts defining the active workflow context.
 - **Lifecycle Node Partitioning**: The discrete graph nodes are partitioned across specialized modules:
   - [`node_generator.py`](../backend/app/workflow/node_generator.py): `fused_generator_node`, `agent_usage_entry`, and `_record_agent_usage`.
   - [`node_reviewer.py`](../backend/app/workflow/node_reviewer.py): `reviewer_node`, `ReviewAndSolveOutcome`, `run_review_and_solve`, `blind_solver_node`, and `regenerator_node`.

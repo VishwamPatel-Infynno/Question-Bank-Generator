@@ -177,16 +177,16 @@ async def evaluate_duplicate_rag(
                     min_similarity=soft_threshold,
                     exclude_ids=[str(cand_id)] if cand_id else None,
                 )
-                for m in db_matches:
-                    ref_pool.append(
-                        {
-                            "id": m.id,
-                            "question_stem": m.question_stem,
-                            "explanation": m.explanation,
-                            "options": [],
-                            "_vector_similarity": m.similarity,
-                        }
-                    )
+                ref_pool.extend(
+                    {
+                        "id": m.id,
+                        "question_stem": m.question_stem,
+                        "explanation": m.explanation,
+                        "options": [],
+                        "_vector_similarity": m.similarity,
+                    }
+                    for m in db_matches
+                )
         except Exception as exc:
             logger.debug("pgvector neighbor retrieval for dedup skipped (%s).", exc)
 

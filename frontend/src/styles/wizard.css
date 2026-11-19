@@ -1,7 +1,7 @@
 /* Infynno MCAT Question Bank Generator - Guided Question Wizard & Hero Landing | Infynno Solutions LLP */
 
 /* ==========================================================================
-   Infynno Hero Landing Screen & 5-Step Guided Wizard
+   Infynno Hero Landing Screen & 3-Step Guided Wizard
    ========================================================================== */
 
 /* Hero Landing Container */
@@ -140,7 +140,7 @@
 }
 
 /* ==========================================================================
-   Guided 5-Step Wizard Container
+   Guided 3-Step Wizard Container
    ========================================================================== */
 
 .wizard-card {
@@ -348,10 +348,8 @@
   background: var(--success);
 }
 
-/* Step 5 Review Summary Card */
-
 /* ==========================================================================
-   Progressive 7-Step Wizard Styles (1-2 Decisions Per Step)
+   Progressive 3-Step Wizard Styles (1-2 Decisions Per Step)
    ========================================================================== */
 .wizard-stacked-decision {
   display: flex;
@@ -410,13 +408,13 @@
   font-weight: 600;
   border: none;
   cursor: pointer;
-  box-shadow: 0 2px 8px var(--brand-ring);
+  box-shadow: var(--shadow-sm), var(--infynno-glow);
   transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease, fill 0.2s ease, stroke 0.2s ease;
 }
 
 .workspace-action-btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px var(--brand-ring);
+  box-shadow: var(--shadow-md), var(--infynno-glow);
 }
 
 /* ==========================================================================
@@ -579,6 +577,11 @@
   justify-content: space-between;
   width: 100%;
   gap: 8px;
+}
+
+.wizard-choice-check-icon {
+  color: var(--brand-primary);
+  flex-shrink: 0;
 }
 
 .wizard-tier-card-title-group {

@@ -52,7 +52,14 @@ export default function WizardHeaderStepper({
       </div>
 
       {/* Continuous Progress Track */}
-      <div className="wizard-progress-track">
+      <div
+        className="wizard-progress-track"
+        role="progressbar"
+        aria-valuenow={step}
+        aria-valuemin={1}
+        aria-valuemax={totalSteps}
+        aria-label={`Generation setup progress: Step ${step} of ${totalSteps} - ${activeConfig?.label}`}
+      >
         <div
           className="wizard-progress-fill"
           style={{ width: `${(step / totalSteps) * 100}%` }}

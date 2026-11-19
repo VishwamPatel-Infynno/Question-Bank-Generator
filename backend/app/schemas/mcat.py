@@ -171,7 +171,7 @@ def calculate_mcat_scaled_score(audit_total: int, difficulty: str = "medium") ->
 # Load Manager Dependent Taxonomy
 _DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "mcat_dependent_taxonomy.json"
 try:
-    with open(_DATA_PATH, encoding="utf-8") as _f:
+    with _DATA_PATH.open(encoding="utf-8") as _f:
         DEPENDENT_TAXONOMY = json.load(_f)
 except (OSError, json.JSONDecodeError) as _taxonomy_error:
     logging.getLogger(__name__).error(

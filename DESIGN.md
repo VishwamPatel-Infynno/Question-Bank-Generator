@@ -36,6 +36,7 @@ The styling architecture is strictly modularized across domain-specific CSS file
 - `passage.css`: Passage catalog cards, editorial desk, and figure attachment editor.
 - `modals.css`: Standardized modal backdrop, card shells, and focus-trapped dialog wrappers.
 - `print.css`: Professional `@media print` paper styling and page-break rules.
+- `accessibility.css`: High-contrast accessible utility classes, focus visible outlines, and screen-reader utilities (`sr-only`).
 
 ### 2.1 Infynno Corporate Brand Palette
 These core gradient tokens anchor the brand identity across buttons, active tab indicators, and progress tracks:

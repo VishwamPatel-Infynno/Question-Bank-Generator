@@ -196,7 +196,8 @@ frontend/src/
 │   ├── bank.css                  # Canonical Question Bank & AI-Validated Review Queue
 │   ├── passage.css               # Passage Bank & Editorial Desk workspace
 │   ├── modals.css                # Standardized modal dialogs, Confirmation, Audit modal
-│   └── print.css                 # Exam Paper print preview & @media print styles
+│   ├── print.css                 # Exam Paper print preview & @media print styles
+│   └── accessibility.css         # Accessible utilities, focus rings, and screen reader styles
 ├── index.css                     # Aggregator hub importing all domain stylesheets
 └── main.jsx                      # Application entry point
 ```
@@ -223,12 +224,41 @@ pnpm lint
 # Check CSS class usage and verify zero unused or missing classes
 pnpm check:css
 
+# Synchronize backend taxonomy JSON to frontend constants
+pnpm run sync:taxonomy
+
 # Build production bundle with Vite (compiles cleanly)
 pnpm build
 
 # Preview the production build locally
 pnpm preview
 ```
+
+---
+
+## 🧪 Automated Testing Suite (Vitest)
+
+The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **16 test files (140 total tests)**:
+
+| Test Suite | Path | Tests | Coverage |
+| :--- | :--- | :-: | :--- |
+| `visualHelpers.test.js` | `src/utils/__tests__/` | 16 | Medical visual modality detection & styling metadata |
+| `mcat.test.js` | `src/constants/__tests__/` | 19 | Section normalization, score scaling, taxonomy integrity |
+| `sharedHelpers.test.js` | `src/utils/__tests__/` | 13 | Pure data transformers, score calculations, badge helpers |
+| `batchHelpers.test.js` | `src/utils/__tests__/` | 12 | Batch status aggregation, progress percent calculation |
+| `explanationHelpers.test.js` | `src/utils/__tests__/` | 9 | Distractor parsing, trap extractor, mentor explanation structure |
+| `export.test.js` | `src/utils/__tests__/` | 9 | CSV formula neutralisation, HTML metacharacter escaping, SVG sanitizing |
+| `apiHelpers.test.js` | `src/utils/__tests__/` | 9 | HTTP client error wrapping, payload sanitization, response parsing |
+| `formatters.test.js` | `src/utils/__tests__/` | 8 | Date formatting, micro-cent cost displays, duration timers |
+| `questionHelpers.test.js` | `src/utils/__tests__/` | 8 | Question draft validation, key resolution, option text checkers |
+| `batchJobHelpers.test.js` | `src/utils/__tests__/` | 8 | Visible question counting, actual count resolution, shortfall detection |
+| `generatorFormAndPagination.test.js` | `src/utils/__tests__/` | 7 | Page size normalization, subtopic multi-select, select option navigation |
+| `questionVisuals.test.js` | `src/utils/__tests__/` | 6 | Image provider detection, SVG sanitizer checks, figure attachment |
+| `useAiValidatedHandlers.test.js` | `src/hooks/__tests__/` | 5 | Review queue selection, select-all toggle, passage expansion |
+| `ExportComponents.test.jsx` | `src/components/modals/__tests__/` | 4 | Scope selector button rendering, filter state hiding, data format previews |
+| `QuestionBankViewHandlers.test.js` | `src/views/__tests__/` | 4 | Filter reset handlers, table row selection toggling, stale selection pruning |
+| `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, idempotency keys |
+| **Total** | **16 Suites** | **140** | **100% Pass Rate (~600ms)** |
 
 ---
 
