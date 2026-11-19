@@ -348,10 +348,11 @@ The primary searchable and filterable repository (`QuestionBankView.jsx`), stric
 A specialized repository (`PassageBankView.jsx`) dedicated to reading passages and research narratives:
 
 - **Passage Editorial Desk (`PassageEditorialDesk.jsx`)**: Split-pane editorial canvas featuring:
-  - Live in-place text editor for the passage narrative.
+  - Live in-place text editor for the passage narrative styled in **Newsreader Serif** (`font-size: 1.05rem; line-height: 1.68; letter-spacing: -0.01em;`) matching clinical publication guidelines.
   - Real-time word counter with MCAT pacing metrics.
-  - Figure showcase and discard tool (`PassageVisualStimulusEditor.jsx`).
-  - Linked questions drawer inspecting all questions currently associated with the passage.
+  - Figure showcase and discard tool (`PassageVisualStimulusEditor.jsx`) supporting all 7 medical modalities with 1-click detachment.
+  - **Passage Readability & Alignment Diagnostics**: 1-click assessment (`/api/ai/audit-passage`) calculating Flesch-Kincaid grade level, reading ease, empirical anchor density, and sentence counts, styled in a dedicated diagnostics card with decoupled status badges (`Alignment: Strong` / `Alignment: Calibrating`).
+  - **Linked Questions Stepper Carousel (`PassageQuestionsCarousel.jsx`)**: Carousel inspecting all questions associated with the passage with keyboard arrow shortcuts (`←` / `→`) and decoupled status pills (`Ready for Review` / `In Bank`) eliminating raw internal score math.
 - **Safe Cascade Deletion Modal (`DeletePassageModal.jsx`)**: Accessible dialog that audits and displays the exact number of linked questions across all lifecycle statuses (`in_bank`, `ai_validated`, `batch_only`) that will be soft-deleted, while cleanly preserving historical batch execution progress.
 
 ---

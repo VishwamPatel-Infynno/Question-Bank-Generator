@@ -126,6 +126,33 @@ flowchart TD
     Slot5 -->|Attempt 2: Condition idx 2| Worker5
 ```
 
+### 1.6 ASGI Middleware Pipeline & Network Optimization
+
+All HTTP traffic entering the FastAPI service passes through an ordered, high-performance ASGI middleware stack designed to optimize network bandwidth, ensure strict security headers, correlate distributed logs, and capture telemetry:
+
+```mermaid
+graph TD
+    Client[Web Browser / HTTP Client] -->|HTTP Request| GZip[Starlette GZipMiddleware<br>minimum_size=1000]
+    GZip --> CORS[CORSMiddleware<br>Hardened Origins]
+    CORS --> Sec[SecurityHeadersMiddleware<br>OWASP Strict Headers]
+    Sec --> ReqId[RequestContextMiddleware<br>X-Request-ID Correlation & Body Cap]
+    ReqId --> Tel[TelemetryMiddleware<br>Prometheus Duration Histograms]
+    Tel --> Router[FastAPI API Router]
+```
+
+1. **GZip Response Compression (`GZipMiddleware`)**:
+   - Configured with `minimum_size=1000` (1 KB threshold).
+   - Automatically compresses large JSON exports, question batches, and bank datasets by **70–85%**, cutting network transfer latency.
+   - Bypasses micro-responses ($<1\text{ KB}$, e.g. health checks and heartbeats) to prevent compression CPU overhead.
+   - Bypasses Server-Sent Events (`text/event-stream` at `/api/generate`), allowing immediate chunk-by-chunk event delivery without buffering delays.
+2. **Security Headers (`SecurityHeadersMiddleware`)**:
+   - Injects `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, and restrictive `Permissions-Policy`.
+3. **Request Correlation & Size Enforcement (`RequestContextMiddleware`)**:
+   - Inspects or generates an `X-Request-ID`, binds it to Python log context via `bind_log_context`, and echoes it on every HTTP response.
+   - Enforces `MAX_REQUEST_BODY_MB` before request body reading, returning HTTP 413 for oversized payloads.
+4. **Prometheus Telemetry (`TelemetryMiddleware`)**:
+   - Observes request latency in seconds and increments Prometheus status counters by endpoint and HTTP verb.
+
 ---
 
 ## 2. Multi-Agent Quality-Gated Workflow
@@ -977,6 +1004,12 @@ The benchmark runs against the live FastAPI application via `httpx.ASGITransport
 | `GET /api/questions?slim=true&limit=20` | Pipelined Bank Listing | 50 workers | 100 req | 100% (200 OK) | 8.9 ms | 15.6 ms | **112.0 req/s** |
 | `GET /metrics` | Prometheus Metrics Scraping | 50 workers | 50 req | 100% (200 OK) | 3.6 ms | 6.7 ms | **277.8 req/s** |
 
+### 6.11 Strongly-Typed Data Access Layer (DAL) Entity Mapping (`app/repositories/mappers.py`)
+
+Entity transformation between SQLAlchemy ORM models (`QuestionModel`, `PassageModel`) and Pydantic domain transfer schemas (`Question`, `Passage`) is managed by pure, deterministic mapping functions in `app/repositories/mappers.py`:
+- **Direct Strongly-Typed Attribute Access**: `model_to_schema` and `schema_to_model` access entity attributes directly (e.g. `m.job_id`, `m.status or "in_bank"`, `m.passage_id`, `m.passage_mode`, `m.is_deleted`, `m.deleted_at`, `m.is_duplicate_override`, `m.embedding`), eliminating dynamic `getattr` reflection overhead and ensuring static type checker verification.
+- **Selective Projection (`slim=True`)**: When `slim=True` is requested, large nested attributes like `stage_outcomes` and dense vector embeddings are skipped, significantly speeding up serialization for high-volume list and export operations.
+
 ```mermaid
 xychart-beta
     title "Concurrency Micro-Benchmark Throughput (req/s)"
@@ -1176,6 +1209,36 @@ frontend/src/
 ├── index.css                     # Aggregator hub importing all domain stylesheets
 └── main.jsx                      # React 19 application root
 ```
+
+### 9.1 Adaptive Batch Polling & Window Focus Telemetry
+
+To eliminate unnecessary network overhead while maintaining instant UI responsiveness, `useBatchActivity.js` implements a dual-cadence adaptive polling strategy:
+- **Active Polling (1,500ms)**: When background generation batches or worker jobs are actively processing, the hook queries `/api/batches` and active job state every 1.5 seconds to smoothly update progress tracks, milestones, and question cards.
+- **Idle Polling (10,000ms)**: When all batches are terminal (`completed`, `cancelled`, `failed`) and no active jobs are executing, the polling interval automatically decays to 10 seconds, reducing idle database transactions and socket churn by ~80%.
+- **Instant Focus Wakeup**: Listens to both `visibilitychange` and `window.addEventListener('focus', ...)`. When the educator switches back to the application tab, the hook immediately dispatches a background fetch without waiting for the timer to tick.
+
+### 9.2 WCAG 2.1 AA Focus-Visible Glow Contract & Tactile Feedback
+
+Accessible keyboard navigation and tactile feedback are implemented across the entire component tree:
+- **Dual-Ring Focus Glow**: `accessibility.css` enforces an accessible `:focus-visible` ring across all interactive controls (`button`, `input`, `select`, `textarea`, `[role="button"]`, `.btn-*`, `.pill-track-btn`, `.wizard-preset-pill`):
+  ```css
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--brand-ring);
+  ```
+- **Mentor Card Tactile Feedback**: The 3-card mentor explanation boxes (`.mentor-correct-box`, `.mentor-distractor-box`, `.mentor-trap-box`, `.mentor-mistake-box`) utilize `transition: var(--transition-ui)` for subtle hover transitions without visual jarring.
+
+### 9.3 Dedicated Passage Editorial Desk & Stimulus Viewer Architecture
+
+`PassageEditorialDesk.jsx` provides a dedicated, split-pane editorial workstation:
+- **Left Column (Passage Content)**:
+  - Textarea styled in **Newsreader Serif** with calibrated medical journal typography (`font-size: 1.05rem; line-height: 1.68; letter-spacing: -0.01em;`).
+  - Real-time word count calculation (`countWords`).
+  - **Passage Readability & Alignment Diagnostics**: Evaluates Flesch-Kincaid grade level, reading ease, empirical density score, and sentence counts via `/api/ai/audit-passage`, presented in a dedicated `.passage-diagnostics-card` with decoupled alignment pills (`Alignment: Strong` / `Alignment: Calibrating`).
+  - **Passage Visual Stimulus Editor**: Embedded figure showcase (`PassageVisualStimulusEditor.jsx`) supporting 7 medical modalities and 1-click visual detachment.
+- **Right Column (Linked Questions Carousel)**:
+  - Stepper carousel (`PassageQuestionsCarousel.jsx`) navigating through linked questions with keyboard arrow shortcuts (`←` / `→`).
+  - Score decoupling: Question cards display clean status pills (`Ready for Review` / `In Bank`) instead of raw internal score math.
 
 For complete UI design tokens, color scales, typography guidelines, and component contracts, consult [`DESIGN.md`](../DESIGN.md).
 

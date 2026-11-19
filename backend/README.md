@@ -111,7 +111,7 @@ backend/
 │   │   └── errors.py        # Standardized domain exceptions & error codes
 │   ├── middleware/          # ASGI Middlewares
 │   │   ├── telemetry.py     # Prometheus HTTP request timing, status code counters & latency histograms
-│   │   └── __init__.py
+│   │   └── __init__.py      # Re-exports; GZipMiddleware (minimum_size=1000) & SecurityHeaders registered in main.py
 │   ├── db/                  # Database Lifecycle & Migrations
 │   │   ├── base.py          # Declarative Base
 │   │   ├── init_db.py       # Ordered idempotent migration steps, pgvector extension, composite indexes & FTS
@@ -122,7 +122,7 @@ backend/
 │       └── thematic_angles.py # Curated science and CARS thematic angle distributions
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (76 deterministic modules / 512 tests + 1 live E2E module with 10 tests = 522 total backend tests across 77 files)
+└── tests/                   # Deterministic Automated Test Suite (77 deterministic modules / 515 tests + 1 live E2E module with 10 tests = 525 total backend tests across 78 files)
     ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
     ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
     ├── test_additional_instructions.py     # Educator custom authoring instructions and prompt builder integration
@@ -156,6 +156,7 @@ backend/
     ├── test_engine_cleanup.py              # The workflow stream must not leak worker tasks when its consumer stops reading
     ├── test_engine_slices.py               # Unit tests for the pure, closure-free pieces sliced out of ``workflow.engine``
     ├── test_extractors.py                  # Polymorphic question extractors (field, options, keys, answer text)
+    ├── test_gzip_compression.py           # Starlette GZipMiddleware compression on payloads >= 1KB, bypass on small & SSE
     ├── test_http_caching.py                # HTTP Cache-Control, ETag headers & 304 conditional revalidation
     ├── test_image_calls.py                 # Retry behaviour and response handling of the provider image calls (HTTP mocked)
     ├── test_in_flight_pool_and_dedup.py    # Per-job in-flight dedup pool and cross-slot collision checks
@@ -412,4 +413,14 @@ For high-frequency polling and monitoring (such as background batch progress tra
 Submodule reaching is eliminated through authoritative layer facades:
 - **`backend/app/services/__init__.py`**: Re-exports all service operations (`launch_background_batch`, `stop_background_batch`, `cancel_all_background_batches`, `get_active_batch_metrics`, `forget_batch_request`, `find_cluster_duplicates`, `cluster_questions`, `evaluate_duplicate`, `embed_question`, `find_similar_questions`, `generate_questions_csv`, `build_csv_headers`, `build_csv_row`).
 - **`backend/app/schemas/__init__.py`**: Re-exports domain transfer schemas (`Question`, `Passage`, `GenerationRequest`, `TokenUsage`), extractors (`extract_field`, `extract_correct_answer_text`), and token accumulators (`sum_usage`).
+
+### Automated Response Compression (`GZipMiddleware`)
+High-volume HTTP responses are automatically compressed over the wire:
+- **Compression Threshold**: Responses with payload size $\ge 1\text{ KB}$ (`minimum_size=1000`) are compressed via GZip when the client sends `Accept-Encoding: gzip`, reducing wire sizes by 70–85% on `/api/export`, bulk `/api/questions`, and `/api/batches`.
+- **Selective Bypass**: Small health pings and Server-Sent Events (`text/event-stream` at `/api/generate`) bypass compression to eliminate buffering and serialization overhead.
+
+### Strongly-Typed Data Access Layer Mapping (`mappers.py`)
+Bidirectional mapping between SQLAlchemy ORM models (`QuestionModel`, `PassageModel`) and Pydantic schemas (`Question`, `Passage`) is managed with strongly-typed direct attribute assignment:
+- **Elimination of Dynamic Reflection**: Replaced dynamic `getattr` lookups with explicit attribute reads (`m.job_id`, `m.status or "in_bank"`, `m.passage_id`, `m.passage_mode`, `m.is_deleted`, `m.deleted_at`, `m.is_duplicate_override`, `m.embedding`), preventing runtime reflection overhead and enabling static type safety.
+
 

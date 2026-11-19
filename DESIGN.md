@@ -368,6 +368,19 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 
 ### 4.18 Hero Landing & Quick-Start Presets Desk (`HeroLanding.jsx`, `wizard.css`)
 - **Component**: [`frontend/src/components/wizard/HeroLanding.jsx`](frontend/src/components/wizard/HeroLanding.jsx) delivers the welcoming hero canvas that greets educators with immediate action pathways and calibrated AAMC presets.
+
+### 4.19 Passage Editorial Desk & Stimulus Viewer (`PassageEditorialDesk.jsx`, `passage.css`)
+- **Component**: [`frontend/src/components/passage/PassageEditorialDesk.jsx`](frontend/src/components/passage/PassageEditorialDesk.jsx) delivers a side-by-side reading passage and linked question editorial workstation.
+- **Editorial Typography Standard**:
+  - Textarea (`.passage-desk-textarea`) set in **Newsreader Serif** with exact journal proportions: `font-size: 1.05rem`, `line-height: 1.68`, and `letter-spacing: -0.01em` conforming to §3.1.
+  - Live word count pill (`.passage-desk-pill-words`) with real-time feedback.
+- **Passage Readability & Alignment Card (`.passage-diagnostics-card`)**:
+  - Header (`.passage-diagnostics-header`): Displays `Passage Readability & Alignment` with decoupled status pill (`.passage-diagnostics-score`: `Alignment: Strong` / `Alignment: Calibrating`), eliminating internal score math.
+  - Metrics Grid (`.passage-diagnostics-grid`): Itemizes Flesch-Kincaid Grade Level, Reading Ease, Empirical Anchors, and Sentence Counts in high-legibility sans-serif.
+  - Pedagogical Diagnostics List (`.passage-diagnostics-list`): Itemizes structural recommendations.
+- **Linked Question Carousel (`PassageQuestionsCarousel.jsx`, `PassageLinkedQuestionCard.jsx`)**:
+  - Right-column stepper carousel with keyboard arrow navigation (`←` / `→`).
+  - Score Decoupling: In accordance with §8, question cards display clean status pills (`Ready for Review` / `In Bank`) instead of raw score math.
 - **Visual Architecture & Design Tokens**:
   - **Hero Container (`.hero-landing-container`)**: Centered layout with vertical rhythm, responsive padding, and subtle backdrop gradient.
   - **Status Pill (`.hero-landing-badge-inline`)**: Anchors brand identity via `InfynnoLogo` and provides a clean interactive link to Infynno Solutions with `aria-label="Infynno Solutions (opens in a new tab)"`.

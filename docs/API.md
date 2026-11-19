@@ -13,6 +13,20 @@ This document provides a comprehensive technical reference for all REST endpoint
 - **CORS Policy & Security Headers**: Restricted to trusted origins (`http://localhost:5173`, etc.) with OWASP security headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`).
 - **Autonomous Inference Gateway**: Multi-provider inference engine supporting dual first-class providers: **DeepInfra** (DeepSeek V4.1 Flash at $0.20 in / $0.60 out per 1M tokens, standard price) and **Anthropic** (Claude Haiku 5.5 / Sonnet / Opus with prompt cache read/write rates), dynamically switchable via `ACTIVE_LLM_PROVIDER`.
 - **MCAT 4-Choice Purity**: All question endpoints enforce strictly 4 options ($A, B, C, D$) with length symmetry and zero multi-choice artifacts.
+- **Payload Compression & Middlewares**: Integrated with Starlette `GZipMiddleware(minimum_size=1000)` for automated GZip compression on HTTP responses $\ge 1\text{ KB}$ (`Content-Encoding: gzip`), while bypassing micro-responses and SSE streams. Every response carries an `X-Request-ID` header for log correlation.
+
+---
+
+## 1.1 HTTP Middleware & Network Transfer Optimization
+
+The backend runs an ASGI middleware stack that governs network optimization and security across all HTTP interactions:
+
+| Middleware | Role | Behavior |
+| :--- | :--- | :--- |
+| **`GZipMiddleware`** | Bandwidth optimization | Automatically applies GZip compression (`Content-Encoding: gzip`) to JSON and CSV payloads $\ge 1\text{ KB}$ when requested via `Accept-Encoding: gzip` (yielding 70–85% size reductions on `/api/export`, bulk `/api/questions`, and batch details). Small responses ($<1\text{ KB}$) and Server-Sent Events (`text/event-stream` at `/api/generate`) bypass compression. |
+| **`SecurityHeadersMiddleware`** | OWASP Security Headers | Automatically injects `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, and `Referrer-Policy: strict-origin-when-cross-origin`. |
+| **`RequestContextMiddleware`** | Traceability & Ingestion Caps | Extracts or assigns an `X-Request-ID` bound to all server logs and echoed back on responses; rejects requests exceeding `MAX_REQUEST_BODY_MB` with HTTP 413 (`payload_too_large`). |
+| **`TelemetryMiddleware`** | Observability | Records request latency histograms and HTTP status counters exposed at `/metrics`. |
 
 ---
 

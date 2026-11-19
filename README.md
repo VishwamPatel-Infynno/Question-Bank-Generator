@@ -261,11 +261,11 @@ Question Bank Generator/
 │   ├── standard_prd.json        # Product requirements used to generate the scenarios
 │   └── testsprite_frontend_test_plan.json # Test plan definition
 ├── backend/
-│   ├── README.md                # Dedicated backend developer guide (76 deterministic modules / 512 tests; 522 total backend tests across 77 files)
+│   ├── README.md                # Dedicated backend developer guide (77 deterministic modules / 515 tests; 525 total backend tests across 78 files)
 │   ├── requirements.txt         # Runtime dependencies (requirements-dev.txt adds pytest, pytest-asyncio, pytest-cov, ruff)
 │   ├── scripts/
 │   │   └── seed_questions.py    # CLI database seeding script with authentic AAMC rubrics
-│   ├── tests/                   # 77 test modules (512 passing deterministic unit/integration tests; 10 live_e2e tests)
+│   ├── tests/                   # 78 test modules (515 passing deterministic unit/integration tests; 10 live_e2e tests)
 │   │   ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
 │   │   ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
 │   │   ├── test_additional_instructions.py     # Educator custom instructions and prompt builder integration
@@ -299,6 +299,7 @@ Question Bank Generator/
 │   │   ├── test_engine_cleanup.py              # The workflow stream must not leak worker tasks when its consumer stops reading
 │   │   ├── test_engine_slices.py               # Unit tests for the pure, closure-free pieces sliced out of ``workflow.engine``
 │   │   ├── test_extractors.py                  # Polymorphic question extractors (field, options, keys, answer text)
+│   │   ├── test_gzip_compression.py           # Starlette GZipMiddleware compression on payloads >= 1KB, bypass on small & SSE
 │   │   ├── test_http_caching.py                # HTTP Cache-Control, ETag headers & 304 conditional revalidation
 │   │   ├── test_image_calls.py                 # Retry behaviour and response handling of the provider image calls (HTTP mocked)
 │   │   ├── test_in_flight_pool_and_dedup.py    # Regression tests for in-flight deduplication pool and batch finalization
