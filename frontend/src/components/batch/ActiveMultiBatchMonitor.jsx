@@ -51,7 +51,7 @@ function ActiveMultiBatchMonitor({
   };
 
   return (
-    <div className="batch-monitor-card">
+    <div className="batch-monitor-card" aria-live="polite" aria-atomic="true">
       {/* Top Row: Title, Pulse, Stopwatch, Emergency Stop */}
       <div className="batch-monitor-top-row">
         <div className="batch-monitor-header-left">
@@ -194,7 +194,14 @@ function ActiveMultiBatchMonitor({
             {overallProgressPct}%
           </span>
         </div>
-        <div className="batch-monitor-progress-track">
+        <div
+          className="batch-monitor-progress-track"
+          role="progressbar"
+          aria-valuenow={overallProgressPct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Overall generation progress"
+        >
           <div
             className="batch-monitor-progress-fill"
             style={{ width: `${overallProgressPct}%` }}

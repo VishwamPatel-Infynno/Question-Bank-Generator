@@ -1,5 +1,6 @@
 from app.repositories.batch_repository import (
     batch_exists,
+    count_batches,
     delete_batch,
     get_batch_by_id,
     get_batches,
@@ -23,6 +24,7 @@ from app.repositories.mappers import (
     schema_to_model,
 )
 from app.repositories.passage_repository import (
+    count_passages,
     delete_passage,
     get_passage_by_id,
     get_passages,
@@ -57,6 +59,8 @@ __all__ = [
     "batch_exists",
     "batch_update_question_status",
     "build_question_filters",
+    "count_batches",
+    "count_passages",
     "count_questions",
     "delete_batch",
     "delete_passage",

@@ -109,6 +109,21 @@ async def get_batches(
         return [_batch_model_to_schema(m, include_payload=False) for m in models]
 
 
+async def count_batches(
+    section: str | None = None,
+    status: str | None = None,
+) -> int:
+    """Counts generation batches matching section and status filters via native SQL aggregation."""
+    async with async_session_factory() as session:
+        stmt = select(func.count(GenerationBatchModel.id))
+        if section:
+            stmt = stmt.where(GenerationBatchModel.section == section)
+        if status:
+            stmt = stmt.where(GenerationBatchModel.status == status)
+        result = await session.execute(stmt)
+        return int(result.scalar() or 0)
+
+
 async def batch_exists(batch_id: str) -> bool:
     """Cheap existence check (no row hydration, no JSONB payload)."""
     async with async_session_factory() as session:

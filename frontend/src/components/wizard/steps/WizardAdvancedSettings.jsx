@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Sliders, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { COGNITIVE_TRAPS, EMPTY_ARRAY, LIKELY_MISTAKE_PATTERNS } from '../../../constants';
-import { fetchEnhancedInstructions } from '../../../services/api';
+import { fetchEnhancedInstructions } from '../../../services';
 
 /**
  * WizardAdvancedSettings

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { fetchBatches, fetchQuestionCounts } from '../services/api';
+import { fetchBatches, fetchQuestionCounts } from '../services';
 import { QUESTION_STATUS } from '../constants';
 
 /**

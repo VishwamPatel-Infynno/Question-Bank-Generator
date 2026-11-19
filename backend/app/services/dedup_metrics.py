@@ -13,8 +13,8 @@ from typing import Any, TypedDict
 
 from pydantic import BaseModel
 
-from app.schemas.extractors import extract_correct_answer_text
-from app.schemas.extractors import extract_field as _field
+from app.schemas import extract_correct_answer_text
+from app.schemas import extract_field as _field
 
 logger = logging.getLogger(__name__)
 

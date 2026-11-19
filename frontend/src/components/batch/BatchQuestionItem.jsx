@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import {
   CheckCircle2,
   Image as ImageIcon,
@@ -18,7 +18,7 @@ import { QUESTION_STATUS, SCORE_CUTOFFS } from '../../constants';
 /**
  * BatchQuestionItem - Renders an individual question item accordion within a batch set drawer.
  */
-export default function BatchQuestionItem({
+function BatchQuestionItem({
   question,
   index = 0,
   onNavigateToBank,
@@ -146,3 +146,5 @@ export default function BatchQuestionItem({
     </div>
   );
 }
+
+export default memo(BatchQuestionItem);

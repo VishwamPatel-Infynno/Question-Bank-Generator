@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   computeJobQuestionCounts,
@@ -15,7 +16,7 @@ import { JOB_STATUS, QUESTION_STATUS } from '../../constants';
 /**
  * BatchJobCard - Coordinates an individual question set (e.g. Set #1 of 10) in a batch card.
  */
-export default function BatchJobCard({
+function BatchJobCard({
   job,
   isExpanded = false,
   onToggleExpand,
@@ -118,3 +119,5 @@ export default function BatchJobCard({
     </div>
   );
 }
+
+export default memo(BatchJobCard);

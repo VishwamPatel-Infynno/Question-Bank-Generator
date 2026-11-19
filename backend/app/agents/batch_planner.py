@@ -12,8 +12,7 @@ import logging
 
 from app.agents.base import call_llm, safe_json_loads
 from app.core.config import config
-from app.schemas import GenerationRequest, enum_value
-from app.schemas.mcat import is_cars
+from app.schemas import GenerationRequest, enum_value, is_cars
 
 logger = logging.getLogger(__name__)
 

@@ -20,12 +20,12 @@ For deep-dive technical specifications, architecture diagrams, API schemas, and 
 | **[UI/UX Design System (DESIGN.md)](DESIGN.md)** | Authoritative design tokens, dual obsidian/alabaster themes, streamlined 3-step wizard with decomposed summary/advanced drawers, decomposed QuestionCard components, `QuestionCopilotStrip`, `HeroLanding`, decomposed Export Studio panes (`ExportScopeSelector`, `ExportDataFormatPane`, `StudyGuideExportPane`), modular stylesheets (`study-guide-modal.css`, `question-copilot.css`, `stage-inspector.css`), accessible modal focus-trapping contracts (`Modal`, `ConfirmationModal`, `DeletePassageModal`), live batch retry telemetry (`AUTO-RETRYING X/3`), typography scale, component contracts, accessibility criteria (WCAG AA), and micro-animations. |
 | **[Architecture & Multi-Agent Workflow](docs/ARCHITECTURE.md)** | Complete workflow diagrams, 3-step pipeline specifications, Blind-Solver Dual Validation, Deduplication & Anti-Collision Subsystem, AI Copilot Studio & in-flight tooling, pgvector Semantic RAG & HNSW vector indexing (`VECTOR(1536)`), 5-Slot Cognitive Blueprints with replenishment rotation, hard 36-call slot budget, Strict Quality Gate, single-threshold 80/70 quality model, global worker semaphores, background batch runner with 3-trial retries, SSE pipeline, and PostgreSQL 16 ERD. |
 | **[REST & SSE API Reference](docs/API.md)** | Complete FastAPI endpoint documentation (48 endpoint operations across 42 unique paths including root `/metrics`), pgvector semantic search & RAG endpoints, deduplication, duplicate clustering, auto-resolve & refill endpoints, question restoration (`/restore`), permanent purges (`/permanent`, `/purge-batch`), batch generation schemas, 3-trial batch controls (`/stop`, `/retry`, `/cancel-all`), Prometheus `/metrics` exposition, AI Copilot suite (`/enhance-instructions`, `/refine-question`, `/audit-passage`, `/study-guide`), SSE event stream contracts, filter parameters, and cURL examples. |
-| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 501 passing deterministic unit/integration tests across 74 modules (511 total backend tests across 75 files), 140 frontend unit tests across 16 test files, 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
+| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 508 passing deterministic unit/integration tests across 75 modules (518 total backend tests across 76 files), 142 frontend unit tests across 16 test files, 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
 | **[Token Usage & Cost Tracking](docs/TOKEN_TRACKING.md)** | Verified rate cards per model: DeepInfra DeepSeek ($0.20 in / $0.60 out per 1M tokens standard), Anthropic Claude Haiku 5.5 ($0.10 in / $0.50 out with tiers and prompt-cache rates), OpenAI gpt-4o-mini, text-embedding-3-small ($0.02 per 1M tokens), token-billed gpt-image-2.5-flare images, AI Copilot rate cards, hard 36-call slot budget, exact mathematical cost formulas, multi-agent accumulation, and UI observability. |
 | **[Installation, Setup & Deployment](docs/SETUP_AND_CONFIG.md)** | Step-by-step setup, Docker PostgreSQL 16 guide with `pgvector/pgvector:pg16`, environment variables reference (73 Settings fields), modern `uv` workflow, database duplicate cleanup (`pnpm run db:clean-duplicates`), predev port cleanup, production deployment, linters, and troubleshooting. |
 | **[MCAT Psychometric Rubric & Standards](docs/MCAT_RUBRIC.md)** | Official 4 AAMC sections standards, 100-point 4-pillar evaluation rubric (25 pts per pillar), First-Pass 100/100 Calibration Directive, 5-Slot Cognitive Blueprints for CARS and Science, domain and experimental condition rotation tables, Blind-Solver algorithmic verification, unified 80/70 quality thresholds, and cognitive distractor trap engineering. |
-| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `stream_emitter.py`, `slot_worker.py`, `engine_layout.py`, `review_loop.py`, `passage_prep.py`, `passage_blueprints.py`, `draft_parser.py`, `dedup_inflight.py`, `live_job_store.py`, `node_generator.py`, `node_reviewer.py`, `node_finalize.py`, `nodes.py`), AI Copilot in-flight services, pgvector Semantic RAG, Blind-Solver agent, CQRS repositories (`question_queries.py`, `question_mutations.py`, `mappers.py`, `query_builders.py`), schema migrations (`schema_migrations.py`), 3-trial retry engine, testing (501 deterministic tests across 74 modules, 511 total backend tests across 75 files), and seeding scripts. |
-| **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directory (`wizard/`, `question/`, `copilot/`, `batch/`, `modals/`, `common/`), top-level views, modular stylesheets, 140 frontend unit tests across 16 test files, hooks, predev port cleaner, and local development instructions. |
+| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `stream_emitter.py`, `slot_worker.py`, `engine_layout.py`, `review_loop.py`, `passage_prep.py`, `passage_blueprints.py`, `draft_parser.py`, `dedup_inflight.py`, `live_job_store.py`, `node_generator.py`, `node_reviewer.py`, `node_finalize.py`, `nodes.py`), AI Copilot in-flight services, pgvector Semantic RAG, Blind-Solver agent, CQRS repositories (`question_queries.py`, `question_mutations.py`, `mappers.py`, `query_builders.py`), schema migrations (`schema_migrations.py`), 3-trial retry engine, testing (508 deterministic tests across 75 modules, 518 total backend tests across 76 files), and seeding scripts. |
+| **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directory (`wizard/`, `question/`, `copilot/`, `batch/`, `modals/`, `common/`), top-level views, modular stylesheets, 142 frontend unit tests across 16 test files, hooks, predev port cleaner, and local development instructions. |
 
 ---
 
@@ -182,7 +182,7 @@ pnpm dev
 Run the full backend test suite covering schemas, routing logic, strict quality gates, SVG & FLUX synthesis, pgvector operations, and token calculations:
 
 ```bash
-# Run backend deterministic test suite (501 deterministic tests across 74 modules; 511 total backend tests across 75 files)
+# Run backend deterministic test suite (508 deterministic tests across 75 modules; 518 total backend tests across 76 files)
 # Smart auto-skip: If PostgreSQL is offline, 394 pure unit tests pass and 99 DB tests skip cleanly
 # conftest.py strips provider keys and enables OFFLINE_MODE: no test ever calls a live LLM
 source .venv/bin/activate
@@ -196,7 +196,7 @@ ruff format --check .
 Verify frontend code hygiene, unit tests, and production bundle:
 
 ```bash
-# Run frontend unit tests (140 passed across 16 test files)
+# Run frontend unit tests (142 passed across 16 test files)
 pnpm test:frontend
 
 # Run frontend linter (oxlint: 0 warnings, 0 errors)
@@ -220,7 +220,7 @@ pnpm build
 | `pnpm run db:seed` | Seeds high-yield practice questions and reading passages into PostgreSQL |
 | `pnpm run db:clean-duplicates` | Safely purges discarded duplicate drafts and archived slots from PostgreSQL |
 | `pnpm run lint:all` | Runs full-stack linting (`uv run ruff check .` + `pnpm --dir frontend lint`) |
-| `pnpm run test:all` | Runs full-stack test suites (501 backend tests + 140 frontend tests) |
+| `pnpm run test:all` | Runs full-stack test suites (508 backend tests + 142 frontend tests) |
 | `pnpm run format` | Formats all Python files via Ruff |
 | `pnpm --dir frontend run check:css` | Scans for unused or missing CSS classes across all JSX and CSS files |
 
@@ -248,7 +248,7 @@ Question Bank Generator/
 │   ├── ARCHITECTURE.md          # Multi-agent architecture, quality gate & Blind-Solver
 │   ├── API.md                   # Complete REST & SSE API specification (48 operations across 42 unique paths including root /metrics)
 │   ├── CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md # Client system & operational workflow guide
-│   ├── TESTING_AND_QA.md        # Pytest test suite (501 deterministic tests across 74 modules; 511 total backend tests across 75 files) & TestSprite E2E specs
+│   ├── TESTING_AND_QA.md        # Pytest test suite (508 deterministic tests across 75 modules; 518 total backend tests across 76 files) & TestSprite E2E specs
 │   ├── TOKEN_TRACKING.md        # Dual-provider inference pricing & mathematical cost engine
 │   ├── SETUP_AND_CONFIG.md      # Installation, deployment (73 Settings fields) & FAQs
 │   └── MCAT_RUBRIC.md           # 100-point psychometric rubric & authoring standards
@@ -259,11 +259,11 @@ Question Bank Generator/
 │   ├── standard_prd.json        # Product requirements used to generate the scenarios
 │   └── testsprite_frontend_test_plan.json # Test plan definition
 ├── backend/
-│   ├── README.md                # Dedicated backend developer guide (74 deterministic modules / 501 tests; 511 total backend tests across 75 files)
+│   ├── README.md                # Dedicated backend developer guide (75 deterministic modules / 508 tests; 518 total backend tests across 76 files)
 │   ├── requirements.txt         # Runtime dependencies (requirements-dev.txt adds pytest, pytest-asyncio, pytest-cov, ruff)
 │   ├── scripts/
 │   │   └── seed_questions.py    # CLI database seeding script with authentic AAMC rubrics
-│   ├── tests/                   # 75 test modules (501 passing deterministic unit/integration tests; 10 live_e2e tests)
+│   ├── tests/                   # 76 test modules (508 passing deterministic unit/integration tests; 10 live_e2e tests)
 │   │   ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
 │   │   ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
 │   │   ├── test_additional_instructions.py     # Educator custom instructions and prompt builder integration

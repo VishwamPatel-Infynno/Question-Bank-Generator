@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 from typing import Annotated, Any
@@ -41,16 +42,14 @@ from app.schemas import (
 )
 from app.services import (
     backfill_question_embeddings,
+    build_csv_headers,
+    build_csv_row,
     evaluate_duplicate,
     evaluate_duplicate_rag,
     find_similar_questions,
+    generate_questions_csv,
     hybrid_search_questions,
     retrieve_rag_exemplar_context,
-)
-from app.services.csv_export import (
-    build_csv_headers,
-    build_csv_row,
-    generate_questions_csv,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,33 +74,34 @@ async def list_questions(
 ) -> dict[str, Any]:
     """Lists saved questions from the Question Bank repository along with aggregated metrics."""
     effective_status = None if status == "all" else (status or "in_bank")
-    questions = await get_questions(
-        section=section,
-        difficulty=difficulty,
-        search=search,
-        combination_id=combination_id,
-        run_id=run_id,
-        batch_id=batch_id,
-        passage_id=passage_id,
-        status=effective_status,
-        sort_by=sort_by,
-        limit=limit,
-        offset=offset,
-        slim=slim,
-    )
-    matching_count = await count_questions(
-        section=section,
-        difficulty=difficulty,
-        search=search,
-        combination_id=combination_id,
-        run_id=run_id,
-        batch_id=batch_id,
-        passage_id=passage_id,
-        status=effective_status,
+    questions, matching_count, metrics = await asyncio.gather(
+        get_questions(
+            section=section,
+            difficulty=difficulty,
+            search=search,
+            combination_id=combination_id,
+            run_id=run_id,
+            batch_id=batch_id,
+            passage_id=passage_id,
+            status=effective_status,
+            sort_by=sort_by,
+            limit=limit,
+            offset=offset,
+            slim=slim,
+        ),
+        count_questions(
+            section=section,
+            difficulty=difficulty,
+            search=search,
+            combination_id=combination_id,
+            run_id=run_id,
+            batch_id=batch_id,
+            passage_id=passage_id,
+            status=effective_status,
+        ),
+        get_repository_metrics(status=effective_status),
     )
     dumped = [q.model_dump() for q in questions]
-
-    metrics = await get_repository_metrics(status=effective_status)
 
     return {
         "questions": dumped,

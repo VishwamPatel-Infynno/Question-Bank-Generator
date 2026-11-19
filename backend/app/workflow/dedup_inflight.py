@@ -53,7 +53,7 @@ async def _evaluate_duplicate_async(
                 logger.debug("In-flight embedding generation skipped (%s)", exc)
 
         if cand_vec:
-            from app.schemas.extractors import extract_field as _field
+            from app.schemas import extract_field as _field
             from app.services.embeddings import cosine_similarity
 
             highest_sim = 0.0

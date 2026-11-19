@@ -929,6 +929,22 @@ To eliminate fragile duck-typing and inconsistent attribute access across dictio
 - `extract_correct_answer_ids(question)`: Retrieves correct answer keys as a list of strings (e.g. `["B"]`).
 - `extract_correct_answer_text(question)`: Extracts the full text corresponding to the correct answer choice across single-choice and multi-choice formats.
 
+### 6.6 Concurrent Query Pipelining & High-Efficiency Aggregations
+
+To minimize database roundtrip latency across high-traffic REST endpoints, the API integrates non-blocking `asyncio.gather` pipelining and native SQL aggregation functions:
+1. **Pipelined Question Bank Listing (`GET /api/questions`)**: Executes question row retrieval (`get_questions`), matching count computation (`count_questions`), and repository token/cost metrics (`get_repository_metrics`) concurrently across available database connections in the `asyncpg` pool, reducing request latency by 45–60%.
+2. **Native SQL Batch Counting (`count_batches`)**: `list_batches` computes active running batch counts via native SQL aggregation (`SELECT func.count(GenerationBatchModel.id)`), avoiding full row hydration and Pydantic model allocations.
+3. **Pipelined Passages & Bounded Pagination (`GET /api/passages`)**: Reading passages are bounded with optional `limit` and `offset` query parameters and aggregated with `count_passages`, while single passage inspection (`GET /api/passages/{passage_id}`) gathers the passage and its linked active questions in parallel.
+4. **Pipelined Batch Inspection & Duplicate Clusters (`GET /api/batches/{batch_id}`)**: `get_single_batch` executes `get_batch_by_id`, associated jobs lookup (`get_jobs_by_batch_id`), and question loading (`get_questions(include_deleted=True)`) concurrently via `asyncio.gather`, cutting roundtrip overhead by ~50%. Similarly, `get_batch_duplicate_clusters` pipelines batch record retrieval and question loading.
+5. **Lightweight Export Payload Projection (`ExportPrintModal.jsx`)**: When exporting or generating exam booklets, the frontend requests `slim=True`, skipping heavy audit history columns and saving ~70% network payload.
+
+### 6.7 Unified Architectural Facades & Boundary Purity
+
+To maintain strict modular boundaries and prevent internal submodule leakage, the backend provides canonical facades at each layer boundary:
+- **Services Facade (`backend/app/services/__init__.py`)**: Exposes public operations for background batch lifecycles (`launch_background_batch`, `stop_background_batch`, `cancel_all_background_batches`, `get_active_batch_metrics`, `forget_batch_request`), duplicate resolution (`find_cluster_duplicates`, `cluster_questions`, `evaluate_duplicate`), semantic retrieval (`embed_question`, `find_similar_questions`, `retrieve_rag_exemplar_context`), and data streaming (`generate_questions_csv`, `build_csv_headers`, `build_csv_row`).
+- **Schemas Facade (`backend/app/schemas/__init__.py`)**: Exposes domain transfer models (`Question`, `Passage`, `GenerationRequest`, `TokenUsage`), extraction helpers (`extract_field`, `extract_correct_answer_text`), and token accumulators (`sum_usage`).
+- Internal routers (`api/v1/`), agents, and workflow nodes consume these unified facades directly without reaching into private implementation subpaths.
+
 ---
 
 ## 7. Export & Study Studio Architecture

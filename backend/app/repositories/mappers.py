@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from app.db.base import to_datetime, to_iso_str
 from app.models.passage import PassageModel
 from app.models.question import QuestionModel
-from app.schemas.question import (
+from app.schemas import (
     DuplicateInfo,
     OptionChoice,
     Passage,

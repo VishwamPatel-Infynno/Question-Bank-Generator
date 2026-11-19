@@ -7,7 +7,7 @@ import {
   cancelAllBatches,
   updateQuestionStatus,
   restoreQuestion
-} from '../services/api';
+} from '../services';
 import { QUESTION_STATUS } from '../constants';
 import { patchQuestionInDetails } from '../utils/batchHelpers';
 import { useConfirmModal } from './useConfirmModal';

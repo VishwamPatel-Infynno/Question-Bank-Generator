@@ -1,4 +1,4 @@
-import { TRAP_PATTERN_STR } from '../../constants/mcatTraps';
+import { TRAP_PATTERN_STR } from '../../constants';
 
 /**
  * Lightweight inline markdown & trap highlighter.

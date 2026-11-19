@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useId } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { EMPTY_ARRAY } from '../../constants';
-import { nextEnabledIndex } from '../../utils/selectHelpers';
+import { nextEnabledIndex } from '../../utils';
 
 /**
  * CustomSelect:

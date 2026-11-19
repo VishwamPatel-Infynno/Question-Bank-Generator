@@ -11,10 +11,8 @@ import { useGeneratorForm } from './useGeneratorForm';
 import { useGlobalCounts } from './useGlobalCounts';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { startBackgroundBatch } from '../services';
-import { makeId } from '../utils/ids';
-import { applySectionRules } from '../utils/generatorFormState';
-import { buildBatchPayload } from '../utils';
-import { getSectionShortLabel } from '../constants/mcat';
+import { makeId, applySectionRules, buildBatchPayload } from '../utils';
+import { getSectionShortLabel } from '../constants';
 
 /**
  * Central application state hook.

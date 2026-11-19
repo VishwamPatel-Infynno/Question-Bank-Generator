@@ -1,7 +1,7 @@
 /**
  * Formatting and calculation utilities for MCAT Question Studio.
  */
-import { getSectionPacingSeconds } from '../constants/mcat';
+import { getSectionPacingSeconds } from '../constants';
 
 /**
  * Calculates estimated test exam duration for a set of MCAT questions.

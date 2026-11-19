@@ -10,7 +10,7 @@ from app.api.admin import is_admin_request
 from app.api.v1.config import public_runtime_fields
 from app.core.config import config
 from app.db.session import check_db_health
-from app.services.batch_concurrency import get_active_batch_metrics
+from app.services import get_active_batch_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ async def liveness_check() -> dict[str, Any]:
 
 
 @router.get("/health/ready")
-async def readiness_check():
+async def readiness_check() -> JSONResponse:
     """Readiness probe: 503 until the database answers, so orchestrators hold traffic back."""
     db_status = await check_db_health()
     metrics = get_active_batch_metrics()

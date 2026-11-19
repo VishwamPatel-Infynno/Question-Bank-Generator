@@ -207,13 +207,13 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 511-test backend verification suite across 75 modules (501 deterministic across 74 modules) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 518-test backend verification suite across 76 modules (508 deterministic across 75 modules) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 501 deterministic unit and integration tests across 74 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 394 pure unit tests pass and 99 DB tests skip cleanly
+# 1. Run all 508 deterministic unit and integration tests across 75 modules
+# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 394 pure unit tests pass and 114 DB tests skip cleanly
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
@@ -363,7 +363,7 @@ The repository provides high-level monorepo orchestration scripts defined in the
 | `pnpm run db:seed` | `uv run python backend/scripts/seed_questions.py` | Seeds high-yield MCAT questions, stimuli passages, and rubrics into PostgreSQL. |
 | `pnpm run db:clean-duplicates` | `uv run python scripts/clean_duplicate_artifacts.py` | Permanently purges discarded duplicate drafts and archived question slots. |
 | `pnpm run lint:all` | `pnpm run lint:backend && pnpm run lint` | Runs full-stack linting across the codebase (`uv run ruff check .` + `oxlint`). |
-| `pnpm run test:all` | `pnpm run test:backend && pnpm run test:frontend` | Runs both backend pytest (501 tests) and frontend Vitest (140 tests). |
+| `pnpm run test:all` | `pnpm run test:backend && pnpm run test:frontend` | Runs both backend pytest (508 tests) and frontend Vitest (142 tests). |
 | `pnpm run format` | `uv run ruff format .` | Formats all Python files according to the project's Ruff styling rules. |
 | `pnpm run format:check` | `uv run ruff format --check .` | Verifies code formatting compliance in CI pipelines without mutating files. |
 | `pnpm --dir frontend run check:css` | `node scripts/check-unused-css.mjs` | Scans all JSX and CSS files to enforce 0 unused or missing classes. |

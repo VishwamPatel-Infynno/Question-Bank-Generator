@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Annotated, Any
 
@@ -10,6 +11,7 @@ from app.api.utils import or_404
 from app.core.config import config
 from app.repositories import (
     batch_update_question_status,
+    count_batches,
     delete_batch,
     get_active_batch_questions,
     get_batch_by_id,
@@ -32,6 +34,8 @@ from app.schemas import (
 from app.services import (
     cancel_all_background_batches,
     cluster_questions,
+    find_cluster_duplicates,
+    forget_batch_request,
     get_active_batch_metrics,
     is_batch_running,
     launch_background_batch,
@@ -39,8 +43,6 @@ from app.services import (
     retry_incomplete_jobs_for_batch,
     stop_background_batch,
 )
-from app.services.batch_concurrency import forget_batch_request
-from app.services.batch_resolution import find_cluster_duplicates
 
 logger = logging.getLogger(__name__)
 
@@ -87,10 +89,12 @@ async def list_batches(
     """Lists generation batches (newest first, paginated) with progress counts and concurrency metrics.
 
     Rows omit ``request_payload``; fetch a single batch to read it.
+    Uses concurrent asyncio.gather for batch retrieval and native SQL active count calculation.
     """
-    batches = await get_batches(section=section, status=status_filter, limit=limit, offset=offset)
-    # Count running batches over the whole table so pagination never hides them from the monitor
-    active_count = len(await get_batches(section=section, status=BatchStatus.IN_PROGRESS))
+    batches, active_count = await asyncio.gather(
+        get_batches(section=section, status=status_filter, limit=limit, offset=offset),
+        count_batches(section=section, status=BatchStatus.IN_PROGRESS),
+    )
     metrics = get_active_batch_metrics()
     return {
         "batches": [b.model_dump() for b in batches],
@@ -102,13 +106,16 @@ async def list_batches(
 @router.get("/batches/{batch_id}")
 async def get_single_batch(batch_id: str) -> dict[str, Any]:
     """
-    Retrieves a single generation batch along with its 10 jobs and all generated questions.
+    Retrieves a single generation batch along with its constituent jobs and questions concurrently.
     Questions are organized so the client can easily view questions per job.
     """
-    b = await _require_batch(batch_id)
+    batch_model, jobs, linked_questions = await asyncio.gather(
+        get_batch_by_id(batch_id),
+        get_jobs_by_batch_id(batch_id),
+        get_questions(batch_id=batch_id, include_deleted=True),
+    )
+    b = or_404(batch_model, "Batch not found")
 
-    jobs = await get_jobs_by_batch_id(batch_id)
-    linked_questions = await get_questions(batch_id=batch_id, include_deleted=True)
     # Discarded duplicate questions must not be attached to jobs or displayed as active/deleted bank questions
     visible_questions = [q for q in linked_questions if q.status != "discarded"]
 
@@ -219,9 +226,12 @@ async def get_batch_duplicate_clusters(
     Returns grouped clusters with designated leader questions and redundant duplicate siblings.
     """
     threshold = config.DUPLICATE_HARD_THRESHOLD if threshold is None else threshold
-    await _require_batch(batch_id)
+    batch_model, linked_questions = await asyncio.gather(
+        get_batch_by_id(batch_id),
+        get_questions(batch_id=batch_id),
+    )
+    or_404(batch_model, "Batch not found")
 
-    linked_questions = await get_questions(batch_id=batch_id)
     # Only evaluate active questions (ignore previously discarded questions)
     active_questions = [q for q in linked_questions if is_question_active(q.status)]
     q_dumps = [q.model_dump() for q in active_questions]

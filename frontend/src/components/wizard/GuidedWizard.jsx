@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { applySectionRules } from '../../utils/generatorFormState';
+import { applySectionRules } from '../../utils';
 import { SECTION_METADATA, DIFFICULTY, SECTION_IDS } from '../../constants';
 import {
   WizardStep1SectionFocus,

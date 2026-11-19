@@ -14,8 +14,7 @@ import json_repair
 
 from app.core import pricing
 from app.core.config import config
-from app.schemas import TokenUsage
-from app.schemas.token import sum_usage
+from app.schemas import TokenUsage, sum_usage
 
 logger = logging.getLogger(__name__)
 

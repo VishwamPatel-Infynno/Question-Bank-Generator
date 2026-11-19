@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { EMPTY_ARRAY, getSectionBadgeClass, getSectionShortLabel, SECTION_IDS } from '../../constants';
 import { countWords } from '../../utils';
-import { fetchPassageAudit } from '../../services/api';
+import { fetchPassageAudit } from '../../services';
 import PassageVisualStimulusEditor from './PassageVisualStimulusEditor';
 import PassageQuestionsCarousel from './PassageQuestionsCarousel';
 

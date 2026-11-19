@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Annotated, Any
 
@@ -7,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.utils import or_404
 from app.repositories import (
+    count_passages,
     delete_passage,
     get_passage_by_id,
     get_passages,
@@ -26,18 +28,34 @@ async def list_passages(
     section: Annotated[str | None, Query()] = None,
     subtopic: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
+    limit: Annotated[int | None, Query(ge=1, le=500)] = None,
+    offset: Annotated[int | None, Query(ge=0)] = 0,
 ) -> dict[str, Any]:
-    """Lists reading passages in the question bank."""
-    passages = await get_passages(section=section, subtopic=subtopic, search=search)
-    return {"passages": [p.model_dump() for p in passages]}
+    """Lists reading passages in the question bank with optional filtering, search, and pagination."""
+    passages, total_count = await asyncio.gather(
+        get_passages(
+            section=section,
+            subtopic=subtopic,
+            search=search,
+            limit=limit,
+            offset=offset,
+        ),
+        count_passages(section=section, subtopic=subtopic, search=search),
+    )
+    return {
+        "passages": [p.model_dump() for p in passages],
+        "total_count": total_count,
+    }
 
 
 @router.get("/passages/{passage_id}")
 async def get_single_passage(passage_id: str) -> dict[str, Any]:
-    """Retrieves a single reading passage with its linked questions."""
-    p = or_404(await get_passage_by_id(passage_id), "Passage not found")
-
-    linked_questions = await get_questions(passage_id=passage_id)
+    """Retrieves a single reading passage with its linked questions concurrently."""
+    passage_model, linked_questions = await asyncio.gather(
+        get_passage_by_id(passage_id),
+        get_questions(passage_id=passage_id),
+    )
+    p = or_404(passage_model, "Passage not found")
     return {
         "passage": p.model_dump(),
         "questions": [q.model_dump() for q in linked_questions],

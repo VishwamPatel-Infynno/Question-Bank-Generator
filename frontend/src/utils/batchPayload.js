@@ -1,4 +1,4 @@
-import { SECTION_IDS, normalizeSectionId } from '../constants/mcat';
+import { SECTION_IDS, normalizeSectionId } from '../constants';
 
 const joinOr = (list, fallback) => (list && list.length > 0 ? list.join(', ') : fallback);
 

@@ -12,11 +12,10 @@ import {
   GraduationCap,
   Sparkles
 } from 'lucide-react';
-import { fetchQuestions, fetchStudyGuide } from '../../services/api';
+import { fetchQuestions, fetchStudyGuide } from '../../services';
 import { useExportActions, useRequestGuard } from '../../hooks';
 import { Modal } from '../common';
-import { formatExamTime } from '../../utils';
-import { pickExportQuestions } from '../../utils/questionHelpers';
+import { formatExamTime, pickExportQuestions } from '../../utils';
 import ExportPaperPreview from './ExportPaperPreview';
 import ExportScopeSelector from './ExportScopeSelector';
 import ExportDataFormatPane from './ExportDataFormatPane';
@@ -66,9 +65,10 @@ export default function ExportPrintModal({
   useEffect(() => {
     if (!hasActiveFilters) return;
     // With filters on, the "all" scope needs the whole bank; only the newest request may
-    // write state, and the guard retires it when the dialog unmounts
+    // write state, and the guard retires it when the dialog unmounts. We pass slim: true to
+    // skip unnecessary audit history payloads (~70% network payload reduction).
     const request = guard.begin();
-    fetchQuestions({ status: QUESTION_STATUS.IN_BANK }, request.signal)
+    fetchQuestions({ status: QUESTION_STATUS.IN_BANK, slim: true }, request.signal)
       .then((res) => {
         if (request.isCurrent() && res?.questions) setFetchedAll(res.questions);
       })

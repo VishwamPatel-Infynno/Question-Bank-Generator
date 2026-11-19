@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 from app.core.config import config
-from app.schemas.extractors import extract_field as _field
+from app.schemas import extract_field as _field
 from app.services.dedup_clustering import cluster_questions
 from app.services.dedup_metrics import (
     _MAX_STEM_CACHE_SIZE,

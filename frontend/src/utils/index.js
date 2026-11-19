@@ -79,3 +79,32 @@ export {
   getModalityMetadata
 } from './visualHelpers';
 
+/** RFC4122-style client-side UUID generation fallback */
+export { makeId } from './ids';
+
+/** Keyboard focus selection helpers */
+export { nextEnabledIndex } from './selectHelpers';
+
+/** Pure taxonomy topic extraction and hierarchy flatteners */
+export {
+  flattenTopics,
+  OVERVIEW_UNITS_PER_SUBJECT,
+  OVERVIEW_TOPICS_PER_UNIT
+} from './taxonomyHelpers';
+
+/** Pagination configuration and option normalizers */
+export {
+  PAGE_SIZE_OPTIONS,
+  normalizePageSizeOptions
+} from './pagination';
+
+/** Generator form state manipulation & exam section rules */
+export {
+  SUBTOPIC_RESET_VALUES,
+  toggleInList,
+  defaultSubtopicLabel,
+  toggleSubtopicState,
+  applySectionRules
+} from './generatorFormState';
+
+

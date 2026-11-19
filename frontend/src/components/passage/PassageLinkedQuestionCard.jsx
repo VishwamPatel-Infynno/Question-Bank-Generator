@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { CheckCircle2, Edit3, X } from 'lucide-react';
-import { formatDifficulty, getDifficultyBadgeClass } from '../../constants/mcat';
+import { formatDifficulty, getDifficultyBadgeClass } from '../../constants';
 import { getEffectiveTrapInfo, isCorrectOption } from '../../utils';
 
 /**
@@ -104,7 +104,7 @@ function PassageInlineQuestionEditor({ question, onSave, onCancel }) {
  * Renders an individual passage-linked question with its metadata strip,
  * difficulty badge, psychometric score, distractor traps, and expandable inline editor.
  */
-export default function PassageLinkedQuestionCard({
+function PassageLinkedQuestionCard({
   question,
   index,
   totalQuestions,
@@ -209,3 +209,5 @@ export default function PassageLinkedQuestionCard({
     </div>
   );
 }
+
+export default memo(PassageLinkedQuestionCard);

@@ -1,12 +1,11 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { Database, Sparkles, Eye } from 'lucide-react';
-import { batchDeleteQuestions, saveEditedQuestion } from '../services/api';
+import { batchDeleteQuestions, saveEditedQuestion } from '../services';
 import { useQuestionBank, usePagination, useConfirmModal, useKeyboardShortcuts, useBankDeletion } from '../hooks';
 import { PaginationBar, Modal, LoadError, EmptyState } from '../components/common';
 import { QuestionCard } from '../components/question';
 import { ExportPrintModal, ConfirmationModal } from '../components/modals';
-import QuestionBankFilters from '../components/bank/QuestionBankFilters';
-import QuestionBankTable from '../components/bank/QuestionBankTable';
+import { QuestionBankFilters, QuestionBankTable } from '../components/bank';
 import { toggleAll, toggleId } from '../utils';
 import { confirmModalProps } from '../components/modals/confirmModalProps';
 

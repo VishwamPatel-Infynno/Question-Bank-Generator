@@ -24,8 +24,7 @@ from app.repositories.query_builders import (
     SLIM_DEFER,
     build_question_filters,
 )
-from app.schemas import BatchStatus, Question, enum_value
-from app.schemas.question import ACTIVE_QUESTION_STATUSES
+from app.schemas import ACTIVE_QUESTION_STATUSES, BatchStatus, Question, enum_value
 
 logger = logging.getLogger(__name__)
 

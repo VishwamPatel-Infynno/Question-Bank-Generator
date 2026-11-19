@@ -1,5 +1,5 @@
 import { Search, Database, Trash2 } from 'lucide-react';
-import { MCAT_SECTIONS_FALLBACK } from '../../constants/mcat';
+import { MCAT_SECTIONS_FALLBACK } from '../../constants';
 
 export default function AiValidatedFiltersBar({
   searchQuery = '',

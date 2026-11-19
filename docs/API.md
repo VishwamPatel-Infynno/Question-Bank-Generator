@@ -43,7 +43,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 | `POST` | `/api/questions/update-status` | **Admin Action**: Bulk-updates question lifecycle status (`in_bank`, `ai_validated`, `discarded`) |
 | `PATCH` | `/api/questions/{question_id}/status` | Updates lifecycle status for an individual question |
 | `GET` | `/api/questions/{question_id}/image` | Serves visual stimulus (FLUX AI image or Vector SVG diagram) with content negotiation |
-| `GET` | `/api/passages` | Lists shared reading passages with query filtering, search, and active question counts |
+| `GET` | `/api/passages` | Lists shared reading passages with query filtering, search, pagination (`limit`/`offset`), and active question counts |
 | `GET` | `/api/passages/{passage_id}` | Retrieves a single reading passage along with all its linked active questions |
 | `POST` | `/api/passages` | Admin endpoint to create or update a shared reading passage record |
 | `DELETE` | `/api/passages/{passage_id}` | Admin endpoint to soft-delete a passage and its linked questions, preserving batch progress history |
@@ -1098,6 +1098,8 @@ Replenishes a batch up to its target question count by launching targeted backgr
 | `section` | `string` | No | Filter by section (`chem_phys`, `cars`, `bio_biochem`, `psych_soc`) |
 | `subtopic` | `string` | No | Filter by specific subtopic / foundational concept |
 | `search` | `string` | No | Search query matching passage text or subtopic |
+| `limit` | `integer` | No | Maximum number of records to return ($1 \le \text{limit} \le 500$, default: unrestricted / all) |
+| `offset` | `integer` | No | Number of records to skip for pagination ($\ge 0$, default: `0`) |
 
 #### List Passages Response (`GET /api/passages`)
 ```json
@@ -1115,7 +1117,8 @@ Replenishes a batch up to its target question count by launching targeted backgr
       "created_at": "2026-10-26T12:00:00Z",
       "updated_at": null
     }
-  ]
+  ],
+  "total_count": 1
 }
 ```
 

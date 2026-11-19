@@ -8,7 +8,7 @@ import {
   Code2
 } from 'lucide-react';
 import { useQuestionDraft } from '../../hooks/useQuestionDraft';
-import { fetchRefinedQuestion } from '../../services/api';
+import { fetchRefinedQuestion } from '../../services';
 import QuestionCardHeader from './QuestionCardHeader';
 import QuestionOptionsList from './QuestionOptionsList';
 import QuestionCardFooter from './QuestionCardFooter';

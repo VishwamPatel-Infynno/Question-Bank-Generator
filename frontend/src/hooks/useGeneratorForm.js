@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { SECTION_IDS, DIFFICULTY } from '../constants';
-import { toggleInList, toggleSubtopicState } from '../utils/generatorFormState';
+import { toggleInList, toggleSubtopicState } from '../utils';
 
 /**
  * Default initial state for the question-generation wizard form.

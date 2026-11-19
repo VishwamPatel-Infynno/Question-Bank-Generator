@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchBatches, fetchBatchDetail } from '../services/api';
+import { fetchBatches, fetchBatchDetail } from '../services';
 import { BATCH_STATUS } from '../constants';
 import { reuseUnchangedBatches } from '../utils/batchHelpers';
 import { useBatchFilters } from './useBatchFilters';

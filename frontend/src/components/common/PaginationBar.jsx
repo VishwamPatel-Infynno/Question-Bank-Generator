@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import CustomSelect from './CustomSelect';
-import { PAGE_SIZE_OPTIONS, normalizePageSizeOptions } from '../../utils/pagination';
+import { PAGE_SIZE_OPTIONS, normalizePageSizeOptions } from '../../utils';
 
 /**
  * Reusable PaginationBar component for paginated lists and data tables.

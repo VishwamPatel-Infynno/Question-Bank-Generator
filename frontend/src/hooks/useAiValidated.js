@@ -6,7 +6,7 @@ import {
   batchUpdateQuestionStatus,
   purgeQuestion,
   purgeQuestionsBatch
-} from '../services/api';
+} from '../services';
 import { useConfirmModal } from './useConfirmModal';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useRequestGuard } from './useRequestGuard';

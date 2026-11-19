@@ -63,7 +63,7 @@ from app.schemas.status import (
     BatchStatus,
     JobStatus,
 )
-from app.schemas.token import TokenUsage
+from app.schemas.token import TokenUsage, sum_usage
 from app.schemas.workflow import KNOWN_VISUAL_TYPES, GenerationRequest, WorkflowEvent
 
 __all__ = [
@@ -128,4 +128,5 @@ __all__ = [
     "normalize_mistake_pattern",
     "normalize_primary_trap",
     "normalize_section",
+    "sum_usage",
 ]

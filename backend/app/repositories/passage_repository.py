@@ -21,8 +21,10 @@ async def get_passages(
     subtopic: str | None = None,
     search: str | None = None,
     include_deleted: bool = False,
+    limit: int | None = None,
+    offset: int | None = 0,
 ) -> list[Passage]:
-    """Retrieves shared reading passages with optional filtering, search, and aggregated question_count."""
+    """Retrieves shared reading passages with optional filtering, search, pagination, and aggregated question_count."""
     async with async_session_factory() as session:
         stmt = (
             select(PassageModel, func.count(QuestionModel.id).label("q_count"))
@@ -53,9 +55,42 @@ async def get_passages(
             )
 
         stmt = stmt.order_by(PassageModel.created_at.desc())
+        if offset and offset > 0:
+            stmt = stmt.offset(offset)
+        if limit and limit > 0:
+            stmt = stmt.limit(limit)
         result = await session.execute(stmt)
         rows = result.all()
         return [passage_model_to_schema(m, int(q_count or 0)) for m, q_count in rows]
+
+
+async def count_passages(
+    section: str | None = None,
+    subtopic: str | None = None,
+    search: str | None = None,
+    include_deleted: bool = False,
+) -> int:
+    """Counts reading passages matching filtering and search criteria via native SQL aggregation."""
+    async with async_session_factory() as session:
+        stmt = select(func.count(PassageModel.id))
+        if not include_deleted:
+            stmt = stmt.where(active_passage_clause())
+        if section:
+            stmt = stmt.where(PassageModel.section == section)
+        if subtopic:
+            stmt = stmt.where(PassageModel.subtopic == subtopic)
+        if search:
+            wildcard = f"%{search.strip()}%"
+            stmt = stmt.where(
+                or_(
+                    PassageModel.text.ilike(wildcard),
+                    PassageModel.title.ilike(wildcard),
+                    PassageModel.subtopic.ilike(wildcard),
+                    PassageModel.id.ilike(wildcard),
+                )
+            )
+        result = await session.execute(stmt)
+        return int(result.scalar() or 0)
 
 
 async def get_passage_by_id(passage_id: str, include_deleted: bool = False) -> Passage | None:

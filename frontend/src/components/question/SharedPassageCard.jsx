@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { BookOpen, Image as ImageIcon } from 'lucide-react';
 import { countWords, hasQuestionImage } from '../../utils';
 import VisualStimulusViewer from './VisualStimulusViewer';
@@ -12,7 +12,7 @@ import VisualStimulusViewer from './VisualStimulusViewer';
  * - Embedded VisualStimulusViewer with fullscreen preview support.
  */
 
-export default function SharedPassageCard({
+function SharedPassageCard({
   title,
   passageText = '',
   questionCount = 1,
@@ -121,3 +121,5 @@ export default function SharedPassageCard({
     </div>
   );
 }
+
+export default memo(SharedPassageCard);

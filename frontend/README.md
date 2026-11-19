@@ -88,7 +88,8 @@ frontend/src/
 │   ├── passage/
 │   │   ├── index.js              # Passage bank barrel export
 │   │   ├── PassageBankFilters.jsx# Passage search, section, and difficulty filters
-│   │   ├── PassageBankTable.jsx  # Passage stimuli repository cards & question sets
+│   │   ├── PassageBankTable.jsx  # Passage stimuli repository table
+│   │   ├── PassageBankCardRow.jsx# Memoized passage card row with isolated clipboard state
 │   │   ├── PassageEditorialDesk.jsx # Reading passage editor & preview desk
 │   │   ├── PassageLinkedQuestionCard.jsx # Linked question card within passage editorial desk
 │   │   ├── PassageQuestionsCarousel.jsx # Decomposed questions carousel for linked passages
@@ -213,7 +214,7 @@ In the repository root or `frontend` directory, you can run:
 # Automatically runs 'predev' hook to clean ports 8000 and 5173
 pnpm dev
 
-# Run Vitest automated test suite (140 tests across 16 test files, 100% pass rate)
+# Run Vitest automated test suite (142 tests across 16 test files, 100% pass rate)
 pnpm test
 # or from root:
 pnpm run test:frontend
@@ -238,13 +239,13 @@ pnpm preview
 
 ## 🧪 Automated Testing Suite (Vitest)
 
-The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **16 test files (140 total tests)**:
+The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **16 test files (142 total tests)**:
 
 | Test Suite | Path | Tests | Coverage |
 | :--- | :--- | :-: | :--- |
 | `visualHelpers.test.js` | `src/utils/__tests__/` | 16 | Medical visual modality detection & styling metadata |
 | `mcat.test.js` | `src/constants/__tests__/` | 19 | Section normalization, score scaling, taxonomy integrity |
-| `sharedHelpers.test.js` | `src/utils/__tests__/` | 13 | Pure data transformers, score calculations, badge helpers |
+| `sharedHelpers.test.js` | `src/utils/__tests__/` | 15 | Pure data transformers, score calculations, badge helpers |
 | `batchHelpers.test.js` | `src/utils/__tests__/` | 12 | Batch status aggregation, progress percent calculation |
 | `explanationHelpers.test.js` | `src/utils/__tests__/` | 9 | Distractor parsing, trap extractor, mentor explanation structure |
 | `export.test.js` | `src/utils/__tests__/` | 9 | CSV formula neutralisation, HTML metacharacter escaping, SVG sanitizing |
@@ -258,7 +259,7 @@ The frontend test suite covers pure helpers, formatters, question validation, di
 | `ExportComponents.test.jsx` | `src/components/modals/__tests__/` | 4 | Scope selector button rendering, filter state hiding, data format previews |
 | `QuestionBankViewHandlers.test.js` | `src/views/__tests__/` | 4 | Filter reset handlers, table row selection toggling, stale selection pruning |
 | `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, idempotency keys |
-| **Total** | **16 Suites** | **140** | **100% Pass Rate (~600ms)** |
+| **Total** | **16 Suites** | **142** | **100% Pass Rate (~600ms)** |
 
 ---
 

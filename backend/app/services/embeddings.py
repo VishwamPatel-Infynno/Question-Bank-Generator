@@ -14,7 +14,7 @@ import re
 from typing import Any
 
 from app.core.config import config
-from app.schemas.extractors import extract_field as _field
+from app.schemas import extract_field as _field
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ from collections import defaultdict, deque
 from fastapi import HTTPException, Request, status
 
 from app.core.config import config
-from app.services.batch_concurrency import get_active_batch_metrics
+from app.services import get_active_batch_metrics
 
 _MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 # Read-only checks that happen to use POST must stay open

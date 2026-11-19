@@ -384,6 +384,14 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Decorative Icon Hiding**: Lucide icons (`ArrowRight`, `Database`, and subject icons) are marked with `aria-hidden="true"` to prevent redundant auditory clutter.
   - **Keyboard Focus Management**: Adheres to `var(--brand-ring)` focus styles on keyboard `Tab` navigation.
 
+### 4.19 Component Memoization & Render Isolation
+To ensure high-frequency interface responsiveness during live SSE streaming and large dataset operations, performance-critical components implement explicit render memoization and local state isolation:
+1. **Passage Stimuli Row Card (`PassageBankCardRow.jsx`)**: Extracted from `PassageBankTable.jsx` and wrapped in `React.memo`. Internalizes transient `isCopied` clipboard state so clicking "Copy Passage ID" on a passage row isolates re-rendering to that specific card, completely eliminating catalog-wide re-render cascades.
+2. **Question Bank Row Card (`QuestionBankCardRow.jsx`)**: Wrapped in `React.memo` to isolate question state mutations and card expansions during Question Bank exploration.
+3. **Shared Reading Stimulus Card (`SharedPassageCard.jsx`)**: Wrapped in `React.memo` to stabilize passage typography and layout across preview panels when non-passage parent state updates.
+4. **Passage Linked Question Card (`PassageLinkedQuestionCard.jsx`)**: Wrapped in `React.memo` to isolate question card edits within the Passage Editorial Desk.
+5. **Batch Monitor Cards (`BatchJobCard.jsx`, `BatchQuestionItem.jsx`)**: Wrapped in `React.memo` to eliminate unnecessary DOM recalculations on sibling jobs during live SSE progress updates and automated retries.
+
 ---
 
 ## 5. Micro-Animations & Dynamic Feedback

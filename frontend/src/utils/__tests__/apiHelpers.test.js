@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { SECTION_FILTER_OPTIONS, SECTION_IDS, getSectionShortLabel } from '../../constants/mcat';
+import { SECTION_FILTER_OPTIONS, SECTION_IDS, getSectionShortLabel } from '../../constants';
 import {
   fetchQuestions,
   updateQuestionStatus,
@@ -8,7 +8,7 @@ import {
   fetchRefinedQuestion,
   fetchPassageAudit,
   fetchStudyGuide
-} from '../../services/api';
+} from '../../services';
 
 describe('section short labels', () => {
   it('come from one table', () => {

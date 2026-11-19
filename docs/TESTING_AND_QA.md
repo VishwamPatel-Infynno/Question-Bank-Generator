@@ -18,8 +18,8 @@ graph TD
     end
 
     subgraph "Tier 2: Backend Pytest Engine"
-        UnitTests[501 Deterministic Unit & Integration Tests across 74 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests - 511 Total Backend Tests across 75 Files]
+        UnitTests[508 Deterministic Unit & Integration Tests across 75 Modules]
+        LiveE2E[10 Live LLM API E2E Integration Tests - 518 Total Backend Tests across 76 Files]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -41,9 +41,9 @@ graph TD
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms, zero debug artifacts | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (156 frontend files, 100% ruff compliance across 145 backend files; 0 TODO / 0 FIXME / 0 console.log) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry, pgvector RAG | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **501 passing deterministic tests across 74 modules** (511 total backend tests across 75 files) (~35s) |
-| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **140 passing tests across 16 test files** (~500ms) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (511 total backend tests across 75 modules: 74 deterministic + 1 live E2E) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry, pgvector RAG, query pipelining, and pagination limits | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **508 passing deterministic tests across 75 modules** (518 total backend tests across 76 files) (~35s) |
+| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **142 passing tests across 16 test files** (~500ms) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (518 total backend tests across 76 modules: 75 deterministic + 1 live E2E) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 80$ points (`PASSING_SCORE_THRESHOLD`) |
 
@@ -140,9 +140,9 @@ backend/tests/
 
 #### Execution Modes Breakdown
 - **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the database-dependent tests, executing all algorithmic, schema, prompt builder, taxonomy sync, HTTP caching, Prometheus metrics, AI native planning, and token pricing unit tests in ~12 seconds.
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 501 deterministic unit and integration tests execute across all 74 modules in ~23-28 seconds (10 live tests deselected).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 508 deterministic unit and integration tests execute across all 75 modules in ~23-28 seconds (10 live tests deselected).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 511 backend tests across 75 test files (501 deterministic across 74 test files + 10 live E2E in `test_e2e_live.py`).
+- **Total Suite**: 518 backend tests across 76 test files (508 deterministic across 75 test files + 10 live E2E in `test_e2e_live.py`).
 
 ```bash
 # 1. Activate backend virtual environment
@@ -178,7 +178,7 @@ PYTHONPATH=backend pytest backend/tests/test_api_questions.py -v
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
-### 2.3 Detailed Test Module Coverage (501 Deterministic Tests across 74 Modules / 511 Total Backend Tests)
+### 2.3 Detailed Test Module Coverage (508 Deterministic Tests across 75 Modules / 518 Total Backend Tests)
 
 1. **`test_additional_instructions.py` (3 tests)**:
    - `test_generation_request_additional_instructions`: Validates Pydantic serialization and round-trip payload persistence of educator instructions.
@@ -258,7 +258,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - `test_centralized_repository_package_exports`: Ensures clean package exports across DAL layers.
     - `test_model_to_schema_none_options_safety`: Verifies null-safe deserialization when question options are null or empty.
     - `test_cascade_passage_deletion_multi_status_and_metrics`: Confirms that soft-deleting a passage soft-deletes associated questions across all statuses while maintaining batch metrics.
-22. **`test_deduplication.py` (11 tests)**:
+22. **`test_deduplication.py` (18 tests)**:
     - `test_normalize_text`: Verifies text normalization, case folding, punctuation removal, and whitespace trimming.
     - `test_extract_content_tokens`: Confirms extraction of domain-specific content tokens while filtering stop words.
     - `test_identical_questions_duplicate_detection`: Validates 1.0 similarity for verbatim question stems and options.
@@ -267,9 +267,16 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - `test_two_tier_threshold_and_soft_warning`: Verifies hard duplicate threshold ($\ge 0.80$) and soft warning threshold ($0.65 - 0.79$).
     - `test_cluster_questions_groups_duplicates_correctly`: Verifies pairwise similarity clustering of question batches into leader and duplicate items.
     - `test_auto_resolve_batch_and_refill`: Tests end-to-end auto-resolve and refill pipeline on duplicate clusters.
-    - `test_deduplication_subtopic_isolation`: Validates that deduplication checks are partitioned by MCAT subtopic.
-    - `test_stem_jaccard_similarity`: Unit verification of 1-gram and 2-gram Jaccard stem similarity mathematics.
-    - `test_option_set_overlap`: Evaluates 4-choice distractor containment and overlap ratios.
+    - `test_auto_resolve_does_not_claim_refill_when_no_job_was_launched`: Confirms that auto-resolve cleanly handles zero-shortfall runs without superfluous replenishment jobs.
+    - `test_stem_token_cache_is_keyed_by_content_and_evicts_one_at_a_time`: Validates content-keyed token caching and single-item FIFO eviction.
+    - `test_duplicate_thresholds_come_from_config`: Ensures runtime threshold configuration binds to application settings.
+    - `test_intra_passage_identical_answer_key_collision`: Detects multiple questions under the same stimulus reusing identical correct keys.
+    - `test_same_passage_shared_answer_key_concept_substantive_tokens`: Tests concept containment flags on shared correct answers.
+    - `test_intra_passage_stem_collision`: Identifies intra-passage stem overlap collisions.
+    - `test_intra_passage_plural_normalized_key_collision`: Detects singular/plural answer key variations under the same passage.
+    - `test_intra_passage_inverse_question_collision`: Detects inverse polarity questions testing the same clinical concept.
+    - `test_judge_semantic_duplicate_offline`: Validates offline LLM judge fallback heuristics for ambiguous candidates.
+    - `test_same_passage_distinct_questions_no_false_positive_collision`: Guarantees that distinct questions under the same passage do not produce false-positive collision flags.
 23. **`test_deterministic_gate.py` (9 tests)**:
     - The review loop runs the validator before any LLM call (invalid drafts regenerate or reject without spending a review), reviewer and blind solver fail closed on provider errors and bad scores, generators never substitute mock questions for real failures, and review and solve run concurrently with both costs accounted for.
 24. **`test_engine_cleanup.py` (1 test)**:
@@ -342,11 +349,12 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - SSE keep-alive comments are emitted while the LLM engine is thinking, and closing the wrapper safely terminates the upstream generator.
 53. **`test_structured_output.py` (12 tests)**:
     - `call_llm_validated` repair retries, strict draft and key parsing, regenerator metadata preservation, and visual stimulus gating.
-54. **`test_target_count_guarantee.py` (4 tests)**:
+54. **`test_target_count_guarantee.py` (5 tests)**:
     - `test_dynamic_job_allocation_in_batch_runner`: Verifies dynamic job partitioning for 5, 50, and arbitrary question counts.
     - `test_auto_resolve_caps_excess_to_exact_target`: Verifies auto-resolve preserves exact target counts without excess items.
     - `test_refresh_batch_aggregates_reflects_active_questions`: Confirms batch counters aggregate active questions only.
     - `test_interactive_slot_replenishment_recovers_from_quality_rejection`: Tests automated in-place slot replenishment when quality gate drops a candidate.
+    - `test_shortfall_job_and_batch_actual_count_synchronization`: Verifies that shortfall jobs and batch `actual_count` stay perfectly synchronized under dynamic refill conditions.
 55. **`test_taxonomy_sync.py` (1 test)**:
     - Guarantees byte-for-byte synchronization between backend taxonomy (`backend/app/data/mcat_dependent_taxonomy.json`) and frontend constant (`frontend/src/constants/mcat_dependent_taxonomy.json`).
 56. **`test_tokens.py` (9 tests)**:
@@ -381,13 +389,15 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - Modulo attempt-based domain and condition replenishment rotation, CARS domain resolution, Science experimental condition rotation, deterministic blueprint extraction, and backward compatibility with monolithic blueprint structures.
 71. **`test_pgvector_rag.py` (12 tests)**:
     - pgvector RAG retrieval, normalized unit vector dimensions and norms, cosine similarity invariants, embedding caching, question and passage embedding storage, exemplar structure retrieval, hybrid vector-FTS search, RAG-grounded duplicate detection, and API endpoints (`/semantic-search`, `/rag-context`, `/check-duplicate`, `/backfill-embeddings`).
-72. **`test_modular_cleanup.py` (3 tests)**:
-    - Verifies modular decomposition architecture: `backend/app/data/thematic_angles.py` extraction with `batch_worker.py` re-export facade, `backend/app/services/csv_export.py` extraction with `api/v1/questions.py` re-export facade, and `backend/app/services/readability.py` extraction with `services/ai_copilot.py` re-export facade.
+72. **`test_modular_cleanup.py` (4 tests)**:
+    - Verifies modular decomposition architecture: `backend/app/data/thematic_angles.py` extraction with `batch_worker.py` re-export facade, `backend/app/services/csv_export.py` extraction with `api/v1/questions.py` re-export facade, `backend/app/services/readability.py` extraction with `services/ai_copilot.py` re-export facade, and `test_modular_facade_reexports_all_expected_symbols` ensuring comprehensive public facade symbol re-exports across `app.services` and `app.schemas`.
 73. **`test_schema_migrations_decomposition.py` (4 tests)**:
     - Verifies database migration decomposition into `backend/app/db/schema_migrations.py`: exact step count assertions (13 schema steps, 6 data steps), `init_db.py` facade symbol re-exports and identity parity, `_IdempotentConnection` DDL bypass filtering, and `_timestamptz_migration_sql()` generation.
 74. **`test_draft_parser.py` (11 tests)**:
     - Verifies decoupled Question Draft Parser & Cognitive Trap Extraction: 4-choice option parsing from standard lists, dictionary maps, prefixed strings, and candidate keys; correct answer key extraction and unknown key validation; cognitive trap classification across 20+ AAMC taxonomies; student mistake pattern extraction; and 100% identity parity re-exports in `app.agents.generator`.
-75. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
+75. **`test_optimizations.py` (6 tests)**:
+    - Tests end-to-end optimizations: native SQL batch aggregation (`count_batches`), reading passage pagination (`limit`/`offset`) and counting (`count_passages`), concurrent database query pipelining in `GET /api/questions` via `asyncio.gather`, concurrent batch status retrieval in `GET /api/batches`, concurrent single passage and linked questions loading in `GET /api/passages/{passage_id}`, and pipelined batch detail with duplicate clusters retrieval in `GET /api/batches/{batch_id}` and `GET /api/batches/{batch_id}/duplicate-clusters`.
+76. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
     - Live end-to-end integration tests: health connectivity, cross-section syllabus hierarchy, live SSE streaming, PostgreSQL persistence, export serializers, strict quality gate rejection boundary, combination matrix validation, UUID4 contracts, and image serving endpoints.
 
 ### 2.4 Smart Offline Database Detection (`conftest.py`)
@@ -405,7 +415,7 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
 - All **388 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **501 deterministic tests across 74 modules** execute and pass automatically in ~23-28 seconds.
+- Once PostgreSQL is started (`docker compose up -d`), all **508 deterministic tests across 75 modules** execute and pass automatically in ~23-28 seconds.
 
 ---
 
@@ -469,7 +479,7 @@ ruff format .
 
 - **Target**: React 19 JSX & ES2022
 - **Scope**: 163 source files, 106 lint rules
-- **Automated Tests**: 140 passing unit/integration tests across 16 test files (100% pass rate via Vitest)
+- **Automated Tests**: 142 passing unit/integration tests across 16 test files (100% pass rate via Vitest)
 - **Policy**: 0 errors, 0 warnings (0 TODO, 0 FIXME, 0 console.log occurrences across codebase)
 - **Production Build**: Clean compilation with Vite 8 (`pnpm build` in ~250ms)
 
@@ -486,11 +496,11 @@ cd frontend && pnpm build
 
 ---
 
-## 4. Frontend Vitest Automated Test Suite (140 Tests across 16 Suites)
+## 4. Frontend Vitest Automated Test Suite (142 Tests across 16 Suites)
 
 The frontend test suite is executed using **Vitest** (running with jsdom environment where browser DOM APIs are required) and covers pure data transforms, badge resolvers, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks.
 
-All **140 tests across 16 test files** execute and pass in ~600ms with zero flaky tests:
+All **142 tests across 16 test files** execute and pass in ~600ms with zero flaky tests:
 
 ### 4.1 Frontend Test Suite Matrix
 
@@ -498,7 +508,7 @@ All **140 tests across 16 test files** execute and pass in ~600ms with zero flak
 | :-: | :--- | :--- | :-: | :--- |
 | **1** | `visualHelpers.test.js` | `src/utils/__tests__/` | 16 | Medical visual modality detection (radiology, histology, gross anatomy, electron microscopy, physiology traces, clinical photographs, SVG diagrams) and theme styling metadata. |
 | **2** | `mcat.test.js` | `src/constants/__tests__/` | 19 | Section normalization, score scaling formulas, difficulty tier helpers, and dependent taxonomy structure integrity. |
-| **3** | `sharedHelpers.test.js` | `src/utils/__tests__/` | 13 | Pure data transformers, score calculations, badge resolver helpers, and formatting utilities. |
+| **3** | `sharedHelpers.test.js` | `src/utils/__tests__/` | 15 | Pure data transformers, score calculations, badge resolver helpers, formatting utilities, and central utils barrel re-exports. |
 | **4** | `batchHelpers.test.js` | `src/utils/__tests__/` | 12 | Batch status aggregation, progress percent calculation, and multi-job stage management. |
 | **5** | `explanationHelpers.test.js` | `src/utils/__tests__/` | 9 | Distractor parsing, trap extractor, mentor explanation 3-card structure, and distractor sorting helpers. |
 | **6** | `export.test.js` | `src/utils/__tests__/` | 9 | CSV spreadsheet formula neutralisation, HTML metacharacter escaping, SVG script stripping, and paper preview doc builders. |
@@ -512,12 +522,12 @@ All **140 tests across 16 test files** execute and pass in ~600ms with zero flak
 | **14** | `ExportComponents.test.jsx` | `src/components/modals/__tests__/` | 4 | Scope selector button rendering, filter state hiding, and data format pane previews. |
 | **15** | `QuestionBankViewHandlers.test.js` | `src/views/__tests__/` | 4 | Filter reset handlers, table row selection toggling, and stale selection pruning. |
 | **16** | `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, and idempotency key handlers. |
-| **Total** | **16 Test Suites** | | **140 Tests** | **100% Pass Rate (~600ms)** |
+| **Total** | **16 Test Suites** | | **142 Tests** | **100% Pass Rate (~600ms)** |
 
 ### 4.2 Running Frontend Tests
 
 ```bash
-# Run all 140 frontend unit tests via Vitest
+# Run all 142 frontend unit tests via Vitest
 pnpm --dir frontend run test
 # or from root:
 pnpm run test:frontend
@@ -553,7 +563,7 @@ uv run ruff format .
 
 - **Target**: React 19 JSX & ES2022
 - **Scope**: 166 source files, 106 lint rules + anti-shadowing verification
-- **Automated Tests**: 140 passing unit/integration tests across 16 test files (100% pass rate via Vitest)
+- **Automated Tests**: 142 passing unit/integration tests across 16 test files (100% pass rate via Vitest)
 - **Policy**: 0 errors, 0 warnings (0 TODO, 0 FIXME, 0 console.log occurrences across codebase)
 - **CSS Hygiene**: Enforced zero unused or missing CSS classes via `pnpm check:css`
 - **Production Build**: Clean compilation with Vite 8 (`pnpm build` in ~250ms)
@@ -578,8 +588,8 @@ The repository integrates a GitHub Actions workflow (`.github/workflows/ci.yml`)
 ```yaml
 # Summary of CI jobs (every job has a timeout)
 1. code-quality:     Ruff lint + format check (backend)
-2. backend-tests:    PostgreSQL 16 service, full deterministic Pytest suite (501 tests across 74 modules)
-3. frontend-build:   pnpm install once, Oxlint, Vitest (140 tests across 16 files), unused-CSS check, Vite production build
+2. backend-tests:    PostgreSQL 16 service, full deterministic Pytest suite (508 tests across 75 modules)
+3. frontend-build:   pnpm install once, Oxlint, Vitest (142 tests across 16 files), unused-CSS check, Vite production build
 4. docker-build:     builds the backend and web images
 5. dependency-audit: pip-audit + pnpm audit (advisory, never blocks)
 ```

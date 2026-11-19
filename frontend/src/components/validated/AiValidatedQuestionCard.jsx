@@ -17,7 +17,7 @@ import {
   getDifficultyBadgeClass,
   getSectionBadgeClass,
   getSectionShortLabel
-} from '../../constants/mcat';
+} from '../../constants';
 import {
   countWords,
   getEffectiveTrapInfo,

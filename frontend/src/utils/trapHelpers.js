@@ -1,4 +1,4 @@
-import { MCAT_TRAP_DEFINITIONS } from '../constants/mcatTraps';
+import { MCAT_TRAP_DEFINITIONS } from '../constants';
 
 /**
  * Resolves a normalized trap key to user-friendly label and advice.

@@ -190,3 +190,38 @@ describe('buildBatchPayload', () => {
     expect(p.require_passage_image).toBe(false);
   });
 });
+
+describe('central utils index barrel exports', () => {
+  it('exports makeId, nextEnabledIndex, flattenTopics, and pagination options from the root utils barrel', async () => {
+    const utils = await import('../index');
+    expect(typeof utils.makeId).toBe('function');
+    expect(typeof utils.nextEnabledIndex).toBe('function');
+    expect(typeof utils.flattenTopics).toBe('function');
+    expect(Array.isArray(utils.PAGE_SIZE_OPTIONS)).toBe(true);
+    expect(typeof utils.normalizePageSizeOptions).toBe('function');
+
+    const id = utils.makeId();
+    expect(typeof id).toBe('string');
+    expect(id.length).toBeGreaterThanOrEqual(16);
+
+    const opts = [{ value: 'a' }, { value: 'b', disabled: true }, { value: 'c' }];
+    expect(utils.nextEnabledIndex(opts, 0, 1)).toBe(2);
+  });
+
+  it('exports generator form state helpers and section rules from the root utils barrel', async () => {
+    const utils = await import('../index');
+    expect(Array.isArray(utils.SUBTOPIC_RESET_VALUES)).toBe(true);
+    expect(typeof utils.toggleInList).toBe('function');
+    expect(typeof utils.defaultSubtopicLabel).toBe('function');
+    expect(typeof utils.toggleSubtopicState).toBe('function');
+    expect(typeof utils.applySectionRules).toBe('function');
+
+    expect(utils.toggleInList(['a', 'b'], 'c')).toEqual(['a', 'b', 'c']);
+    expect(utils.toggleInList(['a', 'b'], 'a')).toEqual(['b']);
+
+    const state = utils.applySectionRules({ selectedSection: 'chem_phys' }, 'cars');
+    expect(state.selectedSection).toBe('cars');
+    expect(state.allowAiImages).toBe(false);
+    expect(state.requireImage).toBe(false);
+  });
+});

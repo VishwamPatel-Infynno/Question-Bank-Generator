@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useCopyToClipboard } from './useCopyToClipboard';
 import { useRequestGuard } from './useRequestGuard';
 import { useDebouncedValue } from './useDebouncedValue';
-import { formatQuestionForCopy } from '../utils/questionHelpers';
-import { fetchQuestions, deleteQuestion, searchSemanticQuestions } from '../services/api';
+import { formatQuestionForCopy } from '../utils';
+import { fetchQuestions, deleteQuestion, searchSemanticQuestions } from '../services';
 import { DIFFICULTY, QUESTION_STATUS, normalizeDifficulty } from '../constants';
 
 /**

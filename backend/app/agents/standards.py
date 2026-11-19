@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 
 # Re-exported: agents import the CARS predicate from here
-from app.schemas.mcat import is_cars as is_cars
+from app.schemas import is_cars as is_cars
 
 # Reading passage length in words
 SCIENCE_PASSAGE_WORDS: tuple[int, int] = (300, 500)

@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
-import { generateExamCsv, generateExamJson, generateExamHtmlDoc } from '../utils/export';
-import { downloadTextFile } from '../utils/download';
+import { generateExamCsv, generateExamJson, generateExamHtmlDoc, downloadTextFile } from '../utils';
 import { useCopyToClipboard } from './useCopyToClipboard';
 
 const FORMATS = {

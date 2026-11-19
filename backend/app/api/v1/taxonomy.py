@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["AAMC Taxonomy & Syllabus"])
 
 
-def _build_rich_sections_payload():
+def _build_rich_sections_payload() -> dict[str, Any]:
     sections_list = []
     for sec in MCATSection:
         code = MCAT_SECTION_CODES[sec]

@@ -6,10 +6,9 @@ import {
   savePassage,
   deletePassage,
   saveEditedQuestion
-} from '../services/api';
+} from '../services';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import { makeId } from '../utils/ids';
-import { passageQuestionCounts, sortPassages } from '../utils';
+import { makeId, passageQuestionCounts, sortPassages } from '../utils';
 import { useRequestGuard } from './useRequestGuard';
 import { useDebouncedValue } from './useDebouncedValue';
 

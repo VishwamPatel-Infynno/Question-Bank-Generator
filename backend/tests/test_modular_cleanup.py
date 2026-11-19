@@ -101,3 +101,40 @@ def test_readability_and_syllable_counting():
     assert res["flesch_kincaid_grade"] > 8.0
     assert res["empirical_density_score"] >= 1
     assert "diagnostics" in res
+
+
+def test_modular_facade_reexports_all_expected_symbols():
+    """Validates that app.services and app.schemas cleanly re-export core operations and facades."""
+    import app.schemas as schemas
+    import app.services as services
+
+    expected_service_exports = [
+        "forget_batch_request",
+        "find_cluster_duplicates",
+        "build_csv_headers",
+        "build_csv_row",
+        "generate_questions_csv",
+        "get_active_batch_metrics",
+        "cancel_all_background_batches",
+        "launch_background_batch",
+        "stop_background_batch",
+        "cluster_questions",
+        "evaluate_duplicate",
+        "embed_question",
+        "find_similar_questions",
+    ]
+    for symbol in expected_service_exports:
+        assert hasattr(services, symbol), f"app.services missing re-export: {symbol}"
+        assert callable(getattr(services, symbol))
+
+    expected_schema_exports = [
+        "sum_usage",
+        "extract_field",
+        "extract_correct_answer_text",
+        "is_cars",
+        "Question",
+        "GenerationRequest",
+        "TokenUsage",
+    ]
+    for symbol in expected_schema_exports:
+        assert hasattr(schemas, symbol), f"app.schemas missing re-export: {symbol}"

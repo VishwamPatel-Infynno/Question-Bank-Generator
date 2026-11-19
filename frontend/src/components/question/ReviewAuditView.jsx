@@ -13,7 +13,7 @@ import {
   getReviewPillars
 } from '../../utils';
 import { SCORE_CUTOFFS } from '../../constants';
-import { fetchQuestionById } from '../../services/api';
+import { fetchQuestionById } from '../../services';
 
 /**
  * ReviewAuditView

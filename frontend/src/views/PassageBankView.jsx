@@ -2,9 +2,7 @@ import { useCallback } from 'react';
 import { BookOpen, Sparkles, Plus } from 'lucide-react';
 import { PaginationBar, EmptyState } from '../components/common';
 import { usePagination, usePassageBank } from '../hooks';
-import PassageBankFilters from '../components/passage/PassageBankFilters';
-import PassageBankTable from '../components/passage/PassageBankTable';
-import PassageEditorialDesk from '../components/passage/PassageEditorialDesk';
+import { PassageBankFilters, PassageBankTable, PassageEditorialDesk } from '../components/passage';
 import { DeletePassageModal } from '../components/modals';
 
 /**

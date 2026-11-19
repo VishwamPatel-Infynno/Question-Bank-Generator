@@ -11,6 +11,7 @@ import contextlib
 import logging
 import re
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import cast
 
@@ -27,7 +28,7 @@ from app.core.logging import bind_log_context, configure_logging
 from app.db.session import engine, init_db
 from app.middleware.telemetry import TelemetryMiddleware
 from app.repositories import reconcile_interrupted_batches, scrub_stored_request_secrets
-from app.services.batch_concurrency import cancel_all_background_batches
+from app.services import cancel_all_background_batches
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ async def _retry_db_init(first_delay: float = 5.0, max_delay: float = 60.0) -> N
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager for startup and shutdown events."""
     configure_logging()
     logger.info("Initializing Infynno MCAT Question Bank Generator backend...")

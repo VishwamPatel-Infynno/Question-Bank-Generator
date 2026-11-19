@@ -25,8 +25,7 @@ from app.agents.base import (
     safe_json_loads,
 )
 from app.core.config import config
-from app.schemas import GenerationRequest, QuestionDraft, TokenUsage, enum_value
-from app.schemas.token import sum_usage
+from app.schemas import GenerationRequest, QuestionDraft, TokenUsage, enum_value, sum_usage
 
 logger = logging.getLogger(__name__)
 

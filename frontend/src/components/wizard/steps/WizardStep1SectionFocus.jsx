@@ -9,7 +9,7 @@ import {
   Compass
 } from 'lucide-react';
 import { EMPTY_ARRAY, SECTION_METADATA, getSubjectsForSection, SECTION_IDS } from '../../../constants';
-import { flattenTopics } from '../../../utils/taxonomyHelpers';
+import { flattenTopics } from '../../../utils';
 import WizardChoiceCard from '../WizardChoiceCard';
 
 export default function WizardStep1SectionFocus({

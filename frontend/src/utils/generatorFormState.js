@@ -1,4 +1,4 @@
-import { SECTION_IDS } from '../constants/mcat';
+import { SECTION_IDS } from '../constants';
 
 /**
  * Pure state updates for the generator form (used by useGeneratorForm). Each function takes the
