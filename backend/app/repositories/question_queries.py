@@ -12,9 +12,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
-from app.db.session import async_session_factory
+from app.db.session import scoped_session
 from app.models.batch import GenerationBatchModel
 from app.models.question import QuestionModel
 from app.repositories._filters import active_question_clause
@@ -39,9 +40,11 @@ class QuestionHead:
     passage_id: str | None
 
 
-async def get_repository_metrics(status: str | None = None) -> dict[str, Any]:
+async def get_repository_metrics(
+    status: str | None = None, session: AsyncSession | None = None
+) -> dict[str, Any]:
     """Computes repository-wide metrics via native SQL aggregation with zero Python memory overhead."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = select(
             func.count(QuestionModel.id).label("total_count"),
             func.coalesce(func.sum(QuestionModel.total_tokens), 0).label("total_tokens"),
@@ -49,7 +52,7 @@ async def get_repository_metrics(status: str | None = None) -> dict[str, Any]:
         ).where(active_question_clause())
         if status and status != "all":
             stmt = stmt.where(QuestionModel.status == status)
-        res = await session.execute(stmt)
+        res = await s.execute(stmt)
         row = res.one()
         return {
             "total_count": int(row.total_count),
@@ -69,6 +72,7 @@ async def count_questions(
     passage_id: str | None = None,
     status: str | None = None,
     include_deleted: bool = False,
+    session: AsyncSession | None = None,
 ) -> int:
     """Returns the total number of questions matching specific filter criteria."""
     filters = build_question_filters(
@@ -83,11 +87,11 @@ async def count_questions(
         status=status,
         include_deleted=include_deleted,
     )
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = select(func.count(QuestionModel.id))
         for cond in filters:
             stmt = stmt.where(cond)
-        res = await session.execute(stmt)
+        res = await s.execute(stmt)
         return int(res.scalar() or 0)
 
 
@@ -106,6 +110,7 @@ async def get_questions(
     offset: int | None = 0,
     slim: bool = False,
     include_deleted: bool = False,
+    session: AsyncSession | None = None,
 ) -> list[Question]:
     """Retrieves questions from PostgreSQL with optional filtering, hybrid full-text search, pagination, and slim payload projection."""
     filters = build_question_filters(
@@ -120,7 +125,7 @@ async def get_questions(
         status=status,
         include_deleted=include_deleted,
     )
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = select(QuestionModel)
         if slim:
             # The slim schema omits these blobs anyway (about 70% of a row's bytes): do not read them
@@ -147,14 +152,16 @@ async def get_questions(
             stmt = stmt.offset(offset)
         if limit and limit > 0:
             stmt = stmt.limit(limit)
-        result = await session.execute(stmt)
+        result = await s.execute(stmt)
         models = result.scalars().all()
         return [model_to_schema(m, slim=slim) for m in models]
 
 
-async def get_active_batch_questions(batch_id: str) -> list[Question]:
+async def get_active_batch_questions(
+    batch_id: str, session: AsyncSession | None = None
+) -> list[Question]:
     """A batch's questions that still count (the same set every refill and deficit path uses)."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = (
             select(QuestionModel)
             .where(
@@ -164,26 +171,30 @@ async def get_active_batch_questions(batch_id: str) -> list[Question]:
             )
             .order_by(QuestionModel.created_at.desc())
         )
-        result = await session.execute(stmt)
+        result = await s.execute(stmt)
         return [model_to_schema(m) for m in result.scalars().all()]
 
 
-async def get_question_by_id(question_id: str, include_deleted: bool = False) -> Question | None:
+async def get_question_by_id(
+    question_id: str,
+    include_deleted: bool = False,
+    session: AsyncSession | None = None,
+) -> Question | None:
     """Retrieves a single question by primary key ID."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = select(QuestionModel).where(QuestionModel.id == question_id)
         if not include_deleted:
             stmt = stmt.where(active_question_clause())
-        res = await session.execute(stmt)
+        res = await s.execute(stmt)
         model = res.scalar_one_or_none()
         if not model:
             return None
         return model_to_schema(model)
 
 
-async def get_question_status_counts() -> dict[str, int]:
+async def get_question_status_counts(session: AsyncSession | None = None) -> dict[str, int]:
     """Returns counts of questions grouped by lifecycle status."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         in_progress_batches = select(GenerationBatchModel.id).where(
             GenerationBatchModel.status == BatchStatus.IN_PROGRESS
         )
@@ -208,11 +219,11 @@ async def get_question_status_counts() -> dict[str, int]:
             )
             .group_by(QuestionModel.status)
         )
-        res = await session.execute(stmt)
+        res = await s.execute(stmt)
         counts = {row[0] or "in_bank": row[1] for row in res.all()}
 
         del_stmt = select(func.count(QuestionModel.id)).where(QuestionModel.is_deleted.is_(True))
-        deleted_count = (await session.execute(del_stmt)).scalar() or 0
+        deleted_count = (await s.execute(del_stmt)).scalar() or 0
 
         return {
             "ai_validated": counts.get("ai_validated", 0),
@@ -229,13 +240,14 @@ async def get_subtopic_reference_questions(
     section: str,
     subtopic: str | None = None,
     limit: int = 50,
+    session: AsyncSession | None = None,
 ) -> list[Question]:
     """
     Retrieves recent questions from the question bank matching the section and subtopic
     to serve as the collision reference pool for deduplication.
     """
     try:
-        async with async_session_factory() as session:
+        async with scoped_session(session) as s:
             # Dedup only reads stems/options: skip the large JSONB audit blobs of every reference row
             stmt = (
                 select(QuestionModel)
@@ -263,7 +275,7 @@ async def get_subtopic_reference_questions(
                 )
 
             stmt = stmt.order_by(QuestionModel.created_at.desc()).limit(limit)
-            result = await session.execute(stmt)
+            result = await s.execute(stmt)
             models = result.scalars().all()
             return [model_to_schema(m, slim=True) for m in models]
     except Exception as exc:
@@ -274,13 +286,15 @@ async def get_subtopic_reference_questions(
         return []
 
 
-async def get_active_job_question_heads(batch_id: str, job_id: str) -> list[QuestionHead]:
+async def get_active_job_question_heads(
+    batch_id: str, job_id: str, session: AsyncSession | None = None
+) -> list[QuestionHead]:
     """Active (not deleted, not discarded) questions of a job, projected to a few columns.
 
     The worker only counts them and reads the first one's stimulus/passage, so loading full rows
     (about 11 KB of JSONB each) on every trial was wasted I/O.
     """
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = (
             select(
                 QuestionModel.id,
@@ -296,5 +310,5 @@ async def get_active_job_question_heads(batch_id: str, job_id: str) -> list[Ques
             )
             .order_by(QuestionModel.created_at.asc())
         )
-        rows = (await session.execute(stmt)).all()
+        rows = (await s.execute(stmt)).all()
         return [QuestionHead(r.id, r.status, r.stimulus_text, r.passage_id) for r in rows]

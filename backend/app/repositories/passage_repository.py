@@ -5,8 +5,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import async_session_factory
+from app.db.session import scoped_session
 from app.models.passage import PassageModel
 from app.models.question import QuestionModel
 from app.repositories._filters import active_passage_clause, active_question_clause
@@ -23,9 +24,10 @@ async def get_passages(
     include_deleted: bool = False,
     limit: int | None = None,
     offset: int | None = 0,
+    session: AsyncSession | None = None,
 ) -> list[Passage]:
     """Retrieves shared reading passages with optional filtering, search, pagination, and aggregated question_count."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = (
             select(PassageModel, func.count(QuestionModel.id).label("q_count"))
             .outerjoin(
@@ -59,7 +61,7 @@ async def get_passages(
             stmt = stmt.offset(offset)
         if limit and limit > 0:
             stmt = stmt.limit(limit)
-        result = await session.execute(stmt)
+        result = await s.execute(stmt)
         rows = result.all()
         return [passage_model_to_schema(m, int(q_count or 0)) for m, q_count in rows]
 
@@ -69,9 +71,10 @@ async def count_passages(
     subtopic: str | None = None,
     search: str | None = None,
     include_deleted: bool = False,
+    session: AsyncSession | None = None,
 ) -> int:
     """Counts reading passages matching filtering and search criteria via native SQL aggregation."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = select(func.count(PassageModel.id))
         if not include_deleted:
             stmt = stmt.where(active_passage_clause())
@@ -89,13 +92,17 @@ async def count_passages(
                     PassageModel.id.ilike(wildcard),
                 )
             )
-        result = await session.execute(stmt)
+        result = await s.execute(stmt)
         return int(result.scalar() or 0)
 
 
-async def get_passage_by_id(passage_id: str, include_deleted: bool = False) -> Passage | None:
+async def get_passage_by_id(
+    passage_id: str,
+    include_deleted: bool = False,
+    session: AsyncSession | None = None,
+) -> Passage | None:
     """Retrieves a single passage by primary key ID with aggregated active question count."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = (
             select(PassageModel, func.count(QuestionModel.id).label("q_count"))
             .outerjoin(
@@ -110,7 +117,7 @@ async def get_passage_by_id(passage_id: str, include_deleted: bool = False) -> P
         )
         if not include_deleted:
             stmt = stmt.where(active_passage_clause())
-        result = await session.execute(stmt)
+        result = await s.execute(stmt)
         row = result.first()
         if not row:
             return None
@@ -118,14 +125,14 @@ async def get_passage_by_id(passage_id: str, include_deleted: bool = False) -> P
         return passage_model_to_schema(m, int(q_count or 0))
 
 
-async def save_passage(passage: Passage) -> Passage:
+async def save_passage(passage: Passage, session: AsyncSession | None = None) -> Passage:
     """Creates or updates a passage record, syncing stimulus_text to linked questions."""
     passage.updated_at = datetime.now(UTC).isoformat()
     word_count = len(passage.text.split()) if passage.text else 0
     passage.word_count = word_count
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         model = passage_schema_to_model(passage)
-        await session.merge(model)
+        await s.merge(model)
 
         # Synchronize stimulus_text and visual stimulus to all linked questions if text is present
         if passage.id and passage.text is not None:
@@ -139,27 +146,27 @@ async def save_passage(passage: Passage) -> Passage:
             if passage.image_description is not None:
                 values_to_update["image_description"] = passage.image_description
 
-            await session.execute(
+            await s.execute(
                 update(QuestionModel)
                 .where(QuestionModel.passage_id == passage.id)
                 .values(**values_to_update)
             )
 
-        await session.commit()
+        await s.commit()
         return passage
 
 
-async def delete_passage(passage_id: str) -> tuple[bool, int]:
+async def delete_passage(passage_id: str, session: AsyncSession | None = None) -> tuple[bool, int]:
     """Soft-deletes a passage and its associated questions from active views while preserving all data for batch progress."""
     now_dt = datetime.now(UTC)
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         # Check if passage exists
-        passage = await session.get(PassageModel, passage_id)
+        passage = await s.get(PassageModel, passage_id)
         if not passage:
             return False, 0
 
         # 1. Soft-delete all linked questions
-        del_q_res = await session.execute(
+        del_q_res = await s.execute(
             update(QuestionModel)
             .where(QuestionModel.passage_id == passage_id, QuestionModel.is_deleted.is_(False))
             .values(is_deleted=True, deleted_at=now_dt)
@@ -172,7 +179,7 @@ async def delete_passage(passage_id: str) -> tuple[bool, int]:
 
         # Note: We do NOT clear job passage_id, and we do NOT decrement job or batch actual_count,
         # so that Batch Progress history remains 100% intact.
-        await session.commit()
+        await s.commit()
 
     logger.info(
         "Soft-deleted passage %s and %s associated question(s) (preserved for batch progress).",
@@ -182,16 +189,16 @@ async def delete_passage(passage_id: str) -> tuple[bool, int]:
     return True, deleted_q_count
 
 
-async def restore_passage(passage_id: str) -> bool:
+async def restore_passage(passage_id: str, session: AsyncSession | None = None) -> bool:
     """Restores a soft-deleted passage."""
-    async with async_session_factory() as session:
-        passage = await session.get(PassageModel, passage_id)
+    async with scoped_session(session) as s:
+        passage = await s.get(PassageModel, passage_id)
         if not passage:
             return False
         # Bring back the questions that were removed together with the passage (same deletion
         # timestamp), but not ones an editor deleted individually at another time.
         if passage.deleted_at is not None:
-            await session.execute(
+            await s.execute(
                 update(QuestionModel)
                 .where(
                     QuestionModel.passage_id == passage_id,
@@ -201,5 +208,5 @@ async def restore_passage(passage_id: str) -> bool:
             )
         passage.is_deleted = False
         passage.deleted_at = None
-        await session.commit()
+        await s.commit()
         return True

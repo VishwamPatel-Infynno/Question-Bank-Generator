@@ -27,7 +27,7 @@ import {
   hasQuestionImage
 } from '../../utils';
 
-function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion }) {
+function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion, onShowToast }) {
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'scorecard' | 'telemetry'
   const [showExplanation, setShowExplanation] = useState(true);
 
@@ -92,6 +92,11 @@ function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion 
       }
     } catch (err) {
       console.error('AI Copilot error:', err);
+      onShowToast?.({
+        type: 'error',
+        title: 'AI Refinement Failed',
+        message: err?.message || 'Could not refine question with AI.'
+      });
     } finally {
       setIsCopilotWorking(false);
       setCopilotStatusText('');

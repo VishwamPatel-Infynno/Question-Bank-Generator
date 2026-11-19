@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import to_datetime, to_iso_str
-from app.db.session import async_session_factory
+from app.db.session import async_session_factory, scoped_session
 from app.models.job import GenerationJobModel
 from app.schemas import GenerationJob
 
@@ -77,23 +78,25 @@ async def save_jobs_bulk(jobs: list[GenerationJob]) -> list[GenerationJob]:
         return jobs
 
 
-async def get_jobs_by_batch_id(batch_id: str) -> list[GenerationJob]:
+async def get_jobs_by_batch_id(
+    batch_id: str, session: AsyncSession | None = None
+) -> list[GenerationJob]:
     """Retrieves all jobs for a specific batch, ordered by job_number ascending."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = (
             select(GenerationJobModel)
             .where(GenerationJobModel.batch_id == batch_id)
             .order_by(GenerationJobModel.job_number.asc())
         )
-        result = await session.execute(stmt)
+        result = await s.execute(stmt)
         models = result.scalars().all()
         return [_job_model_to_schema(m) for m in models]
 
 
-async def get_job_by_id(job_id: str) -> GenerationJob | None:
+async def get_job_by_id(job_id: str, session: AsyncSession | None = None) -> GenerationJob | None:
     """Retrieves a single generation job by ID."""
-    async with async_session_factory() as session:
-        model = await session.get(GenerationJobModel, job_id)
+    async with scoped_session(session) as s:
+        model = await s.get(GenerationJobModel, job_id)
         if not model:
             return None
         return _job_model_to_schema(model)

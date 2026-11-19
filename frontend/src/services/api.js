@@ -172,8 +172,11 @@ export const startBackgroundBatch = (payload) =>
 export const fetchBatches = (params = {}, signal = null) =>
   request(withQuery('/batches', params), { signal, context: 'Fetch batches' });
 
-export const fetchBatchDetail = (batchId, signal = null) =>
-  request(`/batches/${batchId}`, { signal, context: `Fetch batch ${batchId}` });
+export const fetchBatchDetail = (batchId, signal = null, slim = true) =>
+  request(withQuery(`/batches/${batchId}`, { slim: slim ? 'true' : 'false' }), {
+    signal,
+    context: `Fetch batch ${batchId}`
+  });
 
 export const deleteBatch = (batchId) =>
   request(`/batches/${batchId}`, { method: 'DELETE', context: `Delete batch ${batchId}` });

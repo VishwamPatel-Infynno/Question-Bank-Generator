@@ -16,6 +16,7 @@
     "test": "pnpm run test:backend",
     "test:backend": "uv run pytest",
     "db:clean-duplicates": "uv run python scripts/clean_duplicate_artifacts.py",
+    "benchmark:concurrency": "PYTHONPATH=backend uv run python scripts/benchmark_concurrency.py",
     "preview": "pnpm --dir frontend run preview",
     "test:frontend": "pnpm --dir frontend run test",
     "sync:taxonomy": "node -e \"const fs = require('node:fs'); fs.copyFileSync('backend/app/data/mcat_dependent_taxonomy.json', 'frontend/src/constants/mcat_dependent_taxonomy.json');\"",

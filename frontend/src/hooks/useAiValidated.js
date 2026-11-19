@@ -68,6 +68,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
           fetchQuestions({
             status: QUESTION_STATUS.AI_VALIDATED,
             section: sectionFilter || undefined,
+            search: debouncedSearch?.trim() || undefined,
             slim: true
           }, request.signal),
           fetchQuestionCounts()
@@ -97,7 +98,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
         }
       }
     },
-    [guard, sectionFilter, onRefreshCounts, onShowToast]
+    [guard, sectionFilter, debouncedSearch, onRefreshCounts, onShowToast]
   );
 
   const loadData = useCallback(

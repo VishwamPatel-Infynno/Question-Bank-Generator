@@ -13,10 +13,11 @@ from typing import Any
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
 from app.db.base import to_datetime
-from app.db.session import async_session_factory
+from app.db.session import scoped_session
 from app.models.batch import GenerationBatchModel
 from app.models.passage import PassageModel
 from app.models.question import QuestionModel
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 _VISIBLE_STATUSES = frozenset({"in_bank", "ai_validated", "batch_only"})
 
 
-async def save_question(q: Question) -> Question:
+async def save_question(q: Question, session: AsyncSession | None = None) -> Question:
     """Inserts or updates a question in PostgreSQL, auto-syncing passages, batches, and vector embeddings."""
     now_dt = datetime.now(UTC)
     now_iso = now_dt.isoformat()
@@ -44,7 +45,7 @@ async def save_question(q: Question) -> Question:
         except Exception as exc:
             logger.debug("Automatic question embedding generation skipped: %s", exc)
 
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         # 1. Auto-sync Passage record atomically if passage_id and stimulus_text exist
         if q.passage_id and q.stimulus_text and q.stimulus_text.strip():
             words = q.stimulus_text.split()
@@ -103,7 +104,9 @@ async def save_question(q: Question) -> Question:
         return q
 
 
-async def save_questions_batch(questions: list[Question]) -> list[str]:
+async def save_questions_batch(
+    questions: list[Question], session: AsyncSession | None = None
+) -> list[str]:
     """Inserts or updates an array of questions in PostgreSQL within a single atomic transaction, auto-syncing passages and batches."""
     if not questions:
         return []
@@ -128,7 +131,7 @@ async def save_questions_batch(questions: list[Question]) -> list[str]:
         except Exception as exc:
             logger.debug("Batch question embedding generation skipped: %s", exc)
 
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         # Pre-group passages and batches to optimize DB roundtrips
         passages_to_upsert: dict[str, PassageModel] = {}
         batches_to_upsert: dict[str, dict[str, Any]] = {}
@@ -248,10 +251,10 @@ async def save_questions_batch(questions: list[Question]) -> list[str]:
     return saved_ids
 
 
-async def delete_question(question_id: str) -> bool:
+async def delete_question(question_id: str, session: AsyncSession | None = None) -> bool:
     """Soft-deletes a question by primary key ID, preserving it for batch progress."""
     now_dt = datetime.now(UTC)
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         stmt = (
             update(QuestionModel)
             .where(QuestionModel.id == question_id)
@@ -262,12 +265,14 @@ async def delete_question(question_id: str) -> bool:
         return bool(res.rowcount and res.rowcount > 0)
 
 
-async def delete_questions_batch(question_ids: list[str]) -> int:
+async def delete_questions_batch(
+    question_ids: list[str], session: AsyncSession | None = None
+) -> int:
     """Soft-deletes multiple questions by primary key IDs in a single atomic SQL transaction, preserving them for batch progress."""
     if not question_ids:
         return 0
     now_dt = datetime.now(UTC)
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         stmt = (
             update(QuestionModel)
             .where(QuestionModel.id.in_(question_ids))
@@ -278,32 +283,36 @@ async def delete_questions_batch(question_ids: list[str]) -> int:
     return result.rowcount or 0
 
 
-async def hard_delete_questions_batch(question_ids: list[str]) -> int:
+async def hard_delete_questions_batch(
+    question_ids: list[str], session: AsyncSession | None = None
+) -> int:
     """Permanently purges questions by primary key IDs from the database (used for duplicate resolution and trimming excess buffer)."""
     if not question_ids:
         return 0
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         stmt = delete(QuestionModel).where(QuestionModel.id.in_(question_ids))
         result = await session.execute(stmt)
         await session.commit()
     return result.rowcount or 0
 
 
-async def hard_delete_question(question_id: str) -> bool:
+async def hard_delete_question(question_id: str, session: AsyncSession | None = None) -> bool:
     """Permanently purges a single question by ID from the database."""
     if not question_id:
         return False
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         stmt = delete(QuestionModel).where(QuestionModel.id == question_id)
         result = await session.execute(stmt)
         await session.commit()
     return bool(result.rowcount and result.rowcount > 0)
 
 
-async def restore_question(question_id: str) -> Question | None:
+async def restore_question(
+    question_id: str, session: AsyncSession | None = None
+) -> Question | None:
     """Restores a soft-deleted question back to active status, and restores its passage if soft-deleted."""
     now_dt = datetime.now(UTC)
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         stmt = select(QuestionModel).where(QuestionModel.id == question_id)
         res = await session.execute(stmt)
         q = res.scalar_one_or_none()
@@ -326,10 +335,12 @@ async def restore_question(question_id: str) -> Question | None:
         return model_to_schema(q)
 
 
-async def update_question_status(question_id: str, status: str) -> bool:
+async def update_question_status(
+    question_id: str, status: str, session: AsyncSession | None = None
+) -> bool:
     """Updates the lifecycle status of a single question."""
     now_dt = datetime.now(UTC)
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         stmt = select(QuestionModel).where(QuestionModel.id == question_id)
         res = await session.execute(stmt)
         q = res.scalar_one_or_none()
@@ -344,12 +355,14 @@ async def update_question_status(question_id: str, status: str) -> bool:
         return True
 
 
-async def batch_update_question_status(question_ids: list[str], status: str) -> int:
+async def batch_update_question_status(
+    question_ids: list[str], status: str, session: AsyncSession | None = None
+) -> int:
     """Updates the lifecycle status of multiple questions in a single atomic transaction."""
     if not question_ids:
         return 0
     now_dt = datetime.now(UTC)
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         update_vals: dict[str, Any] = {"status": status, "updated_at": now_dt}
         if status in _VISIBLE_STATUSES:
             update_vals["is_deleted"] = False
@@ -361,11 +374,13 @@ async def batch_update_question_status(question_ids: list[str], status: str) -> 
         return result.rowcount or 0
 
 
-async def override_question_duplicate(question_id: str) -> Question | None:
+async def override_question_duplicate(
+    question_id: str, session: AsyncSession | None = None
+) -> Question | None:
     """Marks a question's duplicate alert as manually overridden and approved in the database."""
     now_dt = datetime.now(UTC)
     now_iso = now_dt.isoformat()
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         model = await session.get(QuestionModel, question_id)
         if not model or model.is_deleted:
             return None

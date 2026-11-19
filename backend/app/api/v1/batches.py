@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.api.security import limit_active_batches, limit_generation_requests
 from app.api.utils import or_404
 from app.core.config import config
+from app.db.session import async_session_factory
 from app.repositories import (
     batch_update_question_status,
     count_batches,
@@ -89,12 +90,15 @@ async def list_batches(
     """Lists generation batches (newest first, paginated) with progress counts and concurrency metrics.
 
     Rows omit ``request_payload``; fetch a single batch to read it.
-    Uses concurrent asyncio.gather for batch retrieval and native SQL active count calculation.
+    Uses pipelined single-session queries for batch retrieval and active count calculation.
     """
-    batches, active_count = await asyncio.gather(
-        get_batches(section=section, status=status_filter, limit=limit, offset=offset),
-        count_batches(section=section, status=BatchStatus.IN_PROGRESS),
-    )
+    async with async_session_factory() as session:
+        batches = await get_batches(
+            section=section, status=status_filter, limit=limit, offset=offset, session=session
+        )
+        active_count = await count_batches(
+            section=section, status=BatchStatus.IN_PROGRESS, session=session
+        )
     metrics = get_active_batch_metrics()
     return {
         "batches": [b.model_dump() for b in batches],
@@ -104,16 +108,23 @@ async def list_batches(
 
 
 @router.get("/batches/{batch_id}")
-async def get_single_batch(batch_id: str) -> dict[str, Any]:
+async def get_single_batch(
+    batch_id: str,
+    slim: Annotated[bool, Query()] = True,
+) -> dict[str, Any]:
     """
-    Retrieves a single generation batch along with its constituent jobs and questions concurrently.
+    Retrieves a single generation batch along with its constituent jobs and questions.
     Questions are organized so the client can easily view questions per job.
+
+    When slim=True (default), questions omit large nested diagnostic JSON blobs (stage_outcomes,
+    iterations_history, token_usage_details) to minimize serialization overhead during live polling.
     """
-    batch_model, jobs, linked_questions = await asyncio.gather(
-        get_batch_by_id(batch_id),
-        get_jobs_by_batch_id(batch_id),
-        get_questions(batch_id=batch_id, include_deleted=True),
-    )
+    async with async_session_factory() as session:
+        batch_model = await get_batch_by_id(batch_id, session=session)
+        jobs = await get_jobs_by_batch_id(batch_id, session=session)
+        linked_questions = await get_questions(
+            batch_id=batch_id, include_deleted=True, slim=slim, session=session
+        )
     b = or_404(batch_model, "Batch not found")
 
     # Discarded duplicate questions must not be attached to jobs or displayed as active/deleted bank questions

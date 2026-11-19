@@ -138,7 +138,7 @@ frontend/src/
 │   └── mcatTraps.js              # AAMC cognitive trap definitions and defense strategies
 ├── hooks/
 │   ├── index.js                  # Barrel export for custom hooks
-│   ├── useAiValidated.js         # Review Queue data, selection, confirm dialogs and the runMutation helper
+│   ├── useAiValidated.js         # Review Queue data, debounced server-side GIN search query integration, selection, and confirm dialogs
 │   ├── useAppState.js            # Centralized view routing, toasts, generator launch & global event broker
 │   ├── useBankDeletion.js        # Question Bank single/bulk delete behind one confirm dialog
 │   ├── useBatchActivity.js       # Batch monitor polling (in-flight guard, exponential backoff on errors, hidden-tab pause)
@@ -154,7 +154,7 @@ frontend/src/
 │   ├── useKeyboardShortcuts.js   # Global hotkeys (⌘↵ to generate on the review step, T to toggle theme, / to focus search, Escape)
 │   ├── usePagination.js          # Page index, page size and slicing with filter-driven resets
 │   ├── usePassageBank.js         # Passage catalogue, detail, save and delete flows
-│   ├── useQuestionBank.js        # Debounced search, sorting, and bank fetching
+│   ├── useQuestionBank.js        # Debounced search, adaptive semantic similarity ranking preservation, sorting, and bank fetching
 │   ├── useQuestionDraft.js       # Editable copy of a question's text fields with reset
 │   ├── useRequestGuard.js        # AbortController guard: only the newest request may write state
 │   └── useTheme.js               # Dark/light mode persistence
@@ -214,7 +214,7 @@ In the repository root or `frontend` directory, you can run:
 # Automatically runs 'predev' hook to clean ports 8000 and 5173
 pnpm dev
 
-# Run Vitest automated test suite (142 tests across 16 test files, 100% pass rate)
+# Run Vitest automated test suite (148 tests across 17 test files, 100% pass rate)
 pnpm test
 # or from root:
 pnpm run test:frontend
@@ -239,7 +239,7 @@ pnpm preview
 
 ## 🧪 Automated Testing Suite (Vitest)
 
-The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **16 test files (142 total tests)**:
+The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **17 test files (148 total tests)**:
 
 | Test Suite | Path | Tests | Coverage |
 | :--- | :--- | :-: | :--- |
@@ -255,11 +255,12 @@ The frontend test suite covers pure helpers, formatters, question validation, di
 | `batchJobHelpers.test.js` | `src/utils/__tests__/` | 8 | Visible question counting, actual count resolution, shortfall detection |
 | `generatorFormAndPagination.test.js` | `src/utils/__tests__/` | 7 | Page size normalization, subtopic multi-select, select option navigation |
 | `questionVisuals.test.js` | `src/utils/__tests__/` | 6 | Image provider detection, SVG sanitizer checks, figure attachment |
+| `copilotAndSearchOptimizations.test.js` | `src/utils/__tests__/` | 6 | Slim batch query parameters, toast token contracts, adaptive semantic sort preservation |
 | `useAiValidatedHandlers.test.js` | `src/hooks/__tests__/` | 5 | Review queue selection, select-all toggle, passage expansion |
 | `ExportComponents.test.jsx` | `src/components/modals/__tests__/` | 4 | Scope selector button rendering, filter state hiding, data format previews |
 | `QuestionBankViewHandlers.test.js` | `src/views/__tests__/` | 4 | Filter reset handlers, table row selection toggling, stale selection pruning |
 | `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, idempotency keys |
-| **Total** | **16 Suites** | **142** | **100% Pass Rate (~600ms)** |
+| **Total** | **17 Suites** | **148** | **100% Pass Rate (~670ms)** |
 
 ---
 
@@ -289,4 +290,4 @@ The frontend uses an enterprise precision design system. For exhaustive tokens, 
    - **0 TODO**, **0 FIXME**, and **0 `console.log`** statements in source code.
    - Canonical status constants (`QUESTION_STATUS.AI_VALIDATED`) instead of raw strings.
    - Unidirectional symmetric state pairs (`[rawSelectedIds, setRawSelectedIds]`).
-   - Zero lint errors or warnings via Oxlint (`0 warnings and 0 errors across 163 files`).
+   - Zero lint errors or warnings via Oxlint (`0 warnings and 0 errors across 168 files`).

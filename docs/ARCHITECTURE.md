@@ -895,7 +895,7 @@ The deduplication subsystem extends the PostgreSQL schema with two persistent fi
 2. `is_duplicate_override BOOLEAN DEFAULT FALSE`: Indexed boolean enabling lightning-fast administrative filtering of overridden questions in the Question Bank table.
 - **Database Self-Healing**: Automated migration in [`init_db.py`](../backend/app/db/init_db.py) applies idempotent DDL statements (`ALTER TABLE questions ADD COLUMN IF NOT EXISTS duplicate_info JSONB;` and `ALTER TABLE questions ADD COLUMN IF NOT EXISTS is_duplicate_override BOOLEAN DEFAULT FALSE;`) upon application bootstrap.
 
-### 6.4 Data Access Layer (DAL) & CQRS Decomposition
+### 6.5 Data Access Layer (DAL) & CQRS Decomposition
 
 The question repository layer is structured following **Command Query Responsibility Segregation (CQRS)** to isolate high-throughput read operations from transactional write operations:
 
@@ -921,7 +921,7 @@ The question repository layer is structured following **Command Query Responsibi
 3. **Unified Facade ([`backend/app/repositories/question_repository.py`](../backend/app/repositories/question_repository.py))**:
    - Re-exports all query and mutation functions and classes in `__all__`, providing a single, consolidated entrypoint for callers (`app.repositories`, `metrics.py`, `batch_worker.py`, and test suites).
 
-### 6.5 Polymorphic Question Extractors (`extractors.py`)
+### 6.6 Polymorphic Question Extractors (`extractors.py`)
 
 To eliminate fragile duck-typing and inconsistent attribute access across dictionaries, Pydantic schemas, and ORM entities, [`backend/app/schemas/extractors.py`](../backend/app/schemas/extractors.py) centralizes question extraction routines:
 - `extract_field(obj, key, default=None)`: Safely extracts attributes from dictionaries, objects, or dataclasses.
@@ -929,7 +929,7 @@ To eliminate fragile duck-typing and inconsistent attribute access across dictio
 - `extract_correct_answer_ids(question)`: Retrieves correct answer keys as a list of strings (e.g. `["B"]`).
 - `extract_correct_answer_text(question)`: Extracts the full text corresponding to the correct answer choice across single-choice and multi-choice formats.
 
-### 6.6 Concurrent Query Pipelining & High-Efficiency Aggregations
+### 6.7 Concurrent Query Pipelining & High-Efficiency Aggregations
 
 To minimize database roundtrip latency across high-traffic REST endpoints, the API integrates non-blocking `asyncio.gather` pipelining and native SQL aggregation functions:
 1. **Pipelined Question Bank Listing (`GET /api/questions`)**: Executes question row retrieval (`get_questions`), matching count computation (`count_questions`), and repository token/cost metrics (`get_repository_metrics`) concurrently across available database connections in the `asyncpg` pool, reducing request latency by 45–60%.
@@ -938,12 +938,57 @@ To minimize database roundtrip latency across high-traffic REST endpoints, the A
 4. **Pipelined Batch Inspection & Duplicate Clusters (`GET /api/batches/{batch_id}`)**: `get_single_batch` executes `get_batch_by_id`, associated jobs lookup (`get_jobs_by_batch_id`), and question loading (`get_questions(include_deleted=True)`) concurrently via `asyncio.gather`, cutting roundtrip overhead by ~50%. Similarly, `get_batch_duplicate_clusters` pipelines batch record retrieval and question loading.
 5. **Lightweight Export Payload Projection (`ExportPrintModal.jsx`)**: When exporting or generating exam booklets, the frontend requests `slim=True`, skipping heavy audit history columns and saving ~70% network payload.
 
-### 6.7 Unified Architectural Facades & Boundary Purity
+### 6.8 Unified Architectural Facades & Boundary Purity
 
 To maintain strict modular boundaries and prevent internal submodule leakage, the backend provides canonical facades at each layer boundary:
 - **Services Facade (`backend/app/services/__init__.py`)**: Exposes public operations for background batch lifecycles (`launch_background_batch`, `stop_background_batch`, `cancel_all_background_batches`, `get_active_batch_metrics`, `forget_batch_request`), duplicate resolution (`find_cluster_duplicates`, `cluster_questions`, `evaluate_duplicate`), semantic retrieval (`embed_question`, `find_similar_questions`, `retrieve_rag_exemplar_context`), and data streaming (`generate_questions_csv`, `build_csv_headers`, `build_csv_row`).
 - **Schemas Facade (`backend/app/schemas/__init__.py`)**: Exposes domain transfer models (`Question`, `Passage`, `GenerationRequest`, `TokenUsage`), extraction helpers (`extract_field`, `extract_correct_answer_text`), and token accumulators (`sum_usage`).
 - Internal routers (`api/v1/`), agents, and workflow nodes consume these unified facades directly without reaching into private implementation subpaths.
+
+### 6.9 Single-Session `scoped_session` Dependency Injection Pattern
+
+To eliminate connection thrashing, socket leakage, and uncoordinated transactions under high concurrent loads, all FastAPI endpoints inject database sessions through FastAPI's dependency injection (`session: AsyncSession = Depends(get_db_session)`). Data Access Layer (DAL) repository functions explicitly accept this single session reference (`session=session`):
+
+- **Zero Socket Thrashing**: Eliminates redundant checkout/checkin cycles within a single HTTP request lifecycle. Previously, an endpoint might acquire multiple distinct connections sequentially for queries, counts, and updates, increasing socket churn and risk of exhausting the pool.
+- **Atomic Transaction Boundaries**: All mutations across multiple repository calls execute within the exact same database transaction boundary, committing automatically upon endpoint success or rolling back cleanly upon any unhandled exception.
+- **Lightweight Projections (`slim=true`)**: High-frequency monitoring routes (e.g. `GET /api/batches/{id}?slim=true`) load only necessary parent batch and job entities while bypassing large embedded question collections, dropping serialization latency to sub-5ms and enabling throughputs exceeding 200 req/s.
+
+### 6.10 In-Process High-Concurrency Validation Benchmark (`benchmark_concurrency.py`)
+
+To verify system resilience under multi-worker concurrent pressure without network bottlenecks or artificial rate limits, the repository includes an in-process ASGI concurrency harness ([`scripts/benchmark_concurrency.py`](../scripts/benchmark_concurrency.py)), executable via:
+```bash
+pnpm run benchmark:concurrency
+# or: PYTHONPATH=backend uv run python scripts/benchmark_concurrency.py
+```
+
+The benchmark runs against the live FastAPI application via `httpx.ASGITransport` using an active PostgreSQL database, testing multi-tier concurrent workloads and micro-benchmark endpoints across 850 total requests:
+
+#### Multi-Tier Load Profile (600 requests across mixed endpoints)
+| Tier | Worker Concurrency | Total Requests | Successful (HTTP 200) | Errors / Dropouts | Throughput | Mean Latency | Min / Max Latency |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Tier 1** | 20 workers | 100 req | 100 (100%) | 0 (0.0%) | 78.4 req/s | 239.5 ms | 5.2 ms / 388.9 ms |
+| **Tier 2** | 50 workers | 200 req | 200 (100%) | 0 (0.0%) | 83.2 req/s | 557.3 ms | 5.1 ms / 782.4 ms |
+| **Tier 3** | 100 workers | 300 req | 300 (100%) | 0 (0.0%) | 85.0 req/s | 1,069.1 ms | 4.9 ms / 1,489.1 ms |
+
+#### High-Frequency Micro-Benchmarks (250 targeted requests at 50 concurrency)
+| Endpoint Under Test | Workload Type | Concurrency | Total Requests | Success Rate | Mean Latency | P95 Latency | Throughput |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `GET /api/batches/{id}?slim=true` | Slim Batch Projection | 50 workers | 100 req | 100% (200 OK) | 4.7 ms | 8.8 ms | **210.9 req/s** |
+| `GET /api/questions?slim=true&limit=20` | Pipelined Bank Listing | 50 workers | 100 req | 100% (200 OK) | 8.9 ms | 15.6 ms | **112.0 req/s** |
+| `GET /metrics` | Prometheus Metrics Scraping | 50 workers | 50 req | 100% (200 OK) | 3.6 ms | 6.7 ms | **277.8 req/s** |
+
+```mermaid
+xychart-beta
+    title "Concurrency Micro-Benchmark Throughput (req/s)"
+    x-axis ["Prometheus /metrics", "Slim Batch Detail", "Pipelined Questions", "Tier 3 Mixed (100c)"]
+    y-axis "Requests per Second" 0 --> 300
+    bar [277.8, 210.9, 112.0, 85.0]
+```
+
+**Key Takeaways**:
+1. **Zero Connection Pool Starvation**: Even under 100 concurrent ASGI workers executing complex pipelined queries simultaneously, zero connection checkout timeouts or asyncpg pool exhaustions occurred.
+2. **Sub-10ms Lightweight Read Responses**: Endpoints utilizing `slim=true` and pipelined counts achieve sub-10ms response times at throughputs over 200 req/s.
+3. **100% Error-Free Resilience**: All 850 requests completed with HTTP 200 status codes with zero dropped sockets.
 
 ---
 

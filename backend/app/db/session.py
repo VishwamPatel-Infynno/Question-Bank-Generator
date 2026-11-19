@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from sqlalchemy import text
@@ -28,6 +30,16 @@ async_session_factory = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
+
+@asynccontextmanager
+async def scoped_session(session: AsyncSession | None = None) -> AsyncIterator[AsyncSession]:
+    """Yields an existing AsyncSession if provided, or manages a fresh session from the factory."""
+    if session is not None:
+        yield session
+    else:
+        async with async_session_factory() as s:
+            yield s
 
 
 async def init_db() -> bool:

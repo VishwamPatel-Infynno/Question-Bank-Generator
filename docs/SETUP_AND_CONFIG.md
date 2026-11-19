@@ -207,12 +207,12 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 518-test backend verification suite across 76 modules (508 deterministic across 75 modules) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 522-test backend verification suite across 77 modules (512 deterministic across 76 modules) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 508 deterministic unit and integration tests across 75 modules
+# 1. Run all 512 deterministic unit and integration tests across 76 modules
 # Smart auto-skip: If PostgreSQL is offline on localhost:5432, 394 pure unit tests pass and 114 DB tests skip cleanly
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
@@ -227,10 +227,10 @@ ruff format --check .
 ```
 
 #### Dual Test Execution Modes
-- **Offline Mode** (PostgreSQL offline): Executes all 388 algorithmic, schema, agent, taxonomy sync, AI native planning, and mathematical tests in ~12 seconds (`388 passed, 84 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 472 deterministic tests across 70 modules in ~23-28 seconds (10 live tests deselected).
+- **Offline Mode** (PostgreSQL offline): Executes all 394 algorithmic, schema, agent, taxonomy sync, AI native planning, and mathematical tests in ~12 seconds (`394 passed, 118 skipped, 10 deselected`).
+- **Full Database Mode** (PostgreSQL online via Docker): Executes all 512 deterministic tests across 76 modules in ~23-28 seconds (10 live tests deselected).
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 482 tests across 71 test files.
+- **Total Backend Suite**: 522 tests across 77 test files.
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.
@@ -291,6 +291,19 @@ To explicitly populate the database with authentic, high-quality MCAT practice q
 source .venv/bin/activate
 pnpm run db:seed   # or: PYTHONPATH=backend python backend/scripts/seed_questions.py
 ```
+
+#### 3. Concurrency & Performance Load Benchmarking
+To stress test the application and measure throughput (req/s), latency percentiles ($p_{50}, p_{95}, p_{99}$), and database connection pool stability under escalating concurrent client loads:
+
+```bash
+# Run in-process ASGI high-concurrency benchmark (20, 50, 100 concurrent workers, 850 total requests)
+pnpm run benchmark:concurrency
+
+# Or directly via Python harness:
+PYTHONPATH=backend uv run python scripts/benchmark_concurrency.py
+```
+
+The benchmark evaluates an isolated test fixture set across key routes (`/batches/{id}?slim=true`, `/questions?slim=true&limit=20`, `/passages?limit=20`, `/metrics`), verifying zero connection pool starvation, sub-5ms batch polling, and clean automated fixture teardown.
 
 ---
 
@@ -362,8 +375,9 @@ The repository provides high-level monorepo orchestration scripts defined in the
 | `pnpm run sync:taxonomy` | Node script copying taxonomy JSON | Copies `backend/app/data/mcat_dependent_taxonomy.json` to `frontend/src/constants/mcat_dependent_taxonomy.json`. |
 | `pnpm run db:seed` | `uv run python backend/scripts/seed_questions.py` | Seeds high-yield MCAT questions, stimuli passages, and rubrics into PostgreSQL. |
 | `pnpm run db:clean-duplicates` | `uv run python scripts/clean_duplicate_artifacts.py` | Permanently purges discarded duplicate drafts and archived question slots. |
+| `pnpm run benchmark:concurrency` | `PYTHONPATH=backend uv run python scripts/benchmark_concurrency.py` | In-process ASGI high-concurrency load benchmark across 20-100 workers. |
 | `pnpm run lint:all` | `pnpm run lint:backend && pnpm run lint` | Runs full-stack linting across the codebase (`uv run ruff check .` + `oxlint`). |
-| `pnpm run test:all` | `pnpm run test:backend && pnpm run test:frontend` | Runs both backend pytest (508 tests) and frontend Vitest (142 tests). |
+| `pnpm run test:all` | `pnpm run test:backend && pnpm run test:frontend` | Runs both backend pytest (512 tests) and frontend Vitest (148 tests). |
 | `pnpm run format` | `uv run ruff format .` | Formats all Python files according to the project's Ruff styling rules. |
 | `pnpm run format:check` | `uv run ruff format --check .` | Verifies code formatting compliance in CI pipelines without mutating files. |
 | `pnpm --dir frontend run check:css` | `node scripts/check-unused-css.mjs` | Scans all JSX and CSS files to enforce 0 unused or missing classes. |

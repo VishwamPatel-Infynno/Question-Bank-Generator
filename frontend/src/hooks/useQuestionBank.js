@@ -164,6 +164,24 @@ export function useQuestionBank() {
 
   // Multi-criteria sorting executed in-memory with useMemo
   const questions = useMemo(() => {
+    // In semantic search mode, maintain vector similarity ranking under default sort
+    if (searchMode === 'semantic') {
+      if (sortBy === 'score_desc') {
+        return [...rawQuestions].sort((a, b) => (b.final_score || 0) - (a.final_score || 0));
+      }
+      if (sortBy === 'score_asc') {
+        return [...rawQuestions].sort((a, b) => (a.final_score || 0) - (b.final_score || 0));
+      }
+      if (sortBy === 'difficulty') {
+        const order = { [DIFFICULTY.LOW]: 1, [DIFFICULTY.MEDIUM]: 2, [DIFFICULTY.HIGH]: 3 };
+        return [...rawQuestions].sort(
+          (a, b) => (order[normalizeDifficulty(a.difficulty)] || 0) - (order[normalizeDifficulty(b.difficulty)] || 0)
+        );
+      }
+      // Preserve vector cosine similarity descending order (default 'newest' sort option)
+      return rawQuestions;
+    }
+
     const list = [...rawQuestions];
     if (sortBy === 'score_desc') {
       return list.sort((a, b) => (b.final_score || 0) - (a.final_score || 0));
@@ -179,7 +197,7 @@ export function useQuestionBank() {
     }
     // Default 'newest'
     return list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-  }, [rawQuestions, sortBy]);
+  }, [rawQuestions, sortBy, searchMode]);
 
   const avgScore = useMemo(() => {
     if (questions.length === 0) return 0;

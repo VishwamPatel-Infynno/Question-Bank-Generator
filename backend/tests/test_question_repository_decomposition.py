@@ -125,3 +125,41 @@ def test_question_head_dataclass():
 
     with pytest.raises(AttributeError):
         head.status = "discarded"  # type: ignore
+
+
+def test_session_parameter_support_across_repositories():
+    """All DAL mutation, query, and passage functions must support session: AsyncSession | None = None."""
+    import inspect
+
+    import app.repositories.passage_repository as p_repo
+
+    functions_to_check = [
+        # Queries
+        q_queries.get_questions,
+        q_queries.count_questions,
+        q_queries.get_question_by_id,
+        q_queries.get_repository_metrics,
+        # Mutations
+        q_mut.save_question,
+        q_mut.save_questions_batch,
+        q_mut.delete_question,
+        q_mut.delete_questions_batch,
+        q_mut.restore_question,
+        q_mut.update_question_status,
+        q_mut.batch_update_question_status,
+        q_mut.override_question_duplicate,
+        # Passages
+        p_repo.get_passages,
+        p_repo.count_passages,
+        p_repo.get_passage_by_id,
+        p_repo.save_passage,
+        p_repo.delete_passage,
+        p_repo.restore_passage,
+    ]
+    for fn in functions_to_check:
+        sig = inspect.signature(fn)
+        assert "session" in sig.parameters, (
+            f"Function {fn.__name__} does not accept session parameter"
+        )
+        param = sig.parameters["session"]
+        assert param.default is None, f"Function {fn.__name__} session default should be None"

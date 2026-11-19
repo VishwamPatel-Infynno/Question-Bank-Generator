@@ -97,7 +97,7 @@ export default function ExportPrintModal({
       setStudyGuide(data);
     } catch (err) {
       onShowToast?.({
-        type: 'danger',
+        type: 'error',
         title: 'Study Guide Error',
         message: err.message || 'Failed to synthesize study guide.'
       });

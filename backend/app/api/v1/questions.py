@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import base64
 import logging
 from typing import Annotated, Any
@@ -10,6 +9,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.api.utils import or_404
 from app.core.config import config
+from app.db.session import async_session_factory
 from app.repositories import (
     batch_update_question_status,
     count_questions,
@@ -74,8 +74,8 @@ async def list_questions(
 ) -> dict[str, Any]:
     """Lists saved questions from the Question Bank repository along with aggregated metrics."""
     effective_status = None if status == "all" else (status or "in_bank")
-    questions, matching_count, metrics = await asyncio.gather(
-        get_questions(
+    async with async_session_factory() as session:
+        questions = await get_questions(
             section=section,
             difficulty=difficulty,
             search=search,
@@ -88,8 +88,9 @@ async def list_questions(
             limit=limit,
             offset=offset,
             slim=slim,
-        ),
-        count_questions(
+            session=session,
+        )
+        matching_count = await count_questions(
             section=section,
             difficulty=difficulty,
             search=search,
@@ -98,9 +99,9 @@ async def list_questions(
             batch_id=batch_id,
             passage_id=passage_id,
             status=effective_status,
-        ),
-        get_repository_metrics(status=effective_status),
-    )
+            session=session,
+        )
+        metrics = await get_repository_metrics(status=effective_status, session=session)
     dumped = [q.model_dump() for q in questions]
 
     return {

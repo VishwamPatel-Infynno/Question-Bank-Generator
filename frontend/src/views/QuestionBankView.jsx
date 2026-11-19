@@ -304,6 +304,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
             question={inspectingQuestion}
             isSaved={true}
             onUpdateQuestion={handleUpdateInspectedQuestion}
+            onShowToast={onShowToast}
           />
         )}
       </Modal>

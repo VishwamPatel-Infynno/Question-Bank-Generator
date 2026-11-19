@@ -830,9 +830,9 @@ Lists generation batches with job progress counts, active running batch numbers,
 ---
 
 ### 3.22 Get Single Batch with Grouped Jobs & Questions
-`GET /api/batches/{batch_id}`
+`GET /api/batches/{batch_id}?slim=true`
 
-Retrieves a generation batch along with all 10 jobs (augmented with their generated questions) and flat question records.
+Retrieves a generation batch along with all jobs (augmented with their generated questions) and flat question records. Supports an optional `slim` query parameter (`true` by default) that projects questions without massive diagnostic JSONB blobs (`stage_outcomes`, `iterations_history`, `token_usage_details`), optimizing telemetry polling bandwidth by >90% during active generation runs. Pass `slim=false` to retrieve complete diagnostic histories.
 
 #### Response (`200 OK`)
 ```json

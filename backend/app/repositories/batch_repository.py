@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
 from app.db.base import to_datetime, to_iso_str
-from app.db.session import async_session_factory
+from app.db.session import async_session_factory, scoped_session
 from app.models.batch import GenerationBatchModel
 from app.models.job import GenerationJobModel
 from app.models.question import QuestionModel
@@ -91,9 +91,10 @@ async def get_batches(
     status: str | None = None,
     limit: int | None = None,
     offset: int = 0,
+    session: AsyncSession | None = None,
 ) -> list[GenerationBatch]:
     """Retrieves generation batch logs with optional section and status filtering."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = select(GenerationBatchModel)
         if section:
             stmt = stmt.where(GenerationBatchModel.section == section)
@@ -103,7 +104,7 @@ async def get_batches(
         stmt = stmt.order_by(GenerationBatchModel.created_at.desc())
         if limit is not None:
             stmt = stmt.limit(limit).offset(offset)
-        result = await session.execute(stmt)
+        result = await s.execute(stmt)
         models = result.scalars().all()
         # List rows omit request_payload: it can be large and only the single-batch view needs it.
         return [_batch_model_to_schema(m, include_payload=False) for m in models]
@@ -112,31 +113,34 @@ async def get_batches(
 async def count_batches(
     section: str | None = None,
     status: str | None = None,
+    session: AsyncSession | None = None,
 ) -> int:
     """Counts generation batches matching section and status filters via native SQL aggregation."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         stmt = select(func.count(GenerationBatchModel.id))
         if section:
             stmt = stmt.where(GenerationBatchModel.section == section)
         if status:
             stmt = stmt.where(GenerationBatchModel.status == status)
-        result = await session.execute(stmt)
+        result = await s.execute(stmt)
         return int(result.scalar() or 0)
 
 
-async def batch_exists(batch_id: str) -> bool:
+async def batch_exists(batch_id: str, session: AsyncSession | None = None) -> bool:
     """Cheap existence check (no row hydration, no JSONB payload)."""
-    async with async_session_factory() as session:
-        found = await session.execute(
+    async with scoped_session(session) as s:
+        found = await s.execute(
             select(GenerationBatchModel.id).where(GenerationBatchModel.id == batch_id)
         )
         return found.first() is not None
 
 
-async def get_batch_by_id(batch_id: str) -> GenerationBatch | None:
+async def get_batch_by_id(
+    batch_id: str, session: AsyncSession | None = None
+) -> GenerationBatch | None:
     """Retrieves a single generation batch by primary key ID."""
-    async with async_session_factory() as session:
-        model = await session.get(GenerationBatchModel, batch_id)
+    async with scoped_session(session) as s:
+        model = await s.get(GenerationBatchModel, batch_id)
         if not model:
             return None
         return _batch_model_to_schema(model)
