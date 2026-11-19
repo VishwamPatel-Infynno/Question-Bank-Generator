@@ -16,18 +16,15 @@ This document provides a comprehensive technical reference for all REST endpoint
 
 ---
 
-## 2. API Endpoints Summary (51 Operations across 45 Unique Endpoint Paths)
+## 2. API Endpoints Summary (48 Operations across 42 Unique Endpoint Paths)
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/generate` | Triggers multi-agent workflow and streams real-time SSE events (Candidate Staged) |
-| `POST` | `/api/ai/magic-setup` | **AI Copilot**: Parses natural language prompt into pre-filled wizard configuration |
 | `POST` | `/api/ai/enhance-instructions` | **AI Copilot**: Calibrates raw educator instructions into an authentic AAMC prompt mandate |
 | `POST` | `/api/ai/refine-question` | **AI Copilot**: Performs live editorial refinement on question stem, distractors, or explanations |
 | `POST` | `/api/ai/audit-passage` | **AI Diagnostics**: Evaluates passage Flesch-Kincaid grade level, empirical density, and AAMC alignment |
 | `POST` | `/api/ai/study-guide` | **AI Synthesis**: Generates high-yield study guide, executive summaries, trap checklists, and flashcards |
-| `POST` | `/api/ai/ingest-syllabus` | **Curriculum Ingestion**: Ingests raw syllabus text, maps to AAMC taxonomy, and proposes batch generation plan |
-| `POST` | `/api/ai/ingest-syllabus-file` | **Curriculum Ingestion**: Uploads PDF/TXT/MD document, extracts text, and maps to AAMC taxonomy with generation plan |
 | `POST` | `/api/questions` | **Admin Review Gate**: Persists an approved candidate question into the Question Bank |
 | `POST` | `/api/questions/batch` | **Admin Review Gate**: Bulk-persists an array of approved candidates atomically |
 | `GET` | `/api/questions` | Lists saved questions with filtering, pagination (`limit`/`offset`), `slim` projection, and repository token metrics |
@@ -1416,44 +1413,9 @@ mcat_http_request_duration_seconds_count{endpoint="/api/sections",method="GET"} 
 
 ### 3.38 AI Copilot & Assistive Operations
 
-Provides AI-native interactive capabilities for smart onboarding, prompt calibration, in-flight question refinement, passage quality diagnostics, and post-generation study guide synthesis.
+Provides AI-native interactive capabilities for prompt calibration, in-flight question refinement, passage quality diagnostics, and post-generation study guide synthesis.
 
-#### 1. Parse Magic Setup Prompt
-`POST /api/ai/magic-setup`
-
-Interprets free-form natural language instructions (e.g. *"Generate 10 hard questions on renal acid-base balance with visual pathways"*) and dynamically maps them to structured wizard configuration parameters (section, topic, subtopic, question count, difficulty, passage requirement, visual modality, and calibrated additional instructions).
-
-##### Request Body (`application/json`)
-```json
-{
-  "prompt": "Create 10 hard questions about enzyme kinetics with Michaelis-Menten Lineweaver-Burk plots"
-}
-```
-
-##### Response (`200 OK`)
-```json
-{
-  "section": "chem_phys",
-  "topic": "Enzyme Kinetics",
-  "subtopic": "Lineweaver-Burk & Michaelis-Menten",
-  "num_questions": 10,
-  "difficulty": "Hard",
-  "include_passage": true,
-  "visual_type": "vector_drawing",
-  "additional_instructions": "Focus on competitive and noncompetitive inhibition dynamics, Km and Vmax graphical shifts."
-}
-```
-
-##### cURL Example
-```bash
-curl -X POST "http://localhost:8000/api/ai/magic-setup" \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "10 hard questions about enzyme kinetics with Lineweaver-Burk plots"}'
-```
-
----
-
-#### 2. Enhance Educator Instructions
+#### 1. Enhance Educator Instructions
 `POST /api/ai/enhance-instructions`
 
 Transforms brief educator bullet points into an authentic, calibrated AAMC psychometric prompt mandate ensuring anti-guessing symmetry, cognitive trap coverage, and clinical passage relevance.
@@ -1489,7 +1451,7 @@ curl -X POST "http://localhost:8000/api/ai/enhance-instructions" \
 
 ---
 
-#### 3. Refine Question Item
+#### 2. Refine Question Item
 `POST /api/ai/refine-question`
 
 Executes targeted editorial refinements on an individual question item. Supports presets:
@@ -1557,7 +1519,7 @@ curl -X POST "http://localhost:8000/api/ai/refine-question" \
 
 ---
 
-#### 4. Audit Reading Passage
+#### 3. Audit Reading Passage
 `POST /api/ai/audit-passage`
 
 Performs algorithmic and psychometric diagnostics on a reading passage, computing Flesch-Kincaid Grade Level, Flesch Reading Ease, Empirical Data Density (numerical data & statistical markers), and AAMC Alignment Index.
@@ -1594,7 +1556,7 @@ curl -X POST "http://localhost:8000/api/ai/audit-passage" \
 
 ---
 
-#### 5. Synthesize Study Guide & Flashcards
+#### 4. Synthesize Study Guide & Flashcards
 `POST /api/ai/study-guide`
 
 Synthesizes an array of generated questions into an executive high-yield study pack, containing core concepts, cognitive trap checklists, flashcard drill pairs, and printable markdown.
@@ -1638,105 +1600,6 @@ Synthesizes an array of generated questions into an executive high-yield study p
 curl -X POST "http://localhost:8000/api/ai/study-guide" \
   -H "Content-Type: application/json" \
   -d '{"questions": [{"question_stem": "Sample stem", "options": [{"id": "A", "text": "Sample"}], "correct_answer_id": "A", "explanation": "Sample explanation"}]}'
-```
-
----
-
-#### 6. Ingest Syllabus & Curriculum Text
-`POST /api/ai/ingest-syllabus`
-
-Ingests raw syllabus text, course outlines, or learning objectives, maps content against the official AAMC MCAT taxonomy (foundational concepts, categories, and subtopics), calibrates recommended question difficulty, and synthesizes an optimized batch generation plan.
-
-##### Request Body (`application/json`)
-```json
-{
-  "content": "Course: MCAT Biochemistry (BIOC 301)\nWeek 4: Enzyme Kinetics and Inhibition\nObjectives: Understand Michaelis-Menten kinetics, steady-state approximation, Lineweaver-Burk plots, competitive, noncompetitive, and uncompetitive inhibition, and physiological regulation via allostery and phosphorylation.",
-  "title": "BIOC 301 - Enzyme Kinetics Syllabus"
-}
-```
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `content` | `string` | Yes | Syllabus text, course syllabus, or lecture topic outline (10 to 50,000 characters). |
-| `title` | `string` | No | Optional document title or course identifier (up to 200 characters). |
-
-##### Response (`200 OK`)
-```json
-{
-  "section": "chem_phys",
-  "section_name": "Chemical and Physical Foundations of Biological Systems",
-  "topic": "Chemical Kinetics & Catalysis",
-  "subtopic": "Thermodynamics & Reaction Kinetics",
-  "difficulty": "hard",
-  "confidence": 0.94,
-  "summary": "Covers enzyme kinetics, reversible inhibition mechanisms, and Lineweaver-Burk graphical analysis.",
-  "matched_concepts": [
-    "Foundational Concept 5: Chemical and Physical Principles",
-    "5A: Rate of reactions, catalysis, and enzyme kinetics"
-  ],
-  "matched_topics": [
-    "Enzyme Kinetics",
-    "Thermodynamics & Reaction Kinetics",
-    "Bioenergetics"
-  ],
-  "suggested_batches": [
-    {
-      "thematic_angle": "Competitive vs Noncompetitive Inhibitor Kinetics",
-      "question_count": 5,
-      "topic": "Chemical Kinetics & Catalysis",
-      "subtopic": "Thermodynamics & Reaction Kinetics"
-    },
-    {
-      "thematic_angle": "Allosteric Cooperativity and Hill Coefficients",
-      "question_count": 5,
-      "topic": "Chemical Kinetics & Catalysis",
-      "subtopic": "Thermodynamics & Reaction Kinetics"
-    }
-  ],
-  "suggested_instructions": "Emphasize Lineweaver-Burk double-reciprocal interpretations with numerical Km/Vmax shifts and distractor traps confusing uncompetitive with noncompetitive inhibition."
-}
-```
-
-##### cURL Example
-```bash
-curl -X POST "http://localhost:8000/api/ai/ingest-syllabus" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "content": "Course: MCAT Biochemistry. Week 4: Enzyme Kinetics and Inhibition. Covers Michaelis-Menten kinetics, Lineweaver-Burk plots, competitive and noncompetitive inhibition.",
-    "title": "Biochemistry Syllabus"
-  }'
-```
-
----
-
-#### 7. Ingest Syllabus Document File
-`POST /api/ai/ingest-syllabus-file`
-
-Ingests an uploaded syllabus file (`.pdf`, `.txt`, `.md`), extracts plain text natively via `pypdf` with fallback, bounds token consumption within safe limits ($30,000$ characters max), and analyzes academic content against the AAMC MCAT taxonomy to produce an actionable batch generation proposal.
-
-##### Request Headers
-```http
-Content-Type: multipart/form-data
-X-API-Key: <configured-access-key>
-```
-
-##### Form Parameters
-| Parameter | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `file` | `UploadFile` | Yes | Document file in PDF, plain text (`.txt`), or Markdown (`.md`) format. |
-
-##### Response (`200 OK`)
-Returns identical `SyllabusIngestionResult` schema as `POST /api/ai/ingest-syllabus`.
-
-##### Error Responses
-- `400 Bad Request`: If text cannot be extracted from the file (e.g. image-only PDF lacking OCR or empty document).
-- `413 Payload Too Large`: If file upload exceeds `MAX_REQUEST_BODY_MB` (default: 25 MB).
-- `500 Internal Server Error`: If background LLM extraction or taxonomy mapping fails.
-
-##### cURL Example
-```bash
-curl -X POST "http://localhost:8000/api/ai/ingest-syllabus-file" \
-  -F "file=@/path/to/biochemistry_syllabus.pdf"
 ```
 
 ---

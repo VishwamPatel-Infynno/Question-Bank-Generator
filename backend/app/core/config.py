@@ -423,11 +423,11 @@ class Settings(BaseSettings):
         """Batch-only retention threshold: questions scoring >= (PASSING_SCORE_THRESHOLD - 10) remain in batch_only."""
         return self.PASSING_SCORE_THRESHOLD - 10
 
-    def passes_quality_gate(self, score: float | int | None) -> bool:
+    def passes_quality_gate(self, score: float | None) -> bool:
         """Single source of truth for the Tier-1 quality gate: score must be strictly above threshold."""
         return score is not None and score > self.PASSING_SCORE_THRESHOLD
 
-    def passes_batch_quality_gate(self, score: float | int | None) -> bool:
+    def passes_batch_quality_gate(self, score: float | None) -> bool:
         """Single source of truth for batch gate: score must be strictly above batch threshold."""
         return score is not None and score > self.BATCH_PASSING_SCORE_THRESHOLD
 

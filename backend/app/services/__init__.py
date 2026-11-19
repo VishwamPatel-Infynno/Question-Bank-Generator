@@ -30,16 +30,10 @@ from app.services.rag import (
     hybrid_search_questions,
     retrieve_rag_exemplar_context,
 )
-from app.services.syllabus_ingestion import (
-    SyllabusIngestionResult,
-    extract_text_from_file_bytes,
-    ingest_and_map_syllabus,
-)
 
 __all__ = [
     "RAGExemplarContext",
     "SimilarQuestionResult",
-    "SyllabusIngestionResult",
     "auto_resolve_batch_and_refill",
     "backfill_question_embeddings",
     "cancel_all_background_batches",
@@ -50,12 +44,10 @@ __all__ = [
     "embed_text",
     "evaluate_duplicate",
     "evaluate_duplicate_rag",
-    "extract_text_from_file_bytes",
     "find_similar_questions",
     "get_active_batch_metrics",
     "get_global_job_semaphore",
     "hybrid_search_questions",
-    "ingest_and_map_syllabus",
     "is_batch_running",
     "launch_background_batch",
     "refill_batch_deficit",

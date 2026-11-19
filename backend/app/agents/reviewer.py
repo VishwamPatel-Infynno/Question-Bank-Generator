@@ -124,7 +124,7 @@ Metadata:
 
 --- CANDIDATE QUESTION UNDER AUDIT ---
 {stimulus_label}
-{draft.stimulus_text if draft.stimulus_text else "(None - Standalone Question)"}
+{draft.stimulus_text or "(None - Standalone Question)"}
 {visual_stimulus_block}
 Question Stem:
 {draft.question_stem}
@@ -161,7 +161,6 @@ Evaluate the candidate question and return your 100-point rubric breakdown as JS
             temperature=config.REVIEWER_TEMPERATURE,
             max_tokens=config.REVIEWER_MAX_TOKENS,
         )
-        return review, usage
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         # No credentials at all: offline demo/test mode keeps using the heuristic reviewer.
@@ -172,3 +171,5 @@ Evaluate the candidate question and return your 100-point rubric breakdown as JS
         # Fail closed: an item must never pass because its reviewer broke.
         logger.error("Quality reviewer failed: %s", e)
         raise QualityCheckUnavailableError(f"Quality reviewer failed: {e}") from e
+    else:
+        return review, usage

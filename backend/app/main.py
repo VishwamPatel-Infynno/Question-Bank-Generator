@@ -244,4 +244,4 @@ class CleanLifespanMiddleware:
         return getattr(self._app, name)
 
 
-app: FastAPI = cast(FastAPI, CleanLifespanMiddleware(core_app))
+app: FastAPI = cast("FastAPI", CleanLifespanMiddleware(core_app))

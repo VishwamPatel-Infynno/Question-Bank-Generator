@@ -14,11 +14,11 @@ The backend is engineered with clear separation of concerns across presentation,
 ```
 backend/
 ├── app/
-│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 51 operations across 45 unique paths including root /metrics)
+│   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 48 operations across 42 unique paths including root /metrics)
 │   │   ├── router.py        # Central API v1 router aggregator (applies the optional API_ACCESS_KEY gate)
 │   │   ├── security.py      # Optional X-API-Key dependency for mutating routes
 │   │   └── v1/
-│   │       ├── ai_copilot.py # Real-time AI Copilot tools (/magic-setup, /refine, /audit, /study-guide) & syllabus ingestion
+│   │       ├── ai.py        # Real-time AI Copilot tools (/enhance-instructions, /refine-question, /audit-passage, /study-guide)
 │   │       ├── generation.py # SSE streaming multi-agent orchestrator endpoint
 │   │       ├── questions.py  # Question Bank CRUD, pgvector semantic search, approval, duplicate check & override, restoration, permanent purge & exports
 │   │       ├── passages.py   # Shared clinical stimulus passages endpoints (list, retrieve, save, soft-delete)
@@ -61,8 +61,7 @@ backend/
 │   │   ├── mock_drafts.py   # Table of the seven canned mock drafts (section x passage/independent)
 │   │   └── base.py          # LiteLLM execution wrapper & sub-micro-cent token cost engine (DeepInfra + Anthropic)
 │   ├── services/            # Background Worker & AI Subsystems
-│   │   ├── ai_copilot.py    # Real-time educator copilot tooling (magic setup, refine, audit, study guide)
-│   │   ├── syllabus_ingestion.py # Multi-modal curriculum parser & autonomous taxonomy mapper
+│   │   ├── ai_copilot.py    # Real-time educator copilot tooling (prompt enhancement, refine, audit, study guide)
 │   │   ├── rag.py           # Semantic RAG retrieval & exemplar extraction via pgvector
 │   │   ├── embeddings.py    # Real-time OpenAI text-embedding-3-small vector generation
 │   │   ├── dedup_clustering.py # Hierarchical duplicate clustering & cluster querying
@@ -108,7 +107,7 @@ backend/
 │       └── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (75 deterministic modules / 509 tests + 1 live E2E module with 10 tests = 519 total backend tests across 76 files)
+└── tests/                   # Deterministic Automated Test Suite (74 deterministic modules / 501 tests + 1 live E2E module with 10 tests = 511 total backend tests across 75 files)
     ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
     ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
     ├── test_additional_instructions.py     # Educator custom authoring instructions and prompt builder integration
@@ -176,7 +175,6 @@ backend/
     ├── test_sse_keepalive.py               # SSE keep-alive comments while the engine is quiet
     ├── test_stream_emitter.py              # Workflow SSE queue draining, timeout polling & terminal event assembly
     ├── test_structured_output.py           # Model output is validated strictly, repaired once, and never silently defaulted
-    ├── test_syllabus_ingestion.py          # Syllabus parsing, section classification & batch job generation
     ├── test_target_count_guarantee.py      # Dynamic job allocation, slot replenishment and target count guarantees
     ├── test_taxonomy_sync.py               # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
     ├── test_tokens.py                      # Token cost accumulation across providers and config cascade
@@ -252,15 +250,13 @@ To ensure passage sets reflect the multi-faceted cognitive demands of the authen
 - **Dual-Shield Anti-Collision Loop**: Combines pgvector semantic similarity distance ($1 - \text{cosine\_similarity}$) with n-gram lexical overlap ($>75\%$). If a collision is flagged, the generator is prompted with an explicit anti-collision directive to re-steer the item.
 - **Hierarchical Clustering**: Groups repository items into semantic clusters for batch duplicate resolution and portfolio pruning.
 
-### 2.4 AI Copilot Studio & Syllabus Ingestion Pipelines (`ai_copilot.py`, `syllabus_ingestion.py`)
+### 2.4 AI Copilot Studio (`ai_copilot.py`)
 
-- **AI Copilot Suite**: Powers real-time educator assistance across 5 specialized endpoints:
-  - `/api/v1/ai/magic-setup`: Deduces target AAMC section, difficulty tier, subtopic, and passage constraints from rough educator notes.
+- **AI Copilot Suite**: Powers real-time educator assistance across 4 specialized endpoints:
   - `/api/v1/ai/enhance-instructions`: Refines authoring prompts with explicit AAMC phrasing, SIRS reasoning verbs, and distractor constraints.
   - `/api/v1/ai/refine-question`: Proposes targeted fixes for ambiguous wording, key clarity, distractor symmetry, or cognitive trap calibration.
   - `/api/v1/ai/audit-passage`: Reviews stimulus length (500-600 words for CARS, 200-400 for Science), reading grade level, vocabulary density, and empirical data validity.
   - `/api/v1/ai/study-guide`: Synthesizes high-yield clinical takeaway sheets and active recall summaries from passage sets.
-- **Syllabus Ingestion Pipeline**: Ingests raw course syllabi or curriculum documents (`.pdf`, `.docx`, `.txt`, or raw text), extracts foundational concepts and content categories, maps them to the official AAMC taxonomy, and generates 1-click batch generation jobs.
 
 ---
 
@@ -322,7 +318,7 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (509 deterministic tests across 75 modules, 519 total backend tests)
+# Run all unit and integration tests (501 deterministic tests across 74 modules, 511 total backend tests)
 # Smart auto-skip: pure unit tests pass offline, DB-dependent tests skip cleanly if PostgreSQL is offline
 uv run pytest backend/tests -v
 # or using activated virtual environment:

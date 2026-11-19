@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { BookOpen, Sparkles, Plus } from 'lucide-react';
 import { PaginationBar, EmptyState } from '../components/common';
 import { usePagination, usePassageBank } from '../hooks';
@@ -67,6 +68,10 @@ export default function PassageBankView({
     resetDeps: [debouncedSearch, sectionFilter, sortBy]
   });
 
+  const handleBackFromDesk = useCallback(() => setSelectedPassage(null), [setSelectedPassage]);
+  const handleCloseDeleteModal = useCallback(() => setPassageToDelete(null), [setPassageToDelete]);
+  const handleCreatePassageSet = useCallback(() => onNavigateToWizard?.(1), [onNavigateToWizard]);
+
   return (
     <div className="passage-bank-container">
       {/* ── View Header ────────────────────────────────────────────────────────── */}
@@ -97,7 +102,7 @@ export default function PassageBankView({
             <button
               type="button"
               className="btn-primary"
-              onClick={() => onNavigateToWizard(1)}
+              onClick={handleCreatePassageSet}
               title="Create a new passage set with the question wizard"
             >
               <Sparkles size={15} />
@@ -112,7 +117,7 @@ export default function PassageBankView({
         <PassageEditorialDesk
           passage={selectedPassage}
           questions={selectedPassageQuestions}
-          onBack={() => setSelectedPassage(null)}
+          onBack={handleBackFromDesk}
           onSavePassage={handleSavePassage}
           onDeletePassage={handleRequestDeletePassage}
           onUpdateQuestion={handleUpdateQuestion}
@@ -184,7 +189,7 @@ export default function PassageBankView({
       <DeletePassageModal
         isOpen={Boolean(passageToDelete)}
         passage={passageToDelete}
-        onClose={() => setPassageToDelete(null)}
+        onClose={handleCloseDeleteModal}
         onConfirmDelete={handleConfirmDeletePassage}
       />
     </div>

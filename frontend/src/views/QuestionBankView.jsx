@@ -100,11 +100,11 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     resetDeps: [searchQuery, sectionFilter, diffFilter, sortBy]
   });
 
-  const handleClearAllFilters = () => {
+  const handleClearAllFilters = useCallback(() => {
     setSearchQuery('');
     setSectionFilter('');
     setDiffFilter('');
-  };
+  }, [setSearchQuery, setSectionFilter, setDiffFilter]);
 
   // Focus search on '/'
   useKeyboardShortcuts({
@@ -117,10 +117,10 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     setRawSelectedIds((prev) => toggleId(prev, id));
   }, []);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     const currentIds = paginatedQuestions.map((q) => q.id);
     setRawSelectedIds((prev) => toggleAll(prev, currentIds));
-  };
+  }, [paginatedQuestions]);
 
   const { isDeleting: isDeletingBulk, confirmDeletion } = useBankDeletion({
     openConfirmModal,
@@ -128,16 +128,16 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     onShowToast
   });
 
-  const handleConfirmSingleDelete = (id, e) => {
+  const handleConfirmSingleDelete = useCallback((id, e) => {
     if (e) e.stopPropagation();
     confirmDeletion({
       count: 1,
       action: () => handleDelete(id),
       successMessage: 'Successfully removed question from the Question Bank.'
     });
-  };
+  }, [confirmDeletion, handleDelete]);
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = useCallback(() => {
     if (selectedIds.length === 0) return;
     const ids = [...selectedIds];
     confirmDeletion({
@@ -149,7 +149,11 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       },
       successMessage: `Successfully removed ${ids.length} question(s) from the Question Bank.`
     });
-  };
+  }, [selectedIds, confirmDeletion, loadQuestions]);
+
+  const handleOpenExportModal = useCallback(() => setShowExportModal(true), []);
+  const handleCloseExportModal = useCallback(() => setShowExportModal(false), []);
+  const handleCloseInspection = useCallback(() => setInspectingQuestion(null), []);
 
   return (
     <div className="question-bank-container">
@@ -206,7 +210,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
         onBulkDelete={handleBulkDelete}
         onClearAllFilters={handleClearAllFilters}
         onNavigateToWizard={onNavigateToWizard}
-        onOpenExportModal={() => setShowExportModal(true)}
+        onOpenExportModal={handleOpenExportModal}
       />
 
       {/* ── Question List ─────────────────────────────────────────────────── */}
@@ -274,7 +278,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       {showExportModal && (
         <ExportPrintModal
           isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
+          onClose={handleCloseExportModal}
           allQuestions={rawQuestions}
           selectedIds={selectedIds}
           filteredQuestions={questions}
@@ -287,7 +291,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       {/* ── In-Place Question Inspection & Edit Dialog (WCAG AA Focus Trapped) ── */}
       <Modal
         isOpen={Boolean(inspectingQuestion)}
-        onClose={() => setInspectingQuestion(null)}
+        onClose={handleCloseInspection}
         title="Question Inspector & Editorial Desk"
         icon={<Eye size={18} color="var(--brand-primary)" />}
         maxWidth="960px"

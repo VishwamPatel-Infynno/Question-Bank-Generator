@@ -432,7 +432,7 @@ class BackfillEmbeddingsRequest(BaseModel):
 
 
 def determine_question_status(
-    score: float | int | None,
+    score: float | None,
     is_in_progress_batch: bool = False,
 ) -> str:
     """

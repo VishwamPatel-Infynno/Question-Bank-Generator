@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { PaginationBar, LoadError } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
 import { usePagination, useBatchActivity } from '../hooks';
@@ -93,12 +94,14 @@ export default function BatchActivityView({
     resetDeps: [scopeFilter, statusFilter, sectionFilter, searchQuery]
   });
 
+  const handleRefresh = useCallback(() => loadBatches(false), [loadBatches]);
+
   return (
     <div className="batch-activity-container">
       {/* Header Bar */}
       <BatchHeaderBanner
         refreshing={refreshing}
-        onRefresh={() => loadBatches(false)}
+        onRefresh={handleRefresh}
         onNavigateToWizard={onNavigateToWizard}
       />
 
@@ -139,7 +142,7 @@ export default function BatchActivityView({
         <LoadError
           title="Could not load batch records"
           message={loadError}
-          onRetry={() => loadBatches(false)}
+          onRetry={handleRefresh}
         />
       ) : filteredBatches.length === 0 ? (
         <BatchEmptyState

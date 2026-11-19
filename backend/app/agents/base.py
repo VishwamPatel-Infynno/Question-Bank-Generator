@@ -43,7 +43,8 @@ def __getattr__(name: str) -> Any:
     # Keeps `app.agents.base.litellm` working (tests patch it) without an eager import
     if name == "litellm":
         return _get_litellm()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 _global_llm_semaphore: asyncio.Semaphore | None = None
@@ -130,7 +131,7 @@ def safe_json_loads(text: str) -> Any:
         except ValueError as sanitize_err:
             logger.debug("json.loads after control-char sanitization failed: %s", sanitize_err)
 
-        raise e1
+        raise
 
 
 def _usage_from_response(
@@ -173,17 +174,19 @@ def normalize_model_for_litellm(model: str) -> str:
             return m
         try:
             _get_litellm().get_llm_provider(m)
-            return m
         except Exception:
             return f"anthropic/{m}"
+        else:
+            return m
     if config.is_openai_model(m):
         if m.startswith(("openai/", "openai.")):
             return m
         try:
             _get_litellm().get_llm_provider(m)
-            return m
         except Exception:
             return f"openai/{m}"
+        else:
+            return m
     return m
 
 

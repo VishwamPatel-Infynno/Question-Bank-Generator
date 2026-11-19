@@ -509,13 +509,12 @@ def compute_question_similarity(
     elif stem_sim >= _STEM_SUBSTANTIAL and opts_sim >= _OPTIONS_SUBSTANTIAL:
         overall = round((0.60 * stem_sim) + (0.40 * opts_sim), 4)
         reason = f"Question stem ({int(stem_sim * 100)}%) and answer choice ({int(opts_sim * 100)}%) collision"
+    elif is_substantive_key and key_sim >= 0.50:
+        overall = round((0.50 * stem_sim) + (0.30 * opts_sim) + (0.20 * key_sim), 4)
+        reason = f"Overall conceptual & key similarity ({int(overall * 100)}%)"
     else:
-        if is_substantive_key and key_sim >= 0.50:
-            overall = round((0.50 * stem_sim) + (0.30 * opts_sim) + (0.20 * key_sim), 4)
-            reason = f"Overall conceptual & key similarity ({int(overall * 100)}%)"
-        else:
-            overall = round((0.70 * stem_sim) + (0.30 * opts_sim), 4)
-            reason = f"Overall conceptual similarity ({int(overall * 100)}%)"
+        overall = round((0.70 * stem_sim) + (0.30 * opts_sim), 4)
+        reason = f"Overall conceptual similarity ({int(overall * 100)}%)"
 
     vec_sim = reference.get("_vector_similarity") if isinstance(reference, dict) else None
     if vec_sim is not None and float(vec_sim) > overall:

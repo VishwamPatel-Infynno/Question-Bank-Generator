@@ -1,19 +1,17 @@
 """
 ai_copilot.py - AI-Native interactive editorial, onboarding, and study copilot.
 
-Provides dynamic LLM assistance across the entire product lifecycle:
-1. Magic Setup: Natural language prompt -> structured GenerationRequest form state.
-2. Prompt Enhancer: Rough educator notes -> AAMC-calibrated pedagogical mandate.
-3. Question Copilot: In-place distractor polishing, explanation simplifying, sibling variant generation.
-4. Passage Intelligence: Readability grade level, empirical data density, and AAMC stylistic audit.
-5. Study Guide Synthesis: Automatic cheat sheet, trap checklist, and flashcard generation.
+Provides dynamic LLM assistance across the question lifecycle:
+1. Prompt Enhancer: Rough educator notes -> AAMC-calibrated pedagogical mandate.
+2. Question Copilot: In-place distractor polishing, explanation simplifying, sibling variant generation.
+3. Passage Intelligence: Readability grade level, empirical data density, and AAMC stylistic audit.
+4. Study Guide Synthesis: Automatic cheat sheet, trap checklist, and flashcard generation.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import re
 from typing import Any
 
 from app.agents.base import call_llm, safe_json_loads
@@ -28,196 +26,7 @@ _count_syllables = count_syllables
 
 
 # ---------------------------------------------------------------------------
-# 1. Magic Setup: Natural Language -> Wizard Form State
-# ---------------------------------------------------------------------------
-
-
-def _heuristic_magic_setup(prompt: str) -> dict[str, Any]:
-    """Fallback deterministic parser for magic setup queries."""
-    p_lower = prompt.lower()
-
-    # Section detection
-    if any(
-        k in p_lower
-        for k in ["cars", "humanities", "philosophy", "ethics", "literature", "history", "art"]
-    ):
-        section = "cars"
-        subject = "Humanities"
-        topic = "Philosophy & Critical Analysis"
-        subtopic = "Epistemology & Rhetoric"
-    elif any(
-        k in p_lower
-        for k in [
-            "physics",
-            "circuit",
-            "thermo",
-            "optics",
-            "fluid",
-            "chemical",
-            "reaction",
-            "acid-base",
-            "titration",
-        ]
-    ):
-        section = "chem_phys"
-        subject = "Chemistry & Physics"
-        topic = "Chemical Principles & Physical Foundations"
-        subtopic = "Thermodynamics & Kinetics"
-    elif any(
-        k in p_lower
-        for k in [
-            "psych",
-            "socio",
-            "behavior",
-            "conditioning",
-            "memory",
-            "conformity",
-            "dissonance",
-            "stratification",
-        ]
-    ):
-        section = "psych_soc"
-        subject = "Psychology & Sociology"
-        topic = "Psychological Foundations"
-        subtopic = "Cognitive Processes & Social Structure"
-    else:
-        section = "bio_biochem"
-        subject = "Biological Sciences"
-        topic = "Biochemistry & Cellular Physiology"
-        subtopic = "Enzymology & Metabolism"
-
-    # Difficulty detection
-    if any(k in p_lower for k in ["hard", "difficult", "elite", "high", "top percentile"]):
-        difficulty = "high"
-    elif any(k in p_lower for k in ["easy", "foundational", "low"]):
-        difficulty = "low"
-    else:
-        difficulty = "medium"
-
-    # Question count detection (e.g. "10 questions", "10 hard passage questions", "10 sets")
-    count_match = re.search(
-        r"\b(\d{1,2})\s*(?:[a-z\-_]+\s+){0,4}(?:questions?|items?|sets?|qs?)\b", p_lower
-    )
-    if not count_match:
-        # Check for bare number followed by Q (e.g. "10q", "5qs")
-        count_match = re.search(r"\b(\d{1,2})\s*q[s]?\b", p_lower)
-    qty = max(1, min(50, int(count_match.group(1)))) if count_match else 5
-
-    # Visual type detection
-    if any(k in p_lower for k in ["trace", "ecg", "action potential"]):
-        visual_type = "physiology_trace"
-    elif any(k in p_lower for k in ["radiology", "ct", "x-ray", "mri", "pet", "fmri"]):
-        visual_type = "diagnostic_radiology"
-    elif any(k in p_lower for k in ["pathology", "histology", "biopsy", "smear"]):
-        visual_type = "histopathology"
-    elif any(k in p_lower for k in ["microscopy", "tem", "sem", "micrograph"]):
-        visual_type = "cellular_microscopy"
-    elif any(
-        k in p_lower for k in ["diagram", "graph", "plot", "gel", "blot", "pathway", "circuit"]
-    ):
-        visual_type = "scientific_diagram"
-    else:
-        visual_type = "None"
-
-    # Primary trap detection
-    if any(k in p_lower for k in ["calc", "math", "inversion", "fraction"]):
-        primary_trap = "calculation_trap"
-    elif any(k in p_lower for k in ["scope", "out of scope"]):
-        primary_trap = "out_of_scope"
-    elif any(k in p_lower for k in ["opposite", "reversal", "distortion"]):
-        primary_trap = "distortion_opposite"
-    elif any(k in p_lower for k in ["extreme", "absolute", "unwarranted"]):
-        primary_trap = "extreme_extrapolation"
-    else:
-        primary_trap = "none"
-
-    # Passage mode
-    passage_mode = (
-        "single_passage"
-        if section == "cars" or "passage" in p_lower
-        else (
-            "independent" if "discrete" in p_lower or "standalone" in p_lower else "single_passage"
-        )
-    )
-
-    # Extract clean topic snippet from prompt
-    clean_prompt = prompt.strip()
-    return {
-        "section": section,
-        "subject": subject,
-        "unit": topic,
-        "topic": topic,
-        "subtopic": subtopic,
-        "difficulty": difficulty,
-        "passage_mode": passage_mode,
-        "questions_to_generate": qty,
-        "visual_type": visual_type,
-        "primary_trap": primary_trap,
-        "additional_instructions": f"Focus: {clean_prompt}",
-    }
-
-
-async def parse_magic_setup(prompt: str) -> dict[str, Any]:
-    """Parses a natural language educator prompt into pre-filled wizard configuration."""
-    if not prompt or not prompt.strip():
-        return _heuristic_magic_setup("5 MCAT questions")
-
-    if config.OFFLINE_MODE:
-        return _heuristic_magic_setup(prompt)
-
-    system_prompt = (
-        "You are an expert MCAT platform coordinator. Convert the user's natural language request "
-        "into structured generator parameters matching official AAMC specifications.\n"
-        "Supported sections: 'bio_biochem', 'chem_phys', 'cars', 'psych_soc'.\n"
-        "Supported difficulties: 'low', 'medium', 'high'.\n"
-        "Supported visual_types: 'None', 'scientific_diagram', 'histopathology', 'gross_anatomy', "
-        "'cellular_microscopy', 'physiology_trace', 'diagnostic_radiology'.\n"
-        "Supported passage_modes: 'single_passage', 'independent'.\n"
-        "Return ONLY a JSON object."
-    )
-
-    user_prompt = (
-        f"User Request: {prompt}\n\n"
-        "Extract the following fields:\n"
-        "{\n"
-        '  "section": "bio_biochem" | "chem_phys" | "cars" | "psych_soc",\n'
-        '  "subject": string,\n'
-        '  "unit": string,\n'
-        '  "topic": string,\n'
-        '  "subtopic": string,\n'
-        '  "difficulty": "low" | "medium" | "high",\n'
-        '  "passage_mode": "single_passage" | "independent",\n'
-        '  "questions_to_generate": number (1-50),\n'
-        '  "visual_type": string,\n'
-        '  "primary_trap": string,\n'
-        '  "additional_instructions": string\n'
-        "}"
-    )
-
-    try:
-        raw, _ = await call_llm(
-            prompt=user_prompt,
-            system_prompt=system_prompt,
-            model=config.DEFAULT_TEXT_MODEL,
-            temperature=0.2,
-            max_tokens=2048,
-        )
-        data = safe_json_loads(raw)
-        if isinstance(data, dict) and "section" in data:
-            # Validate numeric bounds
-            if "questions_to_generate" in data:
-                data["questions_to_generate"] = max(1, min(50, int(data["questions_to_generate"])))
-            return data
-    except Exception as exc:
-        logger.warning(
-            "Magic setup LLM parsing failed (%s); falling back to heuristic parsing.", exc
-        )
-
-    return _heuristic_magic_setup(prompt)
-
-
-# ---------------------------------------------------------------------------
-# 2. Prompt Enhancer: Educator Notes -> AAMC Calibrated Mandate
+# 1. Prompt Enhancer: Educator Notes -> AAMC Calibrated Mandate
 # ---------------------------------------------------------------------------
 
 

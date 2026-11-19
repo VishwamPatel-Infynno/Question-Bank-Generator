@@ -503,7 +503,7 @@ async def test_openai_content_safety_retry_fallback():
         return original_client_cls(transport=transport)
 
     # Patch AsyncClient in image_generator
-    import unittest.mock as mock
+    from unittest import mock
 
     with mock.patch.object(img_module.httpx, "AsyncClient", side_effect=get_test_client):
         img_data, _cost = await call_openai_image_api(

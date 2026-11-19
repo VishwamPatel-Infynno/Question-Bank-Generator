@@ -762,7 +762,7 @@
   align-items: center;
   gap: 6px;
   color: var(--brand-primary);
-  border-color: rgba(99, 102, 241, 0.3);
+  border-color: var(--brand-indigo-border);
 }
 
 .passage-desk-expand-btn:hover {

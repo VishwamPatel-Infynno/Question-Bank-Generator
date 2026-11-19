@@ -111,13 +111,13 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
   const avgWordCount = passages.length > 0 ? Math.round(totalWordCount / passages.length) : 0;
   const hasActiveFilters = Boolean(searchQuery.trim() || sectionFilter);
 
-  const handleClearAllFilters = () => {
+  const handleClearAllFilters = useCallback(() => {
     setSearchQuery('');
     setSectionFilter('');
-  };
+  }, [setSearchQuery, setSectionFilter]);
 
   // Open Passage Editorial Desk
-  const handleSelectPassage = async (passage) => {
+  const handleSelectPassage = useCallback(async (passage) => {
     setIsLoadingDetail(true);
     setSelectedPassage(passage);
     try {
@@ -133,10 +133,10 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     } finally {
       setIsLoadingDetail(false);
     }
-  };
+  }, []);
 
   // Manual New Passage Creation
-  const handleCreateNewPassage = () => {
+  const handleCreateNewPassage = useCallback(() => {
     const newId = `passage-${makeId().slice(0, 8)}`;
     const blankPassage = {
       id: newId,
@@ -152,10 +152,10 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     };
     setSelectedPassage(blankPassage);
     setSelectedPassageQuestions([]);
-  };
+  }, [sectionFilter]);
 
   // Save Passage Handler
-  const handleSavePassage = async (updatedPassage) => {
+  const handleSavePassage = useCallback(async (updatedPassage) => {
     try {
       const res = await savePassage(updatedPassage);
       const saved = res.passage || updatedPassage;
@@ -183,10 +183,10 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
       });
       throw err;
     }
-  };
+  }, [performFetchPassages, onShowToast]);
 
   // Delete Passage Request (Opens Cascade Delete Modal)
-  const handleRequestDeletePassage = (passage) => {
+  const handleRequestDeletePassage = useCallback((passage) => {
     if (!passage) return;
     const qCount =
       selectedPassage && selectedPassage.id === passage.id
@@ -197,10 +197,10 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
       ...passage,
       question_count: qCount
     });
-  };
+  }, [selectedPassage, selectedPassageQuestions.length, questionCounts]);
 
   // Confirm Cascade Delete
-  const handleConfirmDeletePassage = async () => {
+  const handleConfirmDeletePassage = useCallback(async () => {
     if (!passageToDelete) return;
     setIsDeletingPassage(true);
     try {
@@ -241,10 +241,10 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     } finally {
       setIsDeletingPassage(false);
     }
-  };
+  }, [passageToDelete, selectedPassage, performFetchPassages, onRefreshCounts, onShowToast]);
 
   // Update a single linked question from editorial desk
-  const handleUpdateQuestion = async (updatedQuestion) => {
+  const handleUpdateQuestion = useCallback(async (updatedQuestion) => {
     try {
       await saveEditedQuestion(updatedQuestion);
 
@@ -266,7 +266,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
       });
       throw err; // lets the editor stay open with the user's changes
     }
-  };
+  }, [onShowToast]);
 
   return {
     // Data & state

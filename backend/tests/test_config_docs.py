@@ -55,7 +55,7 @@ def test_documented_defaults_match_the_code():
     doc = (ROOT / "docs" / "SETUP_AND_CONFIG.md").read_text()
     doc_defaults = {
         m.group(1): m.group(2)
-        for m in re.finditer(r"^\| `([A-Z0-9_]+)` \| `[^`]*`\s*\| `([^`]*)`", doc, re.M)
+        for m in re.finditer(r"^\| `([A-Z0-9_]+)` \| `[^`]*`\s*\| `([^`]*)`", doc, re.MULTILINE)
     }
     env = {}
     for line in (ROOT / ".env.example").read_text().splitlines():

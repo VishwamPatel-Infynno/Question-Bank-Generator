@@ -105,7 +105,7 @@ async def find_similar_questions(
     where_clause = " AND ".join(conditions)
 
     sql = text(f"""
-        SELECT 
+        SELECT
             id, section, subtopic, question_stem, correct_answer_id, explanation, final_score,
             (1.0 - (embedding <=> '{vec_str}'::vector)) AS similarity,
             options, review_rubric, primary_trap
@@ -190,13 +190,13 @@ async def hybrid_search_questions(
     where_clause = " AND ".join(conditions)
 
     sql = text(f"""
-        SELECT 
+        SELECT
             id, section, subtopic, question_stem, correct_answer_id, explanation, final_score,
             ts_rank_cd(
-                to_tsvector('english', 
-                    coalesce(question_stem, '') || ' ' || 
-                    coalesce(stimulus_text, '') || ' ' || 
-                    coalesce(subtopic, '') || ' ' || 
+                to_tsvector('english',
+                    coalesce(question_stem, '') || ' ' ||
+                    coalesce(stimulus_text, '') || ' ' ||
+                    coalesce(subtopic, '') || ' ' ||
                     coalesce(explanation, '')
                 ),
                 plainto_tsquery('english', :fts_query)
@@ -204,10 +204,10 @@ async def hybrid_search_questions(
             options, review_rubric, primary_trap
         FROM questions
         WHERE {where_clause}
-          AND to_tsvector('english', 
-                coalesce(question_stem, '') || ' ' || 
-                coalesce(stimulus_text, '') || ' ' || 
-                coalesce(subtopic, '') || ' ' || 
+          AND to_tsvector('english',
+                coalesce(question_stem, '') || ' ' ||
+                coalesce(stimulus_text, '') || ' ' ||
+                coalesce(subtopic, '') || ' ' ||
                 coalesce(explanation, '')
               ) @@ plainto_tsquery('english', :fts_query)
         ORDER BY fts_score DESC
@@ -409,8 +409,8 @@ async def backfill_question_embeddings(batch_size: int = 50) -> dict[str, int]:
                 vec = await embed_question(q_dict)
                 vec_str = "[" + ",".join(f"{x:.6f}" for x in vec) + "]"
                 update_sql = text(f"""
-                    UPDATE questions 
-                    SET embedding = '{vec_str}'::vector 
+                    UPDATE questions
+                    SET embedding = '{vec_str}'::vector
                     WHERE id = :qid;
                 """)
                 await session.execute(update_sql, {"qid": qid})

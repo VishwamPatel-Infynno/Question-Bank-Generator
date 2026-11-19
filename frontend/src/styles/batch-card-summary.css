@@ -530,7 +530,7 @@
 }
 
 .batch-job-count-text.shortfall {
-  color: var(--status-warning, #f59e0b);
+  color: var(--status-warning);
 }
 
 .batch-job-toggle-btn {

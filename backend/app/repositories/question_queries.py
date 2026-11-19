@@ -235,37 +235,44 @@ async def get_subtopic_reference_questions(
     Retrieves recent questions from the question bank matching the section and subtopic
     to serve as the collision reference pool for deduplication.
     """
-    async with async_session_factory() as session:
-        # Dedup only reads stems/options: skip the large JSONB audit blobs of every reference row
-        stmt = (
-            select(QuestionModel)
-            .options(*SLIM_DEFER)
-            .where(
-                active_question_clause(),
-                QuestionModel.status.in_(["in_bank", "ai_validated", "approved"]),
-            )
-        )
-        if section:
-            sec_val = enum_value(section)
-            stmt = stmt.where(
-                or_(
-                    QuestionModel.section == sec_val,
-                    QuestionModel.section_label.ilike(f"%{sec_val}%"),
+    try:
+        async with async_session_factory() as session:
+            # Dedup only reads stems/options: skip the large JSONB audit blobs of every reference row
+            stmt = (
+                select(QuestionModel)
+                .options(*SLIM_DEFER)
+                .where(
+                    active_question_clause(),
+                    QuestionModel.status.in_(["in_bank", "ai_validated", "approved"]),
                 )
             )
-        if subtopic and subtopic.strip():
-            sub_val = subtopic.strip()
-            stmt = stmt.where(
-                or_(
-                    QuestionModel.subtopic == sub_val,
-                    QuestionModel.subtopic.ilike(f"%{sub_val}%"),
+            if section:
+                sec_val = enum_value(section)
+                stmt = stmt.where(
+                    or_(
+                        QuestionModel.section == sec_val,
+                        QuestionModel.section_label.ilike(f"%{sec_val}%"),
+                    )
                 )
-            )
+            if subtopic and subtopic.strip():
+                sub_val = subtopic.strip()
+                stmt = stmt.where(
+                    or_(
+                        QuestionModel.subtopic == sub_val,
+                        QuestionModel.subtopic.ilike(f"%{sub_val}%"),
+                    )
+                )
 
-        stmt = stmt.order_by(QuestionModel.created_at.desc()).limit(limit)
-        result = await session.execute(stmt)
-        models = result.scalars().all()
-        return [model_to_schema(m, slim=True) for m in models]
+            stmt = stmt.order_by(QuestionModel.created_at.desc()).limit(limit)
+            result = await session.execute(stmt)
+            models = result.scalars().all()
+            return [model_to_schema(m, slim=True) for m in models]
+    except Exception as exc:
+        logger.warning(
+            "Database unavailable or query failed in get_subtopic_reference_questions (%s); returning empty pool.",
+            exc,
+        )
+        return []
 
 
 async def get_active_job_question_heads(batch_id: str, job_id: str) -> list[QuestionHead]:

@@ -8,7 +8,6 @@ from __future__ import annotations
 import app.workflow.node_finalize as nf
 import app.workflow.node_generator as ng
 import app.workflow.node_reviewer as nr
-import app.workflow.nodes as nodes
 import pytest
 from app.schemas import (
     GenerationRequest,
@@ -17,6 +16,7 @@ from app.schemas import (
     ReviewScore,
     TokenUsage,
 )
+from app.workflow import nodes
 from app.workflow.state import AgentWorkflowState
 
 

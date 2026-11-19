@@ -329,4 +329,5 @@ def _build_generator_user_prompt(
     return "\n\n".join(b for b in blocks if b)
 
 
+# Backward-compat alias: public canonical name and referenced by test_additional_instructions.py.
 build_generator_user_prompt = _build_generator_user_prompt

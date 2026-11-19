@@ -45,7 +45,7 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (509 deterministic unit & integration tests across 75 modules; 394 pass offline, 115 DB tests run cleanly with PostgreSQL; 519 total backend tests across 76 files including 10 live LLM E2E tests)
+# 1. Backend pytest suite (501 deterministic unit & integration tests across 74 modules; 394 pass offline, 107 DB tests run cleanly with PostgreSQL; 511 total backend tests across 75 files including 10 live LLM E2E tests)
 uv run pytest backend/tests -v
 # or using activated virtual environment:
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
@@ -59,7 +59,7 @@ pnpm --dir frontend lint
 
 # 4. Frontend production build (compiles cleanly via Vite 8)
 pnpm --dir frontend build
-pnpm --dir frontend run test        # Vitest unit tests (132 passed across 14 test files)
+pnpm --dir frontend run test        # Vitest unit tests (140 passed across 16 test files)
 pnpm run lint:all                   # ruff (backend) + oxlint (frontend)
 pnpm run test:all                   # pytest (backend) + Vitest (frontend)
 pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
@@ -101,7 +101,7 @@ pnpm --dir frontend run check:css   # fails on CSS classes nothing uses
     $$\text{domain\_index} = (\text{base\_index} + \text{attempt} - 1) \pmod 8$$
 19. **Hard LLM Slot Budget**: Every slot execution is constrained to `MAX_LLM_CALLS_PER_SLOT = 36` (3 attempts $\times$ 12 calls). Never exceed this budget or introduce infinite retry loops.
 20. **Modular Stylesheet Architecture**: Follow modular CSS conventions (`frontend/src/styles/`). Never place domain styles in `base.css` or `index.css`. All CSS classes must be used; run `pnpm check:css` to ensure zero unused or missing styles.
-21. **AI Copilot & Multi-Modal Ingestion Protocols**: AI Copilot endpoints (`/magic-setup`, `/enhance-instructions`, `/refine-question`, `/audit-passage`, `/study-guide`) and syllabus ingestion must follow strict JSON schemas, handle client disconnects gracefully, and validate inputs before invoking downstream LLMs.
+21. **AI Copilot In-Flight Protocols**: AI Copilot endpoints (`/enhance-instructions`, `/refine-question`, `/audit-passage`, `/study-guide`) must follow strict JSON schemas, handle client disconnects gracefully, and validate inputs before invoking downstream LLMs.
 
 ---
 

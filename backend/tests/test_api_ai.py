@@ -2,58 +2,11 @@
 Unit tests for AI Copilot API endpoints (/api/ai/*).
 """
 
-from unittest.mock import AsyncMock, patch
-
 from app.core.config import config
 from app.main import app
-from app.schemas.token import TokenUsage
 from fastapi.testclient import TestClient
 
 client = TestClient(app)
-
-
-def test_magic_setup_offline(monkeypatch):
-    monkeypatch.setattr(config, "OFFLINE_MODE", True)
-    payload = {
-        "prompt": "Create 10 hard passage questions on renal clearance with a physiology trace and calculation traps"
-    }
-    response = client.post("/api/ai/magic-setup", json=payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["section"] in ["bio_biochem", "chem_phys"]
-    assert data["difficulty"] == "high"
-    assert data["questions_to_generate"] == 10
-    assert data["visual_type"] == "physiology_trace"
-    assert data["primary_trap"] == "calculation_trap"
-
-
-def test_magic_setup_live_mock(monkeypatch):
-    monkeypatch.setattr(config, "OFFLINE_MODE", False)
-    payload = {"prompt": "5 CARS questions on art curation"}
-    mock_llm_json = """
-    {
-      "section": "cars",
-      "subject": "Humanities",
-      "unit": "Art History",
-      "topic": "Art Curation",
-      "subtopic": "Restitution Ethics",
-      "difficulty": "medium",
-      "passage_mode": "single_passage",
-      "questions_to_generate": 5,
-      "visual_type": "None",
-      "primary_trap": "out_of_scope",
-      "additional_instructions": "Focus on museum repatriation."
-    }
-    """
-    mock_usage = TokenUsage(prompt_tokens=40, completion_tokens=50, total_tokens=90)
-    with patch(
-        "app.services.ai_copilot.call_llm", new=AsyncMock(return_value=(mock_llm_json, mock_usage))
-    ):
-        response = client.post("/api/ai/magic-setup", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["section"] == "cars"
-        assert data["subtopic"] == "Restitution Ethics"
 
 
 def test_enhance_instructions_endpoint(monkeypatch):

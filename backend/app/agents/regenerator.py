@@ -194,7 +194,6 @@ Please re-generate and refine this question to resolve all weaknesses and produc
             temperature=config.REGENERATOR_TEMPERATURE,
             max_tokens=config.DEFAULT_MAX_TOKENS,
         )
-        return re_draft, usage
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         logger.warning(
@@ -207,3 +206,5 @@ Please re-generate and refine this question to resolve all weaknesses and produc
         if not is_passage_active:
             fallback_draft.stimulus_text = ""
         return fallback_draft, fallback_usage
+    else:
+        return re_draft, usage

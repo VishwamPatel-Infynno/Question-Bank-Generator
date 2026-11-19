@@ -69,12 +69,10 @@ In addition to question generation workflow runs, the platform tracks token usag
 
 | Operation | Typical Prompt Tokens | Typical Completion Tokens | Avg Cost (DeepInfra standard) | Description |
 | :--- | :---: | :---: | :---: | :--- |
-| **Magic Setup** (`/api/ai/magic-setup`) | ~300 | ~180 | **$0.000168** | Converts free-form prompt to wizard config |
 | **Enhance Instructions** (`/api/ai/enhance-instructions`) | ~450 | ~320 | **$0.000282** | Calibrates educator notes to AAMC mandate |
 | **Refine Question** (`/api/ai/refine-question`) | ~1,200 | ~750 | **$0.000690** | In-place editorial refinement (distractor polish, etc.) |
 | **Passage Audit** (`/api/ai/audit-passage`) | 0 (pure algorithmic) | 0 | **$0.000000** | Free local Flesch-Kincaid & sentence analysis |
 | **Study Guide Synthesis** (`/api/ai/study-guide`) | ~3,500 | ~1,600 | **$0.001660** | Synthesizes executive summary & flashcards |
-| **Syllabus Ingestion** (`/api/ai/ingest-syllabus`) | ~2,500 - 8,000 | ~800 | **$0.000980 - $0.002080** | Ingests PDF/TXT syllabus and proposes batches |
 | **Vector Embedding** (`text-embedding-3-small`) | ~350 / question | 0 | **$0.000007** | $0.02 / 1M tokens for pgvector 1536-dim vector |
 
 ---

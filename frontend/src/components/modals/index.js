@@ -5,4 +5,3 @@ export { default as ExportDataFormatPane } from './ExportDataFormatPane';
 export { default as StudyGuideExportPane } from './StudyGuideExportPane';
 export { default as DeletePassageModal } from './DeletePassageModal';
 export { default as ConfirmationModal } from './ConfirmationModal';
-export { default as SyllabusIngestionModal } from './SyllabusIngestionModal';

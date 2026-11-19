@@ -214,38 +214,41 @@ export function useBatchActivity({
   }, [autoRefresh, hasActiveBatches, loadBatches]);
 
   // Handle multi-batch expansion toggle
-  const handleToggleExpandBatch = async (batchId) => {
-    setExpandedBatchIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(batchId)) {
-        next.delete(batchId);
-      } else {
-        next.add(batchId);
-      }
-      return next;
-    });
+  const handleToggleExpandBatch = useCallback(
+    async (batchId) => {
+      setExpandedBatchIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(batchId)) {
+          next.delete(batchId);
+        } else {
+          next.add(batchId);
+        }
+        return next;
+      });
 
-    // Fetch batch detail if not yet cached or if in progress
-    if (!batchDetails[batchId] || batchDetails[batchId]?.batch?.status === BATCH_STATUS.IN_PROGRESS) {
-      setLoadingDetails((prev) => ({ ...prev, [batchId]: true }));
-      try {
-        const detail = await fetchBatchDetail(batchId);
-        setBatchDetails((prev) => ({ ...prev, [batchId]: detail }));
-      } catch (err) {
-        console.error('Failed to load batch detail:', err);
-      } finally {
-        setLoadingDetails((prev) => ({ ...prev, [batchId]: false }));
+      // Fetch batch detail if not yet cached or if in progress
+      if (!batchDetails[batchId] || batchDetails[batchId]?.batch?.status === BATCH_STATUS.IN_PROGRESS) {
+        setLoadingDetails((prev) => ({ ...prev, [batchId]: true }));
+        try {
+          const detail = await fetchBatchDetail(batchId);
+          setBatchDetails((prev) => ({ ...prev, [batchId]: detail }));
+        } catch (err) {
+          console.error('Failed to load batch detail:', err);
+        } finally {
+          setLoadingDetails((prev) => ({ ...prev, [batchId]: false }));
+        }
       }
-    }
-  };
+    },
+    [batchDetails]
+  );
 
   // Toggle individual job accordion
-  const handleToggleJob = (jobId) => {
+  const handleToggleJob = useCallback((jobId) => {
     setExpandedJobIds((prev) => ({
       ...prev,
       [jobId]: !prev[jobId]
     }));
-  };
+  }, []);
 
   const { filteredBatches, activeBatchesList, ...filters } = useBatchFilters(batches);
 

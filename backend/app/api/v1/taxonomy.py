@@ -42,7 +42,7 @@ def _build_rich_sections_payload():
                 for topic in unit.get("topics", []):
                     all_subtopics.extend(topic.get("subtopics", []))
 
-        subtopics = all_subtopics if all_subtopics else MCAT_SUBTOPICS.get(sec, [])
+        subtopics = all_subtopics or MCAT_SUBTOPICS.get(sec, [])
 
         sections_list.append(
             {

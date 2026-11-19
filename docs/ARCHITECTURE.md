@@ -63,19 +63,23 @@ The multi-agent workflow is architected with a decoupled, provider-agnostic infe
 
 Both engines strictly enforce model parameter constraints (`GENERATOR_TEMPERATURE = 0.5` for drafting variety, `PASSAGE_TEMPERATURE = 0.7`, `REGENERATOR_TEMPERATURE = 0.2`, `REVIEWER_TEMPERATURE = 0.1`, `BLIND_SOLVER_TEMPERATURE = 0.1`) and feed identical Pydantic transfer schemas into the workflow state.
 
-### 1.3 AI Copilot Studio & Ingestion Architecture
+### 1.3 Autonomous In-Flight AI Copilot Suite
 
-The application integrates an autonomous Copilot Studio (`app/services/ai_copilot.py`) and academic curriculum ingestion engine (`app/services/syllabus_ingestion.py`). Educators can either supply natural-language generation goals, paste syllabus outlines, or upload institution syllabi (PDF, TXT, MD) to automatically construct pedagogical batch proposals aligned with the AAMC MCAT taxonomy:
+The application integrates an autonomous, in-flight AI Copilot suite (`app/services/ai_copilot.py`) accessible across the authoring workflow and review surfaces. Educators can calibrate rough instructions into authoritative AAMC mandates, refine active question drafts (distractors, traps, mentor explanations), audit reading passages for readability and empirical density, and synthesize high-yield clinical study guides:
 
 ```mermaid
 flowchart TD
-    DocUpload[Syllabus Document Upload / Raw Text] --> FileExtract[Text Extraction Engine<br>pypdf Stream + Regex Fallback]
-    FileExtract --> ContextBound[Token Budget Boundary<br>Truncate to 30,000 chars]
-    ContextBound --> TaxonomyMap[AAMC Taxonomy Mapping Engine<br>mcat_dependent_taxonomy.json]
-    TaxonomyMap --> ConceptMatch[Concept & Subtopic Alignment<br>Foundational Concepts 1-10]
-    ConceptMatch --> ProposalGen[Curriculum Tree & Batch Proposal Generator]
-    ProposalGen --> BatchConfig[Pre-Populated Wizard Configuration<br>Thematic Angle + Skill Directives]
-    BatchConfig --> LaunchBatch[Execute 5-Question Blueprinted Batch]
+    UserRequest[Educator Input / Question Context] --> CopilotRouter{AI Copilot Operation}
+    CopilotRouter -->|/enhance-instructions| Enhance[AAMC Instruction Calibrator<br>SIRS Reasoning Directives]
+    CopilotRouter -->|/refine-question| Refine[Question Refinement Engine<br>Distractor & Trap Polish]
+    CopilotRouter -->|/audit-passage| Audit[Passage Readability & Data Auditor<br>Flesch-Kincaid & Empirical Density]
+    CopilotRouter -->|/study-guide| Guide[High-Yield Study Guide Synthesizer<br>Summaries & Drill Cards]
+    Enhance --> LLM[Inference Gateway<br>DeepSeek / Claude]
+    Refine --> LLM
+    Audit --> TextAnalysis[Deterministic Text Metrics<br>+ Pedagogical Heuristics]
+    Guide --> LLM
+    LLM --> FormattedResponse[Structured Pydantic JSON Payload]
+    TextAnalysis --> FormattedResponse
 ```
 
 ### 1.4 pgvector Semantic RAG & Anti-Collision Loop
@@ -694,34 +698,27 @@ stateDiagram-v2
 ### 5.5 AI Copilot Studio & In-Line Refinement (`app/services/ai_copilot.py`)
 
 The AI Copilot Studio provides specialized LLM intelligence services accessible directly from the question wizard, live review cards, and passage inspection modals:
-1. **Magic Setup Parser (`parse_magic_setup`)**:
-   - Accepts free-form educator prompts (e.g. *"I need 5 hard questions on renal acid-base balance and carbonic anhydrase inhibitors"*).
-   - Extracts MCAT section, subtopic, cognitive difficulty, AAMC skill, visual necessity, and custom authoring instructions.
-   - Emits structured JSON pre-populating Guided Wizard Steps 1-3.
-2. **Instruction Calibrator (`enhance_instructions`)**:
+1. **Instruction Calibrator (`enhance_instructions`)**:
    - Takes raw user notes or informal instructor guidance and transforms them into an authoritative AAMC prompt mandate with authentic clinical terminology, distractors, and calculation trap directives.
-3. **Question Draft Refinement (`refine_question`)**:
+2. **Question Draft Refinement (`refine_question`)**:
    - Powers the interactive `QuestionCopilotStrip` in the review workspace.
    - Executes 4 targeted editorial actions: `polish_distractor` (enhances plausibility and length parity), `simplify_explanation` (makes mentor proof more concise), `invert_sibling` (creates an inverse question targeting the opposite mechanism), and `custom` (free-form educator directives).
-4. **Passage Readability & Empirical Density Auditor (`audit_passage`)**:
+3. **Passage Readability & Empirical Density Auditor (`audit_passage`)**:
    - Calculates Flesch-Kincaid Reading Ease, Flesch-Kincaid Grade Level, average sentence length, paragraph counts, and experimental density (e.g. data tables, quantitative assays, hypothesis testing presence).
-5. **High-Yield Study Guide Synthesizer (`synthesize_study_guide`)**:
+4. **High-Yield Study Guide Synthesizer (`synthesize_study_guide`)**:
    - Aggregates an array of verified questions to synthesize an executive summary, a checklist of high-yield cognitive traps, and flashcard drill pairs formatted for study and export.
 
-### 5.6 Academic Curriculum & Syllabus Ingestion Pipeline (`app/services/syllabus_ingestion.py`)
+### 5.6 Streamlined Guided Wizard & Hero Landing Architecture (`GuidedWizard.jsx`, `HeroLanding.jsx`)
 
-The curriculum ingestion engine enables educators to upload institutional course documents and immediately generate custom question batches:
-1. **Multi-Format Document Extraction (`extract_text_from_file_bytes`)**:
-   - Reads PDF documents natively using `pypdf.PdfReader` with stream chunking.
-   - Supports plain text (`.txt`) and Markdown (`.md`) files with UTF-8 / Latin-1 decoding fallbacks.
-   - Enforces a strict $30,000$-character token budget cap to protect LLM context windows.
-2. **AAMC Taxonomy Mapping (`ingest_and_map_syllabus`)**:
-   - Analyzes syllabus text against [`backend/app/data/mcat_dependent_taxonomy.json`](../backend/app/data/mcat_dependent_taxonomy.json).
-   - Identifies matching Foundational Concepts (1-10) and subtopics with numerical confidence scoring ($0.0 - 1.0$).
-   - Recommends section classification, cognitive difficulty level, and a concise curriculum summary.
-3. **Automated Batch Blueprint Proposals**:
-   - Proposes structured 5-question generation batches with specific pedagogical thematic angles (e.g. *"Competitive vs. Uncompetitive Inhibition Kinetics"*).
-   - Formulates tailored authoring instructions ready to inject into the background batch runner.
+The generation entry point provides a high-velocity, deterministic authoring interface that eliminates friction while enforcing AAMC psychometric standards:
+1. **Accessible Hero Landing Canvas (`HeroLanding.jsx`)**:
+   - Primary welcome canvas offering two clear navigational choices: launching question authoring or browsing the verified question bank.
+   - 4 one-click AAMC section preset chips (**CP**, **CARS**, **BB**, **PS**) with pre-calibrated pacing, passage structure, and cognitive difficulty.
+   - Full WCAG AA keyboard accessibility with native semantic `<button>` elements, dynamic `aria-label` attributes, and decorative icon hiding via `aria-hidden="true"`.
+2. **3-Step Guided Wizard Dock (`GuidedWizard.jsx`)**:
+   - **Step 1 (Section & Focus)**: Section selection, pacing specifications, and deep AAMC taxonomy browsing across major units, topics, and subtopics.
+   - **Step 2 (Level & Format)**: Difficulty calibration (**Low**, **Medium**, **High**), format selection (Passage-Based vs. Independent), generation scope (**5 Questions** [Single Job] vs. **50 Questions** [10-Job Batch]), and clinical visual stimulus modalities.
+   - **Step 3 (Review & Launch)**: Compact parameter review summary table, collapsible advanced settings accordion, and custom authoring instructions textarea with live badge telemetry (`Custom Instructions Active`).
 
 ### 5.7 pgvector Semantic RAG & Anti-Collision Shield (`app/services/rag.py`)
 
@@ -1073,7 +1070,6 @@ frontend/src/
 │   │   ├── ExportPrintModal.jsx  # Exam Paper (PDF), Study Pack, CSV and JSON export modal
 │   │   ├── ExportScopeSelector.jsx # Export scope selection sub-pane (All in bank, validated, selected)
 │   │   ├── StudyGuideExportPane.jsx # High-yield study guide preview & synthesis pane
-│   │   ├── SyllabusIngestionModal.jsx # Academic syllabus document upload & taxonomy mapping modal
 │   │   └── index.js              # Modals barrel export
 │   ├── layout/                   # Global layout
 │   │   ├── Footer.jsx            # Infynno Solutions LLP attribution & resource footer
@@ -1112,7 +1108,7 @@ frontend/src/
 │   ├── index.js                  # Utilities barrel export
 │   ├── optionHelpers.js          # Option length parity & calculateOptionSymmetry engine
 │   └── trapHelpers.js            # Cognitive trap resolution & text detectors
-├── styles/                       # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print, syllabus-modal, study-guide-modal, question-copilot, stage-inspector)
+├── styles/                       # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print, study-guide-modal, question-copilot, stage-inspector)
 ├── index.css                     # Aggregator hub importing all domain stylesheets
 └── main.jsx                      # React 19 application root
 ```

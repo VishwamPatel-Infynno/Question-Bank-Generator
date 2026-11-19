@@ -125,74 +125,91 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     return filterQuestionsByText(validQuestions, debouncedSearch);
   }, [questions, debouncedSearch]);
 
-  const handleToggleSelect = (id) => setSelectedIds((prev) => toggleId(prev, id));
-  const handleSelectAll = () =>
-    setSelectedIds((prev) => toggleAll(prev, filteredQuestions.map((q) => q.id)));
+  const handleToggleSelect = useCallback((id) => {
+    setSelectedIds((prev) => toggleId(prev, id));
+  }, []);
 
-  const toast = (payload) => {
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => toggleAll(prev, filteredQuestions.map((q) => q.id)));
+  }, [filteredQuestions]);
+
+  const toast = useCallback((payload) => {
     if (onShowToast) onShowToast(payload);
-  };
-  const viewInBank = onNavigateToBank ? { label: 'View in Bank', onClick: onNavigateToBank } : undefined;
+  }, [onShowToast]);
+
+  const viewInBank = useMemo(
+    () => (onNavigateToBank ? { label: 'View in Bank', onClick: onNavigateToBank } : undefined),
+    [onNavigateToBank]
+  );
 
   /**
    * Runs one lifecycle action: calls the API, drops the affected questions from the list and the
    * selection, shows the toast, then reloads (the reload also refreshes the global counts).
    */
-  const runMutation = async ({ call, removeIds, successToast, errorTitle, afterSuccess }) => {
-    setActionInProgress(true);
-    try {
-      await call();
-      const gone = new Set(removeIds);
-      setQuestions((prev) => prev.filter((item) => !gone.has(item.id)));
-      setSelectedIds((prev) => prev.filter((id) => !gone.has(id)));
-      toast(successToast);
-      if (afterSuccess) afterSuccess();
-      loadData(true);
-    } catch (err) {
-      console.error(`${errorTitle}:`, err);
-      toast({ type: 'error', title: errorTitle, message: err.message || 'Error updating questions.' });
-    } finally {
-      setActionInProgress(false);
-    }
-  };
+  const runMutation = useCallback(
+    async ({ call, removeIds, successToast, errorTitle, afterSuccess }) => {
+      setActionInProgress(true);
+      try {
+        await call();
+        const gone = new Set(removeIds);
+        setQuestions((prev) => prev.filter((item) => !gone.has(item.id)));
+        setSelectedIds((prev) => prev.filter((id) => !gone.has(id)));
+        toast(successToast);
+        if (afterSuccess) afterSuccess();
+        loadData(true);
+      } catch (err) {
+        console.error(`${errorTitle}:`, err);
+        toast({ type: 'error', title: errorTitle, message: err.message || 'Error updating questions.' });
+      } finally {
+        setActionInProgress(false);
+      }
+    },
+    [toast, loadData]
+  );
 
-  const handleMoveToBankSingle = (q) =>
-    runMutation({
-      call: () => updateQuestionStatus(q.id, QUESTION_STATUS.IN_BANK),
-      removeIds: [q.id],
-      successToast: {
-        type: 'success',
-        title: 'Success - Question Saved to Bank',
-        message: 'Question is now available in your Question Bank.',
-        action: viewInBank
-      },
-      errorTitle: 'Action Failed'
-    });
+  const handleMoveToBankSingle = useCallback(
+    (q) =>
+      runMutation({
+        call: () => updateQuestionStatus(q.id, QUESTION_STATUS.IN_BANK),
+        removeIds: [q.id],
+        successToast: {
+          type: 'success',
+          title: 'Success - Question Saved to Bank',
+          message: 'Question is now available in your Question Bank.',
+          action: viewInBank
+        },
+        errorTitle: 'Action Failed'
+      }),
+    [runMutation, viewInBank]
+  );
 
-  const handleDiscardSingle = (q) =>
-    openConfirmModal({
-      title: 'Discard Question',
-      description:
-        'Are you sure you want to discard this question? It will be permanently removed from the system.',
-      confirmLabel: 'Discard Question',
-      variant: 'danger',
-      itemCount: 1,
-      itemLabel: 'question',
-      onConfirm: () =>
-        runMutation({
-          call: () => purgeQuestion(q.id),
-          removeIds: [q.id],
-          successToast: {
-            type: 'info',
-            title: 'Question Discarded',
-            message: 'Question has been permanently removed.'
-          },
-          errorTitle: 'Action Failed',
-          afterSuccess: closeConfirmModal
-        })
-    });
+  const handleDiscardSingle = useCallback(
+    (q) =>
+      openConfirmModal({
+        title: 'Discard Question',
+        description:
+          'Are you sure you want to discard this question? It will be permanently removed from the system.',
+        confirmLabel: 'Discard Question',
+        variant: 'danger',
+        itemCount: 1,
+        itemLabel: 'question',
+        onConfirm: () =>
+          runMutation({
+            call: () => purgeQuestion(q.id),
+            removeIds: [q.id],
+            successToast: {
+              type: 'info',
+              title: 'Question Discarded',
+              message: 'Question has been permanently removed.'
+            },
+            errorTitle: 'Action Failed',
+            afterSuccess: closeConfirmModal
+          })
+      }),
+    [openConfirmModal, runMutation, closeConfirmModal]
+  );
 
-  const handleBulkMoveToBank = () => {
+  const handleBulkMoveToBank = useCallback(() => {
     if (selectedIds.length === 0) return;
     const ids = [...selectedIds];
     return runMutation({
@@ -206,9 +223,9 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
       },
       errorTitle: 'Bulk Move Failed'
     });
-  };
+  }, [selectedIds, runMutation, viewInBank]);
 
-  const handleBulkDiscard = () => {
+  const handleBulkDiscard = useCallback(() => {
     if (selectedIds.length === 0) return;
     const ids = [...selectedIds];
     const count = ids.length;
@@ -232,9 +249,9 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
           afterSuccess: closeConfirmModal
         })
     });
-  };
+  }, [selectedIds, openConfirmModal, runMutation, closeConfirmModal]);
 
-  const handleApproveAllValidated = () => {
+  const handleApproveAllValidated = useCallback(() => {
     const allIds = filteredQuestions.map((q) => q.id);
     if (allIds.length === 0) return;
     const count = allIds.length;
@@ -260,11 +277,11 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
           afterSuccess: closeConfirmModal
         })
     });
-  };
+  }, [filteredQuestions, debouncedSearch, sectionFilter, openConfirmModal, runMutation, viewInBank, closeConfirmModal]);
 
-  const togglePassage = (id) => {
+  const togglePassage = useCallback((id) => {
     setExpandedPassageIds((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  }, []);
 
   const allFilteredSelected = allSelected(selectedIds, filteredQuestions.map((q) => q.id));
 

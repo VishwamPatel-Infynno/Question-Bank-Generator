@@ -207,14 +207,6 @@ export const deletePassage = (passageId) =>
 
 // ── AI Copilot API ──────────────────────────────────────────────────────────
 
-export const fetchMagicSetup = (prompt, signal = null) =>
-  request('/ai/magic-setup', {
-    method: 'POST',
-    body: { prompt },
-    signal,
-    context: 'Generate wizard setup from prompt'
-  });
-
 export const fetchEnhancedInstructions = (
   { instructions, section, topic = null, difficulty = null },
   signal = null
@@ -252,25 +244,6 @@ export const fetchStudyGuide = (questions, signal = null) =>
     signal,
     context: 'Synthesize high-yield study guide'
   });
-
-export const ingestSyllabusText = ({ content, title = null }, signal = null) =>
-  request('/ai/ingest-syllabus', {
-    method: 'POST',
-    body: { content, title },
-    signal,
-    context: 'Ingest syllabus text'
-  });
-
-export const ingestSyllabusFile = (file, signal = null) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  return request('/ai/ingest-syllabus-file', {
-    method: 'POST',
-    body: formData,
-    signal,
-    context: 'Ingest syllabus file'
-  });
-};
 
 // ── RAG & Semantic Search API ────────────────────────────────────────────────
 

@@ -18,8 +18,8 @@ graph TD
     end
 
     subgraph "Tier 2: Backend Pytest Engine"
-        UnitTests[509 Deterministic Unit & Integration Tests across 75 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests - 519 Total Backend Tests across 76 Files]
+        UnitTests[501 Deterministic Unit & Integration Tests across 74 Modules]
+        LiveE2E[10 Live LLM API E2E Integration Tests - 511 Total Backend Tests across 75 Files]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -41,9 +41,9 @@ graph TD
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms, zero debug artifacts | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (156 frontend files, 100% ruff compliance across 145 backend files; 0 TODO / 0 FIXME / 0 console.log) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **509 passing tests across 75 modules** (509 deterministic) (~33s) |
-| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **132 passing tests across 14 test files** (~500ms) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (519 total backend tests across 76 modules: 75 deterministic + 1 live E2E) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **501 passing tests across 74 modules** (501 deterministic) (~33s) |
+| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **140 passing tests across 16 test files** (~500ms) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (511 total backend tests across 75 modules: 74 deterministic + 1 live E2E) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 80$ points (`PASSING_SCORE_THRESHOLD`) |
 
@@ -63,7 +63,7 @@ backend/tests/
 ├── test_agents.py                    # Multi-agent worker nodes, heuristics, blind solver routing & quality gates
 ├── test_ai_native_planning.py        # Dynamic batch brainstorming, AI slot blueprinting, and passage claim extraction
 ├── test_anthropic.py                 # Multi-provider switching, Anthropic models, prompt cache pricing & API keys
-├── test_api_ai.py                    # AI Copilot endpoints: magic setup, prompt enhancement, question refinement & study guides
+├── test_api_ai.py                    # AI Copilot endpoints: prompt enhancement, question refinement & study guides
 ├── test_api_duplicates_passages_health.py # Duplicate detection, passage lifecycle, CORS and health endpoints
 ├── test_api_generation.py            # Batch generation, passage sets and visual stimuli through the API
 ├── test_api_hardening.py             # Admin auth, image safety MIME checks, rate limits & status validation
@@ -127,7 +127,6 @@ backend/tests/
 ├── test_sse_keepalive.py             # SSE keepalive comments during long LLM inferences
 ├── test_stream_emitter.py            # Workflow SSE queue draining, timeout polling & terminal event assembly
 ├── test_structured_output.py         # call_llm_validated repair retry and billing; strict JSON parsing
-├── test_syllabus_ingestion.py        # Document text extraction (PDF/TXT/MD) and AAMC taxonomy mapping
 ├── test_target_count_guarantee.py    # Dynamic job allocation, slot replenishment & target count guarantee
 ├── test_taxonomy_sync.py             # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
 ├── test_tokens.py                    # Sub-micro-cent token cost math ($0.20/$0.60 DeepInfra, Anthropic tiers)
@@ -141,15 +140,15 @@ backend/tests/
 
 #### Execution Modes Breakdown
 - **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the database-dependent tests, executing all algorithmic, schema, prompt builder, taxonomy sync, HTTP caching, Prometheus metrics, AI native planning, and token pricing unit tests in ~12 seconds.
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 509 deterministic unit and integration tests execute across all 75 modules in ~23-28 seconds (10 live tests deselected).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 501 deterministic unit and integration tests execute across all 74 modules in ~23-28 seconds (10 live tests deselected).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 519 total backend tests across 76 test files (509 deterministic across 75 test files + 10 live E2E in `test_e2e_live.py`).
+- **Total Suite**: 511 backend tests across 75 test files (501 deterministic across 74 test files + 10 live E2E in `test_e2e_live.py`).
 
 ```bash
 # 1. Activate backend virtual environment
 source .venv/bin/activate
 
-# 2. Run all deterministic unit and integration tests across 74 modules
+# 2. Run all deterministic unit and integration tests across 73 modules
 # Smart auto-skip: If PostgreSQL is offline on localhost:5432, 388 pure unit tests pass and 96 DB tests cleanly skip
 # conftest.py strips provider keys and enables OFFLINE_MODE, so no test ever calls a live LLM
 # (pyproject.toml sets the test path, PYTHONPATH and the "not live_e2e" marker)
@@ -179,7 +178,7 @@ PYTHONPATH=backend pytest backend/tests/test_api_questions.py -v
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
-### 2.3 Detailed Test Module Coverage (509 Deterministic Tests across 75 Modules / 519 Total Backend Tests)
+### 2.3 Detailed Test Module Coverage (501 Deterministic Tests across 74 Modules / 511 Total Backend Tests)
 
 1. **`test_additional_instructions.py` (3 tests)**:
    - `test_generation_request_additional_instructions`: Validates Pydantic serialization and round-trip payload persistence of educator instructions.
@@ -374,21 +373,19 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - Workflow SSE queue draining, timeout polling, terminal event assembly, error payload translation, and client-disconnect safety.
 67. **`test_ai_native_planning.py` (9 tests)**:
     - Dynamic batch thematic brainstorming (`brainstorm_batch_thematic_angles`), offline deterministic topic angles, live LLM brainstorming with fallback, slot claim and blueprint extraction, and batch worker request injection.
-68. **`test_api_ai.py` (6 tests)**:
-    - Dedicated AI Copilot endpoints: natural-language magic setup (`/magic-setup`), prompt enhancement (`/enhance-instructions`), question refinement (`/refine-question`), passage editorial audit (`/audit-passage`), and structured study guide synthesis (`/study-guide`).
+68. **`test_api_ai.py` (4 tests)**:
+    - Dedicated AI Copilot endpoints: prompt enhancement (`/enhance-instructions`), question refinement (`/refine-question`), passage editorial audit (`/audit-passage`), and structured study guide synthesis (`/study-guide`).
 69. **`test_dedup_decomposition.py` (5 tests)**:
     - CQRS & structural decomposition of the deduplication engine: exact symbol re-exports, object identity equality between facade and submodules (`dedup_metrics`, `dedup_clustering`), metric computation equivalence, and graph clustering equivalence.
 70. **`test_passage_set_blueprints_and_dedup.py` (6 tests)**:
     - Passage-set generation blueprints, set deduplication against passage and question corpora, pgvector RAG threshold constraints, and cross-question angle diversity.
 71. **`test_modular_cleanup.py` (3 tests)**:
     - Verifies modular decomposition architecture: `backend/app/data/thematic_angles.py` extraction with `batch_worker.py` re-export facade, `backend/app/services/csv_export.py` extraction with `api/v1/questions.py` re-export facade, and `backend/app/services/readability.py` extraction with `services/ai_copilot.py` re-export facade.
-72. **`test_syllabus_ingestion.py` (6 tests)**:
-    - AI-native syllabus and document ingestion: text extraction from PDF and plain text documents, deterministic keyword taxonomy matching for all 4 MCAT sections, confidence scoring, batch proposal synthesis, and REST file/text ingestion endpoints (`/api/ai/ingest-syllabus`, `/api/ai/ingest-syllabus-file`).
-73. **`test_schema_migrations_decomposition.py` (4 tests)**:
+72. **`test_schema_migrations_decomposition.py` (4 tests)**:
     - Verifies database migration decomposition into `backend/app/db/schema_migrations.py`: exact step count assertions (13 schema steps, 6 data steps), `init_db.py` facade symbol re-exports and identity parity, `_IdempotentConnection` DDL bypass filtering, and `_timestamptz_migration_sql()` generation.
-74. **`test_draft_parser.py` (11 tests)**:
+73. **`test_draft_parser.py` (11 tests)**:
     - Verifies decoupled Question Draft Parser & Cognitive Trap Extraction: 4-choice option parsing from standard lists, dictionary maps, prefixed strings, and candidate keys; correct answer key extraction and unknown key validation; cognitive trap classification across 20+ AAMC taxonomies; student mistake pattern extraction; and 100% identity parity re-exports in `app.agents.generator`.
-75. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
+74. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
     - Live end-to-end integration tests: health connectivity, cross-section syllabus hierarchy, live SSE streaming, PostgreSQL persistence, export serializers, strict quality gate rejection boundary, combination matrix validation, UUID4 contracts, and image serving endpoints.
 
 ### 2.4 Smart Offline Database Detection (`conftest.py`)
@@ -406,7 +403,7 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
 - All **388 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **509 deterministic tests across 75 modules** execute and pass automatically in ~23-28 seconds.
+- Once PostgreSQL is started (`docker compose up -d`), all **501 deterministic tests across 74 modules** execute and pass automatically in ~23-28 seconds.
 
 ---
 
@@ -469,7 +466,8 @@ ruff format .
 ### 4.2 Frontend Standards (Oxlint & Production Build)
 
 - **Target**: React 19 JSX & ES2022
-- **Scope**: 156 source files, 106 lint rules
+- **Scope**: 163 source files, 106 lint rules
+- **Automated Tests**: 140 passing unit/integration tests across 16 test files (100% pass rate via Vitest)
 - **Policy**: 0 errors, 0 warnings (0 TODO, 0 FIXME, 0 console.log occurrences across codebase)
 - **Production Build**: Clean compilation with Vite 8 (`pnpm build` in ~250ms)
 

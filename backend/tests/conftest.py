@@ -42,9 +42,10 @@ def is_postgres_available(timeout: float = 3.0) -> bool:
             )
             await conn.execute("SELECT 1;")
             await conn.close()
-            return True
         except Exception:
             return False
+        else:
+            return True
 
     try:
         return asyncio.run(_try_connect())

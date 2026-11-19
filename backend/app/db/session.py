@@ -42,13 +42,14 @@ async def init_db() -> bool:
             await conn.execute(text("SELECT 1;"))
         await init_db_schema(engine)
         logger.info("PostgreSQL database schema initialized successfully.")
-        return True
     except Exception as e:
         logger.warning(
             "PostgreSQL initialization deferred or unavailable (%s). Backend operating in offline / disconnected mode.",
             e,
         )
         return False
+    else:
+        return True
 
 
 async def check_db_health() -> dict[str, Any]:

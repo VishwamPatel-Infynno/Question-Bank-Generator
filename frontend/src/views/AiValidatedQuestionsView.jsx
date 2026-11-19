@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { CheckCircle2, Sparkles } from 'lucide-react';
 import { PaginationBar, LoadError, EmptyState } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
@@ -77,6 +78,9 @@ export default function AiValidatedQuestionsView({
     resetDeps: [debouncedSearch, sectionFilter]
   });
 
+  const handleRefresh = useCallback(() => loadData(false), [loadData]);
+  const handleCreateNewQuestions = useCallback(() => onNavigateToWizard?.(1), [onNavigateToWizard]);
+
   return (
     <div className="validated-questions-stack">
       {/* Header and Metrics */}
@@ -84,7 +88,7 @@ export default function AiValidatedQuestionsView({
         counts={counts}
         questionsCount={questions.length}
         refreshing={refreshing}
-        onRefresh={() => loadData(false)}
+        onRefresh={handleRefresh}
         onNavigateToBank={onNavigateToBank}
       />
 
@@ -115,7 +119,7 @@ export default function AiValidatedQuestionsView({
         <LoadError
           title="Could not load validated questions"
           message={loadError}
-          onRetry={() => loadData(false)}
+          onRetry={handleRefresh}
         />
       ) : filteredQuestions.length === 0 ? (
         <EmptyState
@@ -137,7 +141,7 @@ export default function AiValidatedQuestionsView({
             <button
               type="button"
               id="btn-validated-empty-create"
-              onClick={() => onNavigateToWizard(1)}
+              onClick={handleCreateNewQuestions}
               className="btn-primary"
             >
               <Sparkles size={14} />

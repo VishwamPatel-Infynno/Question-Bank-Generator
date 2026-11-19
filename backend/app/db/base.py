@@ -26,11 +26,10 @@ def to_datetime(val: Any) -> datetime:
     if isinstance(val, str) and val.strip():
         try:
             dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
-            if dt.tzinfo is None:
-                return dt.replace(tzinfo=UTC)
-            return dt
         except ValueError:
             pass
+        else:
+            return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt
     return datetime.now(UTC)
 
 

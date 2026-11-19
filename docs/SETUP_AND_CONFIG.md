@@ -207,12 +207,12 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 519-test backend verification suite across 75 modules (509 deterministic across 75 modules) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 511-test backend verification suite across 75 modules (501 deterministic across 74 modules) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 509 deterministic unit and integration tests across 75 modules
+# 1. Run all 501 deterministic unit and integration tests across 74 modules
 # Smart auto-skip: If PostgreSQL is offline on localhost:5432, 394 pure unit tests pass and 99 DB tests skip cleanly
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`

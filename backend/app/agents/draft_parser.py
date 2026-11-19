@@ -255,7 +255,8 @@ def parse_question_draft_data(data: dict[str, Any], req: GenerationRequest) -> Q
     )
 
 
-# Backward-compatibility aliases
+# Backward-compat aliases: public names that pre-decomposition callers and test suites import.
+# These are intentional and tested; do not remove without updating test_draft_parser.py.
 _parse_option_choices = parse_option_choices
 _parse_correct_keys = parse_correct_keys
 _detect_primary_trap = detect_primary_trap

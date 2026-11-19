@@ -18,8 +18,7 @@ The frontend provides an intuitive, real-time command canvas for AAMC MCAT quest
 - **Live Background Batch Activity & Telemetry**: Real-time batch and worker job monitoring dashboard displaying live progress, per-job question cards, duplicate audit clusters, and manual or automated in-place refills.
 - **AI-Validated Editorial Review Desk**: High-speed triage desk where educators inspect, inline-edit, discard, or approve validated questions into the canonical Question Bank.
 - **Question Quality & Cost Breakdown**: Comprehensive 100-point 4-pillar quality check with itemized token tracking and micro-dollar cost calculations.
-- **AI Copilot Studio (`QuestionCopilotStrip.jsx`)**: Real-time context-aware assistant strip anchored to the generation and review workspace, offering 5 in-flight cognitive tools: Magic Setup (`/magic-setup`), Prompt Enhancement (`/enhance-instructions`), Question Refinement (`/refine-question`), Passage Audit (`/audit-passage`), and High-Yield Study Guide Generation (`/study-guide`).
-- **Syllabus Ingestion Desk (`SyllabusIngestionModal.jsx`)**: Multi-modal curriculum parser allowing educators to upload `.pdf`, `.docx`, `.txt` course syllabi or paste raw text. Automatically classifies learning objectives into official AAMC foundational concepts, content categories, and subtopics, enabling instant 1-click batch generation.
+- **AI Copilot Studio (`QuestionCopilotStrip.jsx`)**: Real-time context-aware assistant strip anchored to the generation and review workspace, offering in-flight cognitive tools: Prompt Enhancement (`/enhance-instructions`), Question Refinement (`/refine-question`), Passage Audit (`/audit-passage`), and High-Yield Study Guide Generation (`/study-guide`).
 - **Comprehensive 6-Format Publication & Export Studio**: Decomposed modal architecture (`ExportPrintModal.jsx`, `ExportScopeSelector.jsx`, `ExportDataFormatPane.jsx`, `StudyGuideExportPane.jsx`) supporting Official Exam Booklet (Standard PDF), Exam Simulation Booklet (Split-Pane AAMC Layout PDF), Comprehensive Study Pack (Annotated Review PDF), Anki Flashcard Deck (TSV with Cloze / QA Tags), Standardized CSV, and Normalized JSON.
 - **Publication-Grade Medical & Scientific Visual Studio**: Dedicated figure renderer supporting all 7 clinical and experimental modalities (Radiology, Histopathology, Gross Anatomy, Cellular Electron Microscopy, Physiology/ECG Traces, Clinical Pathology, and SVG Vector Diagrams) with modality badging, autonomous AI visual discretion for standalone and passage questions ("Include Images When Needed"), high-contrast dark container rendering for radiographic clarity, and click-to-zoom accessible lightbox inspection (`VisualStimulusLightboxModal.jsx`).
 - **Enterprise Question Bank**: High-speed searchable, filterable repository with multi-format export, lifecycle status management, and copy-to-clipboard actions.
@@ -85,8 +84,7 @@ frontend/src/
 │   │   ├── ExportPrintModal.jsx  # 6-format Export Studio modal (Focus Trapped)
 │   │   ├── ExportScopeSelector.jsx# Decomposed export scope & filter selector
 │   │   ├── ExportDataFormatPane.jsx# Decomposed CSV / JSON / Anki TSV format configuration
-│   │   ├── StudyGuideExportPane.jsx# Decomposed study guide settings pane
-│   │   └── SyllabusIngestionModal.jsx # Multi-modal syllabus & curriculum ingestion modal
+│   │   └── StudyGuideExportPane.jsx# Decomposed study guide settings pane
 │   ├── passage/
 │   │   ├── index.js              # Passage bank barrel export
 │   │   ├── PassageBankFilters.jsx# Passage search, section, and difficulty filters
@@ -161,7 +159,7 @@ frontend/src/
 │   └── useTheme.js               # Dark/light mode persistence
 ├── services/
 │   ├── index.js                  # Services barrel export
-│   └── api.js                    # FastAPI client & SSE stream reader (32 methods: question CRUD/restore, pgvector search, AI Copilot, syllabus ingestion, batches, passages)
+│   └── api.js                    # FastAPI client & SSE stream reader (29 methods: question CRUD/restore, pgvector search, AI Copilot, batches, passages)
 ├── utils/
 │   ├── index.js                  # Utilities barrel export
 │   ├── batchHelpers.js           # Calculates current execution stage, badges, descriptions, and refill status for a batch
@@ -191,7 +189,6 @@ frontend/src/
 │   ├── question.css              # Master Question Card, Mentor explanation, Stimulus, Scorecard
 │   ├── question-copilot.css      # Floating AI Copilot strip styles
 │   ├── stage-inspector.css       # Pipeline stage inspector accordion styles
-│   ├── syllabus-modal.css        # Multi-modal syllabus ingestion modal styles
 │   ├── study-guide-modal.css     # Decomposed study guide export pane styles
 │   ├── batch.css                 # Batch base: concurrency gauge, progress pills
 │   ├── batch-activity.css        # Batch Activity Monitor styles
@@ -215,7 +212,7 @@ In the repository root or `frontend` directory, you can run:
 # Automatically runs 'predev' hook to clean ports 8000 and 5173
 pnpm dev
 
-# Run Vitest automated test suite (132 tests across 14 test files, 100% pass rate)
+# Run Vitest automated test suite (140 tests across 16 test files, 100% pass rate)
 pnpm test
 # or from root:
 pnpm run test:frontend
@@ -261,4 +258,4 @@ The frontend uses an enterprise precision design system. For exhaustive tokens, 
    - **0 TODO**, **0 FIXME**, and **0 `console.log`** statements in source code.
    - Canonical status constants (`QUESTION_STATUS.AI_VALIDATED`) instead of raw strings.
    - Unidirectional symmetric state pairs (`[rawSelectedIds, setRawSelectedIds]`).
-   - Zero lint errors or warnings via Oxlint (`0 warnings and 0 errors across 156 files`).
+   - Zero lint errors or warnings via Oxlint (`0 warnings and 0 errors across 163 files`).

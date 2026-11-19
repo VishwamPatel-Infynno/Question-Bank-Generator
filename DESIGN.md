@@ -30,7 +30,6 @@ The styling architecture is strictly modularized across domain-specific CSS file
 - `question.css`: QuestionCard, 3-card mentor explanation view, stimulus viewer container, scorecard.
 - `question-copilot.css`: Floating AI Copilot strip, tool popovers, streaming state chips.
 - `stage-inspector.css`: Deep 5-stage pipeline outcome JSON inspector accordion.
-- `syllabus-modal.css`: Multi-modal drag-and-drop syllabus upload zone and extracted taxonomy preview.
 - `study-guide-modal.css`: Decomposed study pack and high-yield takeaway options pane.
 - `batch.css`, `batch-activity.css`, `batch-card-summary.css`: Concurrency gauges, progress strips, batch cards.
 - `bank.css`: Canonical Question Bank editorial cards and AI-Validated review queue.
@@ -359,21 +358,30 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - Backdrop: `var(--bg-surface-elevated)` with hairline border `1px solid var(--border-medium)` and elevation shadow `var(--shadow-lg)`.
   - Border Radius: `var(--radius-full)` (`9999px`) for the floating pill capsule, with `var(--radius-sm)` (`8px`) on popover panels.
   - Accent Gradient: Active states glow with `var(--infynno-gradient)` and `var(--infynno-glow)`.
-- **5 Cognitive Tool Actions**:
-  - **Magic Setup (`/magic-setup`)**: Sparkles icon, analyzes educator notes to configure section, difficulty, and subtopics.
+- **4 Cognitive Tool Actions**:
   - **Prompt Enhancement (`/enhance-instructions`)**: Wand icon, expands rough prompts with authentic AAMC phrasing and distractor rules.
   - **Question Refinement (`/refine-question`)**: Edit icon, proposes targeted fixes for ambiguous wording or flawed distractors.
   - **Passage Audit (`/audit-passage`)**: Shield icon, checks stimulus length, vocabulary density, and scientific validity.
   - **Study Guide (`/study-guide`)**: BookOpen icon, compiles high-yield clinical takeaway sheets.
 - **Accessibility & Focus**: Implements full keyboard navigation (`Tab`, `Space`, `Enter`, `Escape` to close active tool popovers) and dynamic `aria-expanded` attributes.
 
-### 4.18 Syllabus & Curriculum Ingestion Desk (`SyllabusIngestionModal.jsx`, `syllabus-modal.css`)
-- **Component**: [`frontend/src/components/modals/SyllabusIngestionModal.jsx`](frontend/src/components/modals/SyllabusIngestionModal.jsx) allows educators to transform existing medical school curricula and pre-med course syllabi into AAMC-aligned question batches.
-- **Visual Design & Layout**:
-  - Dual Ingestion Modes: Tabbed switch between **File Upload** (drag-and-drop zone supporting `.pdf`, `.docx`, `.txt`) and **Direct Text Paste** (monospace textarea with live character counter).
-  - Drag-and-Drop Zone: Border `2px dashed var(--border-medium)`, background `var(--bg-surface-subtle)` transitioning to `rgba(51, 90, 207, 0.08)` on drag hover.
-  - Taxonomy Preview Card: Renders extracted foundational concepts, content categories, and matched subtopics in an interactive hierarchical tree.
-  - Batch Launch Action: Single-click trigger (`btn-primary` with `var(--infynno-gradient)`) creating 5-question or 50-question batch jobs directly from extracted units with pre-calibrated difficulty distribution.
+### 4.18 Hero Landing & Quick-Start Presets Desk (`HeroLanding.jsx`, `wizard.css`)
+- **Component**: [`frontend/src/components/wizard/HeroLanding.jsx`](frontend/src/components/wizard/HeroLanding.jsx) delivers the welcoming hero canvas that greets educators with immediate action pathways and calibrated AAMC presets.
+- **Visual Architecture & Design Tokens**:
+  - **Hero Container (`.hero-landing-container`)**: Centered layout with vertical rhythm, responsive padding, and subtle backdrop gradient.
+  - **Status Pill (`.hero-landing-badge-inline`)**: Anchors brand identity via `InfynnoLogo` and provides a clean interactive link to Infynno Solutions with `aria-label="Infynno Solutions (opens in a new tab)"`.
+  - **Headline Typography**: High-contrast heading (`.hero-title`) combining primary text with an electric brand gradient highlight (`var(--infynno-gradient)`).
+  - **Dual Primary Actions (`.hero-cta-group`)**:
+    - `btn-hero-start` ("Create Questions"): Primary gradient button using `var(--infynno-gradient)` with `var(--text-on-accent)` and trailing `<ArrowRight size={16} aria-hidden="true" />`.
+    - `btn-hero-open-bank` ("Question Bank"): Elevated secondary action button using `var(--bg-surface-elevated)` and border `var(--border-medium)` with leading `<Database size={15} aria-hidden="true" />`.
+  - **Section Presets Dock (`.hero-presets-strip`)**:
+    - Section presets for **Chemical and Physical (CP)**, **Critical Analysis (CARS)**, **Biological and Biochemical (BB)**, and **Psychological and Social (PS)**.
+    - Each preset is an interactive chip (`.hero-preset-chip`) styled with `var(--bg-surface-subtle)`, border `var(--border-subtle)`, and hover elevation.
+- **Accessibility & WCAG AA Conformance**:
+  - **Native Button Controls**: Every interactive preset and CTA is rendered as a native semantic `<button type="button">`.
+  - **Screen Reader Announcements**: Preset buttons carry explicit accessible labels (`aria-label={"Start with " + preset.label + " preset"}`).
+  - **Decorative Icon Hiding**: Lucide icons (`ArrowRight`, `Database`, and subject icons) are marked with `aria-hidden="true"` to prevent redundant auditory clutter.
+  - **Keyboard Focus Management**: Adheres to `var(--brand-ring)` focus styles on keyboard `Tab` navigation.
 
 ---
 

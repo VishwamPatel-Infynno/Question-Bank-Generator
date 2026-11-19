@@ -16,16 +16,16 @@ For deep-dive technical specifications, architecture diagrams, API schemas, and 
 | Document | Description |
 | :--- | :--- |
 | **[Central Documentation Hub (docs/README.md)](docs/README.md)** | **Master Documentation Index**: Complete sitemap, role-based navigation paths, architectural overview, and cross-functional guide directory. |
-| **[Client System & Workflow Guide (docs/CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md)](docs/CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md)** | **Primary Client Deliverable**: End-to-end operational walkthrough, 3-step wizard, 2 calibrated generation scopes (5 Questions [1 Job] and 50 Questions [10 Jobs]), Low/Medium/High difficulty tiers, AI Copilot Studio, Syllabus Ingestion Desk, pgvector Semantic RAG shield, 6-format Export Studio, Blind-Solver safeguard, Deduplication & Editorial Override workflow, AAMC Split-Pane reading mode, canonical Editorial Cards Question Bank, mentor explanations, and token transparency. |
-| **[UI/UX Design System (DESIGN.md)](DESIGN.md)** | Authoritative design tokens, dual obsidian/alabaster themes, streamlined 3-step wizard with decomposed summary/advanced drawers, decomposed QuestionCard components, `QuestionCopilotStrip`, `SyllabusIngestionModal`, decomposed Export Studio panes (`ExportScopeSelector`, `ExportDataFormatPane`, `StudyGuideExportPane`), modular stylesheets (`syllabus-modal.css`, `study-guide-modal.css`, `question-copilot.css`, `stage-inspector.css`), accessible modal focus-trapping contracts (`Modal`, `ConfirmationModal`, `DeletePassageModal`), live batch retry telemetry (`AUTO-RETRYING X/3`), typography scale, component contracts, accessibility criteria (WCAG AA), and micro-animations. |
-| **[Architecture & Multi-Agent Workflow](docs/ARCHITECTURE.md)** | Complete workflow diagrams, 3-step pipeline specifications, Blind-Solver Dual Validation, Deduplication & Anti-Collision Subsystem, AI Copilot Studio & Syllabus Ingestion pipelines, pgvector Semantic RAG & HNSW vector indexing (`VECTOR(1536)`), 5-Slot Cognitive Blueprints with replenishment rotation, hard 36-call slot budget, Strict Quality Gate, single-threshold 80/70 quality model, global worker semaphores, background batch runner with 3-trial retries, SSE pipeline, and PostgreSQL 16 ERD. |
-| **[REST & SSE API Reference](docs/API.md)** | Complete FastAPI endpoint documentation (51 endpoint operations across 45 unique paths including root `/metrics`), pgvector semantic search & RAG endpoints, deduplication, duplicate clustering, auto-resolve & refill endpoints, question restoration (`/restore`), permanent purges (`/permanent`, `/purge-batch`), batch generation schemas, 3-trial batch controls (`/stop`, `/retry`, `/cancel-all`), Prometheus `/metrics` exposition, AI Copilot suite (`/magic-setup`, `/enhance-instructions`, `/refine-question`, `/audit-passage`, `/study-guide`, `/ingest-syllabus`, `/ingest-syllabus-file`), SSE event stream contracts, filter parameters, and cURL examples. |
-| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 509 passing deterministic unit/integration tests across 75 modules (519 total backend tests across 76 files), 132 frontend unit tests across 14 test files, 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
+| **[Client System & Workflow Guide (docs/CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md)](docs/CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md)** | **Primary Client Deliverable**: End-to-end operational walkthrough, 3-step wizard, 2 calibrated generation scopes (5 Questions [1 Job] and 50 Questions [10 Jobs]), Low/Medium/High difficulty tiers, AI Copilot Studio, Hero Landing & Quick-Start Presets, pgvector Semantic RAG shield, 6-format Export Studio, Blind-Solver safeguard, Deduplication & Editorial Override workflow, AAMC Split-Pane reading mode, canonical Editorial Cards Question Bank, mentor explanations, and token transparency. |
+| **[UI/UX Design System (DESIGN.md)](DESIGN.md)** | Authoritative design tokens, dual obsidian/alabaster themes, streamlined 3-step wizard with decomposed summary/advanced drawers, decomposed QuestionCard components, `QuestionCopilotStrip`, `HeroLanding`, decomposed Export Studio panes (`ExportScopeSelector`, `ExportDataFormatPane`, `StudyGuideExportPane`), modular stylesheets (`study-guide-modal.css`, `question-copilot.css`, `stage-inspector.css`), accessible modal focus-trapping contracts (`Modal`, `ConfirmationModal`, `DeletePassageModal`), live batch retry telemetry (`AUTO-RETRYING X/3`), typography scale, component contracts, accessibility criteria (WCAG AA), and micro-animations. |
+| **[Architecture & Multi-Agent Workflow](docs/ARCHITECTURE.md)** | Complete workflow diagrams, 3-step pipeline specifications, Blind-Solver Dual Validation, Deduplication & Anti-Collision Subsystem, AI Copilot Studio & in-flight tooling, pgvector Semantic RAG & HNSW vector indexing (`VECTOR(1536)`), 5-Slot Cognitive Blueprints with replenishment rotation, hard 36-call slot budget, Strict Quality Gate, single-threshold 80/70 quality model, global worker semaphores, background batch runner with 3-trial retries, SSE pipeline, and PostgreSQL 16 ERD. |
+| **[REST & SSE API Reference](docs/API.md)** | Complete FastAPI endpoint documentation (48 endpoint operations across 42 unique paths including root `/metrics`), pgvector semantic search & RAG endpoints, deduplication, duplicate clustering, auto-resolve & refill endpoints, question restoration (`/restore`), permanent purges (`/permanent`, `/purge-batch`), batch generation schemas, 3-trial batch controls (`/stop`, `/retry`, `/cancel-all`), Prometheus `/metrics` exposition, AI Copilot suite (`/enhance-instructions`, `/refine-question`, `/audit-passage`, `/study-guide`), SSE event stream contracts, filter parameters, and cURL examples. |
+| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 501 passing deterministic unit/integration tests across 74 modules (511 total backend tests across 75 files), 140 frontend unit tests across 16 test files, 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
 | **[Token Usage & Cost Tracking](docs/TOKEN_TRACKING.md)** | Verified rate cards per model: DeepInfra DeepSeek ($0.20 in / $0.60 out per 1M tokens standard), Anthropic Claude Haiku 5.5 ($0.10 in / $0.50 out with tiers and prompt-cache rates), OpenAI gpt-4o-mini, text-embedding-3-small ($0.02 per 1M tokens), token-billed gpt-image-2.5-flare images, AI Copilot rate cards, hard 36-call slot budget, exact mathematical cost formulas, multi-agent accumulation, and UI observability. |
 | **[Installation, Setup & Deployment](docs/SETUP_AND_CONFIG.md)** | Step-by-step setup, Docker PostgreSQL 16 guide with `pgvector/pgvector:pg16`, environment variables reference (68 Settings fields), modern `uv` workflow, database duplicate cleanup (`pnpm run db:clean-duplicates`), predev port cleanup, production deployment, linters, and troubleshooting. |
 | **[MCAT Psychometric Rubric & Standards](docs/MCAT_RUBRIC.md)** | Official 4 AAMC sections standards, 100-point 4-pillar evaluation rubric (25 pts per pillar), First-Pass 100/100 Calibration Directive, 5-Slot Cognitive Blueprints for CARS and Science, domain and experimental condition rotation tables, Blind-Solver algorithmic verification, unified 80/70 quality thresholds, and cognitive distractor trap engineering. |
-| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `stream_emitter.py`, `slot_worker.py`, `engine_layout.py`, `review_loop.py`, `passage_prep.py`, `passage_blueprints.py`, `draft_parser.py`, `dedup_inflight.py`, `live_job_store.py`, `node_generator.py`, `node_reviewer.py`, `node_finalize.py`, `nodes.py`), AI Copilot & Syllabus Ingestion services, pgvector Semantic RAG, Blind-Solver agent, CQRS repositories (`question_queries.py`, `question_mutations.py`, `mappers.py`, `query_builders.py`), schema migrations (`schema_migrations.py`), 3-trial retry engine, testing (509 deterministic tests across 75 modules, 519 total backend tests across 76 files), and seeding scripts. |
-| **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directory (`wizard/`, `question/`, `copilot/`, `batch/`, `modals/`, `common/`), top-level views, modular stylesheets, 132 frontend unit tests across 14 test files, hooks, predev port cleaner, and local development instructions. |
+| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `stream_emitter.py`, `slot_worker.py`, `engine_layout.py`, `review_loop.py`, `passage_prep.py`, `passage_blueprints.py`, `draft_parser.py`, `dedup_inflight.py`, `live_job_store.py`, `node_generator.py`, `node_reviewer.py`, `node_finalize.py`, `nodes.py`), AI Copilot in-flight services, pgvector Semantic RAG, Blind-Solver agent, CQRS repositories (`question_queries.py`, `question_mutations.py`, `mappers.py`, `query_builders.py`), schema migrations (`schema_migrations.py`), 3-trial retry engine, testing (501 deterministic tests across 74 modules, 511 total backend tests across 75 files), and seeding scripts. |
+| **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directory (`wizard/`, `question/`, `copilot/`, `batch/`, `modals/`, `common/`), top-level views, modular stylesheets, 140 frontend unit tests across 16 test files, hooks, predev port cleaner, and local development instructions. |
 
 ---
 
@@ -109,17 +109,20 @@ graph LR
 - **Permanent Audit Trail & Protected Shield**: Educators can **"Override & Approve"** legitimate edge cases (`is_duplicate_override = true`, `overridden_at = ISO_TIMESTAMP`), rendering a distinct blue shield badge (`🛡️ Overridden`) across question cards and bank tables. Alternatively, educators can choose **"Regenerate Fresh Angle"** or **"Discard"**.
 
 ### 7. AI Copilot Studio & In-Flight Assistance (`QuestionCopilotStrip.jsx` / `ai_copilot.py`)
-- **Real-Time Educator Tooling**: Context-aware floating assistant strip providing 5 focused cognitive tools:
-  - **Magic Setup (`/magic-setup`)**: Automatically deduces target AAMC section, difficulty tier, subtopic, and passage constraints from rough educator notes.
+- **Real-Time Educator Tooling**: Context-aware floating assistant strip providing 4 focused cognitive tools:
   - **Prompt Enhancement (`/enhance-instructions`)**: Refines authoring prompts with explicit AAMC phrasing, SIRS reasoning verbs, and distractor constraints.
   - **Question Refinement (`/refine-question`)**: Proposes targeted fixes for ambiguous wording, key clarity, distractor symmetry, or cognitive trap calibration.
   - **Passage Audit (`/audit-passage`)**: Reviews stimulus length (500-600 words for CARS, 200-400 for Science), reading grade level, vocabulary density, and empirical data validity.
   - **Study Guide Generator (`/study-guide`)**: Synthesizes high-yield clinical takeaway sheets and active recall summaries from passage sets.
 
-### 8. Syllabus & Curriculum Ingestion Pipeline (`SyllabusIngestionModal.jsx` / `syllabus_ingestion.py`)
-- **Multi-Modal Document Parsing**: Accepts raw curriculum files (`.pdf`, `.docx`, `.txt`) or raw text paste.
-- **Autonomous Taxonomy Extraction**: Automatically maps course syllabi into standard AAMC foundational concepts, content categories, and subtopics.
-- **1-Click Generation Batch Creation**: Generates configured 5-question or 50-question batch jobs directly from extracted syllabus units with pre-calibrated difficulty distribution.
+### 8. Streamlined Hero Landing & Quick-Start Presets (`HeroLanding.jsx` / `wizard.css`)
+- **Clean Two-Action Canvas**: Focuses the educator on two clear primary pathways: **"Create Questions"** (launching the Guided Wizard) and **"Question Bank"** (navigating to the verified repository).
+- **Instant Section Quick-Start Presets**: 4 quick preset buttons configured with official AAMC parameters:
+  - **Chemical and Physical Foundations (CP)**: Pacing 95s, Passage-Based, High difficulty.
+  - **Critical Analysis and Reasoning Skills (CARS)**: Pacing 100s, Passage-Based, High difficulty.
+  - **Biological and Biochemical Foundations (BB)**: Pacing 95s, Passage-Based, High difficulty.
+  - **Psychological, Social, and Biological Foundations (PS)**: Pacing 95s, Passage-Based, Medium difficulty.
+- **Accessible WCAG AA Semantics**: Implemented with native semantic `<button>` controls, explicit `aria-label`s on brand link and preset chips (`aria-label={"Start with " + preset.label + " preset"}`), and decorative icons hidden via `aria-hidden="true"`.
 
 ### 9. pgvector Semantic RAG & Anti-Collision Shield (`rag.py`, `embeddings.py`, `dedup_clustering.py`)
 - **1536-Dimensional Neural Embeddings**: Generates real-time vector embeddings for questions and passages via OpenAI `text-embedding-3-small` stored in PostgreSQL `VECTOR(1536)`.
@@ -179,7 +182,7 @@ pnpm dev
 Run the full backend test suite covering schemas, routing logic, strict quality gates, SVG & FLUX synthesis, pgvector operations, and token calculations:
 
 ```bash
-# Run backend deterministic test suite (509 deterministic tests across 75 modules; 519 total backend tests across 76 files)
+# Run backend deterministic test suite (501 deterministic tests across 74 modules; 511 total backend tests across 75 files)
 # Smart auto-skip: If PostgreSQL is offline, 394 pure unit tests pass and 99 DB tests skip cleanly
 # conftest.py strips provider keys and enables OFFLINE_MODE: no test ever calls a live LLM
 source .venv/bin/activate
@@ -193,7 +196,7 @@ ruff format --check .
 Verify frontend code hygiene, unit tests, and production bundle:
 
 ```bash
-# Run frontend unit tests (132 passed across 14 test files)
+# Run frontend unit tests (140 passed across 16 test files)
 pnpm test:frontend
 
 # Run frontend linter (oxlint: 0 warnings, 0 errors)
@@ -229,9 +232,9 @@ Question Bank Generator/
 ├── docs/                        # Comprehensive Documentation Suite
 │   ├── README.md                # Master Documentation Index & role-based sitemap
 │   ├── ARCHITECTURE.md          # Multi-agent architecture, quality gate & Blind-Solver
-│   ├── API.md                   # Complete REST & SSE API specification (51 operations across 45 unique paths including root /metrics)
+│   ├── API.md                   # Complete REST & SSE API specification (48 operations across 42 unique paths including root /metrics)
 │   ├── CLIENT_SYSTEM_AND_WORKFLOW_GUIDE.md # Client system & operational workflow guide
-│   ├── TESTING_AND_QA.md        # Pytest test suite (509 deterministic tests across 75 modules; 519 total backend tests across 76 files) & TestSprite E2E specs
+│   ├── TESTING_AND_QA.md        # Pytest test suite (501 deterministic tests across 74 modules; 511 total backend tests across 75 files) & TestSprite E2E specs
 │   ├── TOKEN_TRACKING.md        # Dual-provider inference pricing & mathematical cost engine
 │   ├── SETUP_AND_CONFIG.md      # Installation, deployment (68 Settings fields) & FAQs
 │   └── MCAT_RUBRIC.md           # 100-point psychometric rubric & authoring standards
@@ -242,11 +245,11 @@ Question Bank Generator/
 │   ├── standard_prd.json        # Product requirements used to generate the scenarios
 │   └── testsprite_frontend_test_plan.json # Test plan definition
 ├── backend/
-│   ├── README.md                # Dedicated backend developer guide (75 deterministic modules / 509 tests; 519 total backend tests across 76 files)
+│   ├── README.md                # Dedicated backend developer guide (74 deterministic modules / 501 tests; 511 total backend tests across 75 files)
 │   ├── requirements.txt         # Runtime dependencies (requirements-dev.txt adds pytest, pytest-asyncio, pytest-cov, ruff)
 │   ├── scripts/
 │   │   └── seed_questions.py    # CLI database seeding script with authentic AAMC rubrics
-│   ├── tests/                   # 76 test modules (509 passing deterministic unit/integration tests; 10 live_e2e tests)
+│   ├── tests/                   # 75 test modules (501 passing deterministic unit/integration tests; 10 live_e2e tests)
 │   │   ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
 │   │   ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
 │   │   ├── test_additional_instructions.py     # Educator custom instructions and prompt builder integration
@@ -277,7 +280,7 @@ Question Bank Generator/
 │   │   ├── test_e2e_live.py                    # Live end-to-end integration tests (10 tests marked live_e2e)
 │   │   ├── test_engine_cleanup.py              # The workflow stream must not leak worker tasks when its consumer stops reading
 │   │   ├── test_engine_slices.py               # Unit tests for the pure, closure-free pieces sliced out of ``workflow.engine``
-│   │   ├── test_extractors.py                  # Syllabus extraction and multi-modal file parsing unit tests
+│   │   ├── test_extractors.py                  # Polymorphic question extractors (field, options, keys, answer text)
 │   │   ├── test_image_calls.py                 # Retry behaviour and response handling of the provider image calls (HTTP mocked)
 │   │   ├── test_in_flight_pool_and_dedup.py    # Regression tests for in-flight deduplication pool and batch finalization
 │   │   ├── test_index_migration.py             # The redundant single-column question indexes are dropped, covering composites stay
@@ -308,7 +311,6 @@ Question Bank Generator/
 │   │   ├── test_soft_delete_batch_integrity.py # Soft-delete batch cascade integrity tests
 │   │   ├── test_sse_keepalive.py               # SSE keep-alive comments while the engine is quiet
 │   │   ├── test_structured_output.py           # Model output is validated strictly, repaired once, and never silently defaulted
-│   │   ├── test_syllabus_ingestion.py          # Syllabus parsing, section classification & batch job generation
 │   │   ├── test_target_count_guarantee.py      # Dynamic job allocation, slot replenishment and target count guarantees
 │   │   ├── test_taxonomy_sync.py               # Byte-for-byte AAMC taxonomy synchronization between backend and frontend
 │   │   ├── test_tokens.py                      # Token cost accumulation across providers and config cascade
@@ -356,8 +358,7 @@ Question Bank Generator/
 │       │   ├── workflow.py      # GenerationRequest, ReviewScore, WorkflowEvent
 │       │   └── __init__.py
 │       ├── services/            # Background Worker Services & AI Pipelines
-│       │   ├── ai_copilot.py    # In-flight educator copilot tools (magic setup, refine, audit, study guide)
-│       │   ├── syllabus_ingestion.py # Raw syllabus & curriculum document parser
+│       │   ├── ai_copilot.py    # In-flight educator copilot tools (enhance instructions, refine, audit, study guide)
 │       │   ├── rag.py           # Semantic RAG retrieval & exemplar extraction
 │       │   ├── embeddings.py    # Real-time OpenAI text-embedding-3-small generation
 │       │   ├── dedup_clustering.py # Hierarchical duplicate clustering & cluster queries
@@ -407,7 +408,7 @@ Question Bank Generator/
 │       └── api/                 # Modular API Routers
 │           ├── router.py        # Central API v1 router aggregator
 │           └── v1/
-│               ├── ai_copilot.py# AI Copilot studio & syllabus ingestion endpoints
+│               ├── ai.py        # AI Copilot studio endpoints (prompt enhancement, refine, audit, study guide)
 │               ├── batches.py   # Batch execution runs & staged item retrieval
 │               ├── config.py    # Read-only engine configuration & model settings
 │               ├── generation.py# SSE streaming question generator endpoint
@@ -429,7 +430,7 @@ Question Bank Generator/
         ├── App.jsx              # Main application shell & router
         ├── main.jsx             # React 19 application entry point
         ├── index.css            # Precision Design System aggregator hub (imports styles/*)
-        ├── styles/              # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print, syllabus-modal, study-guide-modal, question-copilot, stage-inspector)
+        ├── styles/              # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print, study-guide-modal, question-copilot, stage-inspector)
         ├── views/               # Top-level screen views (Code-split with React.lazy)
         │   ├── index.js         # Centralized views index
         │   ├── AiValidatedQuestionsView.jsx # Dedicated AI Validated (>80) quality bank
@@ -488,7 +489,6 @@ Question Bank Generator/
         │   │   ├── ExportScopeSelector.jsx# Decomposed export scope & filter selector
         │   │   ├── ExportDataFormatPane.jsx# Decomposed CSV / JSON / Anki TSV format pane
         │   │   ├── StudyGuideExportPane.jsx# Decomposed study guide settings pane
-        │   │   ├── SyllabusIngestionModal.jsx # Multi-modal syllabus ingestion modal
         │   │   └── index.js
         │   ├── passage/         # Reading passage bank components
         │   │   ├── PassageBankFilters.jsx # Passage search & section filters

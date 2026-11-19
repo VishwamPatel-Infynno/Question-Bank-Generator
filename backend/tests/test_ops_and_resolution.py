@@ -20,7 +20,7 @@ def _q(job_id, score, qid=None):
 
 
 async def test_liveness_never_touches_the_database(client, monkeypatch):
-    import app.api.v1.health as health
+    from app.api.v1 import health
 
     async def boom():
         raise AssertionError("liveness must not query the database")

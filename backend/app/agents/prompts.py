@@ -153,7 +153,7 @@ Respond ONLY with a valid JSON object matching this exact structure:
 }"""
 
 REGENERATOR_SYSTEM_PROMPT = """You are a Master MCAT Remediation Specialist and Senior Test Developer.
-Your role is to take a candidate MCAT Multiple Choice Question that scored 90 or below during psychometric review, 
+Your role is to take a candidate MCAT Multiple Choice Question that scored 90 or below during psychometric review,
 and RE-GENERATE / POLISH it to overcome every identified weakness and achieve an AAMC score above 90.
 
 RULES FOR REGENERATION:

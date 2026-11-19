@@ -230,7 +230,6 @@ STANDARDS FOR AAMC MCAT PASSAGES:
             if not image_prompt:
                 image_prompt = f"Official AAMC MCAT scientific experimental diagram and data figure for {section_name} study on {topic}: {passage_text[:180]}"
 
-        return passage_text, usage, image_needed, image_prompt
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         logger.warning(
@@ -286,6 +285,8 @@ STANDARDS FOR AAMC MCAT PASSAGES:
             else None
         )
         return fallback_passage, fallback_usage, fallback_image_needed, fallback_image_prompt
+    else:
+        return passage_text, usage, image_needed, image_prompt
 
 
 def _offline_mock_draft(req: GenerationRequest) -> QuestionDraft:
@@ -316,7 +317,6 @@ async def generate_question(
             max_tokens=config.DEFAULT_MAX_TOKENS,
         )
         draft, _ = balance_and_shuffle_options(draft)
-        return draft, usage
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         logger.warning("Generator LLM not configured, using offline mock draft: %s", e)
@@ -325,6 +325,8 @@ async def generate_question(
         )
         mock_draft = _offline_mock_draft(req)
         return mock_draft, fallback_usage
+    else:
+        return draft, usage
 
 
 async def generate_question_with_self_critique(
@@ -378,7 +380,6 @@ async def generate_question_with_self_critique(
             except (ValueError, TypeError, KeyError, AttributeError) as parse_err:
                 logger.warning("Failed to parse self_critique object: %s", parse_err)
 
-        return draft, self_review, usage
     except LLMNotConfiguredError as e:
         require_offline_mode(e)
         logger.warning("Fused Generator LLM not configured, using offline mock draft: %s", e)
@@ -388,3 +389,5 @@ async def generate_question_with_self_critique(
         mock_draft = _offline_mock_draft(req)
         mock_review = evaluate_heuristically(mock_draft, req, 1)
         return mock_draft, mock_review, fallback_usage
+    else:
+        return draft, self_review, usage

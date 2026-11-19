@@ -4,7 +4,7 @@
 > **Prepared by**: Infynno Solutions LLP • Infinite Innovations • [infynno.com](https://infynno.com/)  
 > **Product**: Infynno MCAT Question Bank Generator v2.0  
 > **Target Audience**: Client Leadership, Product Stakeholders, Medical Admissions Educators, Pre-Med Faculty, and Test-Prep Authors  
-> **System Status**: Fully Implemented, Tested (509 Deterministic Backend Tests across 75 Modules, 519 Total Backend Tests + 132 Frontend Tests across 14 Test Files), and Production-Ready  
+> **System Status**: Fully Implemented, Tested (501 Deterministic Backend Tests across 74 Modules, 511 Total Backend Tests + 140 Frontend Tests across 16 Test Files), and Production-Ready  
 
 ---
 
@@ -25,7 +25,7 @@
    - 6.4 [Question Bank: Canonical Repository & Inline Editorial Desk](#64-question-bank-canonical-repository--inline-editorial-desk)
    - 6.5 [Passage Bank: Stimulus Curation & Cascading Management](#65-passage-bank-stimulus-curation--cascading-management)
    - 6.6 [AI Copilot Studio & In-Line Refinement](#66-ai-copilot-studio--in-line-refinement)
-   - 6.7 [Syllabus Ingestion & Curriculum Mapping Desk](#67-syllabus-ingestion--curriculum-mapping-desk)
+   - 6.7 [Hero Landing & Quick-Start Presets Desk](#67-hero-landing--quick-start-presets-desk)
 7. [Export & Study Studio (Anki, Exam Simulation PDF, Study Guide)](#7-export--study-studio)
 8. [Financial Telemetry & Micro-Dollar Cost Accounting](#8-financial-telemetry--micro-dollar-cost-accounting)
 9. [UI Design System, Ergonomics & Accessibility](#9-ui-design-system-ergonomics--accessibility)
@@ -368,19 +368,23 @@ The platform integrates an interactive AI Copilot Studio embedded directly into 
      - **Custom Instruction Drawer**: An expandable drawer allowing educators to enter custom editorial commands (e.g., *"Shift focus to Lineweaver-Burk y-intercept changes under competitive inhibition"*).
    - Generates an in-place preview with side-by-side diffing before the educator commits changes.
 
-2. **Copilot Setup Wizard Integration (`/api/ai/magic-setup` & `/api/ai/enhance-instructions`)**:
-   - **Magic Setup**: Educators can paste a raw prompt (*"Give me 5 hard questions on Michaelis-Menten kinetics and competitive inhibitors"*) to instantly auto-fill all 3 wizard steps.
-   - **Enhance Instructions**: Enhances informal instructor notes into an authentic AAMC prompt mandate with authentic clinical terminology and calculation trap directives.
+2. **Authoring Prompt Enhancement (`/api/ai/enhance-instructions`)**:
+   - **Enhance Instructions**: Enhances informal instructor notes into an authoritative AAMC prompt mandate with authentic clinical terminology, distractor constraints, and calculation trap directives directly inside the Guided Wizard Step 3.
 
 ---
 
-### 6.7 Syllabus Ingestion & Curriculum Mapping Desk
-A dedicated curriculum ingestion modal (`SyllabusIngestionModal.jsx`) that turns academic course materials into structured question sets:
+### 6.7 Hero Landing & Quick-Start Presets Desk
+The entry landing surface (`HeroLanding.jsx`) welcomes educators with an uncluttered command canvas, providing two clear primary pathways and instant 1-click AAMC section presets:
 
-- **Universal Document Ingestion**: Pre-med departments and professors can drag and drop course syllabi, lecture outlines, or exam review sheets in **PDF, TXT, or Markdown** format.
-- **Native Document Parsing**: Extracts plain text via server-side `pypdf` stream processing, enforcing a $30,000$-character token budget cap to protect LLM context windows.
-- **AAMC Taxonomy Mapping**: Automatically compares curriculum topics against the official AAMC MCAT taxonomy, matching them to Foundational Concepts (1-10) and subtopics with numerical confidence scoring.
-- **One-Click Batch Blueprint Launch**: Generates tailored 5-question batch proposals with customized pedagogical thematic angles and pre-populated authoring instructions ready to launch directly into the background batch runner.
+- **Dual Primary Actions**:
+  - **Create Questions**: Launches the streamlined 3-step Guided Wizard to configure custom sections, pacing, and focus.
+  - **Question Bank**: Navigates directly to the canonical repository of verified, high-scoring questions.
+- **Instant Section Quick-Start Presets**: 4 pre-calibrated preset chips allowing educators to bypass repetitive configuration:
+  - **Chemical and Physical Foundations (CP)**: Pacing 95s, Passage-Based, High difficulty.
+  - **Critical Analysis and Reasoning Skills (CARS)**: Pacing 100s, Passage-Based, High difficulty.
+  - **Biological and Biochemical Foundations (BB)**: Pacing 95s, Passage-Based, High difficulty.
+  - **Psychological, Social, and Biological Foundations (PS)**: Pacing 95s, Passage-Based, Medium difficulty.
+- **Enterprise Accessibility (WCAG AA)**: Built with native semantic `<button>` elements, explicit `aria-label`s on brand link and preset chips, and hidden decorative Lucide icons (`aria-hidden="true"`).
 
 ---
 
@@ -453,8 +457,8 @@ $$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\te
 ## 10. Technical Architecture, Security & Production Readiness
 
 ### Full-Stack Architecture Specifications
-- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (132 unit tests across 14 test files).
-- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (509 deterministic test suite across 75 modules; 519 total tests).
+- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (140 unit tests across 16 test files).
+- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (501 deterministic test suite across 74 modules; 511 total tests).
 - **Database**: PostgreSQL 16 with native JSONB columns for multi-stage payloads, rubrics, and token tracking; UUID4 primary keys; automated schema migrations on startup.
 - **Observability**: Prometheus `/metrics` endpoint exposing real-time worker pool occupancy, batch lifecycle states, and token expenditures.
 - **Security & Hygiene**:

@@ -4,7 +4,6 @@ import {
   fetchQuestions,
   updateQuestionStatus,
   deleteBatch,
-  fetchMagicSetup,
   fetchEnhancedInstructions,
   fetchRefinedQuestion,
   fetchPassageAudit,
@@ -60,17 +59,6 @@ describe('api request helper', () => {
     res.clone = () => res;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res));
     await expect(deleteBatch('b9')).rejects.toThrow('Delete batch b9 failed (HTTP 404): Batch not found');
-  });
-
-  it('fetchMagicSetup sends prompt to /api/ai/magic-setup', async () => {
-    const fetchMock = okJson({ section: 'bio_biochem', topic: 'Renal' });
-    vi.stubGlobal('fetch', fetchMock);
-    const result = await fetchMagicSetup('10 renal questions');
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('/api/ai/magic-setup');
-    expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body)).toEqual({ prompt: '10 renal questions' });
-    expect(result.section).toBe('bio_biochem');
   });
 
   it('fetchEnhancedInstructions sends payload to /api/ai/enhance-instructions', async () => {
