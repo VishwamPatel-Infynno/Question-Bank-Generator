@@ -106,4 +106,3 @@ async def endpoint_study_guide(req: StudyGuideRequest) -> dict[str, Any]:
     except Exception as exc:
         logger.error("Study guide synthesis failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to synthesize study guide.") from exc
-
