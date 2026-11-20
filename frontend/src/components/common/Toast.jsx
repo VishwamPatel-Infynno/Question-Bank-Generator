@@ -18,7 +18,10 @@ function ToastItem({ toast, onDismiss }) {
   const toastTypeClass = toast.type || 'info';
 
   return (
-    <div className={`toast-card ${toastTypeClass}`}>
+    <div
+      className={`toast-card ${toastTypeClass}`}
+      role={toast.type === 'error' ? 'alert' : undefined}
+    >
       <div className="toast-content-group">
         {icons[toast.type] || icons.info}
         <div>
@@ -62,11 +65,10 @@ function ToastItem({ toast, onDismiss }) {
 }
 
 export function ToastContainer({ toasts, onDismiss }) {
-  if (!toasts || toasts.length === 0) return null;
-
+  // The live region stays mounted even when empty so screen readers register it before toasts arrive
   return (
     <div className="toast-viewport" role="status" aria-live="polite">
-      {toasts.map((toast) => (
+      {(toasts || []).map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
     </div>

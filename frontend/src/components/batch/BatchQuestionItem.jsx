@@ -12,7 +12,8 @@ import VisualStimulusViewer from '../question/VisualStimulusViewer';
 import BatchQuestionPassageDrawer from './BatchQuestionPassageDrawer';
 import BatchQuestionOptionsList from './BatchQuestionOptionsList';
 import BatchQuestionActions from './BatchQuestionActions';
-import { hasQuestionImage, resolveQuestionStatus } from '../../utils';
+import { DuplicateRiskBadge } from '../duplicates';
+import { hasDuplicateAlert, hasQuestionImage, resolveQuestionStatus } from '../../utils';
 import { QUESTION_STATUS, SCORE_CUTOFFS } from '../../constants';
 
 /**
@@ -25,7 +26,9 @@ function BatchQuestionItem({
   onNavigateToValidated,
   onOpenAudit,
   onSaveToBank,
-  onRestoreQuestion
+  onRestoreQuestion,
+  onCompareDuplicate,
+  onOverrideDuplicate
 }) {
   const [isPassageExpanded, setIsPassageExpanded] = useState(false);
 
@@ -41,7 +44,7 @@ function BatchQuestionItem({
   const scoreTierClass = finalScore > SCORE_CUTOFFS.passingAbove ? 'high' : (finalScore >= SCORE_CUTOFFS.batchAtOrAbove ? 'mid' : 'low');
 
   return (
-    <div className={`batch-qitem ${isBelowThreshold ? 'below-threshold' : ''}`}>
+    <div className={`batch-qitem ${isBelowThreshold ? 'below-threshold' : ''} ${hasDuplicateAlert(question) ? 'dup-risk' : ''}`.trim()}>
       {/* Question Header: Number, Status badge, Score, Diagram pill */}
       <div className="batch-qitem-top-row">
         <div className="batch-qitem-top-left">
@@ -87,6 +90,8 @@ function BatchQuestionItem({
               )}
             </>
           )}
+
+          <DuplicateRiskBadge question={question} onClick={onCompareDuplicate} />
         </div>
 
         <div className="batch-qitem-top-right">
@@ -142,6 +147,8 @@ function BatchQuestionItem({
         onOpenAudit={onOpenAudit}
         onSaveToBank={onSaveToBank}
         onRestoreQuestion={onRestoreQuestion}
+        onCompareDuplicate={onCompareDuplicate}
+        onOverrideDuplicate={onOverrideDuplicate}
       />
     </div>
   );

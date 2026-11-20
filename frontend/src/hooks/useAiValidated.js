@@ -9,10 +9,11 @@ import {
 } from '../services';
 import { useConfirmModal } from './useConfirmModal';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { useDuplicateOverride } from './useDuplicateOverride';
 import { useRequestGuard } from './useRequestGuard';
 import { useDebouncedValue } from './useDebouncedValue';
 import { QUESTION_STATUS, SCORE_CUTOFFS } from '../constants';
-import { allSelected, filterQuestionsByText, toggleAll, toggleId } from '../utils';
+import { allSelected, filterQuestionsByText, getDuplicateState, toggleAll, toggleId } from '../utils';
 
 /**
  * Custom hook encapsulating AI Validated questions state, search debouncing,
@@ -46,11 +47,6 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
   const [sectionFilter, setSectionFilter] = useState('');
   const [expandedPassageIds, setExpandedPassageIds] = useState({});
   const searchInputRef = useRef(null);
-
-  // Focus search on '/'
-  useKeyboardShortcuts({
-    onFocusSearch: () => searchInputRef.current?.focus()
-  });
 
   // Multi-selection state
   const [selectedIds, setSelectedIds] = useState([]);
@@ -145,6 +141,23 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     return filterQuestionsByText(validQuestions, debouncedSearch);
   }, [questions, debouncedSearch]);
 
+  // Active card for the A (approve) and D (discard) shortcuts. It falls back to the first visible
+  // card whenever the stored one is gone (filtered out, paged away or removed).
+  const [activeIdState, setActiveId] = useState(null);
+  const activeId = filteredQuestions.some((q) => q.id === activeIdState)
+    ? activeIdState
+    : (filteredQuestions[0]?.id ?? null);
+  const activeQuestion = useMemo(
+    () => filteredQuestions.find((q) => q.id === activeId) || null,
+    [filteredQuestions, activeId]
+  );
+  const visibleRef = useRef({ list: filteredQuestions, activeId });
+  useEffect(() => {
+    visibleRef.current = { list: filteredQuestions, activeId };
+  }, [filteredQuestions, activeId]);
+
+  const handleActivate = useCallback((id) => setActiveId(id), []);
+
   const handleToggleSelect = useCallback((id) => {
     setSelectedIds((prev) => toggleId(prev, id));
   }, []);
@@ -172,9 +185,17 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
       try {
         await call();
         const gone = new Set(removeIds);
+        // When the active card goes away, move the highlight to the next remaining one
+        const { list, activeId: currentActive } = visibleRef.current;
+        if (currentActive && gone.has(currentActive)) {
+          const at = list.findIndex((item) => item.id === currentActive);
+          const remaining = list.filter((item) => !gone.has(item.id));
+          const next = list.slice(at + 1).find((item) => !gone.has(item.id)) || remaining[remaining.length - 1];
+          setActiveId(next ? next.id : null);
+        }
         setQuestions((prev) => prev.filter((item) => !gone.has(item.id)));
         setSelectedIds((prev) => prev.filter((id) => !gone.has(id)));
-        toast(successToast);
+        if (successToast) toast(successToast);
         if (afterSuccess) afterSuccess();
         loadData(true);
       } catch (err) {
@@ -299,6 +320,51 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     });
   }, [filteredQuestions, debouncedSearch, sectionFilter, openConfirmModal, runMutation, viewInBank, closeConfirmModal]);
 
+  // Duplicate compare dialog and "Override and approve". The hook shows the toast; an overridden
+  // question leaves the review queue unless the API says it is still waiting for review.
+  const {
+    compareQuestion,
+    isOverriding,
+    openCompare,
+    closeCompare,
+    handleOverride
+  } = useDuplicateOverride({
+    onShowToast,
+    onUpdated: (saved) =>
+      saved.status === QUESTION_STATUS.AI_VALIDATED
+        ? setQuestions((prev) => prev.map((item) => (item.id === saved.id ? { ...item, ...saved } : item)))
+        : runMutation({
+            call: async () => {},
+            removeIds: [saved.id],
+            successToast: null,
+            errorTitle: 'Action Failed'
+          })
+  });
+
+  // Keyboard: '/' focuses search, A approves and D discards the active card
+  const handleShortcutApprove = useCallback(() => {
+    if (!activeQuestion || actionInProgress) return;
+    // A hard duplicate must be looked at first: open the comparison instead of approving
+    if (getDuplicateState(activeQuestion).level === 'high') {
+      openCompare(activeQuestion);
+      return;
+    }
+    handleMoveToBankSingle(activeQuestion);
+  }, [activeQuestion, actionInProgress, openCompare, handleMoveToBankSingle]);
+
+  const handleShortcutDiscard = useCallback(() => {
+    if (!activeQuestion || actionInProgress) return;
+    handleDiscardSingle(activeQuestion);
+  }, [activeQuestion, actionInProgress, handleDiscardSingle]);
+
+  const handleFocusSearch = useCallback(() => searchInputRef.current?.focus(), []);
+
+  useKeyboardShortcuts({
+    onFocusSearch: handleFocusSearch,
+    onApprove: handleShortcutApprove,
+    onDelete: handleShortcutDiscard
+  });
+
   const togglePassage = useCallback((id) => {
     setExpandedPassageIds((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
@@ -333,6 +399,9 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     allFilteredSelected,
     handleToggleSelect,
     handleSelectAll,
+    // Active card (keyboard shortcuts)
+    activeId,
+    handleActivate,
     // Accordion
     expandedPassageIds,
     togglePassage,
@@ -342,6 +411,12 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     handleBulkMoveToBank,
     handleBulkDiscard,
     handleApproveAllValidated,
+    // Duplicate compare and override
+    compareQuestion,
+    isOverriding,
+    openCompare,
+    closeCompare,
+    handleOverride,
     // Modal
     confirmModal,
     closeConfirmModal

@@ -182,7 +182,7 @@ The system enforces a strict psychometric quality evaluation framework governed 
    - Items scoring $> 80$ on the 100-point rubric (`config.passes_quality_gate`, strictly greater) qualify for the **AI Validated Questions** workspace (`status = 'ai_validated'`, after their batch completes) and, once an educator approves them, admission into the **Question Bank** (`status = 'in_bank'`).
 2. **Good Quality (`70 <= score <= 80`)**:
    - Automatically derived via `config.BATCH_PASSING_SCORE_THRESHOLD = PASSING_SCORE_THRESHOLD - 10 = 70`.
-   - Items scoring between 70 and 80 remain safely in `batch_only` status within active or completed batches as solid, high-yield practice items (`determine_question_status` treats 70 as inclusive; the unused helper `config.passes_batch_quality_gate` is strictly `> 70`, a minor code inconsistency).
+   - Items scoring between 70 and 80 remain safely in `batch_only` status within active or completed batches as solid, high-yield practice items (`determine_question_status` treats 70 as inclusive).
 3. **Needs Polish (`score < 70`)**:
    - A persisted score below 70 maps to `below_threshold`. In the live pipeline a draft below 70 is remediated while iterations remain, and at iteration 3 it is rejected (`reject`), not saved.
 

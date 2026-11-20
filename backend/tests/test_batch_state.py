@@ -199,3 +199,27 @@ async def test_duplicate_override_keeps_batch_only_questions_out_of_the_bank():
 async def test_deleting_an_unknown_question_is_a_404(client):
     res = await client.delete(f"/api/questions/{uuid.uuid4()}")
     assert res.status_code == 404
+
+
+@requires_db
+async def test_passive_refresh_does_not_reopen_a_completed_batch():
+    batch_id, _ = await _batch_with_job("completed", 5, batch_status="completed")
+    batch = await refresh_batch_aggregates(batch_id)  # default allow_complete=False
+    assert batch.status == "completed"
+
+
+def test_next_batch_status_keeps_finished_batches_without_live_jobs():
+    from app.repositories.batch_repository import _next_batch_status
+
+    counts = {
+        "completed_jobs": 1,
+        "failed_jobs": 0,
+        "active_jobs": 0,
+        "actual_count": 5,
+        "target_count": 5,
+        "total_jobs": 1,
+    }
+    assert _next_batch_status("completed", allow_complete=False, **counts) == "completed"
+    # A running job still moves a batch (a relaunch sets in_progress first anyway)
+    live = {**counts, "active_jobs": 1}
+    assert _next_batch_status("in_progress", allow_complete=False, **live) == "in_progress"

@@ -25,8 +25,8 @@ The backend runs an ASGI middleware stack that governs network optimization and 
 | :--- | :--- | :--- |
 | **`GZipMiddleware`** | Bandwidth optimization | Automatically applies GZip compression (`Content-Encoding: gzip`) to JSON and CSV payloads $\ge 1\text{ KB}$ when requested via `Accept-Encoding: gzip` (yielding 70–85% size reductions on `/api/export`, bulk `/api/questions`, and batch details). Small responses ($<1\text{ KB}$) and Server-Sent Events (`text/event-stream` at `/api/generate`) bypass compression. |
 | **`SecurityHeadersMiddleware`** | OWASP Security Headers | Automatically injects `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: geolocation=(), camera=(), microphone=()`. |
-| **`RequestContextMiddleware`** | Traceability & Ingestion Caps | Extracts or assigns an `X-Request-ID` bound to all server logs and echoed back on responses; rejects requests whose declared `Content-Length` exceeds `MAX_REQUEST_BODY_MB` with HTTP 413 (`{"detail": "Request body exceeds N MB.", "code": "payload_too_large"}`). |
-| **`TelemetryMiddleware`** | Observability | Records request latency histograms and HTTP status counters exposed at `/metrics`. |
+| **`RequestContextMiddleware`** | Traceability & Ingestion Caps | Extracts or assigns an `X-Request-ID` bound to all server logs and echoed back on responses; rejects requests whose declared `Content-Length` exceeds `MAX_REQUEST_BODY_MB` with HTTP 413, and also counts bytes as they stream in so chunked bodies without a `Content-Length` are cut off at the same limit (`{"detail": "Request body exceeds N MB.", "code": "payload_too_large"}`). |
+| **`TelemetryMiddleware`** | Observability | Records request latency histograms and HTTP status counters exposed at `/metrics`. The `endpoint` label is the matched route template (for example `/api/batches/{batch_id}`) or `unmatched`; methods outside the standard set are recorded as `OTHER`; label values are escaped. |
 
 ---
 
@@ -34,30 +34,42 @@ The backend runs an ASGI middleware stack that governs network optimization and 
 
 ### Shared-secret gate (`API_ACCESS_KEY`)
 - When the server sets `API_ACCESS_KEY`, every mutating request (`POST`, `PUT`, `PATCH`, `DELETE`) under `/api` must send the same value in the `X-API-Key` header (constant-time comparison). A missing or wrong key returns `401` with `{"detail": "A valid X-API-Key header is required for this operation."}`.
-- `GET` requests are never gated. `POST /api/questions/check-duplicate` is exempt (read-only check). `GET /metrics` (root) is outside `/api` and is not gated by this key.
+- `GET` requests are never gated. `POST /api/questions/check-duplicate` is exempt from the key (read-only check) but is rate limited in its own bucket (see below). `GET /metrics` (root) is outside `/api` and is not gated by this key.
+- Behind the bundled Docker `web` proxy, nginx injects `X-API-Key` itself from its `API_ACCESS_KEY` environment variable, so browsers do not need to send it, and anyone who can reach the web port can call the mutating API. Direct clients (curl, scripts, the local Vite dev server) still send the header themselves.
 - With `API_ACCESS_KEY` empty (the default) all routes are open. This is a shared secret for deployments behind a gateway, not per-user authentication. The SSE `POST /api/generate` call must send the header too.
 
 ### Admin diagnostics (`x-admin-key`)
 - `ADMIN_API_KEY` defaults to empty. With no key configured nobody is treated as admin, so `GET /api/config` and `GET /api/health` always return the masked payload (see 3.33 and 3.34). With a key configured, an `x-admin-key` header that matches it (constant-time) unlocks the full payload.
-- `GET /metrics` and `GET /api/metrics` are public by default. When `ADMIN_API_KEY` is set and the caller sends an `x-admin-key` or `Authorization` header that does not match it, the endpoint returns `403` (`{"detail": "Invalid admin credentials for metrics."}`). Callers that send neither header are still served.
+- `GET /metrics` and `GET /api/metrics` are open while `ADMIN_API_KEY` is unset. Once it is set, a request without a matching `x-admin-key` header returns `403` (`{"detail": "A valid x-admin-key is required for metrics."}`), so scrapers must send that header.
 
 ### Rate limits and concurrency caps (cost guards)
 | Guard | Applies to | Setting | Failure |
 | :--- | :--- | :--- | :--- |
-| Per-client sliding window (60 s, keyed by client IP) | `POST /api/generate`, `POST /api/batches/start`, `POST /api/batches/{batch_id}/retry`, `POST /api/batches/{batch_id}/refill`, `POST /api/ai/enhance-instructions`, `POST /api/ai/refine-question`, `POST /api/ai/study-guide` | `GENERATION_RATE_LIMIT_PER_MINUTE` (default `30`, `0` disables) | `429` `{"detail": "Too many generation requests. Please slow down."}` with a `Retry-After` header (seconds) |
+| Per-client sliding window (60 s, keyed by the transport peer address; IPv6 clients grouped by /64; `X-Forwarded-For` is honored only through Uvicorn's `FORWARDED_ALLOW_IPS`) | `POST /api/generate`, `POST /api/batches/start`, `POST /api/batches/{batch_id}/retry`, `POST /api/batches/{batch_id}/refill`, `POST /api/ai/enhance-instructions`, `POST /api/ai/refine-question`, `POST /api/ai/study-guide` | `GENERATION_RATE_LIMIT_PER_MINUTE` (default `30`, `0` disables) | `429` `{"detail": "Too many generation requests. Please slow down."}` with a `Retry-After` header (seconds) |
 | Active batch cap | `POST /api/batches/start`, `POST /api/batches/{batch_id}/retry`, `POST /api/batches/{batch_id}/refill` | `MAX_ACTIVE_BATCHES` (default `5`, `0` disables) | `429` `{"detail": "N batches are already running. Wait for one to finish or stop one."}` (no `Retry-After`) |
 
-`POST /api/ai/audit-passage` is not rate limited (it makes no LLM call).
+`POST /api/questions/check-duplicate` also counts against `GENERATION_RATE_LIMIT_PER_MINUTE` but in its own bucket, so duplicate checks never consume the generation allowance; it still needs no `X-API-Key`. `POST /api/ai/audit-passage` is not rate limited (it makes no LLM call).
+
+### Request size limits
+| Endpoint | Limit |
+| :--- | :--- |
+| `POST /api/questions/check-duplicate` | `section` 100, `subtopic` 300, `question_stem` 5000 characters; at most 10 `options`, each option field 2000 characters |
+| `POST /api/ai/enhance-instructions` | `instructions` 3000, `section` 100 characters |
+| `POST /api/ai/refine-question` | `question` must serialize to at most 50,000 characters of JSON; `action` 50 characters |
+| `POST /api/ai/study-guide` | 1 to 100 questions; each at most 50,000 characters of JSON and 300,000 characters in total |
+| `POST /api/generate`, `POST /api/batches/start` (`GenerationRequest`) | `thematic_angle` 2000, `content_domains` at most 30 items of 200 characters, `passing_threshold` 0 to 100, `model_name` matching `^[A-Za-z0-9][A-Za-z0-9._:/@+\-]*$`; other free-text taxonomy fields have 100 to 500 character caps |
+
+A `model_name` that is not one of the server-configured models is refused when the request carries no `api_key` (the caller's own key may use any model). Error text in the terminal `workflow_rejected` event of the generation stream (`error` and `errors`) passes through `sanitize_error_text`, so raw provider text does not reach the client.
 
 ### Status codes and error body
 | Status | When |
 | :--- | :--- |
 | `400` | `POST /api/batches/{batch_id}/retry` when no incomplete job can be retried |
 | `401` | Missing or wrong `X-API-Key` while `API_ACCESS_KEY` is set |
-| `403` | `GET /metrics` with a non-matching `x-admin-key`/`Authorization` header while `ADMIN_API_KEY` is set |
-| `404` | Question, passage or batch not found (`{"detail": "Question not found"}`, `"Passage not found"`, `"Batch not found"`); question without an image |
-| `409` | `POST /api/batches/{batch_id}/refill` while the batch is still running (`{"detail": "This batch is still running."}`) |
-| `413` | Body larger than `MAX_REQUEST_BODY_MB` (`code: payload_too_large`), or more than 500 questions in `POST /api/questions/batch` |
+| `403` | `GET /metrics` or `GET /api/metrics` without a matching `x-admin-key` while `ADMIN_API_KEY` is set |
+| `404` | Question, passage or batch not found; also `POST /api/questions` and `POST /api/questions/batch` for a question that carries both `batch_id` and `job_id` when that batch does not exist (manual approvals without `job_id` still auto-create the batch) (`{"detail": "Question not found"}`, `"Passage not found"`, `"Batch not found"`); question without an image |
+| `409` | `POST /api/batches/{batch_id}/refill` while the batch is still running (`{"detail": "This batch is still running."}`); `POST /api/batches` when the batch id already exists |
+| `413` | Body larger than `MAX_REQUEST_BODY_MB` (`code: payload_too_large`; streamed bodies are counted too), or more than 500 questions in `POST /api/questions/batch` |
 | `415` | Unsupported stored image type or location on the image endpoint |
 | `422` | Request validation failure (FastAPI default), invalid question status on `POST /api/questions` / `POST /api/questions/batch`, invalid batch status on `POST /api/batches` |
 | `429` | Rate limit or active-batch cap (see above) |
@@ -79,7 +91,7 @@ Every response carries an `X-Request-ID` header (a safe caller-supplied value is
 | `POST` | `/api/ai/study-guide` | **AI Synthesis**: Generates high-yield study guide, executive summaries, trap checklists, and flashcards |
 | `POST` | `/api/questions` | **Admin Review Gate**: Persists an approved candidate question into the Question Bank |
 | `POST` | `/api/questions/batch` | **Admin Review Gate**: Bulk-persists an array of approved candidates atomically |
-| `GET` | `/api/questions` | Lists saved questions with filtering (`status` defaults to `in_bank`, `all` disables it), pagination (`limit`/`offset`), `slim` projection, and repository token metrics |
+| `GET` | `/api/questions` | Lists saved questions with filtering (`status` defaults to `in_bank`, `all` disables it), pagination (`limit`/`offset`; without a `limit` at most `MAX_LIST_LIMIT` = 2000 rows are returned), `slim` projection, and repository token metrics |
 | `GET` | `/api/questions/counts` | Returns question counts grouped by lifecycle status (`in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded`, `deleted`, `total`) |
 | `GET` | `/api/questions/{question_id}` | Retrieves a single question by UUID4 primary key |
 | `POST` | `/api/questions/{question_id}/override-duplicate` | **Admin Review Gate**: Explicitly overrides duplicate collision alert and approves into bank |
@@ -107,7 +119,7 @@ Every response carries an `X-Request-ID` header (a safe caller-supplied value is
 | `POST` | `/api/batches/{batch_id}/retry` | **Batch Control**: Resumes incomplete sets for manually paused batches with remaining trials (HTTP 400 when 3 trials exhausted) |
 | `POST` | `/api/batches/cancel-all` | **Batch Control**: Gracefully halts all active background batches across the system |
 | `DELETE` | `/api/batches/{batch_id}` | Deletes a generation batch and cascades delete to jobs and questions |
-| `POST` | `/api/batches` | Admin endpoint to create or update a generation batch record |
+| `POST` | `/api/batches` | Admin endpoint to create an empty batch record (create-only: `409` if the id exists; status and counters are ignored) |
 | `GET` | `/api/batches/{batch_id}/duplicate-clusters` | Clusters batch questions by similarity to identify leader items and redundant duplicates |
 | `POST` | `/api/batches/{batch_id}/resolve-duplicates` | Resolves duplicate clusters by keeping designated leaders and archiving (default) or hard-deleting duplicates |
 | `POST` | `/api/batches/{batch_id}/refill` | Replenishes batch question deficit up to target count using pedagogical thematic variations |
@@ -137,6 +149,7 @@ Accept: text/event-stream
 ```
 
 #### Request Body
+Length limits: `section` 100, `subtopic` 300, `question_stem` 5000 characters; at most 10 `options`, each field at most 2000 characters. The call needs no `X-API-Key` but is rate limited (own bucket, `GENERATION_RATE_LIMIT_PER_MINUTE`).
 ```json
 {
   "section": "chem_phys",
@@ -184,8 +197,8 @@ Accept: text/event-stream
 | `run_id` | `string` | No | Auto UUID4 | Execution run UUID4 |
 | `batch_id` | `string` | No | `null` | Optional batch identifier grouping questions |
 | `auto_save` | `boolean` | No | `false` | Auto-persist to DB (`false` retains Admin Review Gate) |
-| `passing_threshold` | `integer` | No | `80` | Quality benchmark passing threshold score (defaults to config.PASSING_SCORE_THRESHOLD = 80; config.BATCH_PASSING_SCORE_THRESHOLD = 70 for batch jobs) |
-| `model_name` | `string` | No | Gateway Default | Model identifier override (max 200 characters) |
+| `passing_threshold` | `integer` | No | `80` | Quality benchmark passing threshold score, `0` to `100` (defaults to config.PASSING_SCORE_THRESHOLD = 80; config.BATCH_PASSING_SCORE_THRESHOLD = 70 for batch jobs) |
+| `model_name` | `string` | No | Gateway Default | Model identifier override (max 200 characters; must match `^[A-Za-z0-9][A-Za-z0-9._:/@+\-]*$` and, without your own `api_key`, be a server-configured model) |
 | `api_key` | `string` | No | `null` | Ephemeral API key override (max 500 characters; never stored on batch records) |
 | `job_id` | `string` | No | `null` | Optional batch job UUID4 binding questions to a specific job (max 64 characters; set by the batch runner) |
 | `content_domain` | `string` | No | `null` | Manager-matrix content domain, e.g. `General_Chemistry` |
@@ -254,14 +267,14 @@ Lists saved questions from the Question Bank repository with optional filtering,
 | :--- | :--- | :--- | :--- |
 | `section` | `string` | No | Filter by section (`chem_phys`, `cars`, `bio_biochem`, `psych_soc`) |
 | `difficulty` | `string` | No | Filter by difficulty (`low`, `medium`, `high`) |
-| `search` | `string` | No | Hybrid full-text lexical search query on stem, passage, subtopic, and ID |
+| `search` | `string` | No | Hybrid full-text lexical search query on stem, passage, subtopic, and ID (`%` and `_` are matched literally, not as LIKE wildcards) |
 | `combination_id`| `string` | No | Filter by matrix combination code |
 | `run_id` | `string` | No | Filter by execution run UUID4 |
 | `batch_id` | `string` | No | Filter by batch run UUID4 |
 | `passage_id` | `string` | No | Filter by shared stimulus passage UUID4 |
 | `status` | `string` | No | Filter by lifecycle status. Defaults to `in_bank`; pass `all` to disable the status filter. Accepts any `QuestionStatus` value: `in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded`, `approved`, `rejected_below_threshold`, `error`, `failed` |
 | `sort_by` | `string` | No | Sorting criteria: `newest` (default), `oldest`, `highest_score`, `lowest_score` |
-| `limit` | `integer` | No | Optional maximum number of questions to return (`1` to `500`) |
+| `limit` | `integer` | No | Optional maximum number of questions to return (`1` to `500`); when omitted the result is capped at `MAX_LIST_LIMIT` (2000). Default order is `created_at` descending with `id` descending as the tie-break |
 | `offset` | `integer` | No | Optional number of questions to skip for server-side pagination |
 | `slim` | `boolean` | No | When `true`, omits heavy diagnostic fields (`stage_outcomes`, `iterations_history`, `token_usage_details`) to reduce network payload by 70%+ |
 
@@ -982,7 +995,7 @@ Retrieves a generation batch along with all jobs (augmented with their generated
 #### Response Headers
 | Header | Type | Description |
 | :--- | :--- | :--- |
-| `ETag` | `string` | Weak SHA-256 slice signature computed over batch aggregate state: `"{hash[:16]}"` based on `id`, `updated_at`, `completed_jobs`, `failed_jobs`, `actual_count`, `status`, `total_tokens`, and `slim`. |
+| `ETag` | `string` | Weak SHA-256 slice signature computed over batch aggregate state: `"{hash[:16]}"` based on `id`, `updated_at`, `completed_jobs`, `failed_jobs`, `actual_count`, `status`, `total_tokens`, `slim`, and a question-level fingerprint (question count, soft-deleted count, newest `updated_at` and `deleted_at` among the batch's questions), so question edits and deletes that do not touch the batch row still invalidate it. |
 | `Cache-Control` | `string` | `private, no-cache` (allows client-side validation caching while ensuring revalidation on subsequent polls). |
 
 #### Conditional Caching & 304 Fast-Path
@@ -1084,6 +1097,8 @@ Resumes incomplete, failed, or cancelled jobs for a batch into the global worker
 #### Request Body (Optional)
 Optionally accepts an updated `GenerationRequest` payload to override parameters (e.g. difficulty or guidance) during retry.
 
+A retry only stops and relaunches the batch runner when at least one retryable job exists; with nothing to retry the running batch is left alone (and the endpoint answers `400`). If the background launch itself fails, the batch is marked `failed` and its cached request is cleared. The active-batch cap check reserves its slot atomically, so a burst of simultaneous start/retry/refill calls cannot exceed `MAX_ACTIVE_BATCHES`.
+
 #### Response (`200 OK`)
 ```json
 {
@@ -1142,7 +1157,7 @@ Cancels any active runner task for the batch, then permanently deletes the gener
 ### 3.27 Create or Update Batch Record
 `POST /api/batches`
 
-Admin endpoint to create or update a generation batch entity directly in PostgreSQL.
+Admin endpoint to create an empty generation batch record in PostgreSQL. It is create-only: if the id already exists the call returns `409` and the stored row is untouched. Client-supplied `status`, counters (`actual_count`, `completed_jobs`, `failed_jobs`, `total_tokens`, `cost_usd`), `error_message` and `request_payload` are ignored; the batch is stored as an empty `completed` batch, so no `in_progress` zombie can be created here (runs start through `POST /api/batches/start`). A `status` outside the valid set returns `422`.
 
 #### Response (`200 OK`)
 ```json
@@ -1151,7 +1166,7 @@ Admin endpoint to create or update a generation batch entity directly in Postgre
   "batch": {
     "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
     "section": "chem_phys",
-    "status": "in_progress"
+    "status": "completed"
   }
 }
 ```
@@ -1207,7 +1222,7 @@ Performs pairwise similarity clustering on questions within a batch to identify 
 ### 3.29 Resolve Batch Duplicates
 `POST /api/batches/{batch_id}/resolve-duplicates`
 
-Resolves duplicate clusters in a batch by preserving the designated leader question and either archiving (`action="archive"`, the default; sets status `discarded`, recoverable) or permanently deleting (`action="delete"`) redundant duplicate questions. Under `action="delete"`, duplicates are hard-deleted from PostgreSQL via `hard_delete_questions_batch`. Refreshes batch aggregates and computes any remaining question deficit.
+Resolves duplicate clusters in a batch (it never reopens a completed or failed batch: the batch status is left as it was) by preserving the designated leader question and either archiving (`action="archive"`, the default; sets status `discarded`, recoverable) or permanently deleting (`action="delete"`) redundant duplicate questions. Under `action="delete"`, duplicates are hard-deleted from PostgreSQL via `hard_delete_questions_batch`. Refreshes batch aggregates and computes any remaining question deficit.
 
 #### Request Body
 ```json
@@ -1299,9 +1314,9 @@ Job and batch objects are full `GenerationJob` / `GenerationBatch` dumps (abbrev
 | :--- | :--- | :--- | :--- |
 | `section` | `string` | No | Filter by section (`chem_phys`, `cars`, `bio_biochem`, `psych_soc`) |
 | `subtopic` | `string` | No | Filter by specific subtopic / foundational concept |
-| `search` | `string` | No | Search query matching passage text or subtopic |
+| `search` | `string` | No | Search query matching passage text, title, subtopic or ID (`%` and `_` are matched literally) |
 | `sort_by` | `string` | No | Sorting order: `newest` (default, created_at descending), `oldest` (created_at ascending), `title` (alphabetical by subtopic/title), `questions` (descending linked active question count) |
-| `limit` | `integer` | No | Maximum number of records to return ($1 \le \text{limit} \le 500$, default: unrestricted / all) |
+| `limit` | `integer` | No | Maximum number of records to return ($1 \le \text{limit} \le 500$; when omitted the result is capped at `MAX_LIST_LIMIT` = 2000) |
 | `offset` | `integer` | No | Number of records to skip for pagination ($\ge 0$, default: `0`) |
 
 #### List Passages Response (`GET /api/passages`)
@@ -1443,7 +1458,7 @@ curl -X DELETE "http://localhost:8000/api/passages/550e8400-e29b-41d4-a716-44665
 ### 3.32 Export Repository
 `GET /api/export`
 
-Exports every non-deleted question with status `in_bank` in standardized JSON or CSV format. There are no filters; `format` is the only parameter, and questions in other statuses (for example `ai_validated`) are never exported. The response is an attachment (`mcat_question_bank.json` or `mcat_question_bank.csv`).
+Exports every non-deleted question with status `in_bank` in standardized JSON or CSV format. The bank is read internally in pages of 500 rows (newest first), so large banks are not loaded in one query; the output format is unchanged. CSV cells that start with `=`, `+`, `-`, `@`, a tab or a carriage return are prefixed with a single quote to neutralize spreadsheet formula injection. There are no filters; `format` is the only parameter, and questions in other statuses (for example `ai_validated`) are never exported. The response is an attachment (`mcat_question_bank.json` or `mcat_question_bank.csv`).
 
 #### Query Parameters
 - `format`: `"json"` (default) or `"csv"` (any other value is rejected with `422`)
@@ -1624,7 +1639,7 @@ Returns the raw taxonomy document: `schema_version`, `exam`, `selection_flow`, `
 ### 3.37 Prometheus & OpenMetrics Telemetry
 `GET /metrics` and `GET /api/metrics`
 
-Native zero-dependency Prometheus/OpenMetrics exposition endpoint for real-time observability. Public by default; when `ADMIN_API_KEY` is set and a non-matching `x-admin-key` or `Authorization` header is sent, the response is `403` (see section 1.2). Responses use `Cache-Control: no-cache, no-store, must-revalidate`. Exposes application health, database connectivity, background batch concurrency limits, active worker jobs, question repository distributions, cumulative token and micro-cost consumption, and HTTP request counters and latencies with normalized route paths.
+Native zero-dependency Prometheus/OpenMetrics exposition endpoint for real-time observability. Open while `ADMIN_API_KEY` is unset; once it is set, a request without a matching `x-admin-key` header gets `403` (see section 1.2). The `endpoint` label of the HTTP series is the matched route template or `unmatched`, and unusual methods are reported as `OTHER`. Responses use `Cache-Control: no-cache, no-store, must-revalidate`. Exposes application health, database connectivity, background batch concurrency limits, active worker jobs, question repository distributions, cumulative token and micro-cost consumption, and HTTP request counters and latencies with normalized route paths.
 
 #### Response (`200 OK`, `text/plain; version=0.0.4; charset=utf-8`)
 ```text
@@ -1906,9 +1921,9 @@ stateDiagram-v2
 | **`in_bank`** | Published Bank | Authoritative, published questions approved by an educator or admin. Included in all production exports, test assemblies, and study packs. |
 | **`below_threshold`** | Rejected Audit | Questions scoring $< 70$ that failed remediation after 3 regeneration cycles. Preserved in audit telemetry but excluded from review queues. |
 | **`discarded`** | Archive | Questions archived or deleted during duplicate cluster resolution or dismissed by educators. Excluded from active count aggregations. |
-| **`approved`** | Published Bank | Alias/variant of approved questions persisted directly into bank storage. |
-| **`rejected_below_threshold`** | Audit History | Legacy audit status for items rejected at the psychometric quality gate. |
-| **`error` / `failed`** | Execution Log | Unrecoverable model syntax error or network exception during generation. |
+| **`approved`** | Published Bank | Reserved: the pipeline never persists it (kept for compatibility; the DB CHECK constraint is unchanged). |
+| **`rejected_below_threshold`** | Audit History | Reserved legacy audit status; never persisted by the pipeline. |
+| **`error` / `failed`** | Execution Log | Reserved: not persisted by the pipeline today (kept for compatibility). |
 
 ### Withholding & Promotion Safeguards
 - **In-Progress Guard**: `GET /api/questions` and `GET /api/questions/counts` strictly filter out questions belonging to batches where `status == 'in_progress'`.

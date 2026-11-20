@@ -138,3 +138,33 @@ def test_modular_facade_reexports_all_expected_symbols():
     ]
     for symbol in expected_schema_exports:
         assert hasattr(schemas, symbol), f"app.schemas missing re-export: {symbol}"
+
+
+def test_csv_export_neutralizes_formula_injection():
+    from app.services.csv_export import neutralize_formula
+
+    for hostile in ("=1+1", "+cmd", "-2+3", "@SUM(A1)", "\tTAB", "\rCR"):
+        assert neutralize_formula(hostile) == "'" + hostile
+    assert neutralize_formula("plain text") == "plain text"
+    assert neutralize_formula(5) == 5
+
+    q = Question(
+        id="q-formula",
+        section="bio_biochem",
+        section_label="Biological and Biochemical Foundations of Living Systems",
+        subtopic="Enzymes",
+        difficulty="medium",
+        question_stem='=HYPERLINK("http://evil")',
+        options=[
+            OptionChoice(id="A", text="@x"),
+            OptionChoice(id="B", text="ok"),
+            OptionChoice(id="C", text="ok2"),
+            OptionChoice(id="D", text="ok3"),
+        ],
+        correct_answer_id="A",
+        explanation="-bad",
+    )
+    row = build_csv_row(q)
+    assert row[18].startswith("'=")
+    assert row[19] == "'@x"
+    assert row[24] == "'-bad"

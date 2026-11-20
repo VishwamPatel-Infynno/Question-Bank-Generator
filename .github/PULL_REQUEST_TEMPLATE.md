@@ -22,4 +22,4 @@ These mirror the jobs in `.github/workflows/ci.yml`:
 - [ ] Frontend builds cleanly: `pnpm --dir frontend build`
 - [ ] Adheres to the strict psychometric quality benchmark (> 80 passing threshold; `PASSING_SCORE_THRESHOLD=80`)
 - [ ] No sensitive API keys or credentials committed
-- [ ] Applicable documentation updated in `docs/`
+- [ ] Applicable documentation updated in `docs/` (test counts in `docs/TESTING_AND_QA.md` must match pytest collection: `backend/tests/test_config_docs.py` checks it)

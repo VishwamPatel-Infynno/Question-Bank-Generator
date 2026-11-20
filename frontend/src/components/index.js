@@ -19,6 +19,9 @@ export * from './passage';
 // Batch Activity & Job Monitoring
 export * from './batch';
 
+// Duplicate Warning Components
+export * from './duplicates';
+
 // Export & Print Modals
 export * from './modals';
 

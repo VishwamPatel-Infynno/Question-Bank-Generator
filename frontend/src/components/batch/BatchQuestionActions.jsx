@@ -1,5 +1,6 @@
-import { Database, Sparkles, RotateCcw } from 'lucide-react';
+import { Database, Sparkles, RotateCcw, GitCompare, ShieldCheck } from 'lucide-react';
 import { QUESTION_STATUS } from '../../constants';
+import { hasDuplicateAlert } from '../../utils';
 
 /**
  * BatchQuestionActions - Bottom action bar for question items (Restore, Save to Bank, Review, Audit).
@@ -11,9 +12,13 @@ export default function BatchQuestionActions({
   onNavigateToValidated,
   onOpenAudit,
   onSaveToBank,
-  onRestoreQuestion
+  onRestoreQuestion,
+  onCompareDuplicate,
+  onOverrideDuplicate
 }) {
   const isDeleted = Boolean(question.is_deleted && question.status !== QUESTION_STATUS.DISCARDED);
+  const showDuplicateActions =
+    !isDeleted && status !== QUESTION_STATUS.DISCARDED && hasDuplicateAlert(question);
 
   return (
     <div className="batch-qitem-actions-bar">
@@ -63,6 +68,30 @@ export default function BatchQuestionActions({
           >
             <Database size={10} />
             <span>In Question Bank</span>
+          </button>
+        )}
+
+        {showDuplicateActions && onCompareDuplicate && (
+          <button
+            type="button"
+            onClick={() => onCompareDuplicate(question)}
+            className="btn-secondary batch-qitem-btn-sm"
+            title="Compare with the original question"
+          >
+            <GitCompare size={10} />
+            <span>Compare</span>
+          </button>
+        )}
+
+        {showDuplicateActions && onOverrideDuplicate && (
+          <button
+            type="button"
+            onClick={() => onOverrideDuplicate(question)}
+            className="btn-secondary batch-qitem-btn-sm"
+            title="Approve this question even though it looks like another one"
+          >
+            <ShieldCheck size={10} />
+            <span>Override and approve</span>
           </button>
         )}
 

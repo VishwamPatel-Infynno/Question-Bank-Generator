@@ -14,6 +14,7 @@ from app.db.session import scoped_session
 from app.repositories import (
     batch_update_question_status,
     count_batches,
+    create_batch,
     delete_batch,
     get_active_batch_questions,
     get_batch_by_id,
@@ -22,8 +23,8 @@ from app.repositories import (
     get_questions,
     hard_delete_questions_batch,
     refresh_batch_aggregates,
-    save_batch,
 )
+from app.repositories.question_queries import get_batch_question_signature
 from app.schemas import (
     BATCH_STATUSES,
     COMPLETED_STATES,
@@ -133,9 +134,10 @@ async def get_single_batch(
         b = or_404(batch_model, "Batch not found")
 
         # Fast conditional ETag check before querying constituent jobs and questions
+        question_sig = await get_batch_question_signature(batch_id, session=session)
         raw_sig = (
             f"{b.id}:{b.updated_at}:{b.completed_jobs}:{b.failed_jobs}:"
-            f"{b.actual_count}:{b.status}:{b.total_tokens}:{slim}"
+            f"{b.actual_count}:{b.status}:{b.total_tokens}:{slim}:{question_sig}"
         )
         etag = f'"{hashlib.sha256(raw_sig.encode()).hexdigest()[:16]}"'
 
@@ -248,10 +250,23 @@ async def delete_single_batch(batch_id: str) -> dict[str, Any]:
 
 @router.post("/batches")
 async def create_or_update_batch(batch: GenerationBatch) -> dict[str, Any]:
-    """Admin endpoint to create or update a generation batch record."""
+    """Admin endpoint to create an empty batch record (create-only: an existing id is never overwritten).
+
+    Client-supplied status and progress counters are ignored: the record is stored as an empty,
+    finished batch so that no zombie in_progress batch (and no forged totals) can be created here.
+    Runs are started through ``/batches/start``.
+    """
     if batch.status not in BATCH_STATUSES:
         raise HTTPException(status_code=422, detail=f"Invalid batch status: {batch.status!r}")
-    saved = await save_batch(batch)
+    batch.status = BatchStatus.COMPLETED
+    batch.actual_count = batch.completed_jobs = batch.failed_jobs = 0
+    batch.total_tokens = 0
+    batch.cost_usd = 0.0
+    batch.error_message = None
+    batch.request_payload = None
+    saved = await create_batch(batch)
+    if saved is None:
+        raise HTTPException(status_code=409, detail=f"Batch {batch.id} already exists")
     return {"success": True, "batch": saved.model_dump()}
 
 

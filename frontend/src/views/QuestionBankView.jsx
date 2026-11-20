@@ -1,11 +1,19 @@
 import { useState, useRef, useCallback } from 'react';
 import { Database, Sparkles, Eye } from 'lucide-react';
 import { batchDeleteQuestions, saveEditedQuestion } from '../services';
-import { useQuestionBank, usePagination, useConfirmModal, useKeyboardShortcuts, useBankDeletion } from '../hooks';
+import {
+  useQuestionBank,
+  usePagination,
+  useConfirmModal,
+  useKeyboardShortcuts,
+  useBankDeletion,
+  useDuplicateOverride
+} from '../hooks';
 import { PaginationBar, Modal, LoadError, EmptyState } from '../components/common';
 import { QuestionCard } from '../components/question';
 import { ExportPrintModal, ConfirmationModal } from '../components/modals';
 import { QuestionBankFilters, QuestionBankTable } from '../components/bank';
+import { DuplicateCompareModal } from '../components/duplicates';
 import { toggleId } from '../utils';
 import { confirmModalProps } from '../components/modals/confirmModalProps';
 
@@ -82,6 +90,22 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     },
     [handleUpdate, onShowToast]
   );
+
+  // Duplicate compare dialog and "Override and approve" (the inspector shows the alert bar)
+  const handleDuplicateOverridden = useCallback(
+    (saved) => {
+      handleUpdate?.(saved);
+      setInspectingQuestion((prev) => (prev && prev.id === saved.id ? { ...prev, ...saved } : prev));
+    },
+    [handleUpdate]
+  );
+  const {
+    compareQuestion,
+    isOverriding,
+    openCompare,
+    closeCompare,
+    handleOverride
+  } = useDuplicateOverride({ onShowToast, onUpdated: handleDuplicateOverridden });
 
   // Reset selection when search or filters change
   const hasActiveFilters = Boolean(searchQuery.trim() || sectionFilter || diffFilter);
@@ -275,6 +299,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
           onCopy={handleCopy}
           onDelete={handleConfirmSingleDelete}
           onSelectQuestion={setInspectingQuestion}
+          onCompareDuplicate={openCompare}
         />
       )}
 
@@ -323,9 +348,19 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
             isSaved={true}
             onUpdateQuestion={handleUpdateInspectedQuestion}
             onShowToast={onShowToast}
+            onCompareDuplicate={openCompare}
+            onOverrideDuplicate={handleOverride}
+            isOverridingDuplicate={isOverriding}
           />
         )}
       </Modal>
+
+      <DuplicateCompareModal
+        question={compareQuestion}
+        onClose={closeCompare}
+        onOverride={handleOverride}
+        isOverriding={isOverriding}
+      />
 
       {/* ── Reusable Accessible Confirmation Modal ──────────────────────── */}
       <ConfirmationModal {...confirmModalProps(confirmModal, closeConfirmModal, isDeletingBulk)} />

@@ -8,6 +8,9 @@
 const API_BASE = '/api';
 
 // Optional shared secret (backend API_ACCESS_KEY). Unset by default, so local use is unchanged.
+// In the docker setup nginx injects X-API-Key itself, so leave this unset there. A VITE_ variable
+// is inlined into the public JS bundle: use it for local development only and never put a
+// production secret in it.
 const API_ACCESS_KEY = import.meta.env.VITE_API_ACCESS_KEY || '';
 
 /**
@@ -125,12 +128,6 @@ export const fetchHealth = () => request('/health', { context: 'Health check' })
 export const fetchConfig = (signal = null) =>
   request('/config', { signal, context: 'Fetch runtime configuration' });
 
-export const fetchSections = (signal = null) =>
-  request('/sections', { signal, context: 'Fetch sections' });
-
-export const fetchTaxonomy = (signal = null) =>
-  request('/taxonomy', { signal, context: 'Fetch AAMC taxonomy' });
-
 export const fetchQuestions = (params = {}, signal = null) =>
   request(withQuery('/questions', params), { signal, context: 'Fetch questions' });
 
@@ -142,6 +139,18 @@ export const updateQuestionStatus = (id, status) =>
     method: 'PATCH',
     body: { status },
     context: `Update question ${id} status to ${status}`
+  });
+
+/**
+ * Approves a question that was flagged as a duplicate: marks the duplicate warning as overridden
+ * and moves it to the bank (unless it is batch-only).
+ * @param {string} id - Question id.
+ * @returns {Promise<{success: boolean, question: Object}>}
+ */
+export const overrideQuestionDuplicate = (id) =>
+  request(`/questions/${id}/override-duplicate`, {
+    method: 'POST',
+    context: `Override duplicate warning for question ${id}`
   });
 
 export const batchUpdateQuestionStatus = (ids, status) =>
@@ -212,6 +221,39 @@ export const fetchBatchDetail = (batchId, signal = null, slim = true) =>
   request(withQuery(`/batches/${batchId}`, { slim: slim ? 'true' : 'false' }), {
     signal,
     context: `Fetch batch ${batchId}`
+  });
+
+/**
+ * Audits one batch for groups of near-identical questions. Run on demand only, never on a poll.
+ * @param {string} batchId
+ * @param {{threshold?: number}} [params] - Similarity threshold (0-1); the backend default applies when omitted.
+ * @param {AbortSignal|null} [signal]
+ * @returns {Promise<{batch_id: string, total_active_questions: number, unique_questions_count: number,
+ *   duplicate_clusters_count: number, total_duplicate_questions: number, archived_duplicates_count: number,
+ *   auto_resolved: boolean, clusters: Array<{cluster_id: string, size: number, leader_question: Object,
+ *   duplicates: Array<{question: Object, similarity_score: number, reason: string}>, highest_similarity: number}>}>}
+ */
+export const fetchBatchDuplicateClusters = (batchId, { threshold } = {}, signal = null) =>
+  request(withQuery(`/batches/${batchId}/duplicate-clusters`, { threshold }), {
+    signal,
+    context: `Check batch ${batchId} for duplicates`
+  });
+
+/**
+ * Resolves duplicate groups in a batch by keeping one question per group (the leader).
+ * @param {string} batchId
+ * @param {{action?: 'archive'|'delete', cluster_ids?: string[], custom_leader_ids?: string[]}} [options]
+ * @returns {Promise<{success: boolean, message: string, action: string, resolved_clusters_count: number,
+ *   archived_count: number, remaining_active_questions: number, target_count: number, deficit: number}>}
+ */
+export const resolveBatchDuplicates = (
+  batchId,
+  { action = 'archive', cluster_ids, custom_leader_ids } = {}
+) =>
+  request(`/batches/${batchId}/resolve-duplicates`, {
+    method: 'POST',
+    body: { action, cluster_ids, custom_leader_ids },
+    context: `Resolve duplicates in batch ${batchId}`
   });
 
 export const deleteBatch = (batchId) =>
@@ -297,31 +339,12 @@ export const searchSemanticQuestions = (
     context: 'Perform semantic and hybrid question search'
   });
 
-export const fetchRAGContext = (
-  { section, subtopic = '', thematic_angle = '', limit = 3 },
-  signal = null
-) =>
-  request('/questions/rag-context', {
-    method: 'POST',
-    body: { section, subtopic, thematic_angle, limit },
-    signal,
-    context: 'Retrieve RAG exemplars and anti-collision context'
-  });
-
 export const checkQuestionDuplicate = (payload, signal = null) =>
   request('/questions/check-duplicate', {
     method: 'POST',
     body: payload,
     signal,
     context: 'Check question for duplicate or semantic collisions'
-  });
-
-export const backfillEmbeddings = ({ batch_size = 50 } = {}, signal = null) =>
-  request('/questions/backfill-embeddings', {
-    method: 'POST',
-    body: { batch_size },
-    signal,
-    context: 'Trigger question vector embedding backfill'
   });
 
 

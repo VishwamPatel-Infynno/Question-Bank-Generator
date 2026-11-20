@@ -24,6 +24,9 @@ from app.schemas.mcat import enum_value
 class QuestionStatus(str, Enum):
     """Lifecycle statuses for MCAT questions."""
 
+    # NOTE: approved, rejected_below_threshold, error and failed are reserved: the pipeline never
+    # persists them (and the DB CHECK constraint is unchanged); they exist for compatibility only.
+
     IN_BANK = "in_bank"
     AI_VALIDATED = "ai_validated"
     BATCH_ONLY = "batch_only"
@@ -397,10 +400,20 @@ class SingleStatusUpdateRequest(BaseModel):
 class DuplicateCheckRequest(BaseModel):
     """Request body for evaluating candidate question duplicate similarity."""
 
-    section: str = ""
-    subtopic: str = ""
-    question_stem: str
+    section: str = Field("", max_length=100)
+    subtopic: str = Field("", max_length=300)
+    question_stem: str = Field(..., max_length=5000)
     options: list[OptionChoice] | list[dict[str, Any]] = Field(default_factory=list, max_length=10)
+
+    @field_validator("options")
+    @classmethod
+    def _cap_option_text(cls, options: list[Any]) -> list[Any]:
+        """Free-form option dicts get the same per-field text cap as the stem."""
+        for opt in options:
+            values = opt.values() if isinstance(opt, dict) else [opt.id, opt.text]
+            if any(isinstance(v, str) and len(v) > 2000 for v in values):
+                raise ValueError("Option text must be at most 2000 characters.")
+        return options
 
 
 class SemanticSearchRequest(BaseModel):

@@ -65,11 +65,11 @@ The system defines 73 configuration fields in `backend/app/core/config.py` (`Set
 | `OFFLINE_MODE` | `boolean` | `false` | Allow mock/heuristic fixtures when no LLM credentials are configured (demos, tests). When `false` (the default), a missing key raises `LLMNotConfiguredError` and the run fails fast; mock-produced questions carry `stage_outcomes.offline_mode = true` |
 | `PARALLEL_REVIEW_AND_SOLVE` | `boolean` | `true` | `true` (default in `Settings`): Reviewer and Blind Solver run concurrently via `asyncio.gather`, saving one full LLM round trip per question. `false`: Blind Solver runs only for drafts the Reviewer passes. Known discrepancy: the comment above this variable in `.env.example` still describes `false` as the default; the code default and the `.env.example` value are both `true` |
 | `ENABLE_PROMPT_CACHING` | `boolean` | `true` | Mark static system prompts cacheable for providers that need an explicit marker (Anthropic) |
-| `ADMIN_API_KEY` | `string` | `""` | Optional secret for the full `/api/health` and `/api/config` payloads: the `x-admin-key` header must match it. When empty, nobody gets the full payload over HTTP (the masked one is always returned). When set, `GET /metrics` and `GET /api/metrics` return HTTP 403 for a request that sends a non-matching `x-admin-key` or `Authorization` header (requests with neither header are still served) |
-| `API_ACCESS_KEY` | `string` | `""` | Optional shared secret for mutating API routes (`POST`/`PUT`/`PATCH`/`DELETE` need `X-API-Key`; reads and the duplicate pre-check stay open). Intended for deployments behind a gateway; a key built into the frontend via `VITE_API_ACCESS_KEY` is visible to browsers, so it is not a substitute for user authentication |
-| `GENERATION_RATE_LIMIT_PER_MINUTE` | `integer` | `30` | Per-client-IP request budget per minute for the 7 LLM-spending routes (`POST /api/generate`, `/api/batches/start`, `/api/batches/{id}/retry`, `/api/batches/{id}/refill`, `/api/ai/enhance-instructions`, `/api/ai/refine-question`, `/api/ai/study-guide`); `0` disables. In-process, which is correct for the single-worker deployment. Behind a proxy, run Uvicorn with `--proxy-headers` so the real client IP is used |
+| `ADMIN_API_KEY` | `string` | `""` | Optional secret for the full `/api/health` and `/api/config` payloads: the `x-admin-key` header must match it. When empty, nobody gets the full payload over HTTP (the masked one is always returned). When set, `GET /metrics` and `GET /api/metrics` also require a matching `x-admin-key` and return HTTP 403 without it (point Prometheus scrapers at it with that header); when unset, both stay open |
+| `API_ACCESS_KEY` | `string` | `""` | Optional shared secret for mutating API routes (`POST`/`PUT`/`PATCH`/`DELETE` need `X-API-Key`; reads and the duplicate pre-check stay open). Under `docker compose --profile app` the nginx `web` container reads the same variable and injects `X-API-Key` on `/api/` requests at runtime (nothing is built into the JS bundle), so anyone who can reach the web port can call the mutating API; keys with quotes, backslashes or `$` break the nginx config. In local Vite development the frontend sends `VITE_API_ACCESS_KEY` instead, which is compiled into the bundle and visible to browsers. Neither is a substitute for user authentication. `POST /api/questions/check-duplicate` is exempt from the key but is rate limited |
+| `GENERATION_RATE_LIMIT_PER_MINUTE` | `integer` | `30` | Per-client-IP request budget per minute for the 7 LLM-spending routes plus `POST /api/questions/check-duplicate` (own bucket) (`POST /api/generate`, `/api/batches/start`, `/api/batches/{id}/retry`, `/api/batches/{id}/refill`, `/api/ai/enhance-instructions`, `/api/ai/refine-question`, `/api/ai/study-guide`); `0` disables. In-process, which is correct for the single-worker deployment. The limiter keys on the transport peer address as resolved by Uvicorn (IPv6 clients are grouped by /64); it never reads a raw `X-Forwarded-For`. Behind a proxy, run Uvicorn with `--proxy-headers` and set `FORWARDED_ALLOW_IPS` (see below) |
 | `MAX_ACTIVE_BATCHES` | `integer` | `5` | Background batches allowed to run at once; further start/retry/refill requests get HTTP 429. `0` disables |
-| `MAX_REQUEST_BODY_MB` | `integer` | `25` | Largest accepted request body in megabytes; larger requests get HTTP 413 (`0` disables). The bundled `frontend/nginx.conf` enforces the same `client_max_body_size` in front of the API |
+| `MAX_REQUEST_BODY_MB` | `integer` | `25` | Largest accepted request body in megabytes; larger requests get HTTP 413, including streamed/chunked bodies that carry no `Content-Length` (`0` disables). The bundled `frontend/nginx.conf` enforces the same `client_max_body_size` in front of the API |
 | `LOG_FORMAT` | `string` | `text` | `text` or `json`; lines carry batch, job, run and slot ids for correlation |
 | `LLM_MAX_TOKENS_CEILING` | `integer` | `8192` | Upper bound when a truncated completion is retried with a larger token budget |
 | `DEFAULT_MAX_TOKENS` | `integer`| `4096` | Default maximum completion token budget for generator nodes |
@@ -120,7 +120,9 @@ These appear in `.env.example` but are not `Settings` fields:
 | `POSTGRES_DB` | `docker-compose.yml` | `mcat_db` | Database name created by the bundled `postgres` service; also used to derive the backend container's `DATABASE_URL` in the `app` profile |
 | `POSTGRES_USER` | `docker-compose.yml` | `mcat_user` | Database user of the bundled `postgres` service (and the derived container `DATABASE_URL`) |
 | `POSTGRES_PASSWORD` | `docker-compose.yml` | `mcat_password` | Database password of the bundled `postgres` service (local-development default; set it, and `DATABASE_URL`, for anything shared). Keep `DATABASE_URL` in step with these three when running the backend outside Docker |
-| `VITE_API_ACCESS_KEY` | Frontend (Vite) | empty | Optional shared secret the frontend sends as `X-API-Key`; must match the backend `API_ACCESS_KEY`. It is compiled into the bundle (visible to browsers). For `docker compose --profile app` it is passed to the `web` image build as a build arg, so rebuild the image after changing it |
+| `VITE_API_ACCESS_KEY` | Frontend (Vite) | empty | Local development only: optional shared secret the Vite-built frontend sends as `X-API-Key`; must match the backend `API_ACCESS_KEY`. It is compiled into the bundle (visible to browsers), so never use it for a deployed build. The `web` Docker image no longer takes it as a build arg; use `API_ACCESS_KEY` on the `web` container instead |
+| `API_ACCESS_KEY` | `web` container (nginx) | empty | Same `.env` value as the backend setting; `docker-compose.yml` passes it to the `web` service and nginx injects it as `X-API-Key` on `/api/` requests (an empty value drops the header, also discarding any `X-API-Key` the browser sent) |
+| `FORWARDED_ALLOW_IPS` | Uvicorn (backend container) | `127.0.0.1` (image default) | Environment variable read by Uvicorn, not a `Settings` field: the only peers (IPs or CIDRs) whose `X-Forwarded-For`/`X-Forwarded-Proto` are trusted. `docker-compose.yml` sets it to `172.29.240.0/24`, the pinned subnet of the compose default network that holds the nginx proxy. Never use `*` |
 | `VITE_ALLOWED_HOSTS` | Vite dev server | empty | Extra hostnames the Vite dev server accepts, comma-separated (for example a tunnel hostname) |
 
 > [!NOTE]
@@ -153,11 +155,11 @@ docker ps --filter "name=mcat_postgres"
 You can run the backend using standard Python `venv` or ultra-fast `uv`:
 
 #### Option A: Using `uv` to create and populate the virtual environment
-`pyproject.toml` declares no runtime dependencies and `uv.lock` contains only the project itself, so `uv sync` installs nothing useful. Install the pinned requirements files into the virtual environment instead, then use `uv run` (the root `package.json` scripts such as `pnpm run test:backend` and `pnpm run db:seed` call `uv run`, and they need this populated `.venv`):
+`pyproject.toml` declares `[project].dependencies` and a `[dependency-groups].dev` group that mirror `backend/requirements.txt` and `backend/requirements-dev.txt`, and `uv.lock` is generated from them, so a plain `uv sync` creates the project `.venv` (at the repository root) and installs the runtime packages plus the `dev` group (pytest, pytest-asyncio, pytest-cov, ruff; the dev group is included by default). `package = false` is set under `[tool.uv]`, so the project itself is not installed. `backend/tests/test_packaging_sync.py` fails if `pyproject.toml` drifts from the requirements files, which stay canonical for CI and `backend/Dockerfile`. The root `package.json` scripts such as `pnpm run test:backend` and `pnpm run db:seed` call `uv run`, which uses this `.venv`:
 ```bash
-# 1. Create the virtual environment and install backend dependencies (runtime + test + lint tools)
-uv venv --python 3.11
-uv pip install -r backend/requirements-dev.txt
+# 1. Create .venv and install backend dependencies (runtime + dev group: test and lint tools)
+uv sync
+# Equivalent without the lockfile: uv venv --python 3.11 && uv pip install -r backend/requirements-dev.txt
 
 # 2. Launch FastAPI hot-reload server
 PYTHONPATH=backend uv run uvicorn app.main:app --port 8000 --reload
@@ -221,13 +223,13 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 527-test backend verification suite across 78 test files (517 collected by default; the 10 `live_e2e` tests are deselected) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 559-test backend verification suite across 80 test files (549 collected by default; the 10 `live_e2e` tests are deselected) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 517 default (non-live) unit and integration tests
-# Smart auto-skip: 90 tests are marked requires_db; if PostgreSQL is not reachable, those 90 skip cleanly and the other 427 run
+# 1. Run all 549 default (non-live) unit and integration tests
+# Smart auto-skip: 96 tests are marked requires_db; if PostgreSQL is not reachable, those 96 skip cleanly and the other 453 run
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
@@ -241,10 +243,10 @@ ruff format --check .
 ```
 
 #### Dual Test Execution Modes
-- **Offline Mode** (PostgreSQL offline): Runs the 427 tests that do not need a database (algorithmic, schema, agent, taxonomy sync, AI native planning, and mathematical tests) and skips the 90 `requires_db` tests (10 live tests deselected). Timings in earlier revisions of this guide are not re-measured: TODO: verify.
-- **Full Database Mode** (PostgreSQL online via Docker): Runs all 517 default tests (10 live tests deselected). Timings: TODO: verify.
+- **Offline Mode** (PostgreSQL offline): Runs the 453 tests that do not need a database (algorithmic, schema, agent, taxonomy sync, AI native planning, and mathematical tests) and skips the 96 `requires_db` tests (10 live tests deselected). Timings in earlier revisions of this guide are not re-measured: TODO: verify.
+- **Full Database Mode** (PostgreSQL online via Docker): Runs all 549 default tests (10 live tests deselected). Timings: TODO: verify.
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 527 tests across 78 test files (`cd backend && python -m pytest --collect-only -q` reports `517/527 tests collected (10 deselected)`).
+- **Total Backend Suite**: 559 tests across 80 test files (`cd backend && python -m pytest --collect-only -q` reports `549/559 tests collected (10 deselected)`).
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.
@@ -270,7 +272,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
 ### 5.2 Browser End-to-End Automated Testing (TestSprite TC001–TC015)
-The repository includes 15 generated Playwright E2E browser scripts (run manually, not in CI) covering guided wizard creation, SSE telemetry streaming, cancellation, staged approval, inline editing, batch approval, audit trail inspection, tab switching, and question bank management. All 15 tests pass with 100% success rate. See [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for the full test matrix and instructions.
+The repository includes 15 generated Playwright E2E browser scripts (run manually, not in CI) covering guided wizard creation, SSE telemetry streaming, cancellation, staged approval, inline editing, batch approval, audit trail inspection, tab switching, and question bank management. Install Playwright with `pip install -r e2e/requirements.txt && playwright install chromium`. The current pass status of the scripts is not recorded (TODO: verify). See [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for the full test matrix and instructions.
 
 ### 5.3 Frontend Quality & Production Verification
 
@@ -343,7 +345,9 @@ docker compose --profile app up -d --build   # postgres + backend + web
 ```
 - `backend/Dockerfile`: multi-stage `python:3.11-slim`, non-root user, one Uvicorn worker, healthcheck on `/api/health/ready`. Build context is the repository root.
 - `frontend/Dockerfile` + `frontend/nginx.conf`: Vite build served by nginx with SPA fallback, gzip, immutable caching for `/assets/`, and an `/api/` proxy with `proxy_buffering off` and a 1 hour read timeout so SSE generation streams arrive live. Only `/api/` is proxied: the backend's root `/metrics` and `/docs` are not reachable through `http://127.0.0.1:8080` (use `/api/metrics`, which is). The backend port 8000 is not published to the host in the `app` profile; only the web port `127.0.0.1:8080` and Postgres `127.0.0.1:5432` are.
-- `VITE_API_ACCESS_KEY` is passed to the `web` build as a build arg (compose reads it from the shell or `.env` interpolation, default empty); rebuild with `--build` after changing it.
+- API key: the `web` image renders `frontend/nginx.conf` as an envsubst template (`/etc/nginx/templates/default.conf.template`), so `API_ACCESS_KEY` (read from `.env` by compose, default empty) is injected as `X-API-Key` on `/api/` requests at container start. No key is baked into the JS bundle and `VITE_API_ACCESS_KEY` is no longer a build arg. Tradeoff: anyone who can reach the web port can call the mutating API through nginx, so keep it on loopback or add real authentication in front; keys containing quotes, backslashes or `$` break the nginx config. Restart the `web` container after changing the key.
+- Client IP trust: nginx overwrites `X-Forwarded-For` with `$remote_addr`, the backend image no longer passes `--forwarded-allow-ips "*"` (Uvicorn reads the `FORWARDED_ALLOW_IPS` environment variable, image default `127.0.0.1`), and compose pins the default network to `172.29.240.0/24` and sets `FORWARDED_ALLOW_IPS` to it. If that subnet clashes with another network on your host, change the subnet and `FORWARDED_ALLOW_IPS` together.
+- With `ADMIN_API_KEY` set, `/api/metrics` through the proxy also needs an `x-admin-key` header from the scraper.
 - Settings come from `.env` (optional); `DATABASE_URL` is overridden to the compose `postgres` service. Postgres stays bound to loopback and the web port to `127.0.0.1:8080`; put a TLS-terminating proxy in front for anything shared.
 - `docker compose up -d` (no profile) still starts only Postgres, which is what local development uses (CI runs its own PostgreSQL service container).
 
@@ -392,7 +396,7 @@ The repository provides high-level monorepo orchestration scripts defined in the
 | `pnpm run db:clean-duplicates` | `uv run python scripts/clean_duplicate_artifacts.py` | Permanently purges discarded duplicate drafts and archived question slots. |
 | `pnpm run benchmark:concurrency` | `PYTHONPATH=backend uv run python scripts/benchmark_concurrency.py` | In-process ASGI high-concurrency load benchmark across 20-100 workers. |
 | `pnpm run lint:all` | `pnpm run lint:backend && pnpm run lint` | Runs full-stack linting across the codebase (`uv run ruff check .` + `oxlint`). |
-| `pnpm run test:all` | `pnpm run test:backend && pnpm run test:frontend` | Runs both backend pytest (517 tests) and frontend Vitest (150 tests). |
+| `pnpm run test:all` | `pnpm run test:backend && pnpm run test:frontend` | Runs both backend pytest (549 tests) and frontend Vitest (203 tests). |
 | `pnpm run format` | `uv run ruff format .` | Formats all Python files according to the project's Ruff styling rules. |
 | `pnpm run format:check` | `uv run ruff format --check .` | Verifies code formatting compliance in CI pipelines without mutating files. |
 | `pnpm --dir frontend run check:css` | `node scripts/check-unused-css.mjs` | Scans all JSX and CSS files to enforce 0 unused or missing classes. |

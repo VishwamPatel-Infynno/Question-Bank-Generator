@@ -23,7 +23,6 @@ from app.workflow.nodes import agent_usage_entry
 from app.workflow.passage_blueprints import (
     CARS_PASSAGE_SET_BLUEPRINTS,
     CARS_SLOT4_APPLICATION_DOMAINS,
-    MODALITY_ROTATION_BY_SECTION,
     SCIENCE_PASSAGE_SET_BLUEPRINTS,
     SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS,
     extract_passage_slot_blueprints,
@@ -36,7 +35,6 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "CARS_PASSAGE_SET_BLUEPRINTS",
     "CARS_SLOT4_APPLICATION_DOMAINS",
-    "MODALITY_ROTATION_BY_SECTION",
     "SCIENCE_PASSAGE_SET_BLUEPRINTS",
     "SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS",
     "SharedPassageState",

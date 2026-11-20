@@ -427,10 +427,6 @@ class Settings(BaseSettings):
         """Single source of truth for the Tier-1 quality gate: score must be strictly above threshold."""
         return score is not None and score > self.PASSING_SCORE_THRESHOLD
 
-    def passes_batch_quality_gate(self, score: float | None) -> bool:
-        """Single source of truth for batch gate: score must be strictly above batch threshold."""
-        return score is not None and score > self.BATCH_PASSING_SCORE_THRESHOLD
-
     # Duplicate detection: engine/batch thresholds and the (stricter) on-demand API threshold
     DUPLICATE_HARD_THRESHOLD: float = 0.75
     DUPLICATE_SOFT_THRESHOLD: float = 0.60

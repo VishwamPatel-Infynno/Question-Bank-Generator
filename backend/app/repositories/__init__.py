@@ -1,6 +1,7 @@
 from app.repositories.batch_repository import (
     batch_exists,
     count_batches,
+    create_batch,
     delete_batch,
     get_batch_by_id,
     get_batches,
@@ -62,6 +63,7 @@ __all__ = [
     "count_batches",
     "count_passages",
     "count_questions",
+    "create_batch",
     "delete_batch",
     "delete_passage",
     "delete_question",

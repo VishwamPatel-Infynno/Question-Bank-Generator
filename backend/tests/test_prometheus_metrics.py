@@ -73,9 +73,9 @@ async def test_metrics_admin_key_protection(monkeypatch):
     monkeypatch.setattr(config, "ADMIN_API_KEY", "prod-secret")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Standard scraper without admin header succeeds (public by default)
-        resp_public = await client.get("/metrics")
-        assert resp_public.status_code == 200
+        # With an admin key configured, a scrape without the header is refused on both routes
+        assert (await client.get("/metrics")).status_code == 403
+        assert (await client.get("/api/metrics")).status_code == 403
 
         # Explicit invalid admin header is rejected
         resp_invalid = await client.get("/metrics", headers={"x-admin-key": "wrong"})
@@ -84,3 +84,38 @@ async def test_metrics_admin_key_protection(monkeypatch):
         # Valid admin header succeeds
         resp_valid = await client.get("/metrics", headers={"x-admin-key": "prod-secret"})
         assert resp_valid.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_metrics_stay_open_without_an_admin_key(monkeypatch):
+    monkeypatch.setattr(config, "ADMIN_API_KEY", "")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        assert (await client.get("/metrics")).status_code == 200
+        assert (await client.get("/api/metrics")).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_endpoint_label_is_the_route_template_or_unmatched():
+    telemetry_store.reset()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.get("/api/batches/not-a-uuid-123/jobs")  # matched template (any status)
+        await client.get("/totally/random/attacker-path-98765")  # no route matches
+        body = (await client.get("/metrics")).text
+    assert 'endpoint="unmatched"' in body
+    assert "attacker-path" not in body
+    assert "not-a-uuid-123" not in body
+
+
+def test_method_label_is_bounded_and_label_values_are_escaped():
+    from app.services.metrics import escape_label_value, normalize_metric_method
+
+    assert normalize_metric_method("get") == "GET"
+    assert normalize_metric_method("BREW") == "OTHER"
+    assert escape_label_value('a\\b"c\nd') == 'a\\\\b\\"c\\nd'
+
+    telemetry_store.reset()
+    telemetry_store.record_request("PROPFIND", "/x", 200, 0.1, route_template='/we"ird\\path')
+    counts, _ = telemetry_store.get_snapshot()
+    assert ("OTHER", '/we"ird\\path', 200) in counts

@@ -500,3 +500,39 @@ async def test_public_runtime_fields_are_part_of_both_payloads(monkeypatch):
     shared = public_runtime_fields()
     assert set(shared) <= set(masked) and set(shared) <= set(admin)
     assert "has_openai_key" in admin and "has_openai_key" not in masked
+
+
+async def test_in_flight_embedding_is_computed_outside_the_pool_lock(monkeypatch):
+    monkeypatch.setattr(config, "ENABLE_PGVECTOR_RAG", True)
+    seen_locked: list[bool] = []
+
+    async def fake_embed(text):
+        seen_locked.append(dedup_inflight._IN_FLIGHT_LOCK.locked())
+        return [0.1, 0.2]
+
+    from app.services import embeddings
+
+    monkeypatch.setattr(embeddings, "embed_text", fake_embed)
+    batch = f"b-{uuid.uuid4()}"
+    await dedup_inflight.register_in_flight_draft(batch, {"question_stem": "stem"}, 0, job_id="j")
+    assert seen_locked == [False]
+    pool = await dedup_inflight.get_in_flight_drafts(batch, 9)
+    assert pool[0]["embedding"] == [0.1, 0.2]
+    await dedup_inflight.clear_in_flight_batch(batch)
+
+
+async def test_in_flight_registration_survives_an_embedding_failure(monkeypatch):
+    monkeypatch.setattr(config, "ENABLE_PGVECTOR_RAG", True)
+
+    async def none_embed(text):
+        return None
+
+    from app.services import embeddings
+
+    monkeypatch.setattr(embeddings, "embed_text", none_embed)
+    batch = f"b-{uuid.uuid4()}"
+    await dedup_inflight.register_in_flight_draft(batch, {"question_stem": "stem"}, 0, job_id="j")
+    pool = await dedup_inflight.get_in_flight_drafts(batch, 9)
+    assert [d["question_stem"] for d in pool] == ["stem"]
+    assert "embedding" not in pool[0]
+    await dedup_inflight.clear_in_flight_batch(batch)

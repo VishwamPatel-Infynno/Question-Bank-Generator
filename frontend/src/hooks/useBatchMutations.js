@@ -11,6 +11,7 @@ import {
 import { QUESTION_STATUS } from '../constants';
 import { patchQuestionInDetails } from '../utils/batchHelpers';
 import { useConfirmModal } from './useConfirmModal';
+import { useDuplicateOverride } from './useDuplicateOverride';
 
 /**
  * Lifecycle actions for batches (stop, retry, cancel all, delete) and for single questions
@@ -30,6 +31,12 @@ import { useConfirmModal } from './useConfirmModal';
  *   handleDeleteBatch: (e: any, batchId: string) => void,
  *   handleSaveQuestionToBank: (question: any) => Promise<void>,
  *   handleRestoreQuestion: (question: any) => Promise<void>,
+ *   handleRefreshBatch: (batchId: string) => Promise<void>,
+ *   compareQuestion: object | null,
+ *   isOverriding: boolean,
+ *   openCompare: (question: object) => void,
+ *   closeCompare: () => void,
+ *   handleOverride: (question: object) => Promise<void>,
  *   stoppingBatchIds: Record<string, boolean>,
  *   retryingBatchIds: Record<string, boolean>,
  *   isCancellingAll: boolean,
@@ -224,6 +231,44 @@ export function useBatchMutations({
     [toast, viewInBank, setBatchDetails]
   );
 
+  /** Reloads the batch list and one batch's detail (used after a duplicate audit changes it). */
+  const handleRefreshBatch = useCallback(
+    async (batchId) => {
+      await loadBatches(true);
+      if (!batchId) return;
+      try {
+        const detail = await fetchBatchDetail(batchId);
+        setBatchDetails((prev) => ({ ...prev, [batchId]: detail }));
+      } catch (err) {
+        console.error('Failed to refresh batch detail:', err);
+      }
+    },
+    [loadBatches, setBatchDetails]
+  );
+
+  // Duplicate compare dialog and "Override and approve". Patch the cached question first so the
+  // card updates at once, then refetch its batch: the API's ETag cache and the detail cache (only
+  // re-fetched for running batches) would otherwise keep serving the old warning.
+  const {
+    compareQuestion,
+    isOverriding,
+    openCompare,
+    closeCompare,
+    handleOverride
+  } = useDuplicateOverride({
+    onShowToast,
+    onUpdated: (saved) => {
+      setBatchDetails((prev) =>
+        patchQuestionInDetails(prev, saved.id, {
+          status: saved.status,
+          is_duplicate_override: saved.is_duplicate_override,
+          duplicate_info: saved.duplicate_info
+        })
+      );
+      handleRefreshBatch(saved.batch_id);
+    }
+  });
+
   return {
     handleStopBatch,
     handleRetryBatch,
@@ -231,6 +276,12 @@ export function useBatchMutations({
     handleDeleteBatch,
     handleSaveQuestionToBank,
     handleRestoreQuestion,
+    handleRefreshBatch,
+    compareQuestion,
+    isOverriding,
+    openCompare,
+    closeCompare,
+    handleOverride,
     stoppingBatchIds,
     retryingBatchIds,
     isCancellingAll,

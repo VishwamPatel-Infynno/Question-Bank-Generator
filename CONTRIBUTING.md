@@ -23,12 +23,11 @@ Starts PostgreSQL 16 with pgvector (`pgvector/pgvector:pg16`) on `127.0.0.1:5432
 
 ### 3. Backend Setup
 ```bash
-uv venv                      # or: python3 -m venv .venv
-source .venv/bin/activate
-uv pip install -r backend/requirements-dev.txt   # or: pip install -r backend/requirements-dev.txt
+uv sync                      # creates .venv with runtime + dev packages
+source .venv/bin/activate    # or without uv: python3 -m venv .venv && pip install -r backend/requirements-dev.txt
 cp .env.example .env
 ```
-`pyproject.toml` declares no dependencies, so `uv run` only works once `.venv` has been populated by the install step above (`uv run` does not install the backend requirements for you). A plain venv with `pip` is enough to run `uvicorn` and `pytest` directly, but the `pnpm` scripts still need `uv` installed.
+`pyproject.toml` declares `[project].dependencies` and a `dev` dependency group that mirror `backend/requirements.txt` and `backend/requirements-dev.txt` (`uv.lock` is generated from them), so `uv sync` installs everything and `uv run` keeps `.venv` in step with the lockfile. `uv sync` is exact: it removes packages that are not in the lock (add `--inexact` to keep extras). The requirements files remain canonical for CI and the Dockerfile; when you change a dependency, update both and re-lock (`backend/tests/test_packaging_sync.py` fails on drift). A plain venv with `pip` is enough to run `uvicorn` and `pytest` directly, but the `pnpm` scripts still need `uv` installed.
 Run FastAPI dev server:
 ```bash
 PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
@@ -47,8 +46,8 @@ pnpm dev
 Before submitting any code changes, ensure all verification suites pass with zero defects (see [`docs/TESTING_AND_QA.md`](docs/TESTING_AND_QA.md) for full test specifications):
 
 ```bash
-# 1. Backend pytest suite (527 tests collected across 78 files; the 10 live LLM E2E tests are deselected by default, so 517 run;
-#    90 of those are marked requires_db: without PostgreSQL, 427 run and 90 skip. Current numbers: docs/TESTING_AND_QA.md)
+# 1. Backend pytest suite (559 tests collected across 80 files; the 10 live LLM E2E tests are deselected by default, so 549 run;
+#    96 of those are marked requires_db: without PostgreSQL, 453 run and 96 skip. Current numbers: docs/TESTING_AND_QA.md)
 uv run pytest backend/tests -v
 # or using activated virtual environment:
 pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
@@ -57,12 +56,12 @@ pytest -v  # conftest.py strips provider keys and enables OFFLINE_MODE
 ruff check .
 ruff format --check .
 
-# 3. Frontend Oxlint linter (0 errors, 0 warnings policy across all frontend sources; last run: 169 files, 106 rules)
+# 3. Frontend Oxlint linter (0 errors, 0 warnings policy across all frontend sources; last run: 184 files, 106 rules)
 pnpm --dir frontend lint
 
 # 4. Frontend production build (compiles cleanly via Vite 8)
 pnpm --dir frontend build
-pnpm --dir frontend run test        # Vitest unit tests (150 tests across 18 test files)
+pnpm --dir frontend run test        # Vitest unit tests (203 tests across 25 test files)
 pnpm run lint:all                   # ruff (backend) + oxlint (frontend)
 pnpm run test:all                   # pytest (backend) + Vitest (frontend)
 pnpm run benchmark:concurrency      # runs in-process ASGI high-concurrency load benchmark

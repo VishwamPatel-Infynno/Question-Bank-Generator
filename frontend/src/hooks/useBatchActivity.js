@@ -173,6 +173,15 @@ export function useBatchActivity({
             nextDetails[inProgressIds[idx]] = res.value;
           }
         });
+        // A failed detail fetch must not be recorded as "seen": roll its tracking back so the
+        // next poll retries (otherwise a just-completed batch stays on its in-progress snapshot).
+        results.forEach((res, idx) => {
+          if (res.status === 'fulfilled' && res.value) return;
+          const bId = inProgressIds[idx];
+          if (previousStatus.has(bId)) lastStatusRef.current.set(bId, previousStatus.get(bId));
+          else lastStatusRef.current.delete(bId);
+          lastBatchSummariesRef.current.delete(bId);
+        });
         if (Object.keys(nextDetails).length > 0) {
           setBatchDetails((prev) => ({ ...prev, ...nextDetails }));
         }

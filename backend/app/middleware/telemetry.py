@@ -11,6 +11,29 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
+def _route_template(scope: Scope, path: str) -> str | None:
+    """Full path template of the matched route (``/api/batches/{batch_id}``), None if unmatched.
+
+    Starlette stores the matched route in the shared scope. Routes included through an
+    ``APIRouter`` prefix report only their own relative path, so the prefix is recovered by
+    rendering the route with the concrete path params and stripping that tail from the real path.
+    """
+    route = scope.get("route")
+    template = getattr(route, "path", None)
+    if not isinstance(template, str):
+        return None
+    path_format = getattr(route, "path_format", None)
+    params = scope.get("path_params") or {}
+    if isinstance(path_format, str):
+        try:
+            tail = path_format.format(**{k: str(v) for k, v in params.items()})
+        except (KeyError, IndexError, ValueError):
+            return template
+        if tail and path.endswith(tail):
+            return path[: len(path) - len(tail)] + template
+    return template
+
+
 class TelemetryMiddleware:
     """Records HTTP request counts and latencies without buffering or interfering with SSE streams."""
 
@@ -42,9 +65,11 @@ class TelemetryMiddleware:
             await self._app(scope, receive, send_wrapper)
         finally:
             duration = time.perf_counter() - start_time
+            route_template = _route_template(scope, path)
             telemetry_store.record_request(
                 method=method,
                 raw_path=path,
                 status_code=status_code,
                 duration_sec=duration,
+                route_template=route_template if isinstance(route_template, str) else None,
             )

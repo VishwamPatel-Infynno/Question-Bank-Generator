@@ -4,11 +4,12 @@ ai.py - AI-Native interactive copilot endpoints for editorial and study tools.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.api.security import limit_generation_requests
 from app.services.ai_copilot import (
@@ -22,12 +23,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["AI Copilot"])
 
+# Free-form question dicts go straight into LLM prompts: bound what one request can make us pay for
+MAX_QUESTION_JSON_CHARS = 50_000
+MAX_STUDY_GUIDE_JSON_CHARS = 300_000
+
+
+def _json_size(value: Any) -> int:
+    try:
+        return len(json.dumps(value, default=str))
+    except (TypeError, ValueError):  # circular or otherwise unserializable: treat as oversized
+        return MAX_STUDY_GUIDE_JSON_CHARS + 1
+
 
 class EnhanceInstructionsRequest(BaseModel):
     instructions: str = Field(
         ..., min_length=1, max_length=3000, description="Raw educator instructions to enhance"
     )
-    section: str = Field(..., description="MCAT section e.g. bio_biochem, cars")
+    section: str = Field(..., max_length=100, description="MCAT section e.g. bio_biochem, cars")
     topic: str | None = Field(None, max_length=200)
     difficulty: str | None = Field(None, max_length=50)
 
@@ -39,8 +51,18 @@ class RefineQuestionRequest(BaseModel):
     )
     action: str = Field(
         "custom",
+        max_length=50,
         description="Action type: polish_distractor, simplify_explanation, invert_sibling, custom",
     )
+
+    @field_validator("question")
+    @classmethod
+    def _cap_question_size(cls, value: dict[str, Any]) -> dict[str, Any]:
+        if _json_size(value) > MAX_QUESTION_JSON_CHARS:
+            raise ValueError(
+                f"question must serialize to at most {MAX_QUESTION_JSON_CHARS} characters."
+            )
+        return value
 
 
 class AuditPassageRequest(BaseModel):
@@ -53,6 +75,19 @@ class StudyGuideRequest(BaseModel):
     questions: list[dict[str, Any]] = Field(
         ..., min_length=1, max_length=100, description="List of questions to synthesize"
     )
+
+    @field_validator("questions")
+    @classmethod
+    def _cap_questions_size(cls, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if any(_json_size(q) > MAX_QUESTION_JSON_CHARS for q in value):
+            raise ValueError(
+                f"each question must serialize to at most {MAX_QUESTION_JSON_CHARS} characters."
+            )
+        if _json_size(value) > MAX_STUDY_GUIDE_JSON_CHARS:
+            raise ValueError(
+                f"questions must serialize to at most {MAX_STUDY_GUIDE_JSON_CHARS} characters in total."
+            )
+        return value
 
 
 @router.post("/enhance-instructions", dependencies=[Depends(limit_generation_requests)])

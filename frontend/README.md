@@ -48,6 +48,7 @@ frontend/src/
 │   ├── batch/
 │   │   ├── index.js              # Batch barrel export
 │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live multi-batch controller
+│   │   ├── BatchDuplicateAudit.jsx # On-demand Check duplicates / Resolve duplicates panel in a batch card
 │   │   ├── BatchCard.jsx         # Summary status card for generation batches & Resume Sets action
 │   │   ├── BatchCardJobsGrid.jsx # Grid of per-set job cards inside a batch card
 │   │   ├── BatchCardSummary.jsx  # Batch card summary block
@@ -65,11 +66,16 @@ frontend/src/
 │   │   ├── BatchQuestionOptionsList.jsx # Options list for a staged batch question
 │   │   ├── BatchQuestionPassageDrawer.jsx # Passage drawer for a staged batch question
 │   │   └── BatchStatsHeader.jsx  # High-level aggregate batch statistics
+│   ├── duplicates/
+│   │   ├── index.js              # Duplicate awareness barrel export
+│   │   ├── DuplicateRiskBadge.jsx # Duplicate Risk (NN%) / Similar (NN%) / Overridden pill (button when it can open the comparison)
+│   │   ├── DuplicateAlertBar.jsx # Alert with reason, Compare and Override and approve (calm note once overridden)
+│   │   └── DuplicateCompareModal.jsx # This question beside the original it matched, with Override and approve
 │   ├── common/
 │   │   ├── index.js              # Common primitives barrel export
 │   │   ├── CustomSelect.jsx      # Accessible custom dropdown select primitive
 │   │   ├── EmptyState.jsx        # Decomposed zero-state canvas with customizable icons & actions
-│   │   ├── ErrorBoundary.jsx     # Production React error boundary with fallback UI
+│   │   ├── ErrorBoundary.jsx     # React error boundary with fallback UI; also the root boundary in main.jsx (Retry reloads the page)
 │   │   ├── FormattedText.jsx     # Inline markdown & cognitive trap chip highlighter
 │   │   ├── InfynnoLogo.jsx       # Official corporate vector logo primitive
 │   │   ├── LiveStopwatch.jsx     # High-precision live stopwatch timer
@@ -150,7 +156,9 @@ frontend/src/
 │   ├── useAiValidated.js         # Review Queue data, debounced server-side GIN search query integration, selection, and confirm dialogs
 │   ├── useAppState.js            # Centralized view routing, toasts, generator launch & global event broker
 │   ├── useBankDeletion.js        # Question Bank single/bulk delete behind one confirm dialog
-│   ├── useBatchActivity.js       # Batch monitor polling (in-flight guard, exponential backoff on errors, hidden-tab pause)
+│   ├── useBatchActivity.js       # Batch monitor polling (in-flight guard, exponential backoff on errors, hidden-tab pause; a failed final detail fetch is retried on the next poll)
+│   ├── useBatchDuplicateAudit.js # On-demand duplicate check and archive-resolve for one batch
+│   ├── useDuplicateOverride.js   # Compare dialog state and Override and approve (direct click, toast)
 │   ├── useBatchFilters.js        # Batch Progress search/status filters and the / shortcut
 │   ├── useBatchMutations.js      # Stop, retry, delete, cancel-all and question actions on batches
 │   ├── useConfirmModal.js        # Standard accessible confirmation-dialog state
@@ -160,7 +168,7 @@ frontend/src/
 │   ├── useFocusTrap.js           # Accessible WCAG AA keyboard focus-trapping hook for modals
 │   ├── useGeneratorForm.js       # Wizard form state, DEFAULT_GENERATOR_FORM (with explicit visual_type: 'AI_FLUX_Image'), and toggle helpers
 │   ├── useGlobalCounts.js        # Navbar live numbers: running batches, review-queue count, backend status
-│   ├── useKeyboardShortcuts.js   # Global hotkeys (⌘↵ to generate on the review step, T to toggle theme, / to focus search, Escape)
+│   ├── useKeyboardShortcuts.js   # Global hotkeys (⌘↵ to generate on the review step, T to toggle theme, / to focus search, Escape; A saves and D discards the active card in the review queue only; single keys are ignored while typing, with a modal open, with modifiers or on key repeat; option `enabled`)
 │   ├── usePagination.js          # Page index, page size and slicing with filter-driven resets
 │   ├── usePassageBank.js         # Passage catalogue, detail, save and delete flows
 │   ├── useQuestionBank.js        # Debounced search, adaptive semantic similarity ranking preservation, sorting, and bank fetching
@@ -169,11 +177,12 @@ frontend/src/
 │   └── useTheme.js               # Dark/light mode persistence
 ├── services/
 │   ├── index.js                  # Services barrel export
-│   └── api.js                    # FastAPI client & SSE stream reader (34 exports: question CRUD/restore, pgvector search, AI Copilot, batches, passages)
+│   └── api.js                    # FastAPI client & SSE stream reader (33 exports: question CRUD/restore, duplicate override, pgvector search, AI Copilot, batches, batch duplicate clusters and resolution, passages)
 ├── utils/
 │   ├── index.js                  # Utilities barrel export
 │   ├── batchHelpers.js           # Calculates current execution stage, badges, descriptions, and refill status for a batch
 │   ├── batchJobHelpers.js        # Batch stage, structural-sharing and cache-patch helpers
+│   ├── duplicateHelpers.js       # getDuplicateState (levels high/similar/overridden/none), hasDuplicateAlert, canCompare
 │   ├── batchPayload.js           # The POST /batches/start payload builder with defense-in-depth CARS visual suppression
 │   ├── download.js               # Text file download helper
 │   ├── explanationHelpers.js     # Pure JS distractor line & trap parser
@@ -224,12 +233,12 @@ In the repository root or `frontend` directory, you can run:
 # and `pnpm dev` starts backend and frontend together; inside frontend/ it runs plain `vite`
 pnpm dev
 
-# Run Vitest automated test suite (150 tests across 18 test files, 100% pass rate)
+# Run Vitest automated test suite (203 tests across 25 test files, 100% pass rate)
 pnpm test
 # or from the repo root (root package.json script):
 pnpm run test:frontend
 
-# Run Oxlint (0 errors, 0 warnings policy; last run: 169 files, 106 rules)
+# Run Oxlint (0 errors, 0 warnings policy; last run: 184 files, 106 rules)
 pnpm lint
 
 # Check CSS class usage and verify zero unused or missing classes
@@ -249,29 +258,36 @@ pnpm preview
 
 ## 🧪 Automated Testing Suite (Vitest)
 
-The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **18 test files (150 total tests)**. Tests run on Vitest with jsdom and render components via `react-dom/client` plus `act` (no Testing Library is installed):
+The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **25 test files (203 total tests)**. Tests run on Vitest with jsdom and render components via `react-dom/client` plus `act` (no Testing Library is installed):
 
 | Test Suite | Path | Tests | Coverage |
 | :--- | :--- | :-: | :--- |
 | `visualHelpers.test.js` | `src/utils/__tests__/` | 16 | Medical visual modality detection & styling metadata |
 | `mcat.test.js` | `src/constants/__tests__/` | 19 | Section normalization, score scaling, taxonomy integrity |
 | `sharedHelpers.test.js` | `src/utils/__tests__/` | 15 | Pure data transformers, score calculations, badge helpers |
+| `apiHelpers.test.js` | `src/utils/__tests__/` | 13 | HTTP client error wrapping, payload sanitization, response parsing |
 | `batchHelpers.test.js` | `src/utils/__tests__/` | 12 | Batch status aggregation, progress percent calculation |
+| `useAiValidatedHandlers.test.js` | `src/hooks/__tests__/` | 12 | Review queue selection, select-all toggle, passage expansion, optimistic mutations |
+| `duplicates.test.jsx` | `src/components/duplicates/__tests__/` | 12 | DuplicateRiskBadge, DuplicateAlertBar and DuplicateCompareModal |
+| `export.test.js` | `src/utils/__tests__/` | 10 | CSV formula neutralisation, HTML metacharacter escaping, SVG sanitizing, paper preview |
 | `explanationHelpers.test.js` | `src/utils/__tests__/` | 9 | Distractor parsing, trap extractor, mentor explanation structure |
-| `export.test.js` | `src/utils/__tests__/` | 9 | CSV formula neutralisation, HTML metacharacter escaping, SVG sanitizing |
-| `apiHelpers.test.js` | `src/utils/__tests__/` | 9 | HTTP client error wrapping, payload sanitization, response parsing |
 | `formatters.test.js` | `src/utils/__tests__/` | 8 | Date formatting, micro-cent cost displays, duration timers |
 | `questionHelpers.test.js` | `src/utils/__tests__/` | 8 | Question draft validation, key resolution, option text checkers |
 | `batchJobHelpers.test.js` | `src/utils/__tests__/` | 8 | Visible question counting, actual count resolution, shortfall detection |
+| `useKeyboardShortcuts.test.jsx` | `src/hooks/__tests__/` | 8 | A/D/t// shortcuts, typing/modal/modifier/repeat guards, `enabled`, cleanup |
 | `generatorFormAndPagination.test.js` | `src/utils/__tests__/` | 7 | Page size normalization, subtopic multi-select, select option navigation |
 | `questionVisuals.test.js` | `src/utils/__tests__/` | 6 | Image provider detection, SVG sanitizer checks, figure attachment |
 | `copilotAndSearchOptimizations.test.js` | `src/utils/__tests__/` | 6 | Slim batch query parameters, toast token contracts, adaptive semantic sort preservation |
-| `useAiValidatedHandlers.test.js` | `src/hooks/__tests__/` | 5 | Review queue selection, select-all toggle, passage expansion |
+| `duplicateHelpers.test.js` | `src/utils/__tests__/` | 6 | Duplicate levels and soft threshold, alert and compare rules |
+| `CommonA11y.test.jsx` | `src/components/common/__tests__/` | 5 | Modal backdrop and aria label, focus trap, Toast live region, ErrorBoundary |
+| `useDuplicateOverride.test.jsx` | `src/hooks/__tests__/` | 5 | Compare dialog and override flow, error handling, double-click guard |
 | `ExportComponents.test.jsx` | `src/components/modals/__tests__/` | 4 | Scope selector button rendering, filter state hiding, data format previews |
 | `QuestionBankViewHandlers.test.js` | `src/views/__tests__/` | 4 | Filter reset handlers, table row selection toggling, stale selection pruning |
+| `BatchDuplicateAudit.test.jsx` | `src/components/batch/__tests__/` | 4 | On-demand duplicate check, empty result, confirmed resolve, error display |
 | `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, idempotency keys |
 | `usePagination.test.jsx` | `src/hooks/__tests__/` | 2 | Server-driven pagination handling (`totalCount`, page boundaries, and navigation callbacks) |
-| **Total** | **18 Suites** | **150** | **100% Pass Rate** |
+| `useBatchActivity.test.jsx` | `src/hooks/__tests__/` | 1 | Failed final detail fetch of a completed batch is retried on the next poll |
+| **Total** | **25 Suites** | **203** | **100% Pass Rate** |
 
 ---
 
@@ -301,4 +317,4 @@ The frontend uses an enterprise precision design system. For exhaustive tokens, 
    - **0 TODO**, **0 FIXME**, and **0 `console.log`** statements in source code.
    - Canonical status constants (`QUESTION_STATUS.AI_VALIDATED`) instead of raw strings.
    - Unidirectional symmetric state pairs (`[rawSelectedIds, setRawSelectedIds]`).
-   - Zero lint errors or warnings via Oxlint (`0 warnings and 0 errors across 169 files`, as reported by `oxlint`).
+   - Zero lint errors or warnings via Oxlint (`0 warnings and 0 errors across 184 files`, as reported by `oxlint`).

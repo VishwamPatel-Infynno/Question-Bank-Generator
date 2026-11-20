@@ -23,13 +23,11 @@ _DEFAULT_REQUEST: Any = None
 async def get_metrics(request: Request = _DEFAULT_REQUEST) -> Response:
     """Prometheus exposition endpoint serving application, database, batch concurrency, and HTTP telemetry.
 
-    Public by default for standard Prometheus/Grafana scrapers. When an invalid admin key is
-    explicitly provided, the call is rejected with HTTP 403.
+    Open when ADMIN_API_KEY is unset (local development). Once it is set, scrapers must send a
+    matching ``x-admin-key`` header; a missing or wrong key is rejected with HTTP 403.
     """
     if config.ADMIN_API_KEY and request is not None and not is_admin_request(request):
-        admin_header = request.headers.get("x-admin-key") or request.headers.get("authorization")
-        if admin_header:
-            raise HTTPException(status_code=403, detail="Invalid admin credentials for metrics.")
+        raise HTTPException(status_code=403, detail="A valid x-admin-key is required for metrics.")
 
     metrics_text = await render_prometheus_metrics()
     return Response(

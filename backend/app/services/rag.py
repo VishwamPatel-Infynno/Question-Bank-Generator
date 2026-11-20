@@ -406,6 +406,8 @@ async def backfill_question_embeddings(batch_size: int = 50) -> dict[str, int]:
                     "explanation": row[6],
                 }
                 vec = await embed_question(q_dict)
+                if vec is None:
+                    continue
                 vec_str = "[" + ",".join(f"{x:.6f}" for x in vec) + "]"
                 update_sql = text(f"""
                     UPDATE questions

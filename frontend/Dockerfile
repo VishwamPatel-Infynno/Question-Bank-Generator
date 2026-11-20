@@ -10,13 +10,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY frontend/package.json frontend/
 RUN pnpm install --frozen-lockfile --filter ./frontend...
 COPY frontend frontend
-# Optional shared secret baked into the bundle (see docs/SETUP_AND_CONFIG.md)
-ARG VITE_API_ACCESS_KEY=""
-ENV VITE_API_ACCESS_KEY=$VITE_API_ACCESS_KEY
+# No API key is baked into the bundle: nginx injects X-API-Key at runtime (see nginx.conf)
 RUN pnpm --dir frontend run build
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# The official image renders /etc/nginx/templates/*.template with envsubst into conf.d at start-up
+COPY frontend/nginx.conf /etc/nginx/templates/default.conf.template
+# Must be defined (even empty) or envsubst leaves the literal placeholder in the config
+ENV API_ACCESS_KEY=""
 COPY frontend/nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /repo/frontend/dist /usr/share/nginx/html
 EXPOSE 8080

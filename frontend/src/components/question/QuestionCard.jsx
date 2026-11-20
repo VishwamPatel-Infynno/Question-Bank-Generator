@@ -18,6 +18,7 @@ import MentorExplanationView from './MentorExplanationView';
 import QuestionScorecardTab from './QuestionScorecardTab';
 import QuestionInlineEditor from './QuestionInlineEditor';
 import QuestionCopilotStrip from './QuestionCopilotStrip';
+import { DuplicateAlertBar } from '../duplicates';
 import {
   calculateOptionSymmetry,
   countWords,
@@ -27,7 +28,16 @@ import {
   hasQuestionImage
 } from '../../utils';
 
-function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion, onShowToast }) {
+function QuestionCard({
+  question,
+  isSaved = true,
+  onOpenAudit,
+  onUpdateQuestion,
+  onShowToast,
+  onCompareDuplicate,
+  onOverrideDuplicate,
+  isOverridingDuplicate = false
+}) {
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'scorecard' | 'telemetry'
   const [showExplanation, setShowExplanation] = useState(true);
 
@@ -135,6 +145,15 @@ function QuestionCard({ question, isSaved = true, onOpenAudit, onUpdateQuestion,
         onOpenAudit={onOpenAudit}
         isEditing={isEditing}
         onToggleEditing={() => (isEditing ? handleCancelEdit() : setIsEditing(true))}
+        onCompareDuplicate={onCompareDuplicate}
+      />
+
+      {/* Duplicate warning (only renders when the question is flagged, similar or overridden) */}
+      <DuplicateAlertBar
+        question={question}
+        onCompare={onCompareDuplicate}
+        onOverride={onOverrideDuplicate}
+        isOverriding={isOverridingDuplicate}
       />
 
       {/* Desk Tab Navigation */}

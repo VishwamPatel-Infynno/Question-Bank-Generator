@@ -151,7 +151,7 @@ The order above is the request-processing order, outermost first, as registered 
    - Injects `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, and restrictive `Permissions-Policy`.
 3. **Request Correlation & Size Enforcement (`RequestContextMiddleware`)**:
    - Inspects or generates an `X-Request-ID`, binds it to Python log context via `bind_log_context`, and echoes it on every HTTP response.
-   - Enforces `MAX_REQUEST_BODY_MB` before request body reading, returning HTTP 413 for oversized payloads.
+   - Enforces `MAX_REQUEST_BODY_MB`: a declared `Content-Length` over the limit gets HTTP 413 before the body is read, and bytes are also counted as they stream in so chunked bodies without a `Content-Length` are cut off at the same limit (the handler then sees a disconnect).
 4. **Prometheus Telemetry (`TelemetryMiddleware`)**:
    - Observes request latency in seconds and increments Prometheus status counters by endpoint and HTTP verb.
 
@@ -250,7 +250,7 @@ The system implements a unified psychometric quality threshold model to ensure u
 | **Quality Gate** | **$> 80$ Points**<br>`PASSING_SCORE_THRESHOLD = 80` | Applied to every candidate question drafted in live sessions or batch workers (`config.passes_quality_gate`, strictly greater than). | Questions scoring $> 80$ qualify for the **AI Validated** repository (`status = 'ai_validated'`) once their batch completes, or straight away for standalone runs. Candidate items scoring $\le 80$ are remediated while iteration < 3. |
 | **Good Quality hold** | **$70 \le \text{score} \le 80$**<br>`BATCH_PASSING_SCORE_THRESHOLD = PASSING_SCORE_THRESHOLD - 10` | Reached at the final remediation cycle (iteration 3) in `route_after_review`, and by `determine_question_status` for persisted scores. | Accepted and stored as `batch_only` (Good Quality). Scores below 70 are rejected at iteration 3 and persisted statuses below 70 are `below_threshold`. |
 
-> Code inconsistency to be aware of: `route_after_review` and `determine_question_status` treat 70 as inclusive (`>= threshold - 10`), whereas `config.passes_batch_quality_gate` is strictly `> 70`. `passes_batch_quality_gate` is defined in `core/config.py` but is not called anywhere in `backend/app` (only `passes_quality_gate` is).
+> `route_after_review` and `determine_question_status` treat 70 as inclusive (`>= threshold - 10`); `config.passes_quality_gate` (strictly `> PASSING_SCORE_THRESHOLD`) is the only gate helper left in `core/config.py` (the unused `passes_batch_quality_gate` was removed).
 
 ### 2.4 Passage Set Cognitive Blueprints & Attempt Replenishment Rotation
 
@@ -279,7 +279,7 @@ Both rotation pools (`CARS_SLOT4_APPLICATION_DOMAINS`, `SCIENCE_SLOT5_EXPERIMENT
   - With no seed at all: `attempt % 10`.
 - The retry directive in `slot_worker.py` applies the rotated domain only to question indexes `idx % 5 == 3` for CARS (the slot 4 position) and `idx % 5 == 4` for science sections (the slot 5 position); all other slots get a generic "formulate a completely distinct question" retry directive.
 - `passage_prep._build_batch_worker_request` also embeds the rotated domain or condition in the slot directive when no dynamically extracted blueprints are supplied.
-- `MODALITY_ROTATION_BY_SECTION` (per-section visual modality suggestions) is defined in `passage_blueprints.py` and re-exported by `passage_prep.py`, but no runtime code outside tests references it. TODO: verify intended use. It also lists `histopathology` and `diagnostic_radiology` as modality strings, which differ from the `MedicalModality` ids `histology` and `radiology` in `agents/medical_imaging.py` (a code inconsistency).
+- The former `MODALITY_ROTATION_BY_SECTION` table (unused outside tests) was removed from `passage_blueprints.py`; medical modality selection lives in `agents/medical_imaging.py` (`MedicalModality` ids) and the prompt builder.
 
 #### Per-Slot Hard Call Budget
 - **Budget Ceiling**: `MAX_LLM_CALLS_PER_SLOT = 36` (default; `0` disables the cap). It is a flat cap on LLM calls (drafts, duplicate rewrites, regenerations, review and solve samples) across all attempts of one slot. The "3 attempts x 12 calls" figure in older notes is only the rationale for the number, not a computed quantity.
@@ -475,7 +475,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
     }
   }
   ```
-  **Frontend status**: the React app (`frontend/src`) does not currently render a duplicate-risk badge, a duplicate comparison modal or an "Override & Approve" button, and it does not call the override, `duplicate-clusters` or `resolve-duplicates` endpoints; `services/api.js` only defines `checkQuestionDuplicate` (`POST /questions/check-duplicate`), and the batch lifecycle stepper has a "2. Duplicate Audit" stage label. These endpoints are currently API-only. TODO: verify whether a UI is planned.
+  **Frontend (duplicate awareness UI)**: `utils/duplicateHelpers.js` (`getDuplicateState`, `hasDuplicateAlert`, `canCompare`) turns a question's `duplicate_info` into one of four levels: `high` (the API flagged `is_duplicate`, similarity at or above `DUPLICATE_HARD_THRESHOLD` 0.75), `similar` (not flagged but `similarity_score >= DUPLICATE_SOFT_THRESHOLD`, a client constant `0.6` in `constants/mcat.js` that mirrors the backend), `overridden` and `none`. `components/duplicates/` holds `DuplicateRiskBadge` (button that opens the comparison when given `onClick`), `DuplicateAlertBar` (alert with the reason plus Compare and Override and approve actions; a calm note once overridden) and `DuplicateCompareModal` (this question next to the original from `duplicate_info`, no extra fetch). They appear as a badge on the review-queue card (`AiValidatedQuestionCard`), on batch question items (`BatchQuestionItem`, with Compare and Override actions and a `dup-risk` accent), on Question Bank rows (only when the level is not `none`) and as an alert bar in the Question Bank inspector (`QuestionCard`). `hooks/useDuplicateOverride.js` calls `overrideQuestionDuplicate` (`POST /api/questions/{id}/override-duplicate`) on a direct click, toasts the result and hands the returned question to the view; the review queue's `A` shortcut opens the comparison instead of saving when the active question is a `high` duplicate that has not been overridden. In the batch monitor, `components/batch/BatchDuplicateAudit.jsx` with `hooks/useBatchDuplicateAudit.js` runs on demand only (never on a poll): **Check duplicates** calls `fetchBatchDuplicateClusters` (`GET /api/batches/{id}/duplicate-clusters`) and lists the groups, **Resolve duplicates** (after a confirmation) calls `resolveBatchDuplicates` with `action: "archive"` (the default, recoverable) and shows how many questions the batch is now short of its target.
 - **Batch Duplicate Cluster Resolution**:
   `GET /api/batches/{id}/duplicate-clusters` (optional `threshold` query, 0.5 to 1.0, default 0.75) returns clusters of mutually similar active questions, each with an elected leader (highest score, or a caller-chosen leader). `POST /api/batches/{id}/resolve-duplicates` resolves them: `action="archive"` (the default) sets duplicates to status `discarded` (recoverable), while `action="delete"` permanently removes them via `hard_delete_questions_batch`. The runner's `auto_resolve_batch_and_refill` uses the same clustering but always permanently deletes the redundant duplicates (`hard_delete_questions_batch`), trims any set that exceeds its target (lowest scores first), and then refills any deficit (up to `MAX_REFILL_CYCLES = 3` rounds, with a small over-generation buffer of 1 or 2 questions).
 
@@ -520,8 +520,9 @@ class AgentWorkflowState(TypedDict, total=False):
     status: str
     active_agent: str
     log_messages: list[str]
-    blind_solver_result: dict[str, Any]  # set by build_solver_update
-    blind_solver_passed: bool
+    blind_solver_result: dict[str, Any] | None  # set by build_solver_update
+    blind_solver_passed: bool | None
+    is_duplicate_override: bool
 
     # Deduplication state
     duplicate_info: DuplicateInfoDict | None
@@ -548,7 +549,7 @@ class AgentWorkflowState(TypedDict, total=False):
     stage_outcomes: StageOutcomes  # drafting, quality_audit, blind_solver_validation, ...
 ```
 
-(Abridged from `backend/app/workflow/state.py`. `blind_solver_result` and `blind_solver_passed` are written by `node_reviewer.build_solver_update`; they are not declared in the `TypedDict` itself, which is `total=False` and only type-checks the declared keys. TODO: verify whether they should be declared.)
+(Abridged from `backend/app/workflow/state.py`. `blind_solver_result` and `blind_solver_passed` are written by `node_reviewer.build_solver_update` and `is_duplicate_override` carries the override flag; all three are declared on the `TypedDict`.)
 
 ### 4.1 State Accumulation Pattern
 At each node execution, token consumption from the LLM response is unpacked and added to cumulative state counters (`record_agent_usage`). Entries in `agent_usage_breakdown` use these **usage names**, which differ from the SSE `agent_name` values (given in parentheses):
@@ -566,7 +567,7 @@ The streaming execution pipeline is implemented in [`backend/app/workflow/engine
 - [`stream_emitter.py`](../backend/app/workflow/stream_emitter.py): `drain_event_queue` encapsulates bounded queue polling, consumer timeout handling, and backpressure enforcement (the queue is created in `engine.py` with `_EVENT_QUEUE_MAX = 256`), while `format_sse_event` and `build_terminal_workflow_event` manage SSE event data framing and terminal completion/rejection/error event assembly.
 - [`slot_worker.py`](../backend/app/workflow/slot_worker.py): `run_slot_worker(ctx: SlotWorkerContext)` encapsulates the attempt/replenishment lifecycle for a single slot, handling generation attempts, in-flight anti-duplication, review loops, image generation, and slot finalization.
 - [`passage_prep.py`](../backend/app/workflow/passage_prep.py): `_build_batch_worker_request` (per-item request), `_determine_item_diagram_requirement`, `_prepare_shared_passage_and_visual` (drafts shared stimulus and diagram, emits the `Passage Writer` events). It re-exports the blueprint symbols.
-- [`passage_blueprints.py`](../backend/app/workflow/passage_blueprints.py): `CARS_PASSAGE_SET_BLUEPRINTS`, `SCIENCE_PASSAGE_SET_BLUEPRINTS`, `CARS_SLOT4_APPLICATION_DOMAINS`, `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`, `MODALITY_ROTATION_BY_SECTION`, `resolve_slot_domain_index` and `extract_passage_slot_blueprints`.
+- [`passage_blueprints.py`](../backend/app/workflow/passage_blueprints.py): `CARS_PASSAGE_SET_BLUEPRINTS`, `SCIENCE_PASSAGE_SET_BLUEPRINTS`, `CARS_SLOT4_APPLICATION_DOMAINS`, `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`, `resolve_slot_domain_index` and `extract_passage_slot_blueprints`.
 - [`review_loop.py`](../backend/app/workflow/review_loop.py): `_run_question_review_loop` runs the free deterministic gate (a failing gate is turned into a synthetic failing review by `_validator_review`: all four pillars 15, `total_score` 60, `passed=False`; no LLM is called), the reviewer, the Blind-Solver and the Question Improver remediation cycles against the 100-point rubric, under the per-slot LLM call budget.
 - [`dedup_inflight.py`](../backend/app/workflow/dedup_inflight.py): duplicate detection against the database pool, staged siblings and in-flight sibling drafts, with anti-collision regeneration (`DEDUP_REGEN_MAX_RETRIES = 1`) and retry guidance preservation.
 - [`live_job_store.py`](../backend/app/workflow/live_job_store.py): `_persist_live_question` and the job/batch finalisation, cancellation and failure handlers for standalone live runs.
@@ -742,7 +743,7 @@ stateDiagram-v2
 - **`in_bank`**: Formally approved questions published in the primary searchable Question Bank repository.
 - **`below_threshold`**: Drafts that failed to achieve the 70-point batch threshold (`score < 70`) after 3 remediation cycles (flagged as "Needs Polish").
 - **`discarded`**: Archived or rejected items removed from active question banks or resolved during duplicate clustering.
-- The `ck_questions_status` CHECK constraint allows nine values in total: `in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded`, plus `approved`, `rejected_below_threshold`, `error` and `failed` (the last four are not produced by the flows described here; TODO: verify where, if anywhere, they are written).
+- The `ck_questions_status` CHECK constraint allows nine values in total: `in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded`, plus `approved`, `rejected_below_threshold`, `error` and `failed` (the last four are not produced by the flows described here; TODO: verify where, if anywhere, they are written). These four are documented in code as reserved: the pipeline never persists them and the CHECK constraint is unchanged.
 
 ### 5.4 Canonical Status Determination, Withholding Guards & Batch Idempotency
 
@@ -807,7 +808,7 @@ The generation entry point provides a high-velocity, deterministic authoring int
 
 The pgvector RAG subsystem prevents conceptual repetition and guarantees novelty across large repositories:
 1. **Vector Embedding Ingestion (`app/services/embeddings.py`)**:
-   - Computes `EMBEDDING_DIMENSION` (1536) dense vectors through LiteLLM `aembedding` with `EMBEDDING_MODEL` (default `text-embedding-3-small`), authenticating with `OPENAI_API_KEY` or, if empty, `DEEPINFRA_API_KEY`. Results are cached in memory (SHA-256 key). When `OFFLINE_MODE` is on, or the call fails or returns an unexpected shape, a deterministic hash-based unit vector (`deterministic_unit_vector`) is used instead. There is no `sentence-transformers` / local HuggingFace backend.
+   - Computes `EMBEDDING_DIMENSION` (1536) dense vectors through LiteLLM `aembedding` with `EMBEDDING_MODEL` (default `text-embedding-3-small`), authenticating with `OPENAI_API_KEY` or, if empty, `DEEPINFRA_API_KEY`. Results are cached in memory (SHA-256 key) in a bounded LRU of 1024 entries. When `OFFLINE_MODE` is on, or no key is configured, a deterministic hash-based unit vector (`deterministic_unit_vector`) is used instead. If a live provider call fails or returns an unexpected shape, no embedding is returned and nothing is cached or persisted (no fake vector is stored for a live run). There is no `sentence-transformers` / local HuggingFace backend.
    - Embeds a concatenation of section, subtopic, stem, options, key and the first 500 characters of the explanation (`build_question_embedding_text`) into `QuestionModel.embedding`.
 2. **Exemplar Retrieval for In-Context Learning (`retrieve_rag_exemplar_context`)**:
    - Runs a hybrid (vector + full-text) search within the target section and subtopic and keeps matches with `final_score >= RAG_EXEMPLAR_MIN_SCORE` (default 90).
@@ -1006,18 +1007,19 @@ The deduplication subsystem extends the PostgreSQL schema with two persistent fi
 The question repository layer is structured following **Command Query Responsibility Segregation (CQRS)** to isolate high-throughput read operations from transactional write operations:
 
 1. **Query Module ([`backend/app/repositories/question_queries.py`](../backend/app/repositories/question_queries.py))**:
-   - `get_questions`: Paginated, filtered search with hybrid full-text search and deferred column loading (`SLIM_DEFER`).
+   - `get_questions`: Paginated, filtered search with hybrid full-text search and deferred column loading (`SLIM_DEFER`). Without a `limit` the result is capped at `MAX_LIST_LIMIT` = 2000 (`clamp_list_limit` in `repositories/_filters.py`, also used by `get_passages`); the default order is `created_at` descending with `id` descending as the tie-break; search terms go through `like_contains`, so `%` and `_` match literally.
+   - `get_batch_question_signature`: Cheap fingerprint of a batch's questions (count, soft-deleted count, newest `updated_at` and `deleted_at`) that feeds the batch ETag.
    - `count_questions`: Native SQL count queries matching filter criteria.
    - `get_question_by_id`: Single-item lookup with active question filtering.
    - `get_active_batch_questions`: Active batch items matching `ACTIVE_QUESTION_STATUSES` for deficit and refill tracking.
    - `get_active_job_question_heads`: Lightweight projection returning immutable `QuestionHead(id, status, stimulus_text, passage_id)` instances, eliminating ~11 KB of JSONB serialization overhead per item during worker progress evaluation.
    - `get_question_status_counts`: Native SQL aggregation of repository questions grouped by lifecycle status.
    - `get_repository_metrics`: Aggregates total questions, accumulated tokens, and total cost with zero Python memory overhead.
-   - `get_subtopic_reference_questions`: Fetches the collision reference pool for deduplication.
+   - `get_subtopic_reference_questions`: Fetches the collision reference pool for deduplication. A database failure is logged at error level and an empty pool is returned, which silently skips duplicate detection against the bank for that call. TODO: verify whether to surface a degraded-dedup signal.
 
 2. **Mutation Module ([`backend/app/repositories/question_mutations.py`](../backend/app/repositories/question_mutations.py))**:
-   - `save_question`: Inserts or updates a question in PostgreSQL, auto-syncing Passage (`PassageModel`) and Batch (`GenerationBatchModel`) records atomically.
-   - `save_questions_batch`: Atomic bulk upsert pre-grouping passage and batch upserts to minimize database roundtrips.
+   - `save_question`: Inserts or updates a question in PostgreSQL, auto-syncing Passage (`PassageModel`) and Batch (`GenerationBatchModel`) records atomically. A question that carries both `batch_id` and `job_id` (a worker save) raises `BatchNotFoundError` when its batch does not exist instead of fabricating one (`POST /api/questions` and `/batch` answer 404); manual approvals without `job_id` still auto-create the batch record.
+   - `save_questions_batch`: Atomic bulk upsert (same `BatchNotFoundError` rule) pre-grouping passage and batch upserts to minimize database roundtrips.
    - `delete_question` & `delete_questions_batch`: Soft-deletes questions by setting `is_deleted = True` and recording timestamps, preserving batch statistics.
    - `hard_delete_question` & `hard_delete_questions_batch`: Permanently purges questions from PostgreSQL during duplicate resolution.
    - `restore_question`: Restores soft-deleted questions and reactivates soft-deleted linked passages.
@@ -1173,7 +1175,7 @@ flowchart LR
 2. **Background Concurrency Semaphores**: `mcat_batches_active`, `mcat_worker_jobs_active`, `mcat_global_max_concurrent_jobs`, `mcat_global_max_concurrent_llm_calls`.
 3. **Repository Status Distribution**: `mcat_questions_total{status="in_bank"}`, `ai_validated`, `batch_only`, `discarded`.
 4. **Token Burn & Financial Ledger**: `mcat_tokens_consumed_total`, `mcat_inference_cost_usd_total`.
-5. **HTTP Traffic & Latencies**: `mcat_http_requests_total{endpoint="...",method="...",status="..."}` and `mcat_http_request_duration_seconds{endpoint="...",method="..."}`. Dynamic paths with UUIDs or integers are normalized (e.g. `/api/questions/{id}`) to prevent time-series cardinality explosions.
+5. **HTTP Traffic & Latencies**: `mcat_http_requests_total{endpoint="...",method="...",status="..."}` and `mcat_http_request_duration_seconds{endpoint="...",method="..."}`. The `endpoint` label is the matched route template (for example `/api/batches/{batch_id}`) or the fixed value `unmatched` for 404s and scanner traffic, so attacker-chosen URLs cannot create new series; methods outside `GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS` are recorded as `OTHER`; label values are escaped. Once `ADMIN_API_KEY` is set, scrapers must send a matching `x-admin-key` header (403 otherwise).
 
 ---
 
@@ -1226,6 +1228,7 @@ frontend/src/
 │   │   ├── PassageLinkedQuestionCard.jsx # Linked question card within passage editorial desk
 │   │   ├── PassageVisualStimulusEditor.jsx # Passage diagram & figure attachment editor
 │   │   └── index.js              # Passage bank barrel export
+│   ├── duplicates/               # DuplicateRiskBadge, DuplicateAlertBar, DuplicateCompareModal (duplicate awareness UI)
 │   ├── bank/                     # Question Bank repository
 │   │   ├── QuestionBankCardRow.jsx # Question card row
 │   │   ├── QuestionBankFilters.jsx # Section, difficulty (Low/Medium/High), and search filters
@@ -1233,6 +1236,7 @@ frontend/src/
 │   │   └── index.js              # Bank barrel export
 │   ├── batch/                    # Batch monitoring components
 │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live multi-batch controller
+│   │   ├── BatchDuplicateAudit.jsx # On-demand Check duplicates / Resolve duplicates panel inside a batch card
 │   │   ├── BatchCard.jsx         # Summary status card for generation batches
 │   │   ├── BatchCardJobsGrid.jsx, BatchCardSummary.jsx, BatchLifecycleStepper.jsx, BatchOutcomeCard.jsx # Batch card sections and stage stepper
 │   │   ├── BatchJobHeader.jsx, BatchJobPillStrip.jsx, BatchJobTelemetryBadges.jsx # Job card sections
@@ -1265,14 +1269,14 @@ frontend/src/
 │   │   └── index.js              # Layout barrel export
 │   └── common/                   # Shared UI primitives
 │       ├── CustomSelect.jsx      # Accessible custom dropdown select primitive
-│       ├── EmptyState.jsx, LoadError.jsx, Modal.jsx # Empty/error states and base modal
+│       ├── EmptyState.jsx, LoadError.jsx, Modal.jsx # Empty/error states and base modal (backdrop closes only if mousedown and click both hit it; optional ariaLabel prop, default "Dialog")
 │       ├── SafeSvg.jsx           # DOMPurify-sanitized SVG renderer
-│       ├── ErrorBoundary.jsx     # Production React error boundary with fallback UI
+│       ├── ErrorBoundary.jsx     # React error boundary with fallback UI; also mounted at the app root in main.jsx (Retry reloads the page)
 │       ├── FormattedText.jsx     # Inline markdown & cognitive trap chip highlighter
 │       ├── InfynnoLogo.jsx       # Official corporate vector logo primitive
 │       ├── LiveStopwatch.jsx     # High-precision live stopwatch timer
 │       ├── PaginationBar.jsx     # Accessible pagination bar with page range counter & controls
-│       ├── Toast.jsx             # Floating toast notification system
+│       ├── Toast.jsx             # Floating toast notification system (live region always mounted; errors use role=alert)
 │       └── index.js              # Common primitives barrel export
 ├── constants/
 │   ├── index.js                  # Constants barrel export
@@ -1284,7 +1288,7 @@ frontend/src/
 │   ├── useAppState.js            # Centralized view routing & global event broker
 │   ├── useFocusTrap.js           # Accessible WCAG AA keyboard focus-trapping hook for modals
 │   ├── useGeneratorForm.js       # Form state & validation logic
-│   ├── useKeyboardShortcuts.js   # Global hotkeys (Cmd/Ctrl+Enter, A, D, T, /, Esc)
+│   ├── useKeyboardShortcuts.js   # Global hotkeys (Cmd/Ctrl+Enter, T, /, Esc everywhere; A and D only in the review queue)
 │   ├── usePagination.js          # Client and server pagination calculations and state management
 │   ├── useQuestionBank.js        # Debounced search, sorting, and bank fetching
 │   ├── useTheme.js               # Dual-theme engine (dark / light with localStorage)
@@ -1362,6 +1366,11 @@ Accessible keyboard navigation and tactile feedback are implemented across the e
   ```
 - **Mentor Card Tactile Feedback**: The 3-card mentor explanation boxes (`.mentor-correct-box`, `.mentor-distractor-box`, `.mentor-trap-box`, `.mentor-mistake-box`) utilize `transition: var(--transition-ui)` for subtle hover transitions without visual jarring.
 
+### 9.2.1 Keyboard shortcuts and dialog accessibility
+
+- `useKeyboardShortcuts` (`hooks/useKeyboardShortcuts.js`) registers Escape and Cmd/Ctrl+Enter everywhere, plus the single-key shortcuts `t` (theme) and `/` (focus search). In the review queue only (`useAiValidated`), `A` saves the active card to the bank (a hard, unoverridden duplicate opens the comparison instead) and `D` discards it through the existing confirmation modal. Single-key shortcuts are ignored with Meta, Ctrl or Alt held, on key repeat, while focus is in an input, select, textarea or contenteditable element, and while any modal dialog is open (`t` and `/` included); the hook option `enabled: false` turns them off (Escape and Cmd/Ctrl+Enter stay). The active review card shows a highlight (`validated-card--active`) and `kbd-hint` badges.
+- `Modal` closes on a backdrop click only when both mousedown and click land on the backdrop, takes an optional `ariaLabel` (default `"Dialog"`), and `useFocusTrap` ignores hidden and `tabindex=-1` elements. `Toast` keeps a polite live region mounted at all times and marks errors `role="alert"`. A root `ErrorBoundary` in `main.jsx` shows a fallback with Retry (reloads the page). `useBatchActivity` retries a failed final detail fetch of a just-completed batch on the next poll.
+
 ### 9.3 Dedicated Passage Editorial Desk & Stimulus Viewer Architecture
 
 `PassageEditorialDesk.jsx` provides a dedicated, split-pane editorial workstation:
@@ -1402,22 +1411,25 @@ For complete UI design tokens, color scales, typography guidelines, and componen
 - **Events**: a single rejected attempt emits the non-terminal `question_rejected`; `workflow_rejected` is emitted once, when every slot of the run was rejected.
 - **Resume correctness**: retry and resume run the jobs they selected (their in-memory status is stale after the reset), `stopped` jobs are executable, jobs a finished runner left pending/running are marked `failed`, and the auto-refill only reports "launched" when a job actually started. A stopped `partially_completed` batch stays terminal.
 - **Concurrency limits**: one process-wide pipeline cap (`GLOBAL_MAX_CONCURRENT_PIPELINES`) replaces the per-run limiter that multiplied concurrency; batch aggregate refreshes take a `FOR NO KEY UPDATE` row lock (it serializes writers without conflicting with the key-share lock of question inserts); schema DDL that already exists is skipped, so startup never takes the table locks that deadlocked with running batches.
-- **Security**: client-supplied `api_key` values are never persisted or returned (legacy payloads are scrubbed at startup); an optional `API_ACCESS_KEY` requires `X-API-Key` on mutating routes; text inputs are length-limited; unexpected errors return a generic `{detail, code}` body and keep details in the server log.
+- **Security**: client-supplied `api_key` values are never persisted or returned (legacy payloads are scrubbed at startup); an optional `API_ACCESS_KEY` requires `X-API-Key` on mutating routes; text inputs are length-limited (including the duplicate-check, AI Copilot and `GenerationRequest` fields: see docs/API.md section 1.2); `model_name` must match a safe pattern and, without the caller's own `api_key`, be a server-configured model (`call_llm` refuses others); streamed terminal error text goes through `sanitize_error_text`; `/metrics` requires `x-admin-key` once `ADMIN_API_KEY` is set; unexpected errors return a generic `{detail, code}` body and keep details in the server log.
 
 ### Batch lifecycle guarantees
 *(Added during a hardening review pass; the statements below were spot-checked against `batch_repository.py`, `batch_runner.py` and `main.py`.)*
 - `refresh_batch_aggregates(allow_complete=True)` resolves a batch with no pending/running job to a terminal status (`completed`, `partially_completed`, `failed` or `cancelled`); live streamed runs call it on cancellation and failure so they never stay `in_progress`.
-- `stop`/`retry`/`delete` leave a batch that is already terminal (and not running) untouched; `refill` answers 409 while the batch is running.
+- `stop`/`retry`/`delete` leave a batch that is already terminal (and not running) untouched; a passive refresh (for example resolve-duplicates) never reopens a `completed` or `failed` batch; `retry` only stops and relaunches the runner when at least one job is retryable; a failed background launch marks the batch `failed` and clears its cached request; the batch `ETag` includes a question-level fingerprint (count, soft-deleted count, newest `updated_at` and `deleted_at`); `refill` answers 409 while the batch is running.
 - Every job path (main, refill, cancelled, single-slot failure, truncated-output retries) records the tokens and cost it spent.
 - If PostgreSQL is down at startup, the API retries schema initialization in the background (5 s backoff up to 60 s) and then runs the startup maintenance.
 
 ### Operational hardening
 *(Same review pass. Verified against `main.py`, `core/errors.py`, `frontend/nginx*.conf` and the Dockerfiles.)*
 - Every response carries `X-Request-ID` (a safe caller-supplied value or a generated one) and every log line produced while handling the request includes it.
-- Request bodies above `MAX_REQUEST_BODY_MB` are refused with HTTP 413 before any work; nginx enforces the same limit. Bulk id lists are capped at 1000 and bulk question saves at 500.
+- Request bodies above `MAX_REQUEST_BODY_MB` are refused with HTTP 413 (declared `Content-Length` before any work, streamed bodies as they arrive); nginx enforces the same limit. Bulk id lists are capped at 1000 and bulk question saves at 500.
+- `POST /api/batches` is create-only (`create_batch`, `INSERT ... ON CONFLICT DO NOTHING`; `409` when the id exists) and stores an empty `completed` batch regardless of client-supplied status or counters.
+- The in-flight dedup pool (`dedup_inflight.py`) computes the candidate embedding before it takes the pool lock, and registration survives an embedding failure.
+- The backend CSV export (`services/csv_export.py`, `neutralize_formula`) prefixes cells that start with `=`, `+`, `-`, `@`, tab or carriage return with a single quote, and `GET /api/export` reads the bank in pages of 500 rows internally.
 - `GET /api/health/live` is a database-free liveness probe; `/api/health/ready` stays the readiness probe.
 - Error text stored on batches and jobs goes through `sanitize_error_text` (credentials, URL query strings and length removed).
-- The web image runs as a non-root nginx with a Content-Security-Policy (scripts from the same origin only; the theme/font bootstrap lives in `frontend/public/boot.js`), and the backend runs Uvicorn with `--proxy-headers` so rate limits see the real client IP.
+- The web image runs as a non-root nginx with a Content-Security-Policy (scripts from the same origin only; the theme/font bootstrap lives in `frontend/public/boot.js`), and the backend runs Uvicorn with `--proxy-headers`. nginx overwrites `X-Forwarded-For` with `$remote_addr`; Uvicorn trusts that header only from the peers in the `FORWARDED_ALLOW_IPS` environment variable (image default `127.0.0.1`; compose sets it to the pinned `172.29.240.0/24` network; never `*`), and the rate limiter keys on the resulting transport peer (IPv6 grouped by /64), never on a raw header. nginx also injects `X-API-Key` at runtime from `API_ACCESS_KEY` (the nginx config is an envsubst template), so no key is baked into the JS bundle; anyone who can reach the web port can therefore use the mutating API. `POST /api/questions/check-duplicate` skips the key but has its own rate-limit bucket, and `limit_active_batches` reserves a batch slot atomically so bursts cannot exceed `MAX_ACTIVE_BATCHES`.
 
 ---
 

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Layers } from 'lucide-react';
 import BatchJobCard from './BatchJobCard';
+import BatchDuplicateAudit from './BatchDuplicateAudit';
 
 const EMPTY_JOB_IDS = {};
 
@@ -13,7 +14,11 @@ function BatchCardJobsGrid({
   onNavigateToValidated,
   onOpenAudit,
   onSaveToBank,
-  onRestoreQuestion
+  onRestoreQuestion,
+  onCompareDuplicate,
+  onOverrideDuplicate,
+  onShowToast,
+  onRefreshBatch
 }) {
   return (
     <div className="batch-jobs-wrapper">
@@ -36,6 +41,14 @@ function BatchCardJobsGrid({
             </div>
           </div>
 
+          {detail?.batch?.id && (
+            <BatchDuplicateAudit
+              batchId={detail.batch.id}
+              onShowToast={onShowToast}
+              onResolved={onRefreshBatch}
+            />
+          )}
+
           {/* Jobs Grid */}
           {!detail?.jobs || detail.jobs.length === 0 ? (
             <div className="batch-jobs-empty">
@@ -54,6 +67,8 @@ function BatchCardJobsGrid({
                   onOpenAudit={onOpenAudit}
                   onSaveToBank={onSaveToBank}
                   onRestoreQuestion={onRestoreQuestion}
+                  onCompareDuplicate={onCompareDuplicate}
+                  onOverrideDuplicate={onOverrideDuplicate}
                 />
               ))}
             </div>

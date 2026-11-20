@@ -2,6 +2,7 @@ export { default as BatchCard } from './BatchCard';
 export { default as BatchCardSummary } from './BatchCardSummary';
 export { default as BatchLifecycleStepper } from './BatchLifecycleStepper';
 export { default as BatchOutcomeCard } from './BatchOutcomeCard';
+export { default as BatchDuplicateAudit } from './BatchDuplicateAudit';
 export { default as BatchCardJobsGrid } from './BatchCardJobsGrid';
 export { default as BatchStatsHeader } from './BatchStatsHeader';
 export { default as BatchFiltersBar } from './BatchFiltersBar';

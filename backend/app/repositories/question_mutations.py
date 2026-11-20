@@ -26,6 +26,15 @@ from app.schemas import Question
 
 logger = logging.getLogger(__name__)
 
+
+class BatchNotFoundError(LookupError):
+    """A question references a batch that does not exist (never created, or deleted meanwhile)."""
+
+    def __init__(self, batch_id: str):
+        super().__init__(f"Batch not found: {batch_id}")
+        self.batch_id = batch_id
+
+
 # Giving a question one of these statuses also un-deletes it
 _VISIBLE_STATUSES = frozenset({"in_bank", "ai_validated", "batch_only"})
 
@@ -75,8 +84,16 @@ async def save_question(q: Question, session: AsyncSession | None = None) -> Que
             )
             await session.execute(p_stmt)
 
-        # 2. Auto-sync GenerationBatch record atomically if batch_id exists (idempotent, no inflation on edit)
-        if q.batch_id:
+        # 2. Batch sync. A generation job's question (job_id set) needs a real batch: fabricating a
+        # "completed" one would resurrect a batch the user deleted while a worker was still saving.
+        # Manual approvals (no job) keep auto-creating the batch record, idempotently.
+        if q.batch_id and q.job_id:
+            found = await session.execute(
+                select(GenerationBatchModel.id).where(GenerationBatchModel.id == q.batch_id)
+            )
+            if found.first() is None:
+                raise BatchNotFoundError(q.batch_id)
+        elif q.batch_id:
             b_stmt = (
                 pg_insert(GenerationBatchModel)
                 .values(
@@ -135,6 +152,7 @@ async def save_questions_batch(
         # Pre-group passages and batches to optimize DB roundtrips
         passages_to_upsert: dict[str, PassageModel] = {}
         batches_to_upsert: dict[str, dict[str, Any]] = {}
+        job_batch_ids: set[str] = {q.batch_id for q in questions if q.batch_id and q.job_id}
 
         for q in questions:
             q.updated_at = now_iso
@@ -212,6 +230,9 @@ async def save_questions_batch(
         for bid, b_info in batches_to_upsert.items():
             existing_b = existing_batches.get(bid)
             if not existing_b:
+                if bid in job_batch_ids:
+                    # Worker/job saves never fabricate a batch (see save_question)
+                    raise BatchNotFoundError(bid)
                 b_model = GenerationBatchModel(
                     id=bid,
                     section=b_info["section"],

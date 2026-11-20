@@ -921,3 +921,103 @@
 
 
 
+
+/* --- Duplicate compare dialog --- */
+.dup-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .dup-compare-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dup-compare-col {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-subtle);
+}
+
+.dup-compare-heading {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dup-compare-subheading {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.dup-compare-stem {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.dup-compare-options {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dup-compare-option {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.dup-compare-option.correct {
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
+  color: var(--text-primary);
+}
+
+.dup-compare-option-id {
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.dup-compare-option-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dup-compare-explanation {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dup-compare-missing {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-xs);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}

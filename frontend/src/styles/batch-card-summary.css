@@ -983,3 +983,96 @@
 .batch-outcome-icon.stopped {
   color: var(--text-secondary);
 }
+
+/* Flagged question inside a batch set */
+.batch-qitem.dup-risk {
+  border-color: var(--status-danger-border);
+  box-shadow: inset 3px 0 0 var(--status-danger);
+}
+
+/* On-demand duplicate audit inside an expanded batch */
+.batch-dup-audit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.batch-dup-audit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.batch-dup-audit-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.batch-dup-audit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+}
+
+.batch-dup-audit-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.batch-dup-audit-error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--status-danger);
+}
+
+.batch-dup-audit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.batch-dup-audit-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--status-warning-border);
+  border-radius: var(--radius-xs);
+  background: var(--status-warning-bg);
+  font-size: 0.75rem;
+}
+
+.batch-dup-audit-item-head {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.batch-dup-audit-item-stem {
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.batch-dup-audit-actions {
+  display: flex;
+  justify-content: flex-end;
+}

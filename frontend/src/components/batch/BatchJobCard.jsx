@@ -24,7 +24,9 @@ function BatchJobCard({
   onNavigateToValidated,
   onOpenAudit,
   onSaveToBank,
-  onRestoreQuestion
+  onRestoreQuestion,
+  onCompareDuplicate,
+  onOverrideDuplicate
 }) {
   if (!job) return null;
 
@@ -112,6 +114,8 @@ function BatchJobCard({
               onOpenAudit={onOpenAudit}
               onSaveToBank={onSaveToBank}
               onRestoreQuestion={onRestoreQuestion}
+              onCompareDuplicate={onCompareDuplicate}
+              onOverrideDuplicate={onOverrideDuplicate}
             />
           ))}
         </div>

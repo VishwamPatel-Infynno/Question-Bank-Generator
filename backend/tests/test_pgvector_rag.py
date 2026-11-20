@@ -315,3 +315,54 @@ async def test_api_questions_backfill_embeddings():
         data = res.json()
         assert data["success"] is True
         assert "backfilled" in data
+
+
+@pytest.mark.asyncio
+async def test_failed_live_embedding_is_not_faked_or_cached(monkeypatch):
+    """A provider failure yields None (never a deterministic vector) and poisons nothing."""
+    import sys
+    import types
+
+    from app.core.config import config
+    from app.services import embeddings
+
+    monkeypatch.setattr(config, "OFFLINE_MODE", False)
+    embeddings._EMBEDDING_CACHE.clear()
+
+    async def boom(**kwargs):
+        raise RuntimeError("provider down")
+
+    fake_litellm = types.SimpleNamespace(aembedding=boom)
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    assert await embeddings.embed_text("provider outage probe") is None
+    assert await embeddings.embed_texts(["a", "b"]) == [None, None]
+    assert len(embeddings._EMBEDDING_CACHE) == 0
+
+    # Recovery: the next call hits the provider again and caches the real vector
+    dim = config.EMBEDDING_DIMENSION
+
+    async def ok(**kwargs):
+        return types.SimpleNamespace(data=[{"embedding": [0.5] * dim} for _ in kwargs["input"]])
+
+    monkeypatch.setitem(sys.modules, "litellm", types.SimpleNamespace(aembedding=ok))
+    assert await embeddings.embed_text("provider outage probe") == [0.5] * dim
+    assert len(embeddings._EMBEDDING_CACHE) == 1
+    embeddings._EMBEDDING_CACHE.clear()
+
+
+@pytest.mark.asyncio
+async def test_embedding_cache_is_a_bounded_lru(monkeypatch):
+    from app.services import embeddings
+
+    embeddings._EMBEDDING_CACHE.clear()
+    monkeypatch.setattr(embeddings, "_MAX_CACHE_SIZE", 3)
+    for word in ("one", "two", "three"):
+        await embeddings.embed_text(word)
+    await embeddings.embed_text("one")  # touch: "two" is now the oldest
+    await embeddings.embed_text("four")
+    assert len(embeddings._EMBEDDING_CACHE) == 3
+    model = embeddings.config.EMBEDDING_MODEL
+    assert embeddings._hash_text("two", model) not in embeddings._EMBEDDING_CACHE
+    assert embeddings._hash_text("one", model) in embeddings._EMBEDDING_CACHE
+    embeddings._EMBEDDING_CACHE.clear()

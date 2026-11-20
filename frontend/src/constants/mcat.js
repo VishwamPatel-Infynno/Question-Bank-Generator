@@ -329,6 +329,13 @@ export const SCORE_CUTOFFS = Object.freeze({
   batchAbove: 69
 });
 
+/**
+ * Similarity (0-1) from which a not-yet-flagged question is shown as "Similar". It mirrors the
+ * backend DUPLICATE_SOFT_THRESHOLD; the backend flags a hard duplicate (is_duplicate) at 0.75
+ * and does not return soft warnings, so the client derives them from similarity_score.
+ */
+export const DUPLICATE_SOFT_THRESHOLD = 0.6;
+
 /** Batch lifecycle statuses as the API returns them (mirrors backend BatchStatus). */
 export const BATCH_STATUS = Object.freeze({
   PENDING: 'pending',

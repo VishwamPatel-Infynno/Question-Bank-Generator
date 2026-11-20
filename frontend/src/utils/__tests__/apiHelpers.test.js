@@ -7,7 +7,10 @@ import {
   fetchEnhancedInstructions,
   fetchRefinedQuestion,
   fetchPassageAudit,
-  fetchStudyGuide
+  fetchStudyGuide,
+  overrideQuestionDuplicate,
+  fetchBatchDuplicateClusters,
+  resolveBatchDuplicates
 } from '../../services';
 
 describe('section short labels', () => {
@@ -109,5 +112,54 @@ describe('api request helper', () => {
     expect(url).toBe('/api/ai/study-guide');
     expect(init.method).toBe('POST');
     expect(result.title).toBe('Study Guide');
+  });
+
+  it('overrideQuestionDuplicate POSTs to the override endpoint without a body', async () => {
+    const fetchMock = okJson({ success: true, question: { id: 'q7', status: 'in_bank' } });
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await overrideQuestionDuplicate('q7');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/questions/q7/override-duplicate');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeUndefined();
+    expect(res.question.status).toBe('in_bank');
+  });
+
+  it('overrideQuestionDuplicate surfaces a 404 with the server detail', async () => {
+    const res = { ok: false, status: 404, json: async () => ({ detail: 'Question not found' }) };
+    res.clone = () => res;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res));
+    await expect(overrideQuestionDuplicate('nope')).rejects.toThrow(
+      'Override duplicate warning for question nope failed (HTTP 404): Question not found'
+    );
+  });
+
+  it('fetchBatchDuplicateClusters GETs with the threshold and signal, omitting it when unset', async () => {
+    const fetchMock = okJson({ batch_id: 'b1', clusters: [] });
+    vi.stubGlobal('fetch', fetchMock);
+    const ctrl = new AbortController();
+    await fetchBatchDuplicateClusters('b1', { threshold: 0.8 }, ctrl.signal);
+    let [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/batches/b1/duplicate-clusters?threshold=0.8');
+    expect(init.method).toBe('GET');
+    expect(init.signal).toBe(ctrl.signal);
+
+    await fetchBatchDuplicateClusters('b2');
+    [url, init] = fetchMock.mock.calls[1];
+    expect(url).toBe('/api/batches/b2/duplicate-clusters');
+  });
+
+  it('resolveBatchDuplicates defaults to archive and forwards optional ids', async () => {
+    const fetchMock = okJson({ success: true, archived_count: 2, deficit: 2 });
+    vi.stubGlobal('fetch', fetchMock);
+    await resolveBatchDuplicates('b1');
+    let [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/batches/b1/resolve-duplicates');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ action: 'archive' });
+
+    await resolveBatchDuplicates('b1', { action: 'delete', cluster_ids: ['c1'], custom_leader_ids: ['q9'] });
+    [, init] = fetchMock.mock.calls[1];
+    expect(JSON.parse(init.body)).toEqual({ action: 'delete', cluster_ids: ['c1'], custom_leader_ids: ['q9'] });
   });
 });

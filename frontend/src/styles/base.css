@@ -652,3 +652,22 @@ input:focus, select:focus, textarea:focus {
   margin: 0 !important;
 }
 
+
+/* Duplicate risk badge (pairs with .badge-rose / .badge-amber / .badge-emerald) */
+.dup-risk-badge {
+  white-space: nowrap;
+}
+
+.dup-risk-badge-btn {
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition-ui);
+}
+
+.dup-risk-badge-btn:hover {
+  filter: brightness(0.96);
+}
+
+.dup-risk-badge.overridden {
+  font-weight: 500;
+}

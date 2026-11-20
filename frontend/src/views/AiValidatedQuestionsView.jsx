@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { CheckCircle2, Sparkles } from 'lucide-react';
 import { PaginationBar, LoadError, EmptyState } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
+import { DuplicateCompareModal } from '../components/duplicates';
 import { usePagination, useAiValidated } from '../hooks';
 import {
   AiValidatedStatsBar,
@@ -57,6 +58,13 @@ export default function AiValidatedQuestionsView({
     allFilteredSelected,
     handleToggleSelect,
     handleSelectAll,
+    activeId,
+    handleActivate,
+    compareQuestion,
+    isOverriding,
+    openCompare,
+    closeCompare,
+    handleOverride,
     expandedPassageIds,
     togglePassage,
     handleMoveToBankSingle,
@@ -172,6 +180,9 @@ export default function AiValidatedQuestionsView({
                 onMoveToBank={handleMoveToBankSingle}
                 onDiscard={handleDiscardSingle}
                 onOpenAudit={onOpenAudit}
+                onCompareDuplicate={openCompare}
+                isActive={question.id === activeId}
+                onActivate={handleActivate}
               />
             ))}
           </div>
@@ -187,6 +198,13 @@ export default function AiValidatedQuestionsView({
           />
         </>
       )}
+
+      <DuplicateCompareModal
+        question={compareQuestion}
+        onClose={closeCompare}
+        onOverride={handleOverride}
+        isOverriding={isOverriding}
+      />
 
       {/* ── Standardized Accessible Confirmation Modal ───────────────────── */}
       <ConfirmationModal {...confirmModalProps(confirmModal, closeConfirmModal, actionInProgress)} />

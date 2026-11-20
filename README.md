@@ -20,12 +20,12 @@ For deep-dive technical specifications, architecture diagrams, API schemas, and 
 | **[UI/UX Design System (DESIGN.md)](DESIGN.md)** | Authoritative design tokens, dual obsidian/alabaster themes, streamlined 3-step wizard with decomposed summary/advanced drawers, decomposed QuestionCard components, `QuestionCopilotStrip`, `HeroLanding`, decomposed Export Studio panes (`ExportScopeSelector`, `ExportDataFormatPane`, `StudyGuideExportPane`), modular stylesheets (`study-guide-modal.css`, `question-copilot.css`, `stage-inspector.css`), accessible modal focus-trapping contracts (`Modal`, `ConfirmationModal`, `DeletePassageModal`), live batch retry telemetry (`AUTO-RETRYING X/3`), typography scale, component contracts, accessibility criteria (WCAG AA), and micro-animations. |
 | **[Architecture & Multi-Agent Workflow](docs/ARCHITECTURE.md)** | Complete workflow diagrams, 3-step pipeline specifications, Blind-Solver Dual Validation, Deduplication & Anti-Collision Subsystem, AI Copilot Studio & in-flight tooling, pgvector Semantic RAG & HNSW vector indexing (`VECTOR(1536)`), 5-Slot Cognitive Blueprints with replenishment rotation, hard 36-call slot budget, Strict Quality Gate, single-threshold 80/70 quality model, global worker semaphores, background batch runner with 3-trial retries, SSE pipeline, and PostgreSQL 16 ERD. |
 | **[REST & SSE API Reference](docs/API.md)** | Complete FastAPI endpoint documentation (48 endpoint operations across 42 unique paths including root `/metrics`), pgvector semantic search & RAG endpoints, deduplication, duplicate clustering, auto-resolve & refill endpoints, question restoration (`/restore`), permanent purges (`/permanent`, `/purge-batch`), batch generation schemas, 3-trial batch controls (`/stop`, `/retry`, `/cancel-all`), Prometheus `/metrics` exposition, AI Copilot suite (`/enhance-instructions`, `/refine-question`, `/audit-passage`, `/study-guide`), SSE event stream contracts, filter parameters, and cURL examples. |
-| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 517 passing deterministic unit/integration tests across 77 modules (527 total backend tests across 78 files), 150 frontend unit tests across 18 test files, 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
+| **[Testing & Quality Assurance Guide](docs/TESTING_AND_QA.md)** | Complete test specifications for the 549 passing deterministic unit/integration tests across 79 modules (559 total backend tests across 80 files), 203 frontend unit tests across 25 test files, 15 TestSprite-generated Playwright E2E scripts in `e2e/` (run manually, not in CI), Ruff & Oxlint code hygiene standards, and CI pipeline. |
 | **[Token Usage & Cost Tracking](docs/TOKEN_TRACKING.md)** | Verified rate cards per model: DeepInfra DeepSeek ($0.20 in / $0.60 out per 1M tokens standard), Anthropic Claude Haiku 5.5 ($0.10 in / $0.50 out with tiers and prompt-cache rates), OpenAI gpt-4o-mini, text-embedding-3-small ($0.02 per 1M tokens), token-billed gpt-image-2.5-flare images, AI Copilot rate cards, hard 36-call slot budget, exact mathematical cost formulas, multi-agent accumulation, and UI observability. |
 | **[Installation, Setup & Deployment](docs/SETUP_AND_CONFIG.md)** | Step-by-step setup, Docker PostgreSQL 16 guide with `pgvector/pgvector:pg16`, environment variables reference (73 Settings fields), modern `uv` workflow, database duplicate cleanup (`pnpm run db:clean-duplicates`), predev port cleanup, production deployment, linters, and troubleshooting. |
 | **[MCAT Psychometric Rubric & Standards](docs/MCAT_RUBRIC.md)** | Official 4 AAMC sections standards, 100-point 4-pillar evaluation rubric (25 pts per pillar), First-Pass 100/100 Calibration Directive, 5-Slot Cognitive Blueprints for CARS and Science, domain and experimental condition rotation tables, Blind-Solver algorithmic verification, unified 80/70 quality thresholds, and cognitive distractor trap engineering. |
-| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `stream_emitter.py`, `slot_worker.py`, `engine_layout.py`, `review_loop.py`, `passage_prep.py`, `passage_blueprints.py`, `dedup_inflight.py`, `live_job_store.py`, `node_generator.py`, `node_reviewer.py`, `node_finalize.py`, `nodes.py`), AI Copilot in-flight services, pgvector Semantic RAG, Blind-Solver agent, CQRS repositories (`question_queries.py`, `question_mutations.py`, `mappers.py`, `query_builders.py`), schema migrations (`schema_migrations.py`), 3-trial retry engine, testing (517 deterministic tests across 77 modules, 527 total backend tests across 78 files), and seeding scripts. |
-| **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directories (`wizard/`, `question/`, `passage/`, `bank/`, `batch/`, `validated/`, `modals/`, `layout/`, `common/`), top-level views, modular stylesheets, 150 frontend unit tests across 18 test files, hooks, predev port cleaner, and local development instructions. |
+| **[Backend Developer Guide](backend/README.md)** | Layer separation, modular workflow engine (`engine.py`, `stream_emitter.py`, `slot_worker.py`, `engine_layout.py`, `review_loop.py`, `passage_prep.py`, `passage_blueprints.py`, `dedup_inflight.py`, `live_job_store.py`, `node_generator.py`, `node_reviewer.py`, `node_finalize.py`, `nodes.py`), AI Copilot in-flight services, pgvector Semantic RAG, Blind-Solver agent, CQRS repositories (`question_queries.py`, `question_mutations.py`, `mappers.py`, `query_builders.py`), schema migrations (`schema_migrations.py`), 3-trial retry engine, testing (549 deterministic tests across 79 modules, 559 total backend tests across 80 files), and seeding scripts. |
+| **[Frontend Workstation Guide](frontend/README.md)** | Modern React 19 architecture, decomposed component directories (`wizard/`, `question/`, `passage/`, `bank/`, `batch/`, `duplicates/`, `validated/`, `modals/`, `layout/`, `common/`), top-level views, modular stylesheets, 203 frontend unit tests across 25 test files, hooks, predev port cleaner, and local development instructions. |
 | **[Glossary (docs/GLOSSARY.md)](docs/GLOSSARY.md)** | Project-specific terms (slot, blueprint, trial, refill cycle, quality gate, score tiers, statuses, soft vs hard duplicate, blind solver, fail closed, and more) with pointers to the code that defines them. |
 | **[Contributing Guide (CONTRIBUTING.md)](CONTRIBUTING.md)** | Setup prerequisites (including `uv`), verification commands, architectural principles and PR workflow. |
 | **[Design Plans (design-plans/)](design-plans/passage-editorial-desk-audit.md)** | Design audit plans. The Passage Editorial Desk audit is marked resolved. |
@@ -161,9 +161,9 @@ docker compose up -d
 cp .env.example .env   # then add a provider API key, or set OFFLINE_MODE=true for mock data
 
 # Option A: uv workflow (recommended; `pnpm dev` uses `uv run`)
-uv venv
+uv sync   # creates .venv from uv.lock: runtime packages plus the dev group (pytest, ruff)
 source .venv/bin/activate
-uv pip install -r backend/requirements-dev.txt
+# (backend/requirements*.txt stay canonical for CI and Docker; test_packaging_sync.py guards drift)
 
 # Option B: Standard Python venv (works for running uvicorn and pytest directly;
 # the `uv run` based pnpm scripts still need uv installed)
@@ -174,7 +174,7 @@ pip install -r backend/requirements-dev.txt
 # Start FastAPI server
 PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 ```
-*`pyproject.toml` declares no dependencies (`[tool.uv] package = false`), so `uv run` relies on `.venv` already being populated by the install step above. Backend runs on **[http://localhost:8000](http://localhost:8000)** (OpenAPI docs at `/docs`).*
+*`pyproject.toml` declares the runtime dependencies and a `dev` group mirroring `backend/requirements*.txt` (`[tool.uv] package = false`, so only dependencies are installed), and `uv.lock` is generated from them; `uv sync` populates `.venv` and `uv run` keeps it in step with the lockfile. Backend runs on **[http://localhost:8000](http://localhost:8000)** (OpenAPI docs at `/docs`).*
 
 ### 3. Frontend Setup
 ```bash
@@ -198,7 +198,7 @@ Read from the repository-root `.env` (see `.env.example` section 11b):
 
 | Variable | Purpose |
 | :--- | :--- |
-| `VITE_API_ACCESS_KEY` | Optional shared secret sent by the frontend as `X-API-Key`; must match `API_ACCESS_KEY` on the backend. Also a build argument of the `web` Docker image. |
+| `VITE_API_ACCESS_KEY` | Local Vite development only: optional shared secret sent by the frontend as `X-API-Key`; must match `API_ACCESS_KEY` on the backend. It is compiled into the bundle, so it is not used for Docker: the `web` container's nginx injects `X-API-Key` at runtime from `API_ACCESS_KEY`. |
 | `VITE_ALLOWED_HOSTS` | Extra hostnames (comma-separated) the Vite dev server accepts, for example a tunnel hostname. |
 
 ---
@@ -208,9 +208,9 @@ Read from the repository-root `.env` (see `.env.example` section 11b):
 Run the full backend test suite covering schemas, routing logic, strict quality gates, SVG & FLUX synthesis, pgvector operations, and token calculations:
 
 ```bash
-# Backend: 78 test files, 527 tests collected; 10 live_e2e tests are deselected by default,
-# so 517 run by default. 90 of them are marked requires_db: without a reachable PostgreSQL,
-# 427 run and 90 skip cleanly (TESTING_AND_QA.md holds the current numbers).
+# Backend: 80 test files, 559 tests collected; 10 live_e2e tests are deselected by default,
+# so 549 run by default. 96 of them are marked requires_db: without a reachable PostgreSQL,
+# 453 run and 96 skip cleanly (TESTING_AND_QA.md holds the current numbers).
 # conftest.py strips provider keys and enables OFFLINE_MODE: no default test ever calls a live LLM
 source .venv/bin/activate
 pytest -v  # pyproject.toml sets the test path, PYTHONPATH and the "not live_e2e" marker
@@ -223,10 +223,10 @@ ruff format --check .
 Verify frontend code hygiene, unit tests, unused CSS, and the production bundle (these mirror the CI jobs in `.github/workflows/ci.yml`):
 
 ```bash
-# Frontend unit tests (Vitest: 150 tests across 18 test files)
+# Frontend unit tests (Vitest: 203 tests across 25 test files)
 pnpm test:frontend
 
-# Frontend linter (oxlint; the last run reported 169 files, 106 rules, 0 warnings, 0 errors)
+# Frontend linter (oxlint; the last run reported 184 files, 106 rules, 0 warnings, 0 errors)
 pnpm lint
 
 # Fails on CSS classes nothing uses
@@ -236,7 +236,7 @@ pnpm --dir frontend run check:css
 pnpm build
 ```
 
-Browser end-to-end tests: `e2e/` holds 15 generated Playwright scripts (`TC001`-`TC015`). They are run by hand against a running app (`python3 e2e/<file>`), are not part of CI, and Playwright is not listed in any requirements file, so install it first (for example `pip install playwright && playwright install chromium`). See [docs/TESTING_AND_QA.md](docs/TESTING_AND_QA.md).
+Browser end-to-end tests: `e2e/` holds 15 generated Playwright scripts (`TC001`-`TC015`). They are run by hand against a running app (`python3 e2e/<file>`), are not part of CI, and Playwright is not in the backend requirements: install it from `e2e/requirements.txt` first (`pip install -r e2e/requirements.txt && playwright install chromium`). See [docs/TESTING_AND_QA.md](docs/TESTING_AND_QA.md).
 
 ### Monorepo Orchestration Scripts Reference
 
@@ -299,7 +299,7 @@ Question Bank Generator/
 │   ├── clean-ports.mjs          # Frees ports 8000 and 5173 (pnpm run clean:ports, run by predev)
 │   ├── clean_duplicate_artifacts.py # Discarded-question cleanup utility (pnpm run db:clean-duplicates)
 │   └── benchmark_concurrency.py # In-process ASGI high-concurrency load benchmark (pnpm run benchmark:concurrency)
-├── e2e/                         # 15 Playwright scripts (TC001-TC015), standard_prd.json and a TestSprite test plan; run by hand, not in CI
+├── e2e/                         # 15 Playwright scripts (TC001-TC015), requirements.txt (playwright), standard_prd.json and a TestSprite test plan; run by hand, not in CI
 ├── backend/
 │   ├── README.md                # Backend developer guide
 │   ├── Dockerfile               # Multi-stage python:3.11-slim image (one Uvicorn worker, non-root)
@@ -307,7 +307,7 @@ Question Bank Generator/
 │   ├── requirements-dev.txt     # Adds pytest, pytest-asyncio, pytest-cov, ruff
 │   ├── scripts/
 │   │   └── seed_questions.py    # Seeds 4 sample questions (pnpm run db:seed)
-│   ├── tests/                   # 78 test files (527 tests; 10 marked live_e2e are deselected by default)
+│   ├── tests/                   # 80 test files (559 tests; 10 marked live_e2e are deselected by default)
 │   │   ├── conftest.py          # Fixtures: offline DB probe, credential stripping, async client, patch_llm
 │   │   ├── factories.py         # Shared builders (make_draft, make_question, make_request, ...)
 │   │   └── test_*.py            # Test modules, including test_optimizations.py and test_optimizations_fullstack.py
@@ -340,7 +340,7 @@ Question Bank Generator/
         ├── styles/              # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print, ...)
         ├── views/               # Lazy-loaded screens: AiValidatedQuestionsView, BatchActivityView, PassageBankView, QuestionBankView
         ├── components/          # Feature folders: wizard/, question/ (includes QuestionCopilotStrip.jsx), passage/, bank/, batch/, validated/, modals/, layout/, common/
-        ├── hooks/               # Stateful hooks (useAppState, useQuestionBank, usePassageBank, useBatchActivity, useGeneratorForm, useKeyboardShortcuts, useTheme, ...)
+        ├── hooks/               # Stateful hooks (useAppState, useQuestionBank, usePassageBank, useBatchActivity, useGeneratorForm, useKeyboardShortcuts, useDuplicateOverride, useTheme, ...)
         ├── constants/           # mcat.js, mcatTraps.js, mcat_dependent_taxonomy.json (synced copy)
         ├── services/api.js      # SSE event reader & REST client (34 exports)
         └── utils/               # Pure helpers; export/ holds csv.js, json.js, htmlDoc.js, printPaperCss.js behind export/index.js

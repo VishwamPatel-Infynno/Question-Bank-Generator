@@ -66,6 +66,13 @@ export {
   getAuditCostBreakdown,
   filterQuestionsByText
 } from './questionHelpers';
+/** Duplicate warning state derived from a question's duplicate_info */
+export {
+  getDuplicateState,
+  hasDuplicateAlert,
+  canCompare
+} from './duplicateHelpers';
+
 export { toggleId, toggleAll, allSelected } from './selection';
 export { sortPassages, passageQuestionCounts } from './passageHelpers';
 export { buildBatchPayload } from './batchPayload';

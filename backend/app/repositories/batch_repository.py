@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
@@ -158,6 +159,23 @@ async def save_batch(
         return batch
 
 
+async def create_batch(
+    batch: GenerationBatch, session: AsyncSession | None = None
+) -> GenerationBatch | None:
+    """Inserts a new batch; returns None (leaving the stored row untouched) if the id exists."""
+    batch.updated_at = datetime.now(UTC).isoformat()
+    model = _batch_schema_to_model(batch)
+    values = {c.name: getattr(model, c.name) for c in GenerationBatchModel.__table__.columns}
+    async with scoped_session(session) as s:
+        res = await s.execute(
+            pg_insert(GenerationBatchModel)
+            .values(**values)
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
+        await s.commit()
+        return batch if res.rowcount else None
+
+
 async def _execute_promote_batch_questions(
     session: AsyncSession, batch_id: str, timestamp: datetime | None = None
 ) -> int:
@@ -209,6 +227,14 @@ def _next_batch_status(
         current == BatchStatus.PARTIALLY_COMPLETED and active_jobs == 0
     )
     if keep_terminal:
+        return current
+    # A finished (completed/failed) batch with nothing running is not re-opened by a passive
+    # refresh (e.g. resolving duplicates); relaunch paths set in_progress explicitly first.
+    if (
+        not allow_complete
+        and active_jobs == 0
+        and current in (BatchStatus.COMPLETED, BatchStatus.FAILED)
+    ):
         return current
 
     status = current

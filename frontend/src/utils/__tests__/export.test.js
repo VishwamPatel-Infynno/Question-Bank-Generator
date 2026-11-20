@@ -71,6 +71,12 @@ describe('generateExamHtmlDoc', () => {
     expect(html).toContain('pH &lt; 7');
   });
 
+  it('states that calculators are not permitted on the MCAT', () => {
+    const html = generateExamHtmlDoc([question()], { paperMode: 'student' });
+    expect(html).toContain('Calculators are not permitted on the MCAT.');
+    expect(html).not.toContain('Quantitative Reasoning');
+  });
+
   it('adds the answer key only for study packs', () => {
     expect(generateExamHtmlDoc([question()], { paperMode: 'student' })).not.toContain('Answer Key');
     expect(generateExamHtmlDoc([question()], { paperMode: 'studypack' })).toContain('Answer Key');

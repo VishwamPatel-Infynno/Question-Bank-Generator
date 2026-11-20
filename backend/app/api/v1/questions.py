@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import base64
+import csv
+import io
 import logging
+from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, Response
@@ -28,6 +31,7 @@ from app.repositories import (
     save_questions_batch,
     update_question_status,
 )
+from app.repositories.question_mutations import BatchNotFoundError
 from app.schemas import (
     BackfillEmbeddingsRequest,
     BatchDeleteRequest,
@@ -42,10 +46,11 @@ from app.schemas import (
 )
 from app.services import (
     backfill_question_embeddings,
+    build_csv_headers,
+    build_csv_row,
     evaluate_duplicate,
     evaluate_duplicate_rag,
     find_similar_questions,
-    generate_questions_csv,
     hybrid_search_questions,
     retrieve_rag_exemplar_context,
 )
@@ -191,7 +196,10 @@ async def approve_and_save_question(question: Question) -> dict[str, Any]:
     Admin approval endpoint: persists an approved candidate question into the Question Bank repository.
     """
     _require_valid_status(question)
-    saved = await save_question(question)
+    try:
+        saved = await save_question(question)
+    except BatchNotFoundError as err:
+        raise HTTPException(status_code=404, detail=str(err)) from err
     logger.info(
         "Question approved by Admin and saved to Question Bank: %s (%s)",
         saved.id,
@@ -211,7 +219,10 @@ async def batch_approve_and_save_questions(questions: list[Question]) -> dict[st
         )
     for q in questions:
         _require_valid_status(q)
-    saved_list = await save_questions_batch(questions)
+    try:
+        saved_list = await save_questions_batch(questions)
+    except BatchNotFoundError as err:
+        raise HTTPException(status_code=404, detail=str(err)) from err
     logger.info("Atomic batch approved %s questions into Question Bank.", len(saved_list))
     return {"success": True, "saved_count": len(saved_list), "ids": saved_list}
 
@@ -357,21 +368,44 @@ async def backfill_embeddings_endpoint(payload: BackfillEmbeddingsRequest) -> di
     return {"success": True, **result}
 
 
+_EXPORT_PAGE_SIZE = 500
+
+
+async def _iter_bank_pages() -> AsyncIterator[list[Question]]:
+    """The in_bank questions, newest first, one bounded page at a time."""
+    offset = 0
+    while True:
+        page = await get_questions(status="in_bank", limit=_EXPORT_PAGE_SIZE, offset=offset)
+        if not page:
+            return
+        yield page
+        if len(page) < _EXPORT_PAGE_SIZE:
+            return
+        offset += _EXPORT_PAGE_SIZE
+
+
 @router.get("/export")
 async def export_questions(
     export_format: Annotated[str, Query(alias="format", pattern="^(json|csv)$")] = "json",
 ):
     """Exports Question Bank in JSON or CSV format including manager matrix fields and UUIDs."""
-    questions = await get_questions(status="in_bank")
-
     if export_format == "json":
-        data = [q.model_dump() for q in questions]
+        data: list[dict[str, Any]] = []
+        async for page in _iter_bank_pages():
+            data.extend(q.model_dump() for q in page)
         return JSONResponse(
             content=data,
             headers={"Content-Disposition": "attachment; filename=mcat_question_bank.json"},
         )
 
-    csv_data = generate_questions_csv(questions)
+    # CSV rows are written page by page so no more than one page of Question objects is alive
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(build_csv_headers())
+    async for page in _iter_bank_pages():
+        for q in page:
+            writer.writerow(build_csv_row(q))
+    csv_data = buffer.getvalue()
     return Response(
         content=csv_data,
         media_type="text/csv",

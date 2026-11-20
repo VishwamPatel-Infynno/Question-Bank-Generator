@@ -26,6 +26,7 @@ import {
 } from '../../utils';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
 import SharedPassageCard from '../question/SharedPassageCard';
+import { DuplicateRiskBadge } from '../duplicates';
 
 function AiValidatedQuestionCard({
   question: q,
@@ -37,6 +38,9 @@ function AiValidatedQuestionCard({
   onOpenAudit,
   onMoveToBank,
   onDiscard,
+  onCompareDuplicate,
+  isActive = false,
+  onActivate,
   actionInProgress = false
 }) {
   const hasPassage = Boolean(q.stimulus_text && q.stimulus_text.trim());
@@ -44,7 +48,12 @@ function AiValidatedQuestionCard({
   const trapInfo = getEffectiveTrapInfo(q);
 
   return (
-    <div className={`validated-card ${isSelected ? 'selected' : ''}`}>
+    <div
+      className={`validated-card ${isSelected ? 'selected' : ''} ${isActive ? 'validated-card--active' : ''}`.trim()}
+      data-question-id={q.id}
+      onFocus={() => onActivate?.(q.id)}
+      onClick={() => onActivate?.(q.id)}
+    >
       {/* Card Header */}
       <div className="validated-card-header">
         <div className="validated-card-header-left">
@@ -96,6 +105,7 @@ function AiValidatedQuestionCard({
               <ImageIcon size={10} /> Diagram
             </span>
           )}
+          <DuplicateRiskBadge question={q} onClick={onCompareDuplicate} />
         </div>
 
         <div className="validated-card-header-right">
@@ -203,11 +213,13 @@ function AiValidatedQuestionCard({
             onClick={() => onDiscard?.(q)}
             disabled={actionInProgress}
             className="btn-secondary validated-card-discard-btn"
-            title="Discard question"
+            title="Discard question (D)"
             aria-label={`Discard question #${index + 1}`}
+            aria-keyshortcuts="D"
           >
             <Trash2 size={12} />
             <span>Discard</span>
+            {isActive && <kbd className="kbd-hint" aria-hidden="true">D</kbd>}
           </button>
 
           <button
@@ -216,9 +228,12 @@ function AiValidatedQuestionCard({
             disabled={actionInProgress}
             className="btn-primary validated-save-btn validated-card-bank-btn"
             aria-label={`Save question #${index + 1} to Question Bank`}
+            aria-keyshortcuts="A"
+            title="Save to Question Bank (A)"
           >
             <Database size={12} />
             <span>Save to Question Bank</span>
+            {isActive && <kbd className="kbd-hint" aria-hidden="true">A</kbd>}
           </button>
         </div>
       </div>

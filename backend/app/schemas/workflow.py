@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
 
 from app.schemas.mcat import Difficulty, MCATSection, is_cars, normalize_section
 from app.schemas.question import TaxonomyFields
@@ -17,12 +17,28 @@ KNOWN_VISUAL_TYPES: tuple[str, ...] = (
 )
 
 
+# Provider model ids look like "claude-haiku-5-5", "gpt-4o-mini", "deepinfra/org/Model-1.0",
+# "anthropic/claude-x:tag": letters, digits and . _ - / : @ + only, starting alphanumeric.
+MODEL_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:/@+\-]*$"
+
+
 class GenerationRequest(TaxonomyFields):
+    # Taxonomy fields are shared with LLM-produced questions, so their request-side length limits
+    # live here rather than on TaxonomyFields.
+    subject: str | None = Field(None, max_length=200, description="Taxonomy subject")
+    unit: str | None = Field(None, max_length=300, description="Taxonomy unit")
+    topic: str | None = Field(None, max_length=300, description="Taxonomy topic")
+    subskill: str | None = Field(None, max_length=300, description="Granular AAMC subskill focus")
+    likely_mistake_pattern: str | None = Field(
+        None, max_length=500, description="Targeted student misconception or mistake pattern"
+    )
+
     section: MCATSection
     subtopic: str | None = Field(default=None, max_length=300)
     difficulty: Difficulty = Difficulty.MEDIUM
     aamc_skill: str | None = Field(
         default=None,
+        max_length=300,
         description="AAMC Scientific Inquiry & Reasoning Skill (SIRS) or CARS skill classification",
     )
     allow_ai_images: bool = Field(
@@ -39,7 +55,7 @@ class GenerationRequest(TaxonomyFields):
         max_length=4000,
         description="Educator instructions specifying constraints, scenarios, or pedagogical rules to strictly enforce",
     )
-    model_name: str | None = Field(default=None, max_length=200)
+    model_name: str | None = Field(default=None, max_length=200, pattern=MODEL_NAME_PATTERN)
     api_key: str | None = Field(default=None, max_length=500, repr=False)
 
     # Execution & Batch UUID Identifiers
@@ -58,41 +74,58 @@ class GenerationRequest(TaxonomyFields):
     )
     passing_threshold: int | None = Field(
         None,
-        description="Quality benchmark passing threshold score (defaults to 90; 85 for batch jobs)",
+        ge=0,
+        le=100,
+        description=(
+            "Quality benchmark passing threshold score, 0-100. Defaults to "
+            "config.PASSING_SCORE_THRESHOLD (80); batch retention (batch_only) uses "
+            "PASSING_SCORE_THRESHOLD - 10 (70)."
+        ),
     )
 
     # Manager Combination Matrix attributes
     combination_id: str | None = Field(
         default_factory=lambda: str(uuid.uuid4()),
+        max_length=100,
         description="Combination UUID4 or custom code e.g. CMB00001",
     )
-    content_domain: str | None = Field(None, description="e.g. General_Chemistry, Biochemistry")
+    content_domain: str | None = Field(
+        None, max_length=200, description="e.g. General_Chemistry, Biochemistry"
+    )
     question_type: str | None = Field(
-        None, description="e.g. Passage_Based_Set, Independent_Discrete"
+        None, max_length=100, description="e.g. Passage_Based_Set, Independent_Discrete"
     )
     interaction_type: str | None = Field(
-        "single_choice", description="single_choice (standard 4-choice AAMC)"
+        "single_choice", max_length=100, description="single_choice (standard 4-choice AAMC)"
     )
-    primary_trap: str | None = Field(None, description="e.g. Out_of_Scope, Distortion_Opposite")
+    primary_trap: str | None = Field(
+        None, max_length=200, description="e.g. Out_of_Scope, Distortion_Opposite"
+    )
     passage_required: str | bool | None = Field(None, description="Yes or No")
     passage_mode: str | None = Field(
         "single_passage",
         description="single_passage (all 5 linked to 1 passage) or independent (all 5 standalone discretes)",
     )
     passage_id: str | None = Field(
-        None, description="Shared UUID for questions linked to the same passage"
+        None, max_length=100, description="Shared UUID for questions linked to the same passage"
     )
     shared_stimulus: str | None = Field(
         None, max_length=20000, description="Pre-generated shared passage text"
     )
     passage_questions: int | None = Field(None, description="Number of passage questions e.g. 5")
     image_required: str | bool | None = Field(None, description="Yes or No")
-    visual_type: str | None = Field("None", description="e.g. None, SVG_Diagram, AI_FLUX_Image")
+    visual_type: str | None = Field(
+        "None", max_length=50, description="e.g. None, SVG_Diagram, AI_FLUX_Image"
+    )
 
     thematic_angle: str | None = Field(
-        None, description="Optional angle/scenario focus to guarantee cross-job passage diversity"
+        None,
+        max_length=2000,  # the batch planner composes "SLOT n FOCUS: ..." angles server-side
+        description="Optional angle/scenario focus to guarantee cross-job passage diversity",
     )
-    content_domains: list[str] | None = Field(None, description="Multi-selected content domains")
+    content_domains: list[Annotated[str, StringConstraints(max_length=200)]] | None = Field(
+        None, max_length=30, description="Multi-selected content domains"
+    )
 
     questions_to_generate: int = Field(
         5,

@@ -10,7 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import scoped_session
 from app.models.passage import PassageModel
 from app.models.question import QuestionModel
-from app.repositories._filters import active_passage_clause, active_question_clause
+from app.repositories._filters import (
+    LIKE_ESCAPE,
+    active_passage_clause,
+    active_question_clause,
+    clamp_list_limit,
+    like_contains,
+)
 from app.repositories.mappers import passage_model_to_schema, passage_schema_to_model
 from app.schemas import Passage
 
@@ -47,13 +53,13 @@ async def get_passages(
         if subtopic:
             stmt = stmt.where(PassageModel.subtopic == subtopic)
         if search:
-            wildcard = f"%{search.strip()}%"
+            wildcard = like_contains(search.strip())
             stmt = stmt.where(
                 or_(
-                    PassageModel.text.ilike(wildcard),
-                    PassageModel.title.ilike(wildcard),
-                    PassageModel.subtopic.ilike(wildcard),
-                    PassageModel.id.ilike(wildcard),
+                    PassageModel.text.ilike(wildcard, escape=LIKE_ESCAPE),
+                    PassageModel.title.ilike(wildcard, escape=LIKE_ESCAPE),
+                    PassageModel.subtopic.ilike(wildcard, escape=LIKE_ESCAPE),
+                    PassageModel.id.ilike(wildcard, escape=LIKE_ESCAPE),
                 )
             )
 
@@ -69,8 +75,7 @@ async def get_passages(
             stmt = stmt.order_by(PassageModel.created_at.desc())
         if offset and offset > 0:
             stmt = stmt.offset(offset)
-        if limit and limit > 0:
-            stmt = stmt.limit(limit)
+        stmt = stmt.limit(clamp_list_limit(limit))
         result = await s.execute(stmt)
         rows = result.all()
         return [passage_model_to_schema(m, int(q_count or 0)) for m, q_count in rows]
@@ -93,13 +98,13 @@ async def count_passages(
         if subtopic:
             stmt = stmt.where(PassageModel.subtopic == subtopic)
         if search:
-            wildcard = f"%{search.strip()}%"
+            wildcard = like_contains(search.strip())
             stmt = stmt.where(
                 or_(
-                    PassageModel.text.ilike(wildcard),
-                    PassageModel.title.ilike(wildcard),
-                    PassageModel.subtopic.ilike(wildcard),
-                    PassageModel.id.ilike(wildcard),
+                    PassageModel.text.ilike(wildcard, escape=LIKE_ESCAPE),
+                    PassageModel.title.ilike(wildcard, escape=LIKE_ESCAPE),
+                    PassageModel.subtopic.ilike(wildcard, escape=LIKE_ESCAPE),
+                    PassageModel.id.ilike(wildcard, escape=LIKE_ESCAPE),
                 )
             )
         result = await s.execute(stmt)

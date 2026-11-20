@@ -388,6 +388,34 @@ def _get_available_fallback_models(primary_model: str) -> list[str]:
     return candidates
 
 
+def _server_configured_models() -> set[str]:
+    """Models the operator configured; the only ones callers may select on the server's keys."""
+    models = {
+        config.ANTHROPIC_MODEL,
+        config.DEEPINFRA_MODEL,
+        config.OPENAI_MODEL,
+        config.BLIND_SOLVER_MODEL,
+        config.DEFAULT_TEXT_MODEL,
+        *config.FAST_MODEL_CASCADE,
+    }
+    return {m.strip() for m in models if m and m.strip()}
+
+
+def _ensure_model_allowed(model: str | None, api_key: str | None) -> None:
+    """Rejects a request-chosen model that is not configured, unless the caller brings its own key.
+
+    A client-supplied ``model_name`` would otherwise let anyone pick an arbitrary (possibly far
+    pricier) model and bill it to the server's credentials. With the caller's own ``api_key`` the
+    spend is theirs, so any model is fine.
+    """
+    if api_key or not model or model.strip() in _server_configured_models():
+        return
+    raise LLMNotConfiguredError(
+        f"Model '{model[:80]}' is not configured on this server. "
+        "Use a configured model or supply your own API key."
+    )
+
+
 async def call_llm(
     prompt: str,
     system_prompt: str,
@@ -397,6 +425,7 @@ async def call_llm(
     max_tokens: int | None = None,
 ) -> tuple[str, TokenUsage]:
     """Universal LLM caller via LiteLLM targeting DeepInfra or Anthropic models with global throttling & backoff."""
+    _ensure_model_allowed(model, api_key)
     initial_model = model or config.DEFAULT_TEXT_MODEL
     effective_max_tokens = max_tokens if max_tokens is not None else config.DEFAULT_MAX_TOKENS
     effective_temperature = temperature if temperature is not None else config.DEFAULT_TEMPERATURE

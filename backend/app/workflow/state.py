@@ -130,6 +130,11 @@ class AgentWorkflowState(TypedDict, total=False):
     # Deduplication state
     duplicate_info: DuplicateInfoDict | None
     regenerated_pending_dedup: bool
+    is_duplicate_override: bool
+
+    # Blind solver (independent answer check)
+    blind_solver_result: dict[str, Any] | None
+    blind_solver_passed: bool | None
 
     # Visual stimulus & medical imaging
     image_url: str | None

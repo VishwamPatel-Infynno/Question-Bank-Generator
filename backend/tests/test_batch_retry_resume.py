@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock
 
+import pytest
 from app.schemas import GenerationJob, GenerationRequest
 from app.services import batch_runner
 
@@ -77,3 +78,48 @@ async def test_jobs_left_running_by_a_finished_runner_are_failed(monkeypatch):
     monkeypatch.setattr(batch_runner, "update_job_progress", fake_update)
     await batch_runner._fail_stuck_jobs("b1", ["job-running", "job-completed"])
     assert updates == [("job-running", "failed")]
+
+
+async def test_retry_with_nothing_to_retry_does_not_stop_the_running_batch(monkeypatch):
+    from app.schemas import GenerationBatch
+
+    stop = AsyncMock()
+    monkeypatch.setattr(batch_runner, "stop_background_batch", stop)
+    monkeypatch.setattr(
+        batch_runner, "get_batch_by_id", AsyncMock(return_value=GenerationBatch(id="b1"))
+    )
+    done = _job("completed", actual=5)
+    monkeypatch.setattr(batch_runner, "get_jobs_by_batch_id", AsyncMock(return_value=[done]))
+    _batch, jobs = await batch_runner.retry_incomplete_jobs_for_batch("b1")
+    assert jobs == []
+    stop.assert_not_awaited()
+
+
+async def test_launch_failure_marks_the_batch_failed_instead_of_leaving_a_zombie(monkeypatch):
+    from app.schemas import GenerationBatch
+
+    saved: list[GenerationBatch] = []
+
+    async def fake_save(b, session=None):
+        saved.append(b.model_copy())
+        return b
+
+    async def boom(jobs):
+        raise RuntimeError("db hiccup")
+
+    monkeypatch.setattr(batch_runner, "save_batch", fake_save)
+    monkeypatch.setattr(batch_runner, "save_jobs_bulk", boom)
+    monkeypatch.setattr(
+        batch_runner,
+        "get_batch_by_id",
+        AsyncMock(side_effect=lambda bid: saved[-1].model_copy()),
+    )
+    forgot: list[str] = []
+    monkeypatch.setattr(batch_runner, "forget_batch_request", forgot.append)
+
+    req = GenerationRequest(section="CP", subtopic="Kinetics", difficulty="Medium")
+    with pytest.raises(RuntimeError):
+        await batch_runner.launch_background_batch(req, batch_id="zb1")
+    assert saved[0].status == "in_progress"
+    assert saved[-1].status == "failed"
+    assert forgot == ["zb1"]

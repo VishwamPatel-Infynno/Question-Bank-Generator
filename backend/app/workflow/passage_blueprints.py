@@ -16,28 +16,6 @@ from app.schemas import GenerationRequest, is_cars
 
 logger = logging.getLogger(__name__)
 
-MODALITY_ROTATION_BY_SECTION: dict[str, list[str]] = {
-    "bio_biochem": [
-        "histopathology (e.g. H&E tissue biopsy, cellular histology, blood smear)",
-        "scientific_diagram (e.g. enzyme kinetics plot, SDS-PAGE gel, metabolic pathway)",
-        "gross_anatomy (e.g. organ cross-section, cardiac chambers, renal architecture)",
-        "cellular_microscopy (e.g. TEM micrograph of mitochondrial cristae, sarcomere ultrastructure)",
-        "physiology_trace (e.g. 12-lead ECG strip, cardiac action potential, PV loop)",
-    ],
-    "chem_phys": [
-        "scientific_diagram (e.g. reaction mechanism, titration curve, optics diagram, circuit)",
-        "diagnostic_radiology (e.g. plain radiograph X-ray, CT attenuation, ultrasound, MRI)",
-        "physiology_trace (e.g. cardiac electrical trace, respiratory pressure-volume curve)",
-        "cellular_microscopy (e.g. membrane channel ultrastructure, electron micrograph)",
-    ],
-    "psych_soc": [
-        "scientific_diagram (e.g. experimental scatter plot with regression line, psychophysics curve)",
-        "diagnostic_radiology (e.g. fMRI BOLD cortical activation scan, PET neuroimaging)",
-        "gross_anatomy (e.g. neuroanatomical structures: limbic system, hippocampus, amygdala)",
-        "clinical_pathology (e.g. neurological examination findings, emotion processing stimuli)",
-    ],
-}
-
 CARS_SLOT4_APPLICATION_DOMAINS: list[str] = [
     "Clinical Medical Ethics & Patient Autonomy (e.g., triage protocols, informed consent disputes, surrogate decision-making)",
     "Environmental Policy & Conservation Governance (e.g., water rights allocation, biodiversity treaties, ecological remediation)",

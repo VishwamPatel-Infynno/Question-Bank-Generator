@@ -159,7 +159,8 @@ class RequestContextMiddleware:
     - Accepts a caller-supplied ``X-Request-ID`` (when it is a short safe token) or creates one,
       binds it to every log line produced while handling the request, and echoes it back.
     - Rejects bodies whose declared ``Content-Length`` exceeds MAX_REQUEST_BODY_MB with HTTP 413
-      before any work happens.
+      before any work happens, and counts bytes as they stream in so chunked uploads (no
+      Content-Length) are cut off at the same limit.
     """
 
     def __init__(self, app: ASGIApp):
@@ -192,8 +193,39 @@ class RequestContextMiddleware:
             await response(scope, receive, send_with_id)
             return
 
+        received = 0
+        response_started = False
+        too_large = False
+
+        async def send_tracking(message: Message) -> None:
+            nonlocal response_started
+            if too_large:
+                return  # the 413 was already sent; drop whatever the aborted handler tries to say
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send_with_id(message)
+
+        async def counting_receive() -> Message:
+            nonlocal received, too_large
+            message = await receive()
+            if message["type"] == "http.request" and limit:
+                received += len(message.get("body", b""))
+                if received > limit and not too_large:
+                    if not response_started:
+                        await JSONResponse(
+                            status_code=413,
+                            content={
+                                "detail": f"Request body exceeds {config.MAX_REQUEST_BODY_MB} MB.",
+                                "code": "payload_too_large",
+                            },
+                        )(scope, receive, send_with_id)
+                    too_large = True
+                    # The handler sees a disconnect rather than an oversized body
+                    return {"type": "http.disconnect"}
+            return message
+
         with bind_log_context(request_id=request_id):
-            await self._app(scope, receive, send_with_id)
+            await self._app(scope, counting_receive, send_tracking)
 
 
 core_app.add_middleware(SecurityHeadersMiddleware)

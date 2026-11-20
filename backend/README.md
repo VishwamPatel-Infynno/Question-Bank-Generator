@@ -17,7 +17,7 @@ backend/
 │   ├── api/                 # Presentation Layer (HTTP & SSE Routers - 48 operations across 42 unique paths including root /metrics)
 │   │   ├── admin.py         # Admin authorization dependencies & protected gates
 │   │   ├── router.py        # Central API v1 router aggregator (applies the optional API_ACCESS_KEY gate)
-│   │   ├── security.py      # Optional X-API-Key dependency & rate limiting for mutating routes
+│   │   ├── security.py      # Optional X-API-Key dependency, per-peer rate limiting (IPv6 by /64; duplicate check has its own bucket) & atomic active-batch slot reservation
 │   │   ├── utils.py         # Shared API response serialization & parameter validation helpers
 │   │   └── v1/
 │   │       ├── ai.py        # Real-time AI Copilot tools (/enhance-instructions, /refine-question, /audit-passage, /study-guide)
@@ -68,25 +68,25 @@ backend/
 │   │   ├── __init__.py          # Services facade re-exporting lifecycles, duplicate clustering & export builders
 │   │   ├── ai_copilot.py    # Real-time educator copilot tooling (prompt enhancement, refine, audit, study guide)
 │   │   ├── rag.py           # Semantic RAG retrieval & exemplar extraction via pgvector
-│   │   ├── embeddings.py    # Embedding generation via LiteLLM `aembedding` (OpenAI or DeepInfra key) with a deterministic hash-based fallback and in-process cache
+│   │   ├── embeddings.py    # Embedding generation via LiteLLM `aembedding` (OpenAI or DeepInfra key) with a deterministic hash-based vector offline or without a key, and a bounded 1024-entry LRU cache (a failed live call returns no embedding: nothing is cached or persisted)
 │   │   ├── dedup_clustering.py # Hierarchical duplicate clustering & cluster querying
 │   │   ├── dedup_metrics.py # Multi-metric similarity calculations (token containment, jaccard, sequence matcher)
 │   │   ├── batch_runner.py  # High-level pool managing 5 Questions (1-job) and 50 Questions (10-job batch)
 │   │   ├── batch_worker.py  # Dedicated background worker executing parallel job attempts, trial counts & recovery
 │   │   ├── batch_concurrency.py # Process-wide worker semaphores, active run tracking & rate-limiting throttles
 │   │   ├── batch_resolution.py  # Duplicate cluster leader selection & automated deficit replenishment calculation
-│   │   ├── csv_export.py        # Tabular CSV streaming serialization
+│   │   ├── csv_export.py        # Tabular CSV serialization (neutralize_formula guards against spreadsheet formula injection)
 │   │   ├── deduplication.py # Multi-metric similarity scoring, pairwise clustering & anti-collision service
 │   │   ├── metrics.py       # Real-time Prometheus metric collectors, counter updates & histogram exposition
 │   │   └── readability.py   # Flesch-Kincaid & vocabulary density heuristics
 │   ├── repositories/        # Data Access Layer (DAL)
-│   │   ├── _filters.py            # Shared soft-delete clauses (active_question_clause, active_passage_clause)
-│   │   ├── question_queries.py    # Query operations, paginated search, pgvector similarity, metrics, status counts & QuestionHead
-│   │   ├── question_mutations.py  # Atomic writes, single/batch upserts, embeddings persistence, deletions, restorations & status updates
+│   │   ├── _filters.py            # Shared soft-delete clauses (active_question_clause, active_passage_clause), MAX_LIST_LIMIT / clamp_list_limit and like_contains (literal % and _ in LIKE searches)
+│   │   ├── question_queries.py    # Query operations, paginated search, pgvector similarity, metrics, status counts, QuestionHead & get_batch_question_signature (batch ETag fingerprint)
+│   │   ├── question_mutations.py  # Atomic writes, single/batch upserts (BatchNotFoundError for a job question whose batch is missing), embeddings persistence, deletions, restorations & status updates
 │   │   ├── question_repository.py # Unified CQRS facade re-exporting all DAL operations
 │   │   ├── mappers.py             # Pure model mapping functions for Questions and Passages
 │   │   ├── query_builders.py      # Shared SQLAlchemy query filters, difficulty aliases & deferred loading
-│   │   ├── batch_repository.py    # Staged batch run queries & persistence
+│   │   ├── batch_repository.py    # Staged batch run queries & persistence (create_batch is insert-only; save_batch upserts)
 │   │   ├── job_repository.py      # Background worker job state tracking
 │   │   └── passage_repository.py  # Shared stimulus reading passage queries, soft-deletion, and cascade question removal
 │   ├── models/              # Persistence Layer (SQLAlchemy 2.0 ORM Entities)
@@ -109,7 +109,7 @@ backend/
 │   │   ├── logging.py       # Centralized console logging handler & formatter
 │   │   └── errors.py        # Standardized domain exceptions & error codes
 │   ├── middleware/          # ASGI Middlewares
-│   │   ├── telemetry.py     # Prometheus HTTP request timing, status code counters & latency histograms
+│   │   ├── telemetry.py     # Prometheus HTTP request timing, status code counters & latency histograms (endpoint label = matched route template or `unmatched`; unusual methods = `OTHER`)
 │   │   └── __init__.py      # Package marker; GZipMiddleware (minimum_size=1000) and SecurityHeadersMiddleware (defined in main.py) are registered in main.py
 │   ├── db/                  # Database Lifecycle & Migrations
 │   │   ├── base.py          # Declarative Base
@@ -121,7 +121,7 @@ backend/
 │       └── thematic_angles.py # Curated science and CARS thematic angle distributions
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (77 deterministic modules / 517 tests + 1 live E2E module with 10 tests = 527 total backend tests across 78 files)
+└── tests/                   # Deterministic Automated Test Suite (79 deterministic modules / 549 tests + 1 live E2E module with 10 tests = 559 total backend tests across 80 files)
     ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
     ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
     ├── test_additional_instructions.py     # Educator custom authoring instructions and prompt builder integration
@@ -133,7 +133,7 @@ backend/
     ├── test_api_generation.py              # Generation flows through the API: batches, passage sets, visuals
     ├── test_api_hardening.py               # API hardening: admin gate, image safety, safe defaults, write validation
     ├── test_api_questions.py               # Question bank API: CRUD, approval, status lifecycle, pagination, slim projection
-    ├── test_api_security.py                # Optional shared-secret gate and request input limits
+    ├── test_api_security.py                # Optional shared-secret gate, request/body limits, rate-limit identity, proxy config and error sanitizing
     ├── test_authoring_standards.py         # One source of truth for authoring numbers; DDL helper that never locks migrated tables
     ├── test_batch_aggregate_lock.py        # Concurrent refreshes of one batch must serialize and stay consistent
     ├── test_batch_autonomous_retry.py      # Autonomous 3-trials policy, trial count persistence and in-flight retries
@@ -164,6 +164,7 @@ backend/
     ├── test_live_job_finalization.py       # Standalone /generate runs must always finalize their job and batch rows
     ├── test_llm_budget.py                  # Hard per-slot LLM call budget and the free duplicate re-check after rewrites
     ├── test_llm_call.py                    # Tests for call_llm request construction and retry behavior (provider mocked)
+    ├── test_list_limits.py                 # List/export bounds, LIKE-wildcard escaping, create-only POST /batches, worker-save integrity
     ├── test_logging_context.py             # Correlation ids bound with bind_log_context appear on log records, including in child tasks
     ├── test_medical_imaging.py             # All 7 medical modalities detection, gross anatomy safety sanitization & OpenAI content moderation fallback retry
     ├── test_mock_fixture_table.py          # The seven canned mock drafts must stay byte-identical when their source representation changes
@@ -174,6 +175,7 @@ backend/
     ├── test_ops_and_resolution.py          # Request ids, body limits, error sanitising, liveness, batch resolution helpers
     ├── test_optimizations.py               # End-to-end optimizations: query pipelining, count_batches, passage pagination and concurrency
     ├── test_optimizations_fullstack.py     # Session injection reusability, slim batch queries, and passage repository mutations
+    ├── test_packaging_sync.py              # pyproject.toml dependencies mirror backend/requirements*.txt
     ├── test_passage_blueprints_decomposition.py # Unit tests for decomposed 5-slot passage blueprint structures
     ├── test_passage_set_blueprints_and_dedup.py # CARS & Science slot blueprints, psychometric archetypes, and slot specialization directives
     ├── test_pedagogy.py                    # Pedagogical format & 3-card explanation tests
@@ -305,11 +307,13 @@ with the per-model rates above (plus cache read/write terms where the provider b
 
 ### Step 1: Environment Setup
 ```bash
-# Create and activate virtual environment
-python3 -m venv .venv
+# Option A (uv): creates .venv with runtime + dev packages from uv.lock
+uv sync
 source .venv/bin/activate
 
-# Upgrade pip and install requirements
+# Option B (pip): the requirements files stay canonical for CI and Docker
+python3 -m venv .venv
+source .venv/bin/activate
 pip install --upgrade pip
 pip install -r backend/requirements-dev.txt
 ```
@@ -338,7 +342,7 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (517 deterministic tests across 77 modules, 527 total backend tests)
+# Run all unit and integration tests (549 deterministic tests across 79 modules, 559 total backend tests)
 # Smart auto-skip: pure unit tests pass offline, DB-dependent tests skip cleanly if PostgreSQL is offline
 uv run pytest backend/tests -v
 # or using activated virtual environment:
@@ -389,10 +393,10 @@ This generates authentic questions with complete psychometric rubrics, evolution
 
 ### Concurrent Database Query Pipelining & High-Efficiency Aggregations
 To minimize round-trip latencies across high-volume endpoints, read queries are pipelined concurrently across available connections in the `asyncpg` connection pool:
-- **`GET /api/questions`**: Concurrently gathers question entities (`get_questions`), matching total count (`count_questions`), and repository token/cost analytics (`get_repository_metrics`), reducing listing latency by 45–60%. Supports `sort_by` (`newest`, `oldest`, `highest_score`, `lowest_score`).
+- **`GET /api/questions`** (without `limit` at most `MAX_LIST_LIMIT` = 2000 rows; `GET /api/export` pages the bank internally at 500 rows): Concurrently gathers question entities (`get_questions`), matching total count (`count_questions`), and repository token/cost analytics (`get_repository_metrics`), reducing listing latency by 45–60%. Supports `sort_by` (`newest`, `oldest`, `highest_score`, `lowest_score`).
 - **`GET /api/passages`**: Concurrently loads paginated passage models (`get_passages`) and total matching count (`count_passages`), supporting database-level sorting (`sort_by`: `newest`, `oldest`, `title`, `questions`) and pagination (`limit`, `offset`).
 - **`GET /api/passages/{passage_id}`**: Sequentially and cleanly loads the stimulus reading passage (`get_passage_by_id`) and all associated active questions (`get_questions(passage_id=...)`) within a single scoped session context.
-- **`GET /api/batches/{batch_id}`**: Executes a fast conditional ETag validation against the parent batch aggregate. If `If-None-Match` matches, responds with `304 Not Modified` immediately, bypassing constituent jobs and questions queries entirely. On cache miss, loads the batch entity (`get_batch_by_id`), constituent job attempts (`get_jobs_by_batch_id`), and generated questions (`get_questions(include_deleted=True)`).
+- **`GET /api/batches/{batch_id}`**: Executes a fast conditional ETag validation against the parent batch aggregate. If `If-None-Match` matches (the ETag also folds in a question-level fingerprint from `get_batch_question_signature`), responds with `304 Not Modified` immediately, bypassing constituent jobs and questions queries entirely. On cache miss, loads the batch entity (`get_batch_by_id`), constituent job attempts (`get_jobs_by_batch_id`), and generated questions (`get_questions(include_deleted=True)`).
 - **`GET /api/batches/{batch_id}/duplicate-clusters`**: Concurrently loads the batch entity and question items before computing duplicate clusters.
 
 ### Native SQL Counting Aggregations
@@ -425,3 +429,16 @@ Bidirectional mapping between SQLAlchemy ORM models (`QuestionModel`, `PassageMo
 - **Elimination of Dynamic Reflection**: Replaced dynamic `getattr` lookups with explicit attribute reads (`m.job_id`, `m.status or "in_bank"`, `m.passage_id`, `m.passage_mode`, `m.is_deleted`, `m.deleted_at`, `m.is_duplicate_override`, `m.embedding`), preventing runtime reflection overhead and enabling static type safety.
 
 
+
+---
+
+## 8. Request Safety & Write Semantics
+
+Details and exact limits live in [`docs/API.md`](../docs/API.md) section 1.2; the behaviors below are implemented in `api/security.py`, `main.py`, `api/v1/*.py` and the repositories.
+
+- **Client identity**: the rate limiter keys on the transport peer (IPv6 grouped by /64) and never reads a raw `X-Forwarded-For`. Uvicorn rewrites the client from that header only for peers listed in the `FORWARDED_ALLOW_IPS` environment variable (not a `Settings` field; the Docker image defaults to `127.0.0.1`, compose sets the pinned `172.29.240.0/24` network, never `*`).
+- **Shared-secret gate**: with `API_ACCESS_KEY` set, mutating routes need `X-API-Key`; `POST /api/questions/check-duplicate` is exempt but rate limited in its own bucket. The Docker `web` container injects the key through nginx at runtime.
+- **Metrics**: once `ADMIN_API_KEY` is set, `/metrics` and `/api/metrics` need a matching `x-admin-key` (403 otherwise).
+- **Size limits**: bodies over `MAX_REQUEST_BODY_MB` get 413 (declared `Content-Length` or streamed bytes); AI Copilot payloads, the duplicate-check body and `GenerationRequest` text fields are length-capped; `model_name` must match a safe pattern and, without the caller's own `api_key`, be a server-configured model.
+- **Batches**: `POST /api/batches` is create-only (409 if the id exists; status and counters ignored); a passive refresh never reopens a completed or failed batch; retry only relaunches when a retryable job exists; a failed launch marks the batch failed; `limit_active_batches` reserves its slot atomically.
+- **Questions**: a question with `batch_id` and `job_id` for a missing batch is a 404 (manual approvals without `job_id` still create the batch); list queries cap at `MAX_LIST_LIMIT` = 2000 and search treats `%` and `_` literally; CSV export neutralizes formula injection; `get_subtopic_reference_questions` failures are logged at error level and return an empty pool (dedup against the bank is skipped for that call; TODO: verify whether to surface a degraded-dedup signal).

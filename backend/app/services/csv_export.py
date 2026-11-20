@@ -15,6 +15,16 @@ if TYPE_CHECKING:
     from app.schemas import Question
 
 
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def neutralize_formula(value: Any) -> Any:
+    """Prefixes a single quote to text a spreadsheet would run as a formula (CSV injection)."""
+    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
+        return "'" + value
+    return value
+
+
 def build_csv_headers() -> list[str]:
     """Returns column header labels for Question Bank CSV export."""
     return [
@@ -59,7 +69,7 @@ def build_csv_row(q: Question) -> list[Any]:
     else:
         img_val = ""
 
-    return [
+    row = [
         q.id,
         q.run_id or "",
         q.batch_id or "",
@@ -89,6 +99,7 @@ def build_csv_row(q: Question) -> list[Any]:
         q.iteration_count,
         q.created_at,
     ]
+    return [neutralize_formula(cell) for cell in row]
 
 
 def generate_questions_csv(questions: list[Question]) -> str:

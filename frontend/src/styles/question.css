@@ -1101,3 +1101,73 @@
 }
 
 
+
+/* Duplicate alert bar (above a flagged question) */
+.dup-alert-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--status-warning-border);
+  background: var(--status-warning-bg);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.dup-alert-bar.high {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-bg);
+}
+
+.dup-alert-bar.overridden {
+  align-items: center;
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
+  color: var(--status-success);
+}
+
+.dup-alert-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--status-warning);
+}
+
+.dup-alert-bar.high .dup-alert-icon {
+  color: var(--status-danger);
+}
+
+.dup-alert-body {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.dup-alert-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.dup-alert-reason {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+}
+
+.dup-alert-text {
+  font-weight: 500;
+}
+
+.dup-alert-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dup-alert-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+}

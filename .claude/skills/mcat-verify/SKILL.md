@@ -16,7 +16,7 @@ pnpm test:frontend
 pnpm --dir frontend run check:css
 pnpm build
 ```
-Shortcuts: `pnpm lint:backend`, `pnpm format`, `pnpm test` (backend pytest only). These run through `uv run`, so `uv` must be installed and `.venv` populated (`uv pip install -r backend/requirements-dev.txt`; `pyproject.toml` declares no dependencies). Single test: `PYTHONPATH=backend pytest backend/tests/test_x.py -k name -x`.
+Shortcuts: `pnpm lint:backend`, `pnpm format`, `pnpm test` (backend pytest only). These run through `uv run`, so `uv` must be installed and `.venv` populated (`uv sync` installs the runtime and dev packages declared in `pyproject.toml`; the requirements files stay canonical and `test_packaging_sync.py` guards drift). Single test: `PYTHONPATH=backend pytest backend/tests/test_x.py -k name -x`.
 
 ## Reading results
 - Tests marked `requires_db` (see docs/TESTING_AND_QA.md for the current counts) skip when Postgres is down. Start it (`docker compose up -d`, see mcat-dev-env) to run them; otherwise say plainly that those tests were skipped, not passed.

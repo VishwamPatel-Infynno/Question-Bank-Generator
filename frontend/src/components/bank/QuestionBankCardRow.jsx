@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import VisualStimulusViewer from '../question/VisualStimulusViewer';
 import SharedPassageCard from '../question/SharedPassageCard';
+import { DuplicateRiskBadge } from '../duplicates';
 import MentorExplanationView from '../question/MentorExplanationView';
 import {
   countWords,
@@ -46,7 +47,8 @@ function QuestionBankCardRow({
   onToggleExpand,
   onCopy,
   onDelete,
-  onSelectQuestion
+  onSelectQuestion,
+  onCompareDuplicate
 }) {
   return (
     <div className={`qbank-card-row ${isSelected ? 'selected' : ''}`}>
@@ -83,6 +85,9 @@ function QuestionBankCardRow({
               <span className="badge badge-emerald qbank-table-score-badge">
                 <Award size={10} /> {q.final_score || 95}/100
               </span>
+
+              {/* Only flagged, similar or overridden questions show a badge */}
+              <DuplicateRiskBadge question={q} onClick={onCompareDuplicate} />
 
               {q.semantic_similarity != null && (
                 <span

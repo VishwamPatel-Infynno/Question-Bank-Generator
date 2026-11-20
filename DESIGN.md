@@ -216,7 +216,7 @@ Streamlined 3-step authoring workflow with quick-launch hero presets:
   - `ExportDataFormatPane.jsx`: Format configuration for the tabular exports (CSV, JSON).
   - `StudyGuideExportPane.jsx`: Study guide compilation parameters, active recall questions, takeaway depth, and the Anki-compatible TSV download.
 - **4 Export Formats** (`format` state in `ExportPrintModal.jsx`: `paper`, `csv`, `json`, `study_guide`):
-  1. **Paper (printable)**: Print layout with a live preview (`ExportPaperPreview.jsx`) and two paper types (`paperMode`): `Student Test` (questions only, with examination title block and timing) and `Full Study Pack` (adds the correct key, cognitive trap analysis, and step-by-step rationales). `.page-break` rules in the print CSS prevent awkward page splits across stems and options.
+  1. **Paper (printable)**: Print layout with a live preview (`ExportPaperPreview.jsx`) and two paper types (`paperMode`): `Student Test` (questions only, with examination title block, timing and an instructions line that says calculators are not permitted on the MCAT) and `Full Study Pack` (adds the correct key, cognitive trap analysis, and step-by-step rationales). `.page-break` rules in the print CSS prevent awkward page splits across stems and options.
   2. **CSV (`mcat_question_bank.csv`)**: Normalized tabular dataset of questions, options, keys, rubrics, and token metrics for spreadsheet manipulation.
   3. **JSON (`mcat_question_bank.json`)**: Complete hierarchical export preserving metadata, agent evolutions, and psychometric scores.
   4. **Study Guide**: AI-compiled high-yield study guide (`/api/ai/study-guide`) with an additional **Anki flashcard deck (`.tsv`)** download implemented inside `StudyGuideExportPane.jsx`.
@@ -270,7 +270,11 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 
 ### 4.11 Autonomous Duplicate Resolution & Collision Avoidance
 - **Architecture**: Question deduplication is handled autonomously in the backend pipeline (`services/deduplication.py` and `services/batch_resolution.py`) using multi-metric mathematical similarity (token containment, 1-gram & 2-gram Jaccard, SequenceMatcher ratio). Thresholds come from `core/config.py`: hard duplicate `DUPLICATE_HARD_THRESHOLD=0.75`, soft warning `DUPLICATE_SOFT_THRESHOLD=0.60`, API-level check `DUPLICATE_API_THRESHOLD=0.80`.
-- **UI status**: The frontend does not currently render duplicate-collision UI. There is no similarity alert bar, `Duplicate Risk (XX%)` badge, `Overridden` shield badge, or comparison modal in `frontend/src` (no references to `duplicate_info` or `is_duplicate_override`). Duplicates are resolved in the background and surface to educators only through batch outcomes (see §4.2). TODO: verify whether a duplicate-collision UI is planned.
+- **Risk levels (`utils/duplicateHelpers.js`, `getDuplicateState`)**: `high` (the API flagged a hard duplicate, similarity at or above 0.75), `similar` (not flagged, similarity at or above `DUPLICATE_SOFT_THRESHOLD` = 0.6 in `constants/mcat.js`, mirroring the backend), `overridden`, and `none`. `hasDuplicateAlert` is true for high and similar; `canCompare` for any level but none.
+- **Duplicate Risk Badge (`components/duplicates/DuplicateRiskBadge.jsx`, `.dup-risk-badge` in `base.css`)**: Pill with the labels `Duplicate Risk (88%)` (`badge-rose`), `Similar (65%)` (`badge-amber`) and `Overridden` (`badge-emerald`, `.overridden`); renders nothing for `none`. Becomes a `<button>` (`.dup-risk-badge-btn`, with an `aria-label` ending "Compare with the original question") when `onClick` is given. Shown on review-queue cards, batch question items and Question Bank rows (non-`none` only).
+- **Duplicate Alert Bar (`DuplicateAlertBar.jsx`, `.dup-alert-bar`, `.dup-alert-bar.high`, `.dup-alert-bar.overridden`, `.dup-alert-icon`, `.dup-alert-body`, `.dup-alert-title` in `question.css`)**: Rendered inside `QuestionCard` (Question Bank inspector). High and similar use `role="alert"` with the reason and **Compare** and **Override and approve** buttons; an overridden question shows a calm `role="status"` note in the success tone instead.
+- **Duplicate Compare Modal (`DuplicateCompareModal.jsx`, `.dup-compare-grid`, `.dup-compare-col`, `.dup-compare-heading`, `.dup-compare-stem`, `.dup-compare-options`, `.dup-compare-option`, `.dup-compare-explanation`, `.dup-compare-missing` in `modals.css`)**: Built on the base `Modal` ("Compare with original"): this question beside the original from `duplicate_info` (stem, options with the key marked, explanation), a notice when the original is gone, and Close plus **Override and approve** in the footer (Override is hidden once overridden). Override is a direct click followed by a toast (no extra confirmation), handled by `hooks/useDuplicateOverride.js`.
+- **Batch duplicate audit (`components/batch/BatchDuplicateAudit.jsx`, `hooks/useBatchDuplicateAudit.js`, `.batch-dup-audit`, `.batch-dup-audit-head`, `.batch-dup-audit-btn`, `.batch-dup-audit-list`, `.batch-dup-audit-item`, `.batch-dup-audit-actions` in `batch-card-summary.css`)**: Inside an expanded batch card. Nothing runs automatically: **Check duplicates** lists the near-identical groups, **Resolve duplicates** asks for confirmation, archives (`action: "archive"`, the default, recoverable) and reports how many questions the batch is now short of its target. A flagged `.batch-qitem.dup-risk` carries a danger-tone inset accent and the badge plus Compare and Override actions.
 
 ### 4.12 Polymorphic Figure & Diagram Viewer (`VisualStimulusViewer.jsx`)
 - **Component**: [`frontend/src/components/question/VisualStimulusViewer.jsx`](frontend/src/components/question/VisualStimulusViewer.jsx) provides a publication-grade viewer for AAMC scientific figures, reaction pathways, and experimental charts across all 7 medical and scientific modalities.
@@ -314,7 +318,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 - **Editorial Quick-Edit Mode (`QuestionInlineEditor.jsx`)**:
   - Toggles in-place inputs for the question stem, optional passage/scenario, 4 options, and explanation without navigating away.
   - Integrates the **Option Length Symmetry Engine** (`calculateOptionSymmetry`), showing live percentage word-count deviations to guarantee options stay within the AAMC $\pm 15\%$ anti-guessability standard.
-- **Collision & Override Integration**: Not implemented in the current UI (see §4.11).
+- **Collision & Override Integration**: The card renders a `DuplicateAlertBar` below its header when the question is flagged, similar or overridden, with Compare and Override and approve actions wired by the Question Bank view (see §4.11).
 
 ### 4.14 Reusable Accessible Confirmation Dialog (`ConfirmationModal.jsx`)
 - **Component**: [`frontend/src/components/modals/ConfirmationModal.jsx`](frontend/src/components/modals/ConfirmationModal.jsx) replaces native browser `window.confirm` popups across all application views with an accessible, WCAG AA compliant confirmation dialog.
@@ -345,6 +349,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **React Portal Mounting**: Mounts dialogs directly into `document.body` to avoid parent container CSS clipping (`overflow: hidden`) and z-index stacking conflicts.
   - **Backdrop Blur & Scrim**: Smooth animated backdrop fade with keyboard escape listener.
   - **WCAG AA Focus Trap**: Intercepts `Tab` and `Shift+Tab` keystrokes to ensure focus cycles within the modal boundaries, restoring focus to the origin element upon close.
+  - **Backdrop and Labelling**: The backdrop closes the dialog only when both mousedown and click land on it (so a text-selection drag that ends outside does not dismiss it). An optional `ariaLabel` prop names the dialog when there is no visible title (default `"Dialog"`). `useFocusTrap` skips hidden elements and `tabindex=-1` controls when cycling Tab.
   - **Standardized Size Constraints**: Accommodates `sm`, `md`, `lg`, `xl`, and `full` widths with automatic vertical scrolling on overflow.
 
 ### 4.17 AI Copilot Studio (`QuestionCopilotStrip.jsx`, `question-copilot.css`)
@@ -417,7 +422,11 @@ To ensure high-frequency interface responsiveness during live SSE streaming and 
   - `⌘ + Enter` / `Ctrl + Enter`: Trigger question or batch generation.
   - `T`: Instant toggle between Dark and Light themes.
   - `/`: Focus the active view's search input (ignored while typing in a form field; wired in the Question Bank, Review Queue, Batch Progress and Passage Bank views).
+  - `A`: In the Review Queue only, save the active card to the question bank. A hard duplicate that has not been overridden opens the compare dialog instead of saving.
+  - `D`: In the Review Queue only, discard the active card through the existing confirmation modal.
   - `Escape`: Dismiss the open modal or editor (handled in `useKeyboardShortcuts.js`, works even while typing).
+  - The single-key shortcuts (`T`, `/`, `A`, `D`) are ignored with Cmd, Ctrl or Alt held, on key repeat, while focus is in an input, select, textarea or contenteditable element, and while any modal dialog is open; the hook option `enabled` turns them off. The active review card gets `.validated-card--active` (brand-coloured border and ring) and shows `.kbd-hint` badges for `A` and `D`.
+- **Live regions and error recovery**: `Toast` keeps a polite live region mounted at all times and gives errors `role="alert"`. A root `ErrorBoundary` in `main.jsx` shows a fallback with a Retry button that reloads the page.
 
 ---
 

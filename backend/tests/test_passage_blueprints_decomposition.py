@@ -10,7 +10,6 @@ from app.schemas import GenerationRequest, MCATSection
 from app.workflow.passage_blueprints import (
     CARS_PASSAGE_SET_BLUEPRINTS,
     CARS_SLOT4_APPLICATION_DOMAINS,
-    MODALITY_ROTATION_BY_SECTION,
     SCIENCE_PASSAGE_SET_BLUEPRINTS,
     SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS,
     extract_passage_slot_blueprints,
@@ -21,9 +20,6 @@ from app.workflow.passage_prep import (
 )
 from app.workflow.passage_prep import (
     CARS_SLOT4_APPLICATION_DOMAINS as PP_CARS_SLOT4_DOMAINS,
-)
-from app.workflow.passage_prep import (
-    MODALITY_ROTATION_BY_SECTION as PP_MODALITY_ROTATION,
 )
 from app.workflow.passage_prep import (
     SCIENCE_PASSAGE_SET_BLUEPRINTS as PP_SCIENCE_BLUEPRINTS,
@@ -91,7 +87,6 @@ def test_passage_blueprints_backward_compatibility():
     assert PP_SCIENCE_BLUEPRINTS is SCIENCE_PASSAGE_SET_BLUEPRINTS
     assert PP_CARS_SLOT4_DOMAINS is CARS_SLOT4_APPLICATION_DOMAINS
     assert PP_SCIENCE_SLOT5_CONDITIONS is SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS
-    assert PP_MODALITY_ROTATION is MODALITY_ROTATION_BY_SECTION
     assert pp_resolve_slot_domain_index is resolve_slot_domain_index
     assert pp_extract_passage_slot_blueprints is extract_passage_slot_blueprints
 

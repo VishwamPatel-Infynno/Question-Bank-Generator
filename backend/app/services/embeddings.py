@@ -2,7 +2,7 @@
 embeddings.py - High-performance embedding service with pgvector compatibility.
 
 Provides asynchronous vector generation for questions, passages, and queries via LiteLLM
-with in-memory SHA-256 caching and deterministic unit-vector fallback for offline resilience.
+with a bounded in-memory LRU cache and deterministic unit vectors for offline mode only.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import hashlib
 import logging
 import math
 import re
+from collections import OrderedDict
 from typing import Any
 
 from app.core.config import config
@@ -18,9 +19,23 @@ from app.schemas import extract_field as _field
 
 logger = logging.getLogger(__name__)
 
-# In-memory vector cache: sha256(text) -> list[float]
-_EMBEDDING_CACHE: dict[str, list[float]] = {}
-_MAX_CACHE_SIZE = 10_000
+# In-memory bounded LRU vector cache: sha256(model:text) -> list[float]
+_EMBEDDING_CACHE: OrderedDict[str, list[float]] = OrderedDict()
+_MAX_CACHE_SIZE = 1024
+
+
+def _cache_get(key: str) -> list[float] | None:
+    vec = _EMBEDDING_CACHE.get(key)
+    if vec is not None:
+        _EMBEDDING_CACHE.move_to_end(key)
+    return vec
+
+
+def _cache_put(key: str, vec: list[float]) -> None:
+    _EMBEDDING_CACHE[key] = vec
+    _EMBEDDING_CACHE.move_to_end(key)
+    while len(_EMBEDDING_CACHE) > _MAX_CACHE_SIZE:
+        _EMBEDDING_CACHE.popitem(last=False)
 
 
 def _hash_text(text: str, model: str) -> str:
@@ -81,17 +96,18 @@ def cosine_distance(a: list[float], b: list[float]) -> float:
     return max(0.0, 1.0 - cosine_similarity(a, b))
 
 
-async def embed_text(text: str, model: str | None = None) -> list[float]:
-    """Generates an embedding vector for a single string with caching and fallback."""
+async def embed_text(text: str, model: str | None = None) -> list[float] | None:
+    """Embeds one string; None when the live provider failed (never a fake vector)."""
     results = await embed_texts([text], model=model)
-    return results[0] if results else deterministic_unit_vector(text, config.EMBEDDING_DIMENSION)
+    return results[0] if results else None
 
 
-async def embed_texts(texts: list[str], model: str | None = None) -> list[list[float]]:
+async def embed_texts(texts: list[str], model: str | None = None) -> list[list[float] | None]:
     """
-    Generates embedding vectors for a list of strings.
-    Checks memory cache first, batches misses to LiteLLM, and falls back to deterministic vectors
-    if offline mode is active or an LLM exception occurs.
+    Generates embedding vectors for a list of strings (one entry per input, order preserved).
+    Checks the LRU cache first and batches misses to LiteLLM. Deterministic vectors are used
+    only in offline mode; when a live provider call fails the affected entries are ``None``
+    (and nothing is cached) so a fake vector is never persisted or compared as if it were real.
     """
     if not texts:
         return []
@@ -104,8 +120,7 @@ async def embed_texts(texts: list[str], model: str | None = None) -> list[list[f
     misses_texts: list[str] = []
 
     for idx, t in enumerate(texts):
-        key = _hash_text(t, target_model)
-        cached = _EMBEDDING_CACHE.get(key)
+        cached = _cache_get(_hash_text(t, target_model))
         if cached is not None and len(cached) == dim:
             results[idx] = cached
         else:
@@ -113,16 +128,15 @@ async def embed_texts(texts: list[str], model: str | None = None) -> list[list[f
             misses_texts.append(t)
 
     if not misses_texts:
-        return [r for r in results if r is not None]
+        return results
 
     # Offline mode or missing keys -> fast deterministic generation
     if config.OFFLINE_MODE:
         for orig_idx, t in zip(misses_indices, misses_texts, strict=False):
             vec = deterministic_unit_vector(t, dim)
             results[orig_idx] = vec
-            if len(_EMBEDDING_CACHE) < _MAX_CACHE_SIZE:
-                _EMBEDDING_CACHE[_hash_text(t, target_model)] = vec
-        return [r for r in results if r is not None]
+            _cache_put(_hash_text(t, target_model), vec)
+        return results
 
     # Attempt live LiteLLM embedding call
     try:
@@ -135,40 +149,29 @@ async def embed_texts(texts: list[str], model: str | None = None) -> list[list[f
             api_key=api_key,
         )
         data = getattr(response, "data", [])
-        if len(data) == len(misses_texts):
-            for orig_idx, t, item in zip(misses_indices, misses_texts, data, strict=False):
-                raw_vec = (
-                    item.get("embedding")
-                    if isinstance(item, dict)
-                    else getattr(item, "embedding", None)
-                )
-                if raw_vec and len(raw_vec) == dim:
-                    results[orig_idx] = raw_vec
-                    if len(_EMBEDDING_CACHE) < _MAX_CACHE_SIZE:
-                        _EMBEDDING_CACHE[_hash_text(t, target_model)] = raw_vec
-                else:
-                    results[orig_idx] = deterministic_unit_vector(t, dim)
-        else:
+        if len(data) != len(misses_texts):
             raise ValueError(
                 f"LiteLLM embedding response length mismatch ({len(data)} vs {len(misses_texts)})"
             )
-
+        for orig_idx, t, item in zip(misses_indices, misses_texts, data, strict=False):
+            raw_vec = (
+                item.get("embedding")
+                if isinstance(item, dict)
+                else getattr(item, "embedding", None)
+            )
+            if raw_vec and len(raw_vec) == dim:
+                results[orig_idx] = raw_vec
+                _cache_put(_hash_text(t, target_model), raw_vec)
+            else:
+                logger.warning("Embedding provider returned a missing/wrong-size vector; skipping.")
     except Exception as exc:
         logger.warning(
-            "LiteLLM embedding call failed for %s items (%s); using deterministic unit vectors.",
+            "LiteLLM embedding call failed for %s items (%s); no embedding will be stored.",
             len(misses_texts),
             exc,
         )
-        for orig_idx, t in zip(misses_indices, misses_texts, strict=False):
-            vec = deterministic_unit_vector(t, dim)
-            results[orig_idx] = vec
-            if len(_EMBEDDING_CACHE) < _MAX_CACHE_SIZE:
-                _EMBEDDING_CACHE[_hash_text(t, target_model)] = vec
 
-    return [
-        r if r is not None else deterministic_unit_vector(texts[i], dim)
-        for i, r in enumerate(results)
-    ]
+    return results
 
 
 def build_question_embedding_text(question: dict[str, Any] | Any) -> str:
@@ -195,7 +198,7 @@ def build_question_embedding_text(question: dict[str, Any] | Any) -> str:
     ).strip()
 
 
-async def embed_question(question: dict[str, Any] | Any) -> list[float]:
+async def embed_question(question: dict[str, Any] | Any) -> list[float] | None:
     """Generates an embedding vector for a candidate or stored question."""
     text = build_question_embedding_text(question)
     return await embed_text(text)
@@ -205,7 +208,7 @@ async def embed_passage(
     passage: str | dict[str, Any] | Any,
     title: str = "",
     section: str = "",
-) -> list[float]:
+) -> list[float] | None:
     """Generates an embedding vector for a reading passage (accepts str, dict, or Passage model)."""
     if isinstance(passage, str):
         p_text = passage

@@ -13,6 +13,7 @@ from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
 from app.core.config import config
+from app.core.errors import sanitize_error_text
 from app.schemas import GenerationRequest, WorkflowEvent
 
 __all__ = [
@@ -91,14 +92,14 @@ def build_terminal_workflow_event(
             )
         error_msg = f"All {total_qty} questions in the run failed to generate after retries."
         if outcomes_errors:
-            error_msg += f" Last error: {outcomes_errors[-1]}"
+            error_msg += f" Last error: {sanitize_error_text(outcomes_errors[-1])}"
         return make_event(
             event_type="workflow_error",
             agent_name="System",
             message=error_msg,
             data={
-                "error": outcomes_errors[-1] if outcomes_errors else error_msg,
-                "errors": outcomes_errors,
+                "error": sanitize_error_text(outcomes_errors[-1]) if outcomes_errors else error_msg,
+                "errors": [sanitize_error_text(e) for e in outcomes_errors],
                 "cumulative_usage": usage_totals,
             },
         )

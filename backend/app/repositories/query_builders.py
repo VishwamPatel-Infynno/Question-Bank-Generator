@@ -8,7 +8,7 @@ from sqlalchemy.orm import defer
 from app.core.config import config
 from app.models.batch import GenerationBatchModel
 from app.models.question import QuestionModel
-from app.repositories._filters import active_question_clause
+from app.repositories._filters import LIKE_ESCAPE, active_question_clause, like_contains
 from app.schemas import BatchStatus
 
 # The slim schema omits these blobs anyway (about 70% of a row's bytes): do not read them
@@ -83,7 +83,7 @@ def build_question_filters(
 
     if search:
         search_clean = search.strip()
-        wildcard = f"%{search_clean}%"
+        wildcard = like_contains(search_clean)
 
         # Hybrid PostgreSQL search: tsvector full-text match + ILIKE substring fallback
         fts_vector = func.to_tsvector(
@@ -101,16 +101,16 @@ def build_question_filters(
         conditions.append(
             or_(
                 fts_condition,
-                QuestionModel.id.ilike(wildcard),
-                QuestionModel.question_stem.ilike(wildcard),
-                QuestionModel.stimulus_text.ilike(wildcard),
-                QuestionModel.subtopic.ilike(wildcard),
-                QuestionModel.explanation.ilike(wildcard),
-                QuestionModel.combination_id.ilike(wildcard),
-                QuestionModel.content_domain.ilike(wildcard),
-                QuestionModel.run_id.ilike(wildcard),
-                QuestionModel.batch_id.ilike(wildcard),
-                QuestionModel.passage_id.ilike(wildcard),
+                QuestionModel.id.ilike(wildcard, escape=LIKE_ESCAPE),
+                QuestionModel.question_stem.ilike(wildcard, escape=LIKE_ESCAPE),
+                QuestionModel.stimulus_text.ilike(wildcard, escape=LIKE_ESCAPE),
+                QuestionModel.subtopic.ilike(wildcard, escape=LIKE_ESCAPE),
+                QuestionModel.explanation.ilike(wildcard, escape=LIKE_ESCAPE),
+                QuestionModel.combination_id.ilike(wildcard, escape=LIKE_ESCAPE),
+                QuestionModel.content_domain.ilike(wildcard, escape=LIKE_ESCAPE),
+                QuestionModel.run_id.ilike(wildcard, escape=LIKE_ESCAPE),
+                QuestionModel.batch_id.ilike(wildcard, escape=LIKE_ESCAPE),
+                QuestionModel.passage_id.ilike(wildcard, escape=LIKE_ESCAPE),
             )
         )
 

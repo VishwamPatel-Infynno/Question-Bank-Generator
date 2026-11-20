@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { PaginationBar, LoadError } from '../components/common';
 import { ConfirmationModal } from '../components/modals';
+import { DuplicateCompareModal } from '../components/duplicates';
 import { usePagination, useBatchActivity } from '../hooks';
 import {
   BatchStatsHeader,
@@ -67,6 +68,12 @@ export default function BatchActivityView({
     handleDeleteBatch,
     handleSaveQuestionToBank,
     handleRestoreQuestion,
+    handleRefreshBatch,
+    compareQuestion,
+    isOverriding,
+    openCompare,
+    closeCompare,
+    handleOverride,
     stoppingBatchIds,
     retryingBatchIds,
     isCancellingAll,
@@ -174,6 +181,10 @@ export default function BatchActivityView({
                 onOpenAudit={onOpenAudit}
                 onSaveToBank={handleSaveQuestionToBank}
                 onRestoreQuestion={handleRestoreQuestion}
+                onCompareDuplicate={openCompare}
+                onOverrideDuplicate={handleOverride}
+                onShowToast={onShowToast}
+                onRefreshBatch={handleRefreshBatch}
               />
             ))}
           </div>
@@ -191,6 +202,13 @@ export default function BatchActivityView({
           )}
         </>
       )}
+
+      <DuplicateCompareModal
+        question={compareQuestion}
+        onClose={closeCompare}
+        onOverride={handleOverride}
+        isOverriding={isOverriding}
+      />
 
       {/* ── Standardized Accessible Confirmation Modal ───────────────────── */}
       <ConfirmationModal {...confirmModalProps(confirmModal, closeConfirmModal, isDeletingBatch)} />

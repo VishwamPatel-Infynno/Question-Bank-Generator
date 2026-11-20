@@ -4,7 +4,7 @@
 > **Prepared by**: Infynno Solutions LLP • Infinite Innovations • [infynno.com](https://infynno.com/)  
 > **Product**: Infynno MCAT Question Bank Generator v2.0  
 > **Target Audience**: Client Leadership, Product Stakeholders, Medical Admissions Educators, Pre-Med Faculty, and Test-Prep Authors  
-> **System Status**: Fully Implemented, Tested (517 Deterministic Backend Tests across 77 Modules, 527 Total Backend Tests + 150 Frontend Tests across 18 Test Files), and Production-Ready  
+> **System Status**: Fully Implemented, Tested (549 Deterministic Backend Tests across 79 Modules, 559 Total Backend Tests + 203 Frontend Tests across 25 Test Files), and Production-Ready  
 
 ---
 
@@ -17,7 +17,7 @@
    - 5.1 [Multi-Metric Similarity Algorithm](#51-multi-metric-similarity-algorithm)
    - 5.2 [Intra-Batch Clustering & Autonomous Replenishment](#52-intra-batch-clustering--autonomous-replenishment)
    - 5.3 [pgvector Semantic RAG & Anti-Collision Shield](#53-pgvector-semantic-rag--anti-collision-shield)
-   - 5.4 [Duplicate Flags & Override Audit Trail (backend)](#54-duplicate-flags--override-audit-trail-backend)
+   - 5.4 [Duplicate Flags & Override Audit Trail](#54-duplicate-flags--override-audit-trail)
 6. [The 5 Top-Level Workstation Views](#6-the-5-top-level-workstation-views)
    - 6.1 [Create Questions: Question Studio & 3-Step Wizard](#61-create-questions-question-studio--3-step-wizard)
    - 6.2 [Batch Progress: Concurrency Monitor & Resilient Processing](#62-batch-progress-concurrency-monitor--resilient-processing)
@@ -279,11 +279,11 @@ flowchart TD
     Warn --> Continue
 
     Continue --> Flags["Staged with duplicate_info<br/>(is_duplicate / is_soft_warning flags)"]
-    Flags -->|"API only: POST /api/questions/{id}/override-duplicate"| Override["is_duplicate_override = true<br/>duplicate_info.is_overridden"]
-    Flags -->|"API only: GET duplicate-clusters, POST resolve-duplicates"| Resolve["Archive (default) or delete duplicates<br/>in a batch"]
+    Flags -->|"Override and approve (badge, alert bar or Compare dialog)"| Override["is_duplicate_override = true<br/>duplicate_info.is_overridden"]
+    Flags -->|"Batch card: Check duplicates, then Resolve duplicates"| Resolve["Archive duplicates (the default, recoverable)<br/>and show the batch deficit"]
 ```
 
-> The comparison badge, side-by-side modal and override button shown in earlier versions of this guide are not part of the current frontend (`frontend/src` has no duplicate badge, compare modal or override call). The collision data and the override/cluster endpoints exist on the backend only. TODO: verify whether a duplicate-review UI is planned.
+> The web interface shows duplicate awareness in four places: a risk badge on review-queue cards, batch question items and Question Bank rows, an alert bar in the Question Bank inspector, and a side-by-side compare dialog. Levels are **high** (hard duplicate, 75% or more), **similar** (60% to below 75%, derived in the browser from `DUPLICATE_SOFT_THRESHOLD`), **overridden** and none. A similar question is only a warning; a hard duplicate must be looked at before it is saved.
 
 ### 5.1 Multi-Metric Similarity Algorithm
 The anti-collision engine calculates a composite mathematical similarity score:
@@ -295,12 +295,12 @@ In background multi-job batches (e.g. 50 questions), the system performs autonom
 
 ### 5.3 pgvector Semantic RAG & Anti-Collision Shield
 Beyond lexical string overlap, the system integrates **native PostgreSQL 16 `pgvector`** semantic indexing:
-- **1536-Dimensional Vector Embeddings**: Every candidate and published question stem, options set, and mentor proof is translated into a 1536-dimensional vector embedding (`vector(1536)`), computed through LiteLLM with the configured embedding model (a deterministic hash-based fallback is used when no embedding key is available or the call fails).
+- **1536-Dimensional Vector Embeddings**: Every candidate and published question stem, options set, and mentor proof is translated into a 1536-dimensional vector embedding (`vector(1536)`), computed through LiteLLM with the configured embedding model (a deterministic hash-based vector is used offline or when no embedding key is configured; if a live provider call fails, no embedding is stored for that question).
 - **In-Context Exemplar Retrieval**: Queries historical bank questions scoring $\ge 90$ points within the identical section and subtopic. Injects these top-performing items into generator prompts as concrete stylistic and cognitive benchmarks.
 - **Negative Avoidance Shielding**: Searches the HNSW cosine vector index (`vector_cosine_ops`) for nearest neighbors in the same section and subtopic. Up to 4 questions with cosine similarity of at least 0.60 are supplied to the LLM generator as explicit **Avoidance Stems**, commanding the model to explore distinct clinical angles, unaddressed enzymatic conditions, or novel sociological theories. A separate semantic duplicate check during generation flags a draft whose embedding similarity to an existing question reaches 0.80.
 
-### 5.4 Duplicate Flags & Override Audit Trail (backend)
-Each question stores a `duplicate_info` record (hard/soft flag, similarity score, matched question id and stem, reason). When an educator decides two questions examine distinct principles (e.g., competitive vs. uncompetitive enzyme inhibition using the same substrate), the `POST /api/questions/{id}/override-duplicate` endpoint sets `is_duplicate_override = true`, stamps `is_overridden` and an `overridden_at` timestamp into `duplicate_info`, and approves the question into the bank (a question still held by a running batch stays `batch_only`). This override is currently API-only: the current web interface does not show a duplicate badge, comparison modal or override button.
+### 5.4 Duplicate Flags & Override Audit Trail
+Each question stores a `duplicate_info` record (hard/soft flag, similarity score, matched question id and stem, reason). When an educator decides two questions examine distinct principles (e.g., competitive vs. uncompetitive enzyme inhibition using the same substrate), the `POST /api/questions/{id}/override-duplicate` endpoint sets `is_duplicate_override = true`, stamps `is_overridden` and an `overridden_at` timestamp into `duplicate_info`, and approves the question into the bank (a question still held by a running batch stays `batch_only`). In the web interface the educator can open the comparison from the duplicate badge or alert bar and choose **Override and approve** (a direct click followed by a confirmation toast). On the batch card, **Check duplicates** (on demand, never automatic) lists groups of near-identical questions and **Resolve duplicates** (after a confirmation) keeps the best question of each group and archives the rest (`action=archive`, recoverable), then shows how many questions the batch is now short of its target.
 
 ---
 
@@ -490,8 +490,9 @@ $$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\te
   - `⌘ + Enter` / `Ctrl + Enter`: Trigger question or batch generation.
   - `T`: Instant toggle between Dark and Light themes.
   - `/`: Immediately focus the Question Bank search input.
-  - `A`: Approve active staged question into the bank.
-  - `D`: Discard active staged question.
+  - `A`: In the Review Queue only, save the active card to the bank (a hard duplicate that has not been overridden opens the comparison instead).
+  - `D`: In the Review Queue only, discard the active card (asks for confirmation first).
+  - Single-key shortcuts (`T`, `/`, `A`, `D`) are ignored while typing in a field, while a dialog is open, with Cmd/Ctrl/Alt held, or on key repeat.
   - `Escape`: Dismiss open dialogs and drawers.
 - **Everyday Human Language Standard**: Replaces robotic AI jargon with classroom-authentic terms (*Reading passage*, *Independent question*, *Quality Review*, *Create Questions*, *Common Traps*).
 
@@ -500,8 +501,8 @@ $$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\te
 ## 10. Technical Architecture, Security & Production Readiness
 
 ### Full-Stack Architecture Specifications
-- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (150 unit tests across 18 test files).
-- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (517 deterministic test suite across 77 modules; 527 total tests).
+- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (203 unit tests across 25 test files).
+- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (549 deterministic test suite across 79 modules; 559 total tests).
 - **Database**: PostgreSQL 16 with native JSONB columns for multi-stage payloads, rubrics, and token tracking; UUID4 primary keys; automated schema migrations on startup.
 - **Observability**: Prometheus `/metrics` endpoint exposing real-time worker pool occupancy, batch lifecycle states, and token expenditures.
 - **Security & Hygiene**:
@@ -518,7 +519,7 @@ $$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\te
 | **Exam Alignment** | 100% compliant with official AAMC syllabus, SIRS skills, and CARS pure-passage rules. |
 | **Pedagogical Integrity** | Option symmetry (length spread within `max(3, ceil(20% of mean))` words), 3-card mentor explanations, 25-trap taxonomy. |
 | **Verification & Safeguards** | Algorithmic Blind-Solver test candidate ($\ge 88\%$ confidence), 100-pt 4-pillar auditor. |
-| **Duplicate Prevention** | Multi-metric anti-collision loop (hard threshold 75%, soft 60%), intra-batch clustering, backend override audit trail. |
+| **Duplicate Prevention** | Multi-metric anti-collision loop (hard threshold 75%, soft 60%), intra-batch clustering, duplicate badges and compare dialog, override audit trail, on-demand batch duplicate audit. |
 | **Batch Capabilities** | Dual-track progress monitor, 4-stage stepper, 3-trials autonomous retries, withholding queue guarantee. |
 | **Editorial Workflows** | Canonical Editorial Cards bank, inline question editor, passage editorial desk, cascade delete safety. |
 | **Export Formats** | Exam Booklets (PDF/Print with page-break protection), Study Packs, CSV, Normalized JSON. |

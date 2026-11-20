@@ -18,7 +18,12 @@ from app.core.config import config
 from app.db.session import scoped_session
 from app.models.batch import GenerationBatchModel
 from app.models.question import QuestionModel
-from app.repositories._filters import active_question_clause
+from app.repositories._filters import (
+    LIKE_ESCAPE,
+    active_question_clause,
+    clamp_list_limit,
+    like_contains,
+)
 from app.repositories.mappers import model_to_schema
 from app.repositories.query_builders import (
     DIFFICULTY_ALIASES,
@@ -146,15 +151,34 @@ async def get_questions(
             )
             stmt = stmt.order_by(diff_order, QuestionModel.created_at.desc())
         else:
-            stmt = stmt.order_by(QuestionModel.created_at.desc())
+            stmt = stmt.order_by(QuestionModel.created_at.desc(), QuestionModel.id.desc())
 
         if offset and offset > 0:
             stmt = stmt.offset(offset)
-        if limit and limit > 0:
-            stmt = stmt.limit(limit)
+        stmt = stmt.limit(clamp_list_limit(limit))
         result = await s.execute(stmt)
         models = result.scalars().all()
         return [model_to_schema(m, slim=slim) for m in models]
+
+
+async def get_batch_question_signature(batch_id: str, session: AsyncSession | None = None) -> str:
+    """A cheap fingerprint of a batch's questions (count, soft-deleted count, newest edit/delete).
+
+    Feeds the batch ETag: question edits, status changes, soft and hard deletes and restores do
+    not touch the batch row, so the batch aggregates alone would keep answering 304.
+    """
+    async with scoped_session(session) as s:
+        row = (
+            await s.execute(
+                select(
+                    func.count(QuestionModel.id),
+                    func.count(QuestionModel.id).filter(QuestionModel.is_deleted.is_(True)),
+                    func.max(QuestionModel.updated_at),
+                    func.max(QuestionModel.deleted_at),
+                ).where(QuestionModel.batch_id == batch_id)
+            )
+        ).one()
+        return ":".join(str(v) for v in row)
 
 
 async def get_active_batch_questions(
@@ -262,7 +286,9 @@ async def get_subtopic_reference_questions(
                 stmt = stmt.where(
                     or_(
                         QuestionModel.section == sec_val,
-                        QuestionModel.section_label.ilike(f"%{sec_val}%"),
+                        QuestionModel.section_label.ilike(
+                            like_contains(sec_val), escape=LIKE_ESCAPE
+                        ),
                     )
                 )
             if subtopic and subtopic.strip():
@@ -270,7 +296,7 @@ async def get_subtopic_reference_questions(
                 stmt = stmt.where(
                     or_(
                         QuestionModel.subtopic == sub_val,
-                        QuestionModel.subtopic.ilike(f"%{sub_val}%"),
+                        QuestionModel.subtopic.ilike(like_contains(sub_val), escape=LIKE_ESCAPE),
                     )
                 )
 
@@ -279,9 +305,15 @@ async def get_subtopic_reference_questions(
             models = result.scalars().all()
             return [model_to_schema(m, slim=True) for m in models]
     except Exception as exc:
-        logger.warning(
-            "Database unavailable or query failed in get_subtopic_reference_questions (%s); returning empty pool.",
+        # Degraded dedup: with an empty pool nothing can collide, so make it loud.
+        logger.error(
+            "Duplicate-reference lookup failed (section=%s, subtopic=%s, limit=%s): %s; "
+            "returning an EMPTY pool, so duplicate detection against the bank is skipped.",
+            section,
+            subtopic,
+            limit,
             exc,
+            exc_info=True,
         )
         return []
 

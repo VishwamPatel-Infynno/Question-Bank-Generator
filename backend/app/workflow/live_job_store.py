@@ -13,6 +13,7 @@ from app.repositories import (
     save_question,
     update_job_progress,
 )
+from app.repositories.question_mutations import BatchNotFoundError
 from app.schemas import JobStatus, Question, determine_question_status
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ async def persist_live_question(
         q_obj.status = determine_question_status(score, is_in_progress_batch=True)
         await save_question(q_obj)
         await update_job_progress(job_id, actual_count=completed_so_far)
-    except (SQLAlchemyError, OSError) as q_save_err:
+    except (SQLAlchemyError, OSError, BatchNotFoundError) as q_save_err:
         logger.warning(
             "Could not auto-persist question %s for live batch %s: %s",
             idx + 1,

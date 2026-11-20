@@ -9,6 +9,7 @@ deduplication resolution, and clean cancellation across modular helper services.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -39,6 +40,7 @@ from app.schemas import (
     enum_value,
 )
 from app.services.batch_concurrency import (
+    forget_batch_request,
     get_global_job_semaphore,
     get_stored_batch_request,
     register_batch_task,
@@ -358,20 +360,25 @@ async def retry_incomplete_jobs_for_batch(
     if not b:
         return None, []
 
-    # Stop any currently active task for this batch first
-    await stop_background_batch(batch_id)
+    def _retryable(jobs: list[GenerationJob]) -> list[GenerationJob]:
+        # Strictly enforce the trial ceiling: only jobs with trial_count < MAX_JOB_TRIALS are eligible
+        return [
+            j
+            for j in jobs
+            if (j.trial_count or 1) < MAX_JOB_TRIALS
+            and (
+                j.status in RETRYABLE_JOB_STATES
+                or (j.actual_count < (j.target_count or QUESTIONS_PER_JOB))
+            )
+        ]
 
-    jobs = await get_jobs_by_batch_id(batch_id)
-    # Strictly enforce the trial ceiling: only jobs with trial_count < MAX_JOB_TRIALS are eligible for retry/resume
-    retryable_jobs = [
-        j
-        for j in jobs
-        if (j.trial_count or 1) < MAX_JOB_TRIALS
-        and (
-            j.status in RETRYABLE_JOB_STATES
-            or (j.actual_count < (j.target_count or QUESTIONS_PER_JOB))
-        )
-    ]
+    # Nothing to retry: leave a running batch alone (do not stop it for a no-op request)
+    if not _retryable(await get_jobs_by_batch_id(batch_id)):
+        return b, []
+
+    # Stop any currently active task for this batch first, then re-read the settled job states
+    await stop_background_batch(batch_id)
+    retryable_jobs = _retryable(await get_jobs_by_batch_id(batch_id))
     if not retryable_jobs:
         return b, []
 
@@ -486,6 +493,25 @@ async def launch_background_batch(
     )
     await save_batch(batch)
 
+    try:
+        return await _create_jobs_and_launch(batch, req, b_id, target_count, total_jobs, now_iso)
+    except BaseException as err:
+        # Do not leave a zombie in_progress batch (no jobs / no runner) behind a failed launch
+        forget_batch_request(b_id)
+        with contextlib.suppress(Exception):
+            await _mark_batch_failed(b_id, sanitize_error_text(err))
+        raise
+
+
+async def _create_jobs_and_launch(
+    batch: GenerationBatch,
+    req: GenerationRequest,
+    b_id: str,
+    target_count: int,
+    total_jobs: int,
+    now_iso: str,
+) -> tuple[GenerationBatch, list[GenerationJob]]:
+    """Creates the job stubs of a freshly saved batch and spawns its background runner."""
     # 2. Create GenerationJob stubs
     jobs: list[GenerationJob] = []
     for num in range(1, total_jobs + 1):

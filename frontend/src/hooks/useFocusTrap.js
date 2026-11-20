@@ -6,6 +6,21 @@ const trapStack = [];
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+function isVisible(el) {
+  if (el.hidden || el.closest('[hidden]')) return false;
+  if (el.getAttribute('tabindex') === '-1') return false;
+  const style = window.getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  // Zero-size boxes only count as hidden where layout exists (jsdom reports 0 for everything)
+  const isJsdom = typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent);
+  if (!isJsdom && el.offsetWidth === 0 && el.offsetHeight === 0 && el.getClientRects().length === 0) return false;
+  return true;
+}
+
+function getFocusable(container) {
+  return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter(isVisible);
+}
+
 /**
  * WCAG-compliant keyboard focus trap for modal dialogs and drawers.
  *
@@ -41,7 +56,7 @@ export function useFocusTrap({ isActive = true, onClose = null }) {
     previousActiveElementRef.current = document.activeElement;
 
     // Find first focusable element and focus it
-    const focusableElements = container.querySelectorAll(FOCUSABLE_SELECTOR);
+    const focusableElements = getFocusable(container);
     if (focusableElements.length > 0) {
       focusableElements[0].focus();
     } else {
@@ -60,7 +75,7 @@ export function useFocusTrap({ isActive = true, onClose = null }) {
 
       if (e.key !== 'Tab') return;
 
-      const elements = Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR));
+      const elements = getFocusable(container);
       if (elements.length === 0) {
         e.preventDefault();
         return;

@@ -25,7 +25,11 @@ function BatchCard({
   onNavigateToValidated,
   onOpenAudit,
   onSaveToBank,
-  onRestoreQuestion
+  onRestoreQuestion,
+  onCompareDuplicate,
+  onOverrideDuplicate,
+  onShowToast,
+  onRefreshBatch
 }) {
   const secColor = getSectionColor(batch.section);
   const totalJobs = batch.total_jobs || 10;
@@ -113,6 +117,10 @@ function BatchCard({
           onOpenAudit={onOpenAudit}
           onSaveToBank={onSaveToBank}
           onRestoreQuestion={onRestoreQuestion}
+          onCompareDuplicate={onCompareDuplicate}
+          onOverrideDuplicate={onOverrideDuplicate}
+          onShowToast={onShowToast}
+          onRefreshBatch={onRefreshBatch}
         />
       )}
     </div>

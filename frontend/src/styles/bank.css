@@ -289,6 +289,16 @@
   box-shadow: 0 0 0 1px var(--brand-primary);
 }
 
+/* The card the A (approve) and D (discard) shortcuts act on */
+.validated-card--active {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px var(--brand-light);
+}
+
+.validated-card--active .kbd-hint {
+  margin-left: 6px;
+}
+
 .validated-card-header {
   display: flex;
   align-items: center;

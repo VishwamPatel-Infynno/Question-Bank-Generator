@@ -31,6 +31,21 @@ def normalize_metric_path(path: str) -> str:
     return cleaned
 
 
+UNMATCHED_ENDPOINT = "unmatched"
+_KNOWN_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
+
+
+def normalize_metric_method(method: str) -> str:
+    """Known HTTP verbs pass through upper-cased; anything else collapses to ``OTHER``."""
+    upper = (method or "").upper()
+    return upper if upper in _KNOWN_METHODS else "OTHER"
+
+
+def escape_label_value(value: str) -> str:
+    """Escapes a Prometheus label value (backslash, double quote, newline)."""
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
 class TelemetryStore:
     """Thread-safe in-memory store for HTTP request counters and duration metrics."""
 
@@ -42,12 +57,25 @@ class TelemetryStore:
         self._durations: dict[tuple[str, str], list[float]] = defaultdict(lambda: [0.0, 0.0])
 
     def record_request(
-        self, method: str, raw_path: str, status_code: int, duration_sec: float
+        self,
+        method: str,
+        raw_path: str,
+        status_code: int,
+        duration_sec: float,
+        route_template: str | None = None,
     ) -> None:
-        endpoint = normalize_metric_path(raw_path)
+        """Records one request.
+
+        ``route_template`` is the matched route's path pattern (e.g. ``/api/batches/{batch_id}``).
+        Without a match (404s, scanners) the endpoint is the fixed ``unmatched`` label, so
+        attacker-chosen URLs can never create new time series. ``raw_path`` is kept for call
+        compatibility and is deliberately not used as a label.
+        """
+        endpoint = normalize_metric_path(route_template) if route_template else UNMATCHED_ENDPOINT
+        method = normalize_metric_method(method)
         with self._lock:
-            self._request_counts[(method.upper(), endpoint, status_code)] += 1
-            entry = self._durations[(method.upper(), endpoint)]
+            self._request_counts[(method, endpoint, status_code)] += 1
+            entry = self._durations[(method, endpoint)]
             entry[0] += duration_sec
             entry[1] += 1
 
@@ -161,7 +189,7 @@ async def render_prometheus_metrics() -> str:
     if counts:
         for (method, endpoint, status_code), count in sorted(counts.items()):
             lines.append(
-                f'mcat_http_requests_total{{endpoint="{endpoint}",method="{method}",status="{status_code}"}} {count}'
+                f'mcat_http_requests_total{{endpoint="{escape_label_value(endpoint)}",method="{method}",status="{status_code}"}} {count}'
             )
     else:
         lines.append("# mcat_http_requests_total (no requests recorded yet)")
@@ -175,10 +203,10 @@ async def render_prometheus_metrics() -> str:
     if durations:
         for (method, endpoint), (total_time, req_count) in sorted(durations.items()):
             lines.append(
-                f'mcat_http_request_duration_seconds_sum{{endpoint="{endpoint}",method="{method}"}} {total_time:.6f}'
+                f'mcat_http_request_duration_seconds_sum{{endpoint="{escape_label_value(endpoint)}",method="{method}"}} {total_time:.6f}'
             )
             lines.append(
-                f'mcat_http_request_duration_seconds_count{{endpoint="{endpoint}",method="{method}"}} {req_count}'
+                f'mcat_http_request_duration_seconds_count{{endpoint="{escape_label_value(endpoint)}",method="{method}"}} {req_count}'
             )
     else:
         lines.append("# mcat_http_request_duration_seconds (no requests recorded yet)")

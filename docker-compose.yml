@@ -34,6 +34,9 @@ services:
     environment:
       # Overrides any localhost DATABASE_URL from .env: inside compose the host is the service name
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-mcat_user}:${POSTGRES_PASSWORD:-mcat_password}@postgres:5432/${POSTGRES_DB:-mcat_db}
+      # Trust X-Forwarded-For only from peers on the compose network (the nginx `web` proxy).
+      # uvicorn needs IPs/CIDRs, so the network below has a fixed subnet; keep the two in step.
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-172.29.240.0/24}
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,15 +48,25 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-      args:
-        VITE_API_ACCESS_KEY: ${VITE_API_ACCESS_KEY:-}
     container_name: mcat_web
     restart: unless-stopped
+    environment:
+      # Injected by nginx as X-API-Key on /api/ requests; must equal API_ACCESS_KEY on the backend
+      # (the same .env value feeds both). It is NOT built into the JS bundle. Anyone who can reach
+      # this web port can therefore call the mutating API, so keep it on loopback or put real
+      # authentication in front of it.
+      API_ACCESS_KEY: ${API_ACCESS_KEY:-}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
       backend:
         condition: service_healthy
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.29.240.0/24
 
 volumes:
   postgres_data:

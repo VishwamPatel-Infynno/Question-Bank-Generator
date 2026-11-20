@@ -118,3 +118,36 @@ async def test_single_batch_endpoint_caching_and_etag():
         )
         assert resp3.status_code == 200
         assert resp3.headers["etag"] == etag
+
+
+@pytest.mark.asyncio
+async def test_batch_etag_changes_when_a_question_is_soft_deleted(client):
+    import uuid
+
+    from app.repositories import delete_question, save_batch, save_question
+    from app.schemas import BatchStatus, GenerationBatch
+    from factories import make_question
+
+    batch = GenerationBatch(
+        id=str(uuid.uuid4()),
+        section="chem_phys",
+        subtopic="K",
+        difficulty="medium",
+        target_count=5,
+        total_jobs=1,
+        status=BatchStatus.COMPLETED,
+    )
+    await save_batch(batch)
+    q = make_question(batch_id=batch.id, status="batch_only")
+    await save_question(q)
+
+    first = await client.get(f"/api/batches/{batch.id}")
+    etag = first.headers["etag"]
+    assert (
+        await client.get(f"/api/batches/{batch.id}", headers={"if-none-match": etag})
+    ).status_code == 304
+
+    await delete_question(q.id)  # soft delete never touches the batch row
+    after = await client.get(f"/api/batches/{batch.id}", headers={"if-none-match": etag})
+    assert after.status_code == 200
+    assert after.headers["etag"] != etag

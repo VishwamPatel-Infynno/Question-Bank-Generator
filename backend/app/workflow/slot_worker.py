@@ -15,6 +15,7 @@ from typing import Any
 
 from app.agents.base import LLMNotConfiguredError
 from app.core.config import config
+from app.core.errors import sanitize_error_text
 from app.schemas import GenerationRequest, Question, WorkflowEvent, is_cars
 from app.workflow.dedup_inflight import (
     _refresh_duplicate_info_after_review,
@@ -485,12 +486,14 @@ async def run_slot_worker(ctx: SlotWorkerContext) -> None:
                 worker_err,
                 exc_info=worker_err,
             )
-            outcomes_errors.append(str(worker_err))
+            # Provider exceptions can embed URLs/keys: only sanitized text reaches events/payloads
+            safe_err = sanitize_error_text(worker_err)
+            outcomes_errors.append(safe_err)
             err_evt = make_event(
                 event_type="question_failed",
                 agent_name="System",
-                message=f"Generation failed for Question {idx + 1} after retries: {worker_err!s}",
-                data={"index": idx + 1, "error": str(worker_err)},
+                message=f"Generation failed for Question {idx + 1} after retries: {safe_err}",
+                data={"index": idx + 1, "error": safe_err},
                 run_id=req.run_id,
             )
             await event_queue.put(err_evt)

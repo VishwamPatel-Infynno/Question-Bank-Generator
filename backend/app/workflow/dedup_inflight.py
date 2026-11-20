@@ -159,32 +159,34 @@ async def register_in_flight_draft(
     if not batch_id:
         return
     slot = _slot(job_id, worker_idx)
-    async with _IN_FLIGHT_LOCK:
-        pool = _IN_FLIGHT_BATCH_STEMS.setdefault(batch_id, [])
-        pool[:] = [item for item in pool if item.get("_slot") != slot]
-        item = dict(draft)
-        item["_slot"] = slot
-        # Synthetic id so a collision with an in-flight sibling is recognisable as such.
-        item["id"] = f"in_flight_{job_id or 'live'}_{worker_idx}"
-        if passage_id or draft.get("passage_id"):
-            item["passage_id"] = draft.get("passage_id") or passage_id
-        if stimulus_text or draft.get("stimulus_text"):
-            item["stimulus_text"] = draft.get("stimulus_text") or stimulus_text
-        if batch_id or draft.get("batch_id"):
-            item["batch_id"] = draft.get("batch_id") or batch_id
-        if draft.get("embedding"):
-            item["embedding"] = draft["embedding"]
-        elif config.ENABLE_PGVECTOR_RAG:
-            stem = draft.get("question_stem") or ""
-            if stem:
-                try:
-                    from app.services.embeddings import embed_text
+    item = dict(draft)
+    item["_slot"] = slot
+    # Synthetic id so a collision with an in-flight sibling is recognisable as such.
+    item["id"] = f"in_flight_{job_id or 'live'}_{worker_idx}"
+    if passage_id or draft.get("passage_id"):
+        item["passage_id"] = draft.get("passage_id") or passage_id
+    if stimulus_text or draft.get("stimulus_text"):
+        item["stimulus_text"] = draft.get("stimulus_text") or stimulus_text
+    if batch_id or draft.get("batch_id"):
+        item["batch_id"] = draft.get("batch_id") or batch_id
+    if draft.get("embedding"):
+        item["embedding"] = draft["embedding"]
+    elif config.ENABLE_PGVECTOR_RAG:
+        stem = draft.get("question_stem") or ""
+        if stem:
+            # Network call: done before taking the shared lock so it never blocks other slots.
+            try:
+                from app.services.embeddings import embed_text
 
-                    vec = await embed_text(stem)
+                vec = await embed_text(stem)
+                if vec:
                     item["embedding"] = vec
                     draft["embedding"] = vec
-                except Exception as exc:
-                    logger.debug("In-flight draft embedding generation skipped (%s)", exc)
+            except Exception as exc:
+                logger.debug("In-flight draft embedding generation skipped (%s)", exc)
+    async with _IN_FLIGHT_LOCK:
+        pool = _IN_FLIGHT_BATCH_STEMS.setdefault(batch_id, [])
+        pool[:] = [existing for existing in pool if existing.get("_slot") != slot]
         pool.append(item)
 
 

@@ -6,6 +6,7 @@ import {
   getSectionBadgeClass,
   getSectionShortLabel
 } from '../../constants';
+import { DuplicateRiskBadge } from '../duplicates';
 
 /**
  * QuestionCardHeader
@@ -20,7 +21,8 @@ export default function QuestionCardHeader({
   effectiveTrapInfo = null,
   onOpenAudit = null,
   isEditing = false,
-  onToggleEditing = null
+  onToggleEditing = null,
+  onCompareDuplicate = null
 }) {
   if (!question) return null;
 
@@ -75,6 +77,8 @@ export default function QuestionCardHeader({
             {formatAamcSkill(question.aamc_skill)}
           </span>
         )}
+
+        <DuplicateRiskBadge question={question} onClick={onCompareDuplicate || undefined} />
 
         <span className="badge badge-emerald qcard-header-score-badge">
           <Award size={11} /> {question.final_score}/100

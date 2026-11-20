@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useFocusTrap } from '../../hooks';
 
@@ -22,6 +22,7 @@ import { useFocusTrap } from '../../hooks';
  * @param {string} [props.className] - Extra class on the card.
  * @param {string} [props.bodyClassName] - Extra class on the body wrapper.
  * @param {string} [props.footerClassName] - Extra class on the footer wrapper.
+ * @param {string} [props.ariaLabel] - Accessible name used when no title is given (defaults to "Dialog").
  * @param {Object} [props.cardStyle] - Optional inline style overrides for the card.
  */
 const DEFAULT_CARD_STYLE = Object.freeze({});
@@ -39,6 +40,7 @@ export default function Modal({
   className = '',
   bodyClassName = '',
   footerClassName = '',
+  ariaLabel,
   cardStyle = DEFAULT_CARD_STYLE
 }) {
   // While a request is running the dialog must not be dismissable (Escape included)
@@ -50,10 +52,19 @@ export default function Modal({
   const uid = useId();
   const labelId = `modal-title-${uid}`;
 
+  // A drag that starts inside the card and releases on the backdrop must not dismiss the dialog
+  const pressStartedOnBackdropRef = useRef(false);
+
   if (!isOpen) return null;
 
+  const handleBackdropMouseDown = (e) => {
+    pressStartedOnBackdropRef.current = e.target === e.currentTarget;
+  };
+
   const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget && !isProcessing && onClose) {
+    const startedOnBackdrop = pressStartedOnBackdropRef.current;
+    pressStartedOnBackdropRef.current = false;
+    if (e.target === e.currentTarget && startedOnBackdrop && !isProcessing && onClose) {
       onClose();
     }
   };
@@ -71,6 +82,8 @@ export default function Modal({
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? labelId : undefined}
+      aria-label={title ? undefined : (ariaLabel || 'Dialog')}
+      onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
       <div

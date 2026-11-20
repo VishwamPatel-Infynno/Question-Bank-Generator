@@ -19,6 +19,7 @@ export default function QuestionBankTable({
   onCopy,
   onDelete,
   onSelectQuestion,
+  onCompareDuplicate,
 }) {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -36,6 +37,7 @@ export default function QuestionBankTable({
           onCopy={onCopy}
           onDelete={onDelete}
           onSelectQuestion={onSelectQuestion}
+          onCompareDuplicate={onCompareDuplicate}
         />
       ))}
     </div>
