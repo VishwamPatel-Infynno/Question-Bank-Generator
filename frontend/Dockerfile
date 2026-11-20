@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Build context is the repository root:  docker build -f frontend/Dockerfile .
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 # corepack installs the pnpm version pinned by "packageManager" in the root package.json (the
 # same one CI uses). Node 25+ unbundled corepack, so install it before enabling.
 RUN npm install -g corepack@latest && corepack enable
@@ -12,7 +12,7 @@ COPY frontend frontend
 # No API key is baked into the bundle: nginx injects X-API-Key at runtime (see nginx.conf)
 RUN pnpm --dir frontend run build
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 # The official image renders /etc/nginx/templates/*.template with envsubst into conf.d at start-up
 COPY frontend/nginx.conf /etc/nginx/templates/default.conf.template
 # Must be defined (even empty) or envsubst leaves the literal placeholder in the config
