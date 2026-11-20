@@ -504,19 +504,19 @@ Workflow state is tracked via a typed dictionary `AgentWorkflowState` defined in
 ```python
 class AgentWorkflowState(TypedDict, total=False):
     # Request & context configuration
-    request: dict[str, Any]              # Original GenerationRequest parameters
+    request: dict[str, Any]  # Original GenerationRequest parameters
     run_id: str
     batch_id: str | None
-    diversity_context: str | None        # Cross-item trap/mistake diversity + RAG context
+    diversity_context: str | None  # Cross-item trap/mistake diversity + RAG context
     passing_threshold: float
-    slot_prior_calls: int                # LLM calls spent by earlier attempts of this slot
+    slot_prior_calls: int  # LLM calls spent by earlier attempts of this slot
 
     # Authoring & review lifecycle
     current_draft: dict[str, Any] | None
     current_review: dict[str, Any] | None
-    iteration_count: int                 # 1, 2, 3
+    iteration_count: int  # 1, 2, 3
     iterations_history: list[IterationHistoryEntry]
-    fused_self_passed: bool              # legacy shortcut (ALWAYS_INDEPENDENT_REVIEW=false)
+    fused_self_passed: bool  # legacy shortcut (ALWAYS_INDEPENDENT_REVIEW=false)
     status: str
     active_agent: str
     log_messages: list[str]
@@ -525,7 +525,7 @@ class AgentWorkflowState(TypedDict, total=False):
 
     # Deduplication state
     duplicate_info: DuplicateInfoDict | None
-    regenerated_pending_dedup: bool      # request a free duplicate re-check after a rewrite
+    regenerated_pending_dedup: bool  # request a free duplicate re-check after a rewrite
 
     # Visual stimulus & medical imaging
     image_url: str | None
@@ -545,7 +545,7 @@ class AgentWorkflowState(TypedDict, total=False):
     total_cost_usd: float
     agent_usage_breakdown: list[AgentUsageEntry]
     latest_usage: dict[str, Any] | None
-    stage_outcomes: StageOutcomes        # drafting, quality_audit, blind_solver_validation, ...
+    stage_outcomes: StageOutcomes  # drafting, quality_audit, blind_solver_validation, ...
 ```
 
 (Abridged from `backend/app/workflow/state.py`. `blind_solver_result` and `blind_solver_passed` are written by `node_reviewer.build_solver_update`; they are not declared in the `TypedDict` itself, which is `total=False` and only type-checks the declared keys. TODO: verify whether they should be declared.)
