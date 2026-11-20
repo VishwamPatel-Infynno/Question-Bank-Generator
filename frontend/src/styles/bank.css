@@ -264,6 +264,16 @@
   color: var(--text-primary);
 }
 
+.qbank-clear-selection-btn {
+  font-size: 0.78rem;
+  padding: 2px 8px;
+  color: var(--text-muted);
+}
+
+.qbank-clear-selection-btn:hover {
+  color: var(--text-primary);
+}
+
 /* AI-Validated Repository Suite */
 .validated-card {
   background: var(--bg-surface);

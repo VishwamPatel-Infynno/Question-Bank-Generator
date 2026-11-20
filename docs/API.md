@@ -57,13 +57,13 @@ The backend runs an ASGI middleware stack that governs network optimization and 
 | `POST` | `/api/questions/update-status` | **Admin Action**: Bulk-updates question lifecycle status (`in_bank`, `ai_validated`, `discarded`) |
 | `PATCH` | `/api/questions/{question_id}/status` | Updates lifecycle status for an individual question |
 | `GET` | `/api/questions/{question_id}/image` | Serves visual stimulus (FLUX AI image or Vector SVG diagram) with content negotiation |
-| `GET` | `/api/passages` | Lists shared reading passages with query filtering, search, pagination (`limit`/`offset`), and active question counts |
+| `GET` | `/api/passages` | Lists shared reading passages with query filtering, search, sorting (`sort_by`), pagination (`limit`/`offset`), and active question counts (`total_count`) |
 | `GET` | `/api/passages/{passage_id}` | Retrieves a single reading passage along with all its linked active questions |
 | `POST` | `/api/passages` | Admin endpoint to create or update a shared reading passage record |
 | `DELETE` | `/api/passages/{passage_id}` | Admin endpoint to soft-delete a passage and its linked questions, preserving batch progress history |
 | `POST` | `/api/passages/{passage_id}/restore` | Admin endpoint to restore a soft-deleted passage record (404 if not found) |
 | `GET` | `/api/batches` | Lists generation batches (newest first; `limit` 1-500 default 100, `offset`) with active running counts and global concurrency metrics. Rows omit `request_payload`; client API keys are never stored or returned |
-| `GET` | `/api/batches/{batch_id}` | Retrieves a generation batch with all jobs and grouped questions |
+| `GET` | `/api/batches/{batch_id}` | Retrieves a generation batch with all jobs and grouped questions. Supports conditional HTTP validation via `If-None-Match`/`ETag` with `304 Not Modified` fast-path and `slim` diagnostic projection |
 | `POST` | `/api/batches/start` | Launches an asynchronous background batch generation (dynamically allocated, e.g., 50 Qs = 10 jobs) |
 | `POST` | `/api/batches/{batch_id}/stop` | **Batch Control**: Gracefully halts active background jobs for a batch without deleting questions |
 | `POST` | `/api/batches/{batch_id}/retry` | **Batch Control**: Resumes incomplete sets for manually paused batches with remaining trials (HTTP 400 when 3 trials exhausted) |
@@ -182,6 +182,7 @@ Lists saved questions from the Question Bank repository with optional filtering,
 | `batch_id` | `string` | No | Filter by batch run UUID4 |
 | `passage_id` | `string` | No | Filter by shared stimulus passage UUID4 |
 | `status` | `string` | No | Filter by lifecycle status: `in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded` |
+| `sort_by` | `string` | No | Sorting criteria: `newest` (default), `oldest`, `highest_score`, `lowest_score` |
 | `limit` | `integer` | No | Optional maximum number of questions to return (`1` to `500`) |
 | `offset` | `integer` | No | Optional number of questions to skip for server-side pagination |
 | `slim` | `boolean` | No | When `true`, omits heavy diagnostic fields (`stage_outcomes`, `iterations_history`, `token_usage_details`) to reduce network payload by 70%+ |
@@ -215,10 +216,16 @@ Lists saved questions from the Question Bank repository with optional filtering,
       "created_at": "2026-10-26T12:00:00Z"
     }
   ],
+  "total_count": 42,
+  "bank_total_count": 75,
   "total_tokens": 48200,
   "total_cost_usd": 0.00845
 }
 ```
+
+> [!NOTE]
+> - `total_count`: Total number of active questions matching the exact active query filters (`section`, `difficulty`, `search`, etc.), used directly by the frontend `usePagination` hook in server-driven mode.
+> - `bank_total_count`: Global count of questions within the selected status across the entire repository.
 
 ---
 
@@ -846,7 +853,29 @@ Lists generation batches with job progress counts, active running batch numbers,
 ### 3.22 Get Single Batch with Grouped Jobs & Questions
 `GET /api/batches/{batch_id}?slim=true`
 
-Retrieves a generation batch along with all jobs (augmented with their generated questions) and flat question records. Supports an optional `slim` query parameter (`true` by default) that projects questions without massive diagnostic JSONB blobs (`stage_outcomes`, `iterations_history`, `token_usage_details`), optimizing telemetry polling bandwidth by >90% during active generation runs. Pass `slim=false` to retrieve complete diagnostic histories.
+Retrieves a generation batch along with all jobs (augmented with their generated questions) and flat question records. Questions are organized so clients can readily inspect questions per job.
+
+#### Query Parameters
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `slim` | `boolean` | No | When `true` (default), questions omit heavy diagnostic blobs (`stage_outcomes`, `iterations_history`, `token_usage_details`) to optimize network telemetry bandwidth by >90% during live polling. Pass `slim=false` to retrieve complete diagnostic histories. |
+
+#### Request Headers
+| Header | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `If-None-Match` | `string` | No | Optional HTTP entity tag (ETag) from a prior request. If the batch aggregate state is unchanged, the server returns `304 Not Modified` immediately without querying jobs or questions. |
+
+#### Response Headers
+| Header | Type | Description |
+| :--- | :--- | :--- |
+| `ETag` | `string` | Weak SHA-256 slice signature computed over batch aggregate state: `"{hash[:16]}"` based on `id`, `updated_at`, `completed_jobs`, `failed_jobs`, `actual_count`, `status`, `total_tokens`, and `slim`. |
+| `Cache-Control` | `string` | `private, no-cache` (allows client-side validation caching while ensuring revalidation on subsequent polls). |
+
+#### Conditional Caching & 304 Fast-Path
+To prevent redundant database queries and JSON serialization during high-frequency telemetry polling (e.g., adaptive 1.5s intervals during active generation), `GET /api/batches/{batch_id}` executes a fast conditional check against the batch aggregate row:
+1. Computes `raw_sig = f"{b.id}:{b.updated_at}:{b.completed_jobs}:{b.failed_jobs}:{b.actual_count}:{b.status}:{b.total_tokens}:{slim}"`.
+2. Hashes to 16-hex weak ETag: `etag = f'"{hashlib.sha256(raw_sig.encode()).hexdigest()[:16]}"'`.
+3. If `If-None-Match == etag`, returns `304 Not Modified` with zero response body, bypassing the expensive `get_jobs_by_batch_id` and `get_questions` queries entirely.
 
 #### Response (`200 OK`)
 ```json
@@ -871,6 +900,35 @@ Retrieves a generation batch along with all jobs (augmented with their generated
   "questions": [...],
   "total_questions_count": 50
 }
+```
+
+#### Response (`304 Not Modified`)
+- Status: `304 Not Modified`
+- Headers: `ETag: "8f3a1c9e2b4d5a7f"`, `Cache-Control: private, no-cache`
+- Body: None (0 bytes)
+
+#### cURL Examples
+
+**Initial Request (200 OK with ETag):**
+```bash
+curl -i -X GET "http://localhost:8000/api/batches/6ba7b810-9dad-11d1-80b4-00c04fd430c8?slim=true"
+
+# HTTP/1.1 200 OK
+# Content-Type: application/json
+# ETag: "8f3a1c9e2b4d5a7f"
+# Cache-Control: private, no-cache
+#
+# {"batch": {"id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8", ...}, "jobs": [...], "questions": [...], "total_questions_count": 50}
+```
+
+**Subsequent Poll with Conditional Revalidation (304 Not Modified):**
+```bash
+curl -i -X GET "http://localhost:8000/api/batches/6ba7b810-9dad-11d1-80b4-00c04fd430c8?slim=true" \
+  -H 'If-None-Match: "8f3a1c9e2b4d5a7f"'
+
+# HTTP/1.1 304 Not Modified
+# ETag: "8f3a1c9e2b4d5a7f"
+# Cache-Control: private, no-cache
 ```
 
 ---
@@ -1101,7 +1159,7 @@ Replenishes a batch up to its target question count by launching targeted backgr
 ### 3.31 Passages Management Endpoints
 `GET /api/passages` | `GET /api/passages/{passage_id}` | `POST /api/passages` | `DELETE /api/passages/{passage_id}` | `POST /api/passages/{passage_id}/restore`
 
-- **List Passages (`GET /api/passages`)**: Lists reading passages with optional `section`, `subtopic`, and `search` query parameters. Soft-deleted passages are excluded by default.
+- **List Passages (`GET /api/passages`)**: Lists reading passages with query filtering (`section`, `subtopic`), text search (`search`), sorting (`sort_by`), and server-driven pagination (`limit`, `offset`). Soft-deleted passages are excluded by default.
 - **Get Single Passage (`GET /api/passages/{passage_id}`)**: Retrieves a reading passage along with its complete array of linked active questions.
 - **Create/Update Passage (`POST /api/passages`)**: Admin endpoint to persist or modify a shared stimulus passage.
 - **Delete Passage (`DELETE /api/passages/{passage_id}`)**: Admin endpoint to soft-delete a reading passage record and its associated questions (`is_deleted = true`, `deleted_at = ISO UTC timestamp`). This hides them from active catalog and review views while preserving linked batch job histories, passages IDs, and execution metrics (`actual_count`) 100% intact.
@@ -1112,6 +1170,7 @@ Replenishes a batch up to its target question count by launching targeted backgr
 | `section` | `string` | No | Filter by section (`chem_phys`, `cars`, `bio_biochem`, `psych_soc`) |
 | `subtopic` | `string` | No | Filter by specific subtopic / foundational concept |
 | `search` | `string` | No | Search query matching passage text or subtopic |
+| `sort_by` | `string` | No | Sorting order: `newest` (default, created_at descending), `oldest` (created_at ascending), `title` (alphabetical by subtopic/title), `questions` (descending linked active question count) |
 | `limit` | `integer` | No | Maximum number of records to return ($1 \le \text{limit} \le 500$, default: unrestricted / all) |
 | `offset` | `integer` | No | Number of records to skip for pagination ($\ge 0$, default: `0`) |
 
@@ -1134,6 +1193,16 @@ Replenishes a batch up to its target question count by launching targeted backgr
   ],
   "total_count": 1
 }
+```
+
+> [!NOTE]
+> `total_count` reflects the total number of non-deleted passages matching the active `section`, `subtopic`, and `search` criteria, enabling accurate server-side page count calculation in `usePassageBank` and `PaginationBar`.
+
+#### cURL Example for Listing Passages
+
+```bash
+curl -X GET "http://localhost:8000/api/passages?section=cars&sort_by=questions&limit=10&offset=0" \
+  -H "Accept: application/json"
 ```
 
 #### Single Passage Response (`GET /api/passages/{passage_id}`)

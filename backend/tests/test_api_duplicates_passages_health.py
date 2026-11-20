@@ -245,6 +245,48 @@ async def test_passage_lifecycle_and_restore_api(client):
     assert non_existent.status_code == 404
 
 
+@pytest.mark.asyncio
+@pytest.mark.requires_db
+async def test_list_passages_pagination_and_sorting(client):
+    """Verifies that GET /api/passages supports pagination (limit, offset) and sorting (sort_by)."""
+    p1_id = f"test-p-sort1-{uuid.uuid4().hex[:6]}"
+    p2_id = f"test-p-sort2-{uuid.uuid4().hex[:6]}"
+
+    await client.post(
+        "/api/passages",
+        json={
+            "id": p1_id,
+            "title": "Alpha Research Passage",
+            "text": "First passage text for sorting validation.",
+            "section": "cars",
+            "subtopic": "Philosophy",
+        },
+    )
+    await client.post(
+        "/api/passages",
+        json={
+            "id": p2_id,
+            "title": "Beta Research Passage",
+            "text": "Second passage text for sorting validation.",
+            "section": "cars",
+            "subtopic": "Philosophy",
+        },
+    )
+
+    # 1. Limit & offset
+    res = await client.get("/api/passages?section=cars&limit=1&offset=0")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["passages"]) == 1
+    assert data["total_count"] >= 2
+
+    # 2. Sort by title
+    res_title = await client.get("/api/passages?section=cars&sort_by=title")
+    assert res_title.status_code == 200
+    titles = [p["title"] for p in res_title.json()["passages"] if p["id"] in (p1_id, p2_id)]
+    assert titles == ["Alpha Research Passage", "Beta Research Passage"]
+
+
 async def test_cors_patch_allowed(client):
     """Verify that CORS preflight permits PATCH requests in Access-Control-Allow-Methods."""
     headers = {

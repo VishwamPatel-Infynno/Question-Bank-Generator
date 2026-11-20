@@ -64,24 +64,60 @@ function withQuery(path, params) {
   return query ? `${path}?${query}` : path;
 }
 
+// In-memory cache for conditional ETag responses
+const etagCache = new Map();
+
 /**
  * One API call: JSON body in (when given), JSON body out, descriptive Error on non-2xx.
+ * Handles HTTP 304 Not Modified transparently using in-memory ETag cache.
  * @param {string} path - Path under /api.
  * @param {{method?: string, body?: any, signal?: AbortSignal|null, context: string}} opts
  */
 async function request(path, { method = 'GET', body, signal = null, context } = {}) {
   const init = { method, signal };
+  const headers = {};
   if (body !== undefined) {
     if (body instanceof FormData) {
       init.body = body;
     } else {
-      init.headers = { 'Content-Type': 'application/json' };
+      headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(body);
     }
   }
+
+  // If GET request has a cached ETag, send If-None-Match
+  if (method === 'GET' && etagCache.has(path)) {
+    const cached = etagCache.get(path);
+    if (cached?.etag) {
+      headers['If-None-Match'] = cached.etag;
+    }
+  }
+
+  if (Object.keys(headers).length > 0) {
+    init.headers = headers;
+  }
+
   const res = await apiFetch(`${API_BASE}${path}`, init);
+
+  // Return cached payload on 304 Not Modified
+  if (res.status === 304 && etagCache.has(path)) {
+    return etagCache.get(path).data;
+  }
+
   await assertOk(res, context);
-  return res.json();
+  const data = await res.json();
+
+  if (method === 'GET') {
+    const etag = typeof res.headers?.get === 'function' ? res.headers.get('ETag') : null;
+    if (etag) {
+      etagCache.set(path, { etag, data });
+    }
+  } else {
+    // Invalidate GET cache on mutations
+    etagCache.clear();
+  }
+
+  return data;
 }
 
 export const fetchHealth = () => request('/health', { context: 'Health check' });

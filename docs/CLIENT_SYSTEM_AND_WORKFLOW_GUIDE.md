@@ -4,7 +4,7 @@
 > **Prepared by**: Infynno Solutions LLP • Infinite Innovations • [infynno.com](https://infynno.com/)  
 > **Product**: Infynno MCAT Question Bank Generator v2.0  
 > **Target Audience**: Client Leadership, Product Stakeholders, Medical Admissions Educators, Pre-Med Faculty, and Test-Prep Authors  
-> **System Status**: Fully Implemented, Tested (512 Deterministic Backend Tests across 76 Modules, 522 Total Backend Tests + 148 Frontend Tests across 17 Test Files), and Production-Ready  
+> **System Status**: Fully Implemented, Tested (517 Deterministic Backend Tests across 77 Modules, 527 Total Backend Tests + 150 Frontend Tests across 18 Test Files), and Production-Ready  
 
 ---
 
@@ -458,8 +458,8 @@ $$\text{Cost (USD)} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times R_{\te
 ## 10. Technical Architecture, Security & Production Readiness
 
 ### Full-Stack Architecture Specifications
-- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (148 unit tests across 17 test files).
-- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (515 deterministic test suite across 77 modules; 525 total tests).
+- **Frontend**: React 19, Vite 8, Lucide Icons, pure token-driven CSS (no bulky utility frameworks), oxlint, Vitest (150 unit tests across 18 test files).
+- **Backend**: FastAPI (Python 3.11), SQLAlchemy Async 2.0, asyncpg connection pooling, Pydantic v2 schemas, pytest (517 deterministic test suite across 77 modules; 527 total tests).
 - **Database**: PostgreSQL 16 with native JSONB columns for multi-stage payloads, rubrics, and token tracking; UUID4 primary keys; automated schema migrations on startup.
 - **Observability**: Prometheus `/metrics` endpoint exposing real-time worker pool occupancy, batch lifecycle states, and token expenditures.
 - **Security & Hygiene**:

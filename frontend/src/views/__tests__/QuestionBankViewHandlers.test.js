@@ -54,15 +54,32 @@ describe('QuestionBankView Selection & Filter Handlers', () => {
     expect(rawSelectedIds).toEqual([]);
   });
 
-  it('prunes stale selectedIds when questions array changes (filter change / reload)', () => {
-    const rawSelectedIds = ['q1', 'q2', 'q3', 'stale_id'];
-    const currentQuestions = [{ id: 'q1' }, { id: 'q2' }, { id: 'q4' }];
+  it('supports persistent cross-page selection and bulk clearing', () => {
+    // Page 1 selection
+    let selectedIds = ['q1', 'q2'];
 
-    const loaded = new Set(currentQuestions.map((q) => q.id));
-    const selectedIds = rawSelectedIds.filter((id) => loaded.has(id));
+    // Navigating to page 2: user selects q5 on page 2 while preserving q1 and q2 from page 1
+    selectedIds = toggleId(selectedIds, 'q5');
+    expect(selectedIds).toEqual(['q1', 'q2', 'q5']);
 
+    // Page 2 IDs: q5, q6
+    const page2Ids = ['q5', 'q6'];
+    const allSelectedOnPage2 = page2Ids.every((id) => selectedIds.includes(id));
+    expect(allSelectedOnPage2).toBe(false);
+
+    // Select all on page 2 retains page 1 items
+    const set = new Set(selectedIds);
+    page2Ids.forEach((id) => set.add(id));
+    selectedIds = Array.from(set);
+    expect(selectedIds).toEqual(['q1', 'q2', 'q5', 'q6']);
+
+    // When all page 2 IDs are selected, toggling page 2 deselects only page 2 items
+    const setPage2 = new Set(page2Ids);
+    selectedIds = selectedIds.filter((id) => !setPage2.has(id));
     expect(selectedIds).toEqual(['q1', 'q2']);
-    expect(selectedIds).not.toContain('stale_id');
-    expect(selectedIds).not.toContain('q3');
+
+    // Explicit Clear Selection action empties selection entirely
+    selectedIds = [];
+    expect(selectedIds).toEqual([]);
   });
 });

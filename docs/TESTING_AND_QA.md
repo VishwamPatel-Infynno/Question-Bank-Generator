@@ -18,8 +18,8 @@ graph TD
     end
 
     subgraph "Tier 2: Backend Pytest Engine"
-        UnitTests[512 Deterministic Unit & Integration Tests across 76 Modules]
-        LiveE2E[10 Live LLM API E2E Integration Tests - 522 Total Backend Tests across 77 Files]
+        UnitTests[517 Deterministic Unit & Integration Tests across 77 Modules]
+        LiveE2E[10 Live LLM API E2E Integration Tests - 527 Total Backend Tests across 78 Files]
     end
 
     subgraph "Tier 3: Browser E2E Automation"
@@ -41,9 +41,9 @@ graph TD
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
 | **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms, zero debug artifacts | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (156 frontend files, 100% ruff compliance across 145 backend files; 0 TODO / 0 FIXME / 0 console.log) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry, pgvector RAG, query pipelining, and pagination limits | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **512 passing deterministic tests across 76 modules** (522 total backend tests across 77 files) (~35s) |
-| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **148 passing tests across 17 test files** (~500ms) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (522 total backend tests across 77 modules: 76 deterministic + 1 live E2E) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry, pgvector RAG, query pipelining, and pagination limits | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **517 passing deterministic tests across 77 modules** (527 total backend tests across 78 files) (~35s) |
+| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **150 passing tests across 18 test files** (~500ms) |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (527 total backend tests across 78 modules: 77 deterministic + 1 live E2E) |
 | **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 80$ points (`PASSING_SCORE_THRESHOLD`) |
 
@@ -140,9 +140,9 @@ backend/tests/
 
 #### Execution Modes Breakdown
 - **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the database-dependent tests, executing all algorithmic, schema, prompt builder, taxonomy sync, HTTP caching, Prometheus metrics, AI native planning, and token pricing unit tests in ~12 seconds.
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 515 deterministic unit and integration tests execute across all 77 modules in ~23-28 seconds (10 live tests deselected).
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 517 deterministic unit and integration tests execute across all 77 modules in ~23-28 seconds (10 live tests deselected).
 - **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
-- **Total Suite**: 525 backend tests across 78 test files (515 deterministic across 77 test files + 10 live E2E in `test_e2e_live.py`).
+- **Total Suite**: 527 backend tests across 78 test files (517 deterministic across 77 test files + 10 live E2E in `test_e2e_live.py`).
 
 ```bash
 # 1. Activate backend virtual environment
@@ -178,7 +178,7 @@ PYTHONPATH=backend pytest backend/tests/test_api_questions.py -v
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
-### 2.3 Detailed Test Module Coverage (512 Deterministic Tests across 76 Modules / 522 Total Backend Tests)
+### 2.3 Detailed Test Module Coverage (517 Deterministic Tests across 77 Modules / 527 Total Backend Tests)
 
 1. **`test_additional_instructions.py` (3 tests)**:
    - `test_generation_request_additional_instructions`: Validates Pydantic serialization and round-trip payload persistence of educator instructions.
@@ -206,8 +206,8 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
    - `test_model_normalization_for_litellm`: Tests normalization of model identifiers for LiteLLM gateway compatibility.
    - `test_mock_llm_call_anthropic`: Validates mock LLM execution and response synthesis under Anthropic provider settings.
    - `test_health_and_config_endpoints_anthropic_reporting`: Confirms `/api/health` and `/api/config` report active provider, key status, and rates.
-4. **`test_api_duplicates_passages_health.py` (6 tests)**:
-   - Duplicate detection API, collision thresholds ($\ge 0.80$), educator side-by-side override audit trail, passage CRUD, CORS configuration, and health endpoints.
+4. **`test_api_duplicates_passages_health.py` (7 tests)**:
+   - Duplicate detection API, collision thresholds ($\ge 0.80$), educator side-by-side override audit trail, passage CRUD, server-side passage pagination and sorting (`sort_by`: `newest`, `oldest`, `title`, `questions`), CORS configuration, and health endpoints.
 5. **`test_api_generation.py` (6 tests)**:
    - Multi-question batch generation flows through the API: independent discretes, single-passage sets, visual diagram handling, and SSE streaming lifecycles.
 6. **`test_api_hardening.py` (15 tests)**:
@@ -283,8 +283,8 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - Closing the workflow stream early cleanly drains worker tasks without leaking in-flight background tasks.
 25. **`test_engine_slices.py` (14 tests)**:
     - The closure-free pieces of `engine.py`: `_resolve_run_layout` (binary passage mode, CARS always linked, caller ids kept), `SlotLedger` (per-attempt folding, call budget, run totals with the passage spend), diversity context and drafting messages, passing-threshold precedence, offline attempt state, sibling-collision detection, the event factory and the shared passage/complete payloads.
-26. **`test_http_caching.py` (3 tests)**:
-    - HTTP `Cache-Control`, `ETag` generation, and HTTP 304 conditional revalidation on static and metadata endpoints.
+26. **`test_http_caching.py` (4 tests)**:
+    - HTTP `Cache-Control`, `ETag` generation, and HTTP 304 conditional revalidation on static and metadata endpoints, plus conditional ETag validation and 304 fast-path handling on `GET /api/batches/{id}` (`test_single_batch_endpoint_caching_and_etag`).
 27. **`test_image_calls.py` (5 tests)**:
     - Retry behavior and response handling of the provider image calls under simulated network faults and mocked HTTP responses.
 28. **`test_in_flight_pool_and_dedup.py` (33 tests)**:
@@ -417,7 +417,7 @@ def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: fl
 
 - When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
 - All **388 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **515 deterministic tests across 77 modules** execute and pass automatically in ~23-28 seconds.
+- Once PostgreSQL is started (`docker compose up -d`), all **517 deterministic tests across 77 modules** execute and pass automatically in ~23-28 seconds.
 
 ---
 
@@ -498,11 +498,11 @@ cd frontend && pnpm build
 
 ---
 
-## 4. Frontend Vitest Automated Test Suite (148 Tests across 17 Suites)
+## 4. Frontend Vitest Automated Test Suite (150 Tests across 18 Suites)
 
 The frontend test suite is executed using **Vitest** (running with jsdom environment where browser DOM APIs are required) and covers pure data transforms, badge resolvers, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks.
 
-All **148 tests across 17 test files** execute and pass in ~600ms with zero flaky tests:
+All **150 tests across 18 test files** execute and pass in ~600ms with zero flaky tests:
 
 ### 4.1 Frontend Test Suite Matrix
 
@@ -525,12 +525,13 @@ All **148 tests across 17 test files** execute and pass in ~600ms with zero flak
 | **15** | `QuestionBankViewHandlers.test.js` | `src/views/__tests__/` | 4 | Filter reset handlers, table row selection toggling, and stale selection pruning. |
 | **16** | `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, and idempotency key handlers. |
 | **17** | `copilotAndSearchOptimizations.test.js` | `src/utils/__tests__/` | 6 | Slim batch query parameters (`fetchBatchDetail`), toast category token adherence (`error`), and adaptive vector cosine similarity preservation in semantic search. |
-| **Total** | **17 Test Suites** | | **148 Tests** | **100% Pass Rate (~670ms)** |
+| **18** | `usePagination.test.jsx` | `src/hooks/__tests__/` | 2 | Server-driven pagination handling (`totalCount`, page boundaries, and navigation callbacks). |
+| **Total** | **18 Test Suites** | | **150 Tests** | **100% Pass Rate (~670ms)** |
 
 ### 4.2 Running Frontend Tests
 
 ```bash
-# Run all 148 frontend unit tests via Vitest
+# Run all 150 frontend unit tests via Vitest
 pnpm --dir frontend run test
 # or from root:
 pnpm run test:frontend
@@ -565,8 +566,8 @@ uv run ruff format .
 ### 5.2 Frontend Standards (Oxlint, CSS Checker, & Production Build)
 
 - **Target**: React 19 JSX & ES2022
-- **Scope**: 168 source files, 106 lint rules + anti-shadowing verification
-- **Automated Tests**: 148 passing unit/integration tests across 17 test files (100% pass rate via Vitest)
+- **Scope**: 169 source files, 106 lint rules + anti-shadowing verification
+- **Automated Tests**: 150 passing unit/integration tests across 18 test files (100% pass rate via Vitest)
 - **Policy**: 0 errors, 0 warnings (0 TODO, 0 FIXME, 0 console.log occurrences across codebase)
 - **CSS Hygiene**: Enforced zero unused or missing CSS classes via `pnpm check:css`
 - **Production Build**: Clean compilation with Vite 8 (`pnpm build` in ~289ms)
@@ -619,8 +620,8 @@ The repository integrates a GitHub Actions workflow (`.github/workflows/ci.yml`)
 ```yaml
 # Summary of CI jobs (every job has a timeout)
 1. code-quality:     Ruff lint + format check (backend)
-2. backend-tests:    PostgreSQL 16 service, full deterministic Pytest suite (512 tests across 76 modules)
-3. frontend-build:   pnpm install once, Oxlint, Vitest (148 tests across 17 files), unused-CSS check, Vite production build
+2. backend-tests:    PostgreSQL 16 service, full deterministic Pytest suite (517 tests across 77 modules)
+3. frontend-build:   pnpm install once, Oxlint, Vitest (150 tests across 18 files), unused-CSS check, Vite production build
 4. docker-build:     builds the backend and web images
 5. dependency-audit: pip-audit + pnpm audit (advisory, never blocks)
 ```

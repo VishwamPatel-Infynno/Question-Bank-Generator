@@ -1040,6 +1040,20 @@
   margin-bottom: 8px;
 }
 
+.wizard-advanced-header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wizard-enhance-instructions-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 0.74rem;
+}
+
 .wizard-tier-dot.tier-foundational,
 .wizard-tier-dot.tier-easy,
 .wizard-tier-dot.tier-low {

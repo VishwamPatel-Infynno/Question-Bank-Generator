@@ -28,6 +28,7 @@ async def list_passages(
     section: Annotated[str | None, Query()] = None,
     subtopic: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
+    sort_by: Annotated[str | None, Query()] = "newest",
     limit: Annotated[int | None, Query(ge=1, le=500)] = None,
     offset: Annotated[int | None, Query(ge=0)] = 0,
 ) -> dict[str, Any]:
@@ -37,6 +38,7 @@ async def list_passages(
             section=section,
             subtopic=subtopic,
             search=search,
+            sort_by=sort_by,
             limit=limit,
             offset=offset,
             session=session,

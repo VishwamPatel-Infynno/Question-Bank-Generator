@@ -15,9 +15,10 @@ The frontend provides an intuitive, real-time command canvas for AAMC MCAT quest
   - **5 Questions**: 1 Single Job background worker drafting on a shared passage or discrete set (~35-50s) streamed into the AI Validated Bank and Batch Activity Desk with live telemetry.
   - **50 Questions**: Enterprise background multi-job batch (10 concurrent jobs x 5 questions) with automatic AI validation and in-place slot replenishment.
 - **Review Queue Withholding Guarantee**: Questions generated during background batches are held in `batch_only` status while the batch is running to keep the "Ready for Review" queue clean of incomplete drafts. Upon clean batch completion, high-scoring questions (>80) are atomically promoted to `ai_validated`.
-- **Live Background Batch Activity & Adaptive Telemetry**: Real-time batch and worker job monitoring dashboard (`useBatchActivity.js`) featuring dual-cadence adaptive polling (1,500ms during active batch execution / 10,000ms idle when terminal) and instantaneous `window.addEventListener('focus')` tab wakeups, cutting idle database queries and socket churn by ~80%.
+- **Live Background Batch Activity, In-Memory ETag Cache & Smart Delta Polling**: Real-time batch and worker job monitoring dashboard (`useBatchActivity.js`) featuring dual-cadence adaptive polling (1,500ms during active batch execution / 10,000ms idle when terminal) and instantaneous `window.addEventListener('focus')` tab wakeups. In-memory `etagCache` (`api.js`) transmits `If-None-Match` headers for conditional `304 Not Modified` fast-paths without JSON parsing, paired with a client-side Smart Delta Polling algorithm that compares aggregate batch signatures (`status`, `completed_jobs`, `actual_count`, `failed_jobs`, `total_tokens`) to bypass unnecessary React re-renders and question tree reconciliation when telemetry has not changed.
+- **High-Scale Server-Driven Pagination & Persistent Cross-Page Selection**: Standardized `usePagination.js` operating in both client-slice and server-driven modes driven by backend `totalCount` (`GET /api/questions`, `GET /api/passages`), paired with `PaginationBar.jsx` across Question Bank, AI Validated Questions, Batch Activity, and Passage Bank views. Question Bank retains persistent multi-selection across page boundaries with a dedicated `.qbank-clear-selection-btn` to clear selections globally.
 - **AI-Validated Editorial Review Desk**: High-speed triage desk where educators inspect, inline-edit, discard, or approve validated questions into the canonical Question Bank.
-- **Passage Editorial Desk & Readability Diagnostics**: Dedicated split-pane reading passage workstation (`PassageEditorialDesk.jsx`) rendered in **Newsreader Serif** with medical journal typography (`font-size: 1.05rem; line-height: 1.68; letter-spacing: -0.01em;`), live word count, figure attachment showcase, and **Passage Readability & Alignment Diagnostics** (`/api/ai/audit-passage`) with decoupled status pills (`Alignment: Strong` / `Alignment: Calibrating`). Linked questions carousel displays decoupled status badges (`Ready for Review` / `In Bank`).
+- **Passage Editorial Desk & Readability Diagnostics**: Dedicated split-pane reading passage workstation (`PassageEditorialDesk.jsx`) rendered in **Newsreader Serif** with medical journal typography (`font-size: 1.05rem; line-height: 1.68; letter-spacing: -0.01em;`), live word count, figure attachment showcase, server-driven pagination with database sort modes (`newest`, `oldest`, `title`, `questions`), and **Passage Readability & Alignment Diagnostics** (`/api/ai/audit-passage`) with decoupled status pills (`Alignment: Strong` / `Alignment: Calibrating`). Linked questions carousel displays decoupled status badges (`Ready for Review` / `In Bank`).
 - **Question Quality & Cost Breakdown**: Comprehensive 100-point 4-pillar quality check with itemized token tracking and micro-dollar cost calculations.
 - **AI Copilot Studio (`QuestionCopilotStrip.jsx`)**: Real-time context-aware assistant strip anchored to the generation and review workspace, offering in-flight cognitive tools: Prompt Enhancement (`/enhance-instructions`), Question Refinement (`/refine-question`), Passage Audit (`/audit-passage`), and High-Yield Study Guide Generation (`/study-guide`).
 - **Comprehensive 6-Format Publication & Export Studio**: Decomposed modal architecture (`ExportPrintModal.jsx`, `ExportScopeSelector.jsx`, `ExportDataFormatPane.jsx`, `StudyGuideExportPane.jsx`) supporting Official Exam Booklet (Standard PDF), Exam Simulation Booklet (Split-Pane AAMC Layout PDF), Comprehensive Study Pack (Annotated Review PDF), Anki Flashcard Deck (TSV with Cloze / QA Tags), Standardized CSV, and Normalized JSON.
@@ -215,7 +216,7 @@ In the repository root or `frontend` directory, you can run:
 # Automatically runs 'predev' hook to clean ports 8000 and 5173
 pnpm dev
 
-# Run Vitest automated test suite (148 tests across 17 test files, 100% pass rate)
+# Run Vitest automated test suite (150 tests across 18 test files, 100% pass rate)
 pnpm test
 # or from root:
 pnpm run test:frontend
@@ -240,7 +241,7 @@ pnpm preview
 
 ## 🧪 Automated Testing Suite (Vitest)
 
-The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **17 test files (148 total tests)**:
+The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **18 test files (150 total tests)**:
 
 | Test Suite | Path | Tests | Coverage |
 | :--- | :--- | :-: | :--- |
@@ -261,7 +262,8 @@ The frontend test suite covers pure helpers, formatters, question validation, di
 | `ExportComponents.test.jsx` | `src/components/modals/__tests__/` | 4 | Scope selector button rendering, filter state hiding, data format previews |
 | `QuestionBankViewHandlers.test.js` | `src/views/__tests__/` | 4 | Filter reset handlers, table row selection toggling, stale selection pruning |
 | `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, idempotency keys |
-| **Total** | **17 Suites** | **148** | **100% Pass Rate (~670ms)** |
+| `usePagination.test.jsx` | `src/hooks/__tests__/` | 2 | Server-driven pagination handling (`totalCount`, page boundaries, and navigation callbacks) |
+| **Total** | **18 Suites** | **150** | **100% Pass Rate (~670ms)** |
 
 ---
 

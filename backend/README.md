@@ -122,7 +122,7 @@ backend/
 │       └── thematic_angles.py # Curated science and CARS thematic angle distributions
 ├── scripts/                 # Maintenance & Seeding Utilities
 │   └── seed_questions.py    # Sample question bank seeder
-└── tests/                   # Deterministic Automated Test Suite (77 deterministic modules / 515 tests + 1 live E2E module with 10 tests = 525 total backend tests across 78 files)
+└── tests/                   # Deterministic Automated Test Suite (77 deterministic modules / 517 tests + 1 live E2E module with 10 tests = 527 total backend tests across 78 files)
     ├── conftest.py                         # Pytest fixtures: offline DB socket probe, credential stripping, async client, patch_llm
     ├── factories.py                        # Shared builders: make_draft/question/request/usage/completion/state, collect_events
     ├── test_additional_instructions.py     # Educator custom authoring instructions and prompt builder integration
@@ -338,7 +338,7 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 Run the deterministic backend test suite covering endpoints, schemas, database operations, workflow routing, and token cost formulas (see [`docs/TESTING_AND_QA.md`](../docs/TESTING_AND_QA.md) for full specs):
 
 ```bash
-# Run all unit and integration tests (515 deterministic tests across 77 modules, 525 total backend tests)
+# Run all unit and integration tests (517 deterministic tests across 77 modules, 527 total backend tests)
 # Smart auto-skip: pure unit tests pass offline, DB-dependent tests skip cleanly if PostgreSQL is offline
 uv run pytest backend/tests -v
 # or using activated virtual environment:
@@ -387,11 +387,12 @@ This generates authentic questions with complete psychometric rubrics, evolution
 
 ## 7. High-Performance Query Pipelining & Layer Facades
 
-### Concurrent Database Query Pipelining (`asyncio.gather`)
+### Concurrent Database Query Pipelining & High-Efficiency Aggregations
 To minimize round-trip latencies across high-volume endpoints, read queries are pipelined concurrently across available connections in the `asyncpg` connection pool:
-- **`GET /api/questions`**: Concurrently gathers question entities (`get_questions`), matching total count (`count_questions`), and repository token/cost analytics (`get_repository_metrics`), reducing listing latency by 45–60%.
-- **`GET /api/passages/{passage_id}`**: Concurrently loads the stimulus reading passage (`get_passage_by_id`) and all associated active questions (`get_questions(passage_id=...)`).
-- **`GET /api/batches/{batch_id}`**: Concurrently loads the batch entity (`get_batch_by_id`), all associated job attempts (`get_jobs_by_batch_id`), and all generated question items (`get_questions(include_deleted=True)`).
+- **`GET /api/questions`**: Concurrently gathers question entities (`get_questions`), matching total count (`count_questions`), and repository token/cost analytics (`get_repository_metrics`), reducing listing latency by 45–60%. Supports `sort_by` (`newest`, `oldest`, `highest_score`, `lowest_score`).
+- **`GET /api/passages`**: Concurrently loads paginated passage models (`get_passages`) and total matching count (`count_passages`), supporting database-level sorting (`sort_by`: `newest`, `oldest`, `title`, `questions`) and pagination (`limit`, `offset`).
+- **`GET /api/passages/{passage_id}`**: Sequentially and cleanly loads the stimulus reading passage (`get_passage_by_id`) and all associated active questions (`get_questions(passage_id=...)`) within a single scoped session context.
+- **`GET /api/batches/{batch_id}`**: Executes a fast conditional ETag validation against the parent batch aggregate. If `If-None-Match` matches, responds with `304 Not Modified` immediately, bypassing constituent jobs and questions queries entirely. On cache miss, loads the batch entity (`get_batch_by_id`), constituent job attempts (`get_jobs_by_batch_id`), and generated questions (`get_questions(include_deleted=True)`).
 - **`GET /api/batches/{batch_id}/duplicate-clusters`**: Concurrently loads the batch entity and question items before computing duplicate clusters.
 
 ### Native SQL Counting Aggregations
@@ -399,8 +400,8 @@ High-traffic counters bypass model hydration and memory-heavy allocations via na
 - **`count_batches(section, status)`**: Executes `SELECT count(GenerationBatchModel.id)` directly in PostgreSQL.
 - **`count_passages(section, subtopic, search)`**: Executes native `SELECT count(PassageModel.id)` to support bounded pagination (`limit`, `offset`) on reading passages.
 
-### Single-Session `scoped_session` Dependency Injection Pattern
-To eliminate connection thrashing, socket leakage, and uncoordinated transactions, all FastAPI endpoints inject database sessions through FastAPI dependencies (`session: AsyncSession = Depends(get_db_session)`). Data Access Layer (DAL) repository methods accept this single session reference (`session=session`) rather than independently acquiring or closing connections from the connection pool:
+### Standardized `scoped_session` Architecture
+To eliminate connection thrashing, socket leakage, and uncoordinated transactions, all FastAPI endpoints and Data Access Layer (DAL) repositories strictly standardize on `scoped_session` (`app/database.py`). All repository write and update operations (`save_batch`, `update_batch_progress`, `save_job`, `update_job_status`, `save_passage`, `delete_passage`) and API routes accept or manage `session: AsyncSession` via `scoped_session(session)`, completely eliminating unbound `async_session_factory()` calls:
 - **Zero Socket Thrashing**: Eliminates redundant checkout/checkin cycles within a single HTTP request lifecycle.
 - **Atomic Operations**: Guarantees mutations execute within an explicit transactional boundary that rolls back cleanly upon unhandled exceptions.
 - **Transparent Mocking & Testing**: Test fixtures inject test-scoped transaction sessions without requiring external network mock configurations.

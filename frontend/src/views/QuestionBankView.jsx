@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Database, Sparkles, Eye } from 'lucide-react';
 import { batchDeleteQuestions, saveEditedQuestion } from '../services';
 import { useQuestionBank, usePagination, useConfirmModal, useKeyboardShortcuts, useBankDeletion } from '../hooks';
@@ -6,7 +6,7 @@ import { PaginationBar, Modal, LoadError, EmptyState } from '../components/commo
 import { QuestionCard } from '../components/question';
 import { ExportPrintModal, ConfirmationModal } from '../components/modals';
 import { QuestionBankFilters, QuestionBankTable } from '../components/bank';
-import { toggleAll, toggleId } from '../utils';
+import { toggleId } from '../utils';
 import { confirmModalProps } from '../components/modals/confirmModalProps';
 
 /**
@@ -24,7 +24,6 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const {
     questions,
     rawQuestions,
-    repoStats,
     loading,
     loadError,
     sectionFilter,
@@ -38,6 +37,11 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     isSearchingSemantic,
     sortBy,
     setSortBy,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalCount,
+    bankTotalCount,
     copiedId,
     loadQuestions,
     handleDelete,
@@ -48,54 +52,52 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
 
   const searchInputRef = useRef(null);
   const [expandedId, setExpandedId] = useState(null);
-  const [rawSelectedIds, setRawSelectedIds] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [inspectingQuestion, setInspectingQuestion] = useState(null);
 
   // Standardized accessible confirmation modal state hook
   const { confirmModal, openConfirmModal, closeConfirmModal } = useConfirmModal('question');
 
-  // Selection only counts items still in the loaded list: after a filter change or reload, ids
-  // the user can no longer see must not be bulk-deleted or exported.
-  const selectedIds = useMemo(() => {
-    const loaded = new Set(questions.map((q) => q.id));
-    return rawSelectedIds.filter((id) => loaded.has(id));
-  }, [rawSelectedIds, questions]);
+  const handleUpdateInspectedQuestion = useCallback(
+    async (updated) => {
+      try {
+        await saveEditedQuestion(updated);
+        setInspectingQuestion(updated);
+        handleUpdate?.(updated);
+        onShowToast?.({
+          type: 'success',
+          title: 'Changes Applied',
+          message: 'Question updated in Question Bank.'
+        });
+      } catch (err) {
+        console.error('Failed to update question in bank:', err);
+        onShowToast?.({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Could not save question updates to database.'
+        });
+        throw err;
+      }
+    },
+    [handleUpdate, onShowToast]
+  );
 
-  const handleUpdateInspectedQuestion = useCallback(async (updated) => {
-    try {
-      await saveEditedQuestion(updated);
-      setInspectingQuestion(updated);
-      if (handleUpdate) handleUpdate(updated);
-      onShowToast?.({
-        type: 'success',
-        title: 'Changes Applied',
-        message: 'Question updated in Question Bank.'
-      });
-    } catch (err) {
-      console.error('Failed to update question in bank:', err);
-      onShowToast?.({
-        type: 'error',
-        title: 'Update Failed',
-        message: 'Could not save question updates to database.'
-      });
-      throw err; // lets the editor stay open with the user's changes
-    }
-  }, [handleUpdate, onShowToast]);
-
+  // Reset selection when search or filters change
   const hasActiveFilters = Boolean(searchQuery.trim() || sectionFilter || diffFilter);
 
-  // ─── Pagination ────────────────────────────────────────────────────────────
+  // ─── Server-Driven Pagination ───────────────────────────────────────────────
   const {
     setCurrentPage,
-    pageSize,
-    setPageSize,
     totalPages,
     safeCurrentPage,
     paginatedItems: paginatedQuestions
   } = usePagination({
     items: questions,
-    initialPageSize: 15,
+    initialPageSize: pageSize,
+    totalCount: totalCount,
+    onPageChange: setPage,
+    onPageSizeChange: setPageSize,
     resetDeps: [searchQuery, sectionFilter, diffFilter, sortBy]
   });
 
@@ -110,16 +112,28 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
     onFocusSearch: () => searchInputRef.current?.focus()
   });
 
-  // ─── Selection Handlers ────────────────────────────────────────────────────
+  // ─── Selection Handlers (Persistent Cross-Page Selection) ───────────────────
   const handleToggleSelect = useCallback((id, e) => {
-    e.stopPropagation();
-    setRawSelectedIds((prev) => toggleId(prev, id));
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) => toggleId(prev, id));
   }, []);
 
   const handleSelectAll = useCallback(() => {
     const currentIds = paginatedQuestions.map((q) => q.id);
-    setRawSelectedIds((prev) => toggleAll(prev, currentIds));
-  }, [paginatedQuestions]);
+    const allSelectedOnPage = currentIds.length > 0 && currentIds.every((id) => selectedIds.includes(id));
+    if (allSelectedOnPage) {
+      const set = new Set(currentIds);
+      setSelectedIds((prev) => prev.filter((id) => !set.has(id)));
+    } else {
+      const set = new Set(selectedIds);
+      currentIds.forEach((id) => set.add(id));
+      setSelectedIds(Array.from(set));
+    }
+  }, [paginatedQuestions, selectedIds]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds([]);
+  }, []);
 
   const { isDeleting: isDeletingBulk, confirmDeletion } = useBankDeletion({
     openConfirmModal,
@@ -143,7 +157,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       count: ids.length,
       action: async () => {
         await batchDeleteQuestions(ids);
-        setRawSelectedIds([]);
+        setSelectedIds([]);
         loadQuestions();
       },
       successMessage: `Successfully removed ${ids.length} question(s) from the Question Bank.`
@@ -154,6 +168,8 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
   const handleCloseExportModal = useCallback(() => setShowExportModal(false), []);
   const handleCloseInspection = useCallback(() => setInspectingQuestion(null), []);
   const handleCreateFirstQuestions = useCallback(() => onNavigateToWizard?.(1), [onNavigateToWizard]);
+
+  const displayTotalCount = totalCount || questions.length;
 
   return (
     <div className="question-bank-container">
@@ -167,7 +183,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
 
         <div className="view-header-actions">
           <div className="view-header-badge">
-            <span><strong className="qbank-header-stat-num">{questions.length}</strong> {questions.length === 1 ? 'question' : 'questions'}</span>
+            <span><strong className="qbank-header-stat-num">{displayTotalCount}</strong> {displayTotalCount === 1 ? 'question' : 'questions'}</span>
             <span className="view-header-divider">•</span>
             <span>
               <strong className="qbank-header-avg-num">{avgScore}</strong>
@@ -180,8 +196,8 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
             id="btn-open-export-studio"
             onClick={handleOpenExportModal}
             className="btn-secondary qbank-export-trigger-btn"
-            disabled={questions.length === 0}
-            title={questions.length > 0 ? 'Export & Print' : 'No questions to export'}
+            disabled={displayTotalCount === 0}
+            title={displayTotalCount > 0 ? 'Export & Print' : 'No questions to export'}
           >
             <span>Export &amp; Print</span>
           </button>
@@ -207,6 +223,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
         isDeletingBulk={isDeletingBulk}
         hasActiveFilters={hasActiveFilters}
         onSelectAll={handleSelectAll}
+        onClearSelection={handleClearSelection}
         onBulkDelete={handleBulkDelete}
         onClearAllFilters={handleClearAllFilters}
         onNavigateToWizard={onNavigateToWizard}
@@ -262,12 +279,12 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
       )}
 
       {/* ── Pagination Bar ────────────────────────────────────────────────── */}
-      {!loading && questions.length > 0 && (
+      {!loading && displayTotalCount > 0 && (
         <PaginationBar
           currentPage={safeCurrentPage}
           totalPages={totalPages}
           pageSize={pageSize}
-          totalItems={questions.length}
+          totalItems={displayTotalCount}
           itemLabel="questions"
           onPageChange={setCurrentPage}
           onPageSizeChange={setPageSize}
@@ -283,7 +300,7 @@ export default function QuestionBankView({ onShowToast, onNavigateToWizard }) {
           selectedIds={selectedIds}
           filteredQuestions={questions}
           hasActiveFilters={hasActiveFilters}
-          bankTotalCount={repoStats.bank_total_count}
+          bankTotalCount={bankTotalCount || totalCount}
           onShowToast={onShowToast}
         />
       )}

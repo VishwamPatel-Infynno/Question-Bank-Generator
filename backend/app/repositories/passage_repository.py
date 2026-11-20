@@ -22,6 +22,7 @@ async def get_passages(
     subtopic: str | None = None,
     search: str | None = None,
     include_deleted: bool = False,
+    sort_by: str | None = "newest",
     limit: int | None = None,
     offset: int | None = 0,
     session: AsyncSession | None = None,
@@ -56,7 +57,14 @@ async def get_passages(
                 )
             )
 
-        stmt = stmt.order_by(PassageModel.created_at.desc())
+        if sort_by == "oldest":
+            stmt = stmt.order_by(PassageModel.created_at.asc())
+        elif sort_by == "title":
+            stmt = stmt.order_by(PassageModel.title.asc())
+        elif sort_by == "questions":
+            stmt = stmt.order_by(func.count(QuestionModel.id).desc(), PassageModel.created_at.desc())
+        else:
+            stmt = stmt.order_by(PassageModel.created_at.desc())
         if offset and offset > 0:
             stmt = stmt.offset(offset)
         if limit and limit > 0:

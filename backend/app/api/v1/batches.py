@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 
 from app.api.security import limit_active_batches, limit_generation_requests
 from app.api.utils import or_404
 from app.core.config import config
-from app.db.session import async_session_factory
+from app.db.session import scoped_session
 from app.repositories import (
     batch_update_question_status,
     count_batches,
@@ -92,7 +93,7 @@ async def list_batches(
     Rows omit ``request_payload``; fetch a single batch to read it.
     Uses pipelined single-session queries for batch retrieval and active count calculation.
     """
-    async with async_session_factory() as session:
+    async with scoped_session() as session:
         batches = await get_batches(
             section=section, status=status_filter, limit=limit, offset=offset, session=session
         )
@@ -107,25 +108,52 @@ async def list_batches(
     }
 
 
-@router.get("/batches/{batch_id}")
+_DEFAULT_RESPONSE: Any = None
+
+
+@router.get("/batches/{batch_id}", response_model=None)
 async def get_single_batch(
     batch_id: str,
+    response: Response = _DEFAULT_RESPONSE,
     slim: Annotated[bool, Query()] = True,
-) -> dict[str, Any]:
+    if_none_match: Annotated[str | None, Header()] = None,
+) -> dict[str, Any] | Response:
     """
     Retrieves a single generation batch along with its constituent jobs and questions.
     Questions are organized so the client can easily view questions per job.
 
+    Supports conditional ETag validation: if the batch aggregate state has not changed,
+    responds immediately with HTTP 304 Not Modified without querying constituent jobs and questions.
+
     When slim=True (default), questions omit large nested diagnostic JSON blobs (stage_outcomes,
     iterations_history, token_usage_details) to minimize serialization overhead during live polling.
     """
-    async with async_session_factory() as session:
+    async with scoped_session() as session:
         batch_model = await get_batch_by_id(batch_id, session=session)
+        b = or_404(batch_model, "Batch not found")
+
+        # Fast conditional ETag check before querying constituent jobs and questions
+        raw_sig = (
+            f"{b.id}:{b.updated_at}:{b.completed_jobs}:{b.failed_jobs}:"
+            f"{b.actual_count}:{b.status}:{b.total_tokens}:{slim}"
+        )
+        etag = f'"{hashlib.sha256(raw_sig.encode()).hexdigest()[:16]}"'
+
+        if if_none_match and if_none_match == etag:
+            return Response(
+                status_code=status.HTTP_304_NOT_MODIFIED,
+                headers={"ETag": etag, "Cache-Control": "private, no-cache"},
+            )
+
         jobs = await get_jobs_by_batch_id(batch_id, session=session)
         linked_questions = await get_questions(
             batch_id=batch_id, include_deleted=True, slim=slim, session=session
         )
-    b = or_404(batch_model, "Batch not found")
+
+    # Attach caching headers to 200 responses
+    if response is not None:
+        response.headers["ETag"] = etag
+        response.headers["Cache-Control"] = "private, no-cache"
 
     # Discarded duplicate questions must not be attached to jobs or displayed as active/deleted bank questions
     visible_questions = [q for q in linked_questions if q.status != "discarded"]

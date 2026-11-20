@@ -44,6 +44,19 @@ export function useQuestionBank() {
   const [fetchedSemanticKey, setFetchedSemanticKey] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery);
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'score_desc' | 'score_asc' | 'difficulty'
+  const [pageState, setPageState] = useState({ page: 1, key: '' });
+  const filterKey = `${sectionFilter}:${diffFilter}:${debouncedSearch}:${searchMode}:${sortBy}`;
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = useCallback(
+    (newPage) => {
+      setPageState((prev) => ({
+        page: typeof newPage === 'function' ? newPage(prev.key === filterKey ? prev.page : 1) : newPage,
+        key: filterKey
+      }));
+    },
+    [filterKey]
+  );
+  const [pageSize, setPageSize] = useState(20);
   const { copiedKey: copiedId, copy } = useCopyToClipboard();
   const [refreshCount, setRefreshCount] = useState(0);
   const guard = useRequestGuard();
@@ -110,6 +123,8 @@ export function useQuestionBank() {
         search: debouncedSearch || undefined,
         status: QUESTION_STATUS.IN_BANK,
         sort_by: sortBy || 'newest',
+        limit: pageSize === -1 ? undefined : pageSize,
+        offset: pageSize === -1 ? 0 : Math.max(0, (page - 1) * pageSize),
         slim: true
       },
       request.signal
@@ -135,7 +150,7 @@ export function useQuestionBank() {
           setLoading(false);
         }
       });
-  }, [guard, sectionFilter, diffFilter, debouncedSearch, searchMode, sortBy, refreshCount]);
+  }, [guard, sectionFilter, diffFilter, debouncedSearch, searchMode, sortBy, page, pageSize, refreshCount]);
 
   const loadQuestions = useCallback(() => {
     setLoadError(null);
@@ -221,6 +236,12 @@ export function useQuestionBank() {
     isSearchingSemantic,
     sortBy,
     setSortBy,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalCount: repoStats.total_count ?? 0,
+    bankTotalCount: repoStats.bank_total_count ?? 0,
     copiedId,
     loadQuestions,
     handleDelete,

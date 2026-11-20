@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
 from app.db.base import to_datetime, to_iso_str
-from app.db.session import async_session_factory, scoped_session
+from app.db.session import scoped_session
 from app.models.batch import GenerationBatchModel
 from app.models.job import GenerationJobModel
 from app.models.question import QuestionModel
@@ -146,13 +146,15 @@ async def get_batch_by_id(
         return _batch_model_to_schema(model)
 
 
-async def save_batch(batch: GenerationBatch) -> GenerationBatch:
+async def save_batch(
+    batch: GenerationBatch, session: AsyncSession | None = None
+) -> GenerationBatch:
     """Creates or updates a generation batch record."""
     batch.updated_at = datetime.now(UTC).isoformat()
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         model = _batch_schema_to_model(batch)
-        await session.merge(model)
-        await session.commit()
+        await s.merge(model)
+        await s.commit()
         return batch
 
 
@@ -175,14 +177,14 @@ async def _execute_promote_batch_questions(
     return res.rowcount or 0
 
 
-async def delete_batch(batch_id: str) -> bool:
+async def delete_batch(batch_id: str, session: AsyncSession | None = None) -> bool:
     """Deletes a batch and cascades delete to related jobs."""
-    async with async_session_factory() as session:
-        model = await session.get(GenerationBatchModel, batch_id)
+    async with scoped_session(session) as s:
+        model = await s.get(GenerationBatchModel, batch_id)
         if not model:
             return False
-        await session.delete(model)
-        await session.commit()
+        await s.delete(model)
+        await s.commit()
         return True
 
 
@@ -242,7 +244,7 @@ def _next_batch_status(
 
 
 async def refresh_batch_aggregates(
-    batch_id: str, allow_complete: bool = False
+    batch_id: str, allow_complete: bool = False, session: AsyncSession | None = None
 ) -> GenerationBatch | None:
     """
     Recalculates completed_jobs, failed_jobs, actual_count, total_tokens, and cost_usd
@@ -251,7 +253,7 @@ async def refresh_batch_aggregates(
     When allow_complete is False, in-progress batches are preserved in 'in_progress'
     so that deduplication and refills do not cause premature completion.
     """
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         # Row lock: concurrent jobs refresh the same batch; without it two refreshes compute from
         # different snapshots and the last commit can move counts or status backwards. This is
         # FOR NO KEY UPDATE (key_share=True): it serializes writers of the batch row but does not
@@ -350,12 +352,14 @@ async def refresh_batch_aggregates(
         return _batch_model_to_schema(batch_model)
 
 
-async def promote_completed_batch_questions(batch_id: str) -> int:
+async def promote_completed_batch_questions(
+    batch_id: str, session: AsyncSession | None = None
+) -> int:
     """
     Promotes all active questions with final_score > config.PASSING_SCORE_THRESHOLD (default > 80)
     belonging to a completed batch from 'batch_only' to 'ai_validated' (Ready for Review).
     """
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         promoted = await _execute_promote_batch_questions(session, batch_id)
         await session.commit()
         if promoted > 0:
@@ -365,9 +369,9 @@ async def promote_completed_batch_questions(batch_id: str) -> int:
         return promoted
 
 
-async def scrub_stored_request_secrets() -> int:
+async def scrub_stored_request_secrets(session: AsyncSession | None = None) -> int:
     """One-time cleanup: removes API keys that earlier versions persisted in request payloads."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         res = await session.execute(
             update(GenerationBatchModel)
             .where(func.jsonb_exists(GenerationBatchModel.request_payload, "api_key"))
@@ -377,7 +381,7 @@ async def scrub_stored_request_secrets() -> int:
         return res.rowcount or 0
 
 
-async def reconcile_interrupted_batches() -> int:
+async def reconcile_interrupted_batches(session: AsyncSession | None = None) -> int:
     """Safely transitions orphan in_progress batches to 'stopped' on backend startup.
 
     When the backend restarts or experiences an unexpected process termination,
@@ -385,7 +389,7 @@ async def reconcile_interrupted_batches() -> int:
     batches to 'stopped', preserves all fulfilled questions, and promotes questions
     that passed the quality threshold so users can inspect them or resume the batch.
     """
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         result = await session.execute(
             select(GenerationBatchModel).where(GenerationBatchModel.status.in_(LIVE_STATES))
         )

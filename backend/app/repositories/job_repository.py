@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import to_datetime, to_iso_str
-from app.db.session import async_session_factory, scoped_session
+from app.db.session import scoped_session
 from app.models.job import GenerationJobModel
 from app.schemas import GenerationJob
 
@@ -57,24 +57,26 @@ def _job_schema_to_model(j: GenerationJob) -> GenerationJobModel:
     )
 
 
-async def save_job(job: GenerationJob) -> GenerationJob:
+async def save_job(job: GenerationJob, session: AsyncSession | None = None) -> GenerationJob:
     """Creates or updates a single generation job record."""
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         model = _job_schema_to_model(job)
-        await session.merge(model)
-        await session.commit()
+        await s.merge(model)
+        await s.commit()
         return job
 
 
-async def save_jobs_bulk(jobs: list[GenerationJob]) -> list[GenerationJob]:
+async def save_jobs_bulk(
+    jobs: list[GenerationJob], session: AsyncSession | None = None
+) -> list[GenerationJob]:
     """Persists multiple generation job records in a single transaction."""
     if not jobs:
         return []
-    async with async_session_factory() as session:
+    async with scoped_session(session) as s:
         for j in jobs:
             model = _job_schema_to_model(j)
-            await session.merge(model)
-        await session.commit()
+            await s.merge(model)
+        await s.commit()
         return jobs
 
 
@@ -116,13 +118,14 @@ async def update_job_progress(
     started_at: str | None = None,
     completed_at: str | None = None,
     clear: tuple[str, ...] = (),
+    session: AsyncSession | None = None,
 ) -> GenerationJob | None:
     """Updates atomic fields on a job record.
 
     ``None`` arguments mean "leave unchanged". To reset a field to NULL, name it in ``clear``
     (supported: error_message, started_at, completed_at).
     """
-    async with async_session_factory() as session:
+    async with scoped_session(session) as session:
         model = await session.get(GenerationJobModel, job_id)
         if not model:
             return None

@@ -77,10 +77,16 @@ export function useBatchActivity({
   const fetchInFlightRef = useRef(false);
   const abortRef = useRef(null);
   const lastStatusRef = useRef(new Map());
+  const lastBatchSummariesRef = useRef(new Map());
+  const batchDetailsRef = useRef(batchDetails);
   const failureCountRef = useRef(0);
   const nextPollAllowedRef = useRef(0);
   const expandedBatchIdsRef = useRef(expandedBatchIds);
   const onShowToastRef = useRef(onShowToast);
+
+  useEffect(() => {
+    batchDetailsRef.current = batchDetails;
+  }, [batchDetails]);
 
   useEffect(() => {
     expandedBatchIdsRef.current = expandedBatchIds;
@@ -114,16 +120,48 @@ export function useBatchActivity({
         }
       }
 
-      // Re-fetch details for any expanded batches that are in progress atomically
+      // Re-fetch details only for expanded batches that are in progress and have changed
       const previousStatus = lastStatusRef.current;
+      const summaries = lastBatchSummariesRef.current;
       const inProgressIds = currentExpanded.filter((bId) => {
         const matchingBatch = fetchedBatches.find((b) => b.id === bId);
         if (!matchingBatch) return false;
+        const isLive =
+          matchingBatch.status === BATCH_STATUS.IN_PROGRESS ||
+          previousStatus.get(bId) === BATCH_STATUS.IN_PROGRESS;
+        if (!isLive) return false;
+
+        // If not yet cached in batchDetails, we must fetch
+        if (!batchDetailsRef.current[bId]) return true;
+
+        // Delta check: only fetch if summary counters or status have progressed
+        const prev = summaries.get(bId);
+        if (!prev) return true;
+
         return (
-          matchingBatch.status === BATCH_STATUS.IN_PROGRESS || previousStatus.get(bId) === BATCH_STATUS.IN_PROGRESS
+          prev.status !== matchingBatch.status ||
+          prev.completed_jobs !== matchingBatch.completed_jobs ||
+          prev.actual_count !== matchingBatch.actual_count ||
+          prev.failed_jobs !== matchingBatch.failed_jobs ||
+          prev.total_tokens !== matchingBatch.total_tokens ||
+          prev.updated_at !== matchingBatch.updated_at
         );
       });
+
       lastStatusRef.current = new Map(fetchedBatches.map((b) => [b.id, b.status]));
+      lastBatchSummariesRef.current = new Map(
+        fetchedBatches.map((b) => [
+          b.id,
+          {
+            status: b.status,
+            completed_jobs: b.completed_jobs,
+            actual_count: b.actual_count,
+            failed_jobs: b.failed_jobs,
+            total_tokens: b.total_tokens,
+            updated_at: b.updated_at,
+          },
+        ])
+      );
 
       if (inProgressIds.length > 0) {
         const results = await Promise.allSettled(

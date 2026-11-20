@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.api.utils import or_404
 from app.core.config import config
-from app.db.session import async_session_factory
+from app.db.session import scoped_session
 from app.repositories import (
     batch_update_question_status,
     count_questions,
@@ -72,7 +72,7 @@ async def list_questions(
 ) -> dict[str, Any]:
     """Lists saved questions from the Question Bank repository along with aggregated metrics."""
     effective_status = None if status == "all" else (status or "in_bank")
-    async with async_session_factory() as session:
+    async with scoped_session() as session:
         questions = await get_questions(
             section=section,
             difficulty=difficulty,

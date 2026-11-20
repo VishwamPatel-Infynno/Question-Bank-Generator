@@ -230,8 +230,8 @@ export default function WizardAdvancedSettings({
 
           {/* Additional Authoring Instructions */}
           <div>
-            <div className="wizard-advanced-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="wizard-advanced-header-row">
+              <div className="wizard-advanced-header-title-group">
                 <label
                   htmlFor="wizard-additional-instructions"
                   className="wizard-advanced-section-title no-margin"
@@ -249,8 +249,7 @@ export default function WizardAdvancedSettings({
                 type="button"
                 onClick={handleEnhanceWithAi}
                 disabled={isEnhancing}
-                className="btn-secondary"
-                style={{ padding: '3px 10px', fontSize: '0.74rem', gap: '5px', display: 'inline-flex', alignItems: 'center' }}
+                className="btn-secondary wizard-enhance-instructions-btn"
                 title="Expand and calibrate instructions with AAMC AI psychometrics"
               >
                 {isEnhancing ? (

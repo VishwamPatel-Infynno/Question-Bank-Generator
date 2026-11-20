@@ -50,6 +50,7 @@ export default function QuestionBankFilters({
   hasActiveFilters,
   onSelectAll,
   onBulkDelete,
+  onClearSelection,
   onClearAllFilters,
   onNavigateToWizard,
   onOpenExportModal,
@@ -178,9 +179,21 @@ export default function QuestionBankFilters({
             </button>
 
             {selectedIds.length > 0 && (
-              <span className="qbank-bulk-count">
-                {selectedIds.length} of {questions.length} selected
-              </span>
+              <>
+                <span className="qbank-bulk-count">
+                  {selectedIds.length} {selectedIds.length === 1 ? 'question' : 'questions'} selected
+                </span>
+                {onClearSelection && (
+                  <button
+                    type="button"
+                    onClick={onClearSelection}
+                    className="btn-ghost qbank-clear-selection-btn"
+                    title="Deselect all questions"
+                  >
+                    Clear Selection
+                  </button>
+                )}
+              </>
             )}
           </div>
 

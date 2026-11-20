@@ -55,6 +55,22 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
   // Multi-selection state
   const [selectedIds, setSelectedIds] = useState([]);
 
+  // Server-driven pagination state
+  const [pageState, setPageState] = useState({ page: 1, key: '' });
+  const filterKey = `${sectionFilter}:${debouncedSearch}`;
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = useCallback(
+    (newPage) => {
+      setPageState((prev) => ({
+        page: typeof newPage === 'function' ? newPage(prev.key === filterKey ? prev.page : 1) : newPage,
+        key: filterKey
+      }));
+    },
+    [filterKey]
+  );
+  const [pageSize, setPageSize] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
+
   // Load questions and counts asynchronously without synchronous pre-render state mutations
   const guard = useRequestGuard();
 
@@ -69,6 +85,8 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
             status: QUESTION_STATUS.AI_VALIDATED,
             section: sectionFilter || undefined,
             search: debouncedSearch?.trim() || undefined,
+            limit: pageSize === -1 ? undefined : pageSize,
+            offset: pageSize === -1 ? 0 : Math.max(0, (page - 1) * pageSize),
             slim: true
           }, request.signal),
           fetchQuestionCounts()
@@ -77,6 +95,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
         const loadedQs = qsRes.questions || [];
         setLoadError(null);
         setQuestions(loadedQs);
+        setTotalCount(qsRes.total_count ?? loadedQs.length);
         setCounts(countsRes || {});
         // Hand over the counts we just loaded so the parent does not fetch them again
         if (onRefreshCounts) onRefreshCounts(countsRes);
@@ -98,7 +117,7 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
         }
       }
     },
-    [guard, sectionFilter, debouncedSearch, onRefreshCounts, onShowToast]
+    [guard, sectionFilter, debouncedSearch, page, pageSize, onRefreshCounts, onShowToast]
   );
 
   const loadData = useCallback(
@@ -303,6 +322,12 @@ export function useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts 
     sectionFilter,
     setSectionFilter,
     searchInputRef,
+    // Pagination
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalCount,
     // Selection
     selectedIds,
     allFilteredSelected,

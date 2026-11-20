@@ -26,12 +26,16 @@ export default function PassageBankView({
   onRefreshCounts
 }) {
   const {
-    sortedPassages,
+    passages,
+    page: hookPage,
+    pageSize: hookPageSize,
+    totalCount,
+    setPage,
+    setPageSize: setHookPageSize,
     loading,
     questionCounts,
     searchQuery,
     setSearchQuery,
-    debouncedSearch,
     sectionFilter,
     setSectionFilter,
     sortBy,
@@ -53,17 +57,27 @@ export default function PassageBankView({
   } = usePassageBank({ onShowToast, resetSignal, onRefreshCounts });
 
   // ─── Pagination ────────────────────────────────────────────────────────────
+  const handlePageChange = useCallback((p) => {
+    setPage(p);
+  }, [setPage]);
+
+  const handlePageSizeChange = useCallback((size) => {
+    setHookPageSize(size);
+    setPage(1);
+  }, [setHookPageSize, setPage]);
+
   const {
     safeCurrentPage,
     setCurrentPage,
     pageSize,
     setPageSize,
-    totalPages,
-    paginatedItems: paginatedPassages
+    totalPages
   } = usePagination({
-    items: sortedPassages,
-    initialPageSize: 15,
-    resetDeps: [debouncedSearch, sectionFilter, sortBy]
+    currentPage: hookPage,
+    pageSize: hookPageSize,
+    totalCount,
+    onPageChange: handlePageChange,
+    onPageSizeChange: handlePageSizeChange
   });
 
   const handleBackFromDesk = useCallback(() => setSelectedPassage(null), [setSelectedPassage]);
@@ -143,7 +157,7 @@ export default function PassageBankView({
               <div className="view-loading-spinner" />
               <span className="view-loading-text">Loading reading passages...</span>
             </div>
-          ) : sortedPassages.length === 0 ? (
+          ) : passages.length === 0 ? (
             <EmptyState
               icon={<BookOpen size={28} />}
               title="No Passages Found"
@@ -161,7 +175,7 @@ export default function PassageBankView({
             </EmptyState>
           ) : (
             <PassageBankTable
-              passages={paginatedPassages}
+              passages={passages}
               questionCounts={questionCounts}
               onSelectPassage={handleSelectPassage}
               onDeletePassage={handleRequestDeletePassage}
@@ -169,11 +183,11 @@ export default function PassageBankView({
           )}
 
           {/* Pagination */}
-          {!loading && sortedPassages.length > 0 && (
+          {!loading && passages.length > 0 && (
             <PaginationBar
               currentPage={safeCurrentPage}
               totalPages={totalPages}
-              totalItems={sortedPassages.length}
+              totalItems={totalCount}
               pageSize={pageSize}
               itemLabel="passages"
               onPageChange={setCurrentPage}

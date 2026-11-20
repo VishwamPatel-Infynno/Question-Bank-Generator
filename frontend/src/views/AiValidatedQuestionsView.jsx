@@ -49,6 +49,10 @@ export default function AiValidatedQuestionsView({
     sectionFilter,
     setSectionFilter,
     searchInputRef,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalCount,
     selectedIds,
     allFilteredSelected,
     handleToggleSelect,
@@ -64,17 +68,20 @@ export default function AiValidatedQuestionsView({
     closeConfirmModal
   } = useAiValidated({ onShowToast, onNavigateToBank, onRefreshCounts });
 
-  // ─── Pagination ────────────────────────────────────────────────────────────
+  const effectiveTotalCount = totalCount || counts.ai_validated || filteredQuestions.length;
+
+  // ─── Server-Driven Pagination ───────────────────────────────────────────────
   const {
     setCurrentPage,
-    pageSize,
-    setPageSize,
     totalPages,
     safeCurrentPage,
     paginatedItems: paginatedQuestions
   } = usePagination({
     items: filteredQuestions,
-    initialPageSize: 15,
+    initialPageSize: pageSize,
+    totalCount: effectiveTotalCount,
+    onPageChange: setPage,
+    onPageSizeChange: setPageSize,
     resetDeps: [debouncedSearch, sectionFilter]
   });
 
@@ -172,7 +179,7 @@ export default function AiValidatedQuestionsView({
           <PaginationBar
             currentPage={safeCurrentPage}
             totalPages={totalPages}
-            totalItems={filteredQuestions.length}
+            totalItems={effectiveTotalCount}
             pageSize={pageSize}
             itemLabel="questions"
             onPageChange={setCurrentPage}

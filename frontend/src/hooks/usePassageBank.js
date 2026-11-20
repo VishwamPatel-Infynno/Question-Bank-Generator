@@ -8,7 +8,7 @@ import {
   saveEditedQuestion
 } from '../services';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import { makeId, passageQuestionCounts, sortPassages } from '../utils';
+import { makeId, passageQuestionCounts } from '../utils';
 import { useRequestGuard } from './useRequestGuard';
 import { useDebouncedValue } from './useDebouncedValue';
 
@@ -22,8 +22,15 @@ import { useDebouncedValue } from './useDebouncedValue';
  * @param {() => void} [options.onRefreshCounts] - Trigger to update global navbar/dashboard counts.
  * @returns {Object} Passage bank state, computed values, and actions.
  */
-export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {}) {
+export function usePassageBank({
+  onShowToast,
+  resetSignal,
+  onRefreshCounts,
+  initialPage = 1,
+  initialPageSize = 15
+} = {}) {
   const [passages, setPassages] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [passageToDelete, setPassageToDelete] = useState(null);
   const [isDeletingPassage, setIsDeletingPassage] = useState(false);
@@ -34,6 +41,19 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
   const [sectionFilter, setSectionFilter] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const searchInputRef = useRef(null);
+
+  // Server-driven pagination state with derived reset key (React 19 recommended)
+  const filterKey = `${sectionFilter || 'all'}:${debouncedSearch || ''}:${sortBy || 'newest'}`;
+  const [pageState, setPageState] = useState({ page: initialPage, key: filterKey });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const [pageSize, setPageSize] = useState(initialPageSize);
+
+  const setPage = useCallback((newPage) => {
+    setPageState((prev) => ({
+      page: typeof newPage === 'function' ? newPage(prev.key === filterKey ? prev.page : 1) : newPage,
+      key: filterKey
+    }));
+  }, [filterKey]);
 
   // Master-Detail Selected State
   const [selectedPassage, setSelectedPassage] = useState(null);
@@ -67,15 +87,18 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
       const passageRes = await fetchPassages(
         {
           section: sectionFilter || undefined,
-          search: debouncedSearch || undefined
+          search: debouncedSearch || undefined,
+          sort_by: sortBy || 'newest',
+          limit: pageSize,
+          offset: (page - 1) * pageSize
         },
         request.signal
       );
       if (!request.isCurrent()) return;
 
       const fetchedPassages = passageRes?.passages || [];
-
       setPassages(fetchedPassages);
+      setTotalCount(passageRes?.total_count ?? fetchedPassages.length);
     } catch (err) {
       if (err.name === 'AbortError' || !request.isCurrent()) return;
       console.error('Failed to load passages:', err);
@@ -87,7 +110,7 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     } finally {
       if (request.isCurrent()) setLoading(false);
     }
-  }, [guard, sectionFilter, debouncedSearch, onShowToast]);
+  }, [guard, sectionFilter, debouncedSearch, sortBy, pageSize, page, onShowToast]);
 
   // Initial load and dependency-driven fetch on filter changes
   useEffect(() => {
@@ -97,10 +120,9 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
     init();
   }, [performFetchPassages]);
 
-  // Sort passages locally
   // Question counts come with each passage from the server aggregate
   const questionCounts = useMemo(() => passageQuestionCounts(passages), [passages]);
-  const sortedPassages = useMemo(() => sortPassages(passages, sortBy), [passages, sortBy]);
+  const sortedPassages = passages;
 
   // Total word count & metrics
   const totalWordCount = useMemo(() => {
@@ -268,6 +290,12 @@ export function usePassageBank({ onShowToast, resetSignal, onRefreshCounts } = {
   }, [onShowToast]);
 
   return {
+    // Pagination & counts
+    page,
+    pageSize,
+    totalCount,
+    setPage,
+    setPageSize,
     // Data & state
     passages,
     sortedPassages,

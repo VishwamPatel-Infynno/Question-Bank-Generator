@@ -974,8 +974,9 @@ To maintain strict modular boundaries and prevent internal submodule leakage, th
 
 ### 6.9 Single-Session `scoped_session` Dependency Injection Pattern
 
-To eliminate connection thrashing, socket leakage, and uncoordinated transactions under high concurrent loads, all FastAPI endpoints inject database sessions through FastAPI's dependency injection (`session: AsyncSession = Depends(get_db_session)`). Data Access Layer (DAL) repository functions explicitly accept this single session reference (`session=session`):
+To eliminate connection thrashing, socket leakage, and uncoordinated transactions under high concurrent loads, all FastAPI endpoints and Data Access Layer (DAL) repositories standardize strictly on the `scoped_session` context manager (`app/database.py`):
 
+- **Standardized Session Context (`scoped_session`)**: All database entry points—including FastAPI routes (`batches.py`, `questions.py`, `passages.py`) and repository methods (`batch_repository.py`, `job_repository.py`, `question_repository.py`, `passage_repository.py`)—execute within `async with scoped_session(session) as s:`. When an active session is passed from an outer transaction, it is transparently reused without nested commits; when omitted (e.g. background tasks or unit tests), an isolated session is acquired and cleanly disposed, completely eliminating unbound `async_session_factory()` calls.
 - **Zero Socket Thrashing**: Eliminates redundant checkout/checkin cycles within a single HTTP request lifecycle. Previously, an endpoint might acquire multiple distinct connections sequentially for queries, counts, and updates, increasing socket churn and risk of exhausting the pool.
 - **Atomic Transaction Boundaries**: All mutations across multiple repository calls execute within the exact same database transaction boundary, committing automatically upon endpoint success or rolling back cleanly upon any unhandled exception.
 - **Lightweight Projections (`slim=true`)**: High-frequency monitoring routes (e.g. `GET /api/batches/{id}?slim=true`) load only necessary parent batch and job entities while bypassing large embedded question collections, dropping serialization latency to sub-5ms and enabling throughputs exceeding 200 req/s.
@@ -1210,12 +1211,46 @@ frontend/src/
 └── main.jsx                      # React 19 application root
 ```
 
-### 9.1 Adaptive Batch Polling & Window Focus Telemetry
+### 9.1 Adaptive Batch Polling, HTTP 304 Caching & Smart Delta Telemetry
 
-To eliminate unnecessary network overhead while maintaining instant UI responsiveness, `useBatchActivity.js` implements a dual-cadence adaptive polling strategy:
+To eliminate unnecessary network overhead while maintaining instant UI responsiveness, `useBatchActivity.js` and `api.js` implement a multi-tiered telemetry optimization pipeline:
+
 - **Active Polling (1,500ms)**: When background generation batches or worker jobs are actively processing, the hook queries `/api/batches` and active job state every 1.5 seconds to smoothly update progress tracks, milestones, and question cards.
 - **Idle Polling (10,000ms)**: When all batches are terminal (`completed`, `cancelled`, `failed`) and no active jobs are executing, the polling interval automatically decays to 10 seconds, reducing idle database transactions and socket churn by ~80%.
 - **Instant Focus Wakeup**: Listens to both `visibilitychange` and `window.addEventListener('focus', ...)`. When the educator switches back to the application tab, the hook immediately dispatches a background fetch without waiting for the timer to tick.
+- **Client-Side In-Memory `etagCache` & HTTP 304 Fast-Path**: `frontend/src/services/api.js` maintains an in-memory `Map` keyed by URL (`etagCache`). When fetching batch telemetry (`GET /api/batches/{id}?slim=true`), it automatically transmits `If-None-Match: <cached-etag>`. If the backend detects no state modification, it responds with `304 Not Modified` and an empty body, allowing `api.js` to instantly resolve from cache without JSON parsing overhead.
+- **Smart Delta Reconciliation**: In `useBatchActivity.js`, even upon receiving batch payloads, the client compares a lightweight signature tuple (`status`, `completed_jobs`, `actual_count`, `failed_jobs`, `total_tokens`) against the previous snapshot. If the signature matches identically, React state mutations and deep component tree re-renders are completely skipped.
+
+#### Telemetry Delta Polling Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as useBatchActivity (UI)
+    participant Client as api.js (etagCache)
+    participant API as FastAPI Router (/api/batches/{id})
+    participant DB as PostgreSQL 16 (Scoped Session)
+
+    UI->>Client: pollBatch(batchId, slim=true)
+    Client->>API: GET /api/batches/{id}?slim=true
+    Note over Client,API: No ETag cached on initial poll
+    API->>DB: Query Batch Aggregate Row
+    API->>DB: Query Constituent Jobs & Questions
+    API-->>Client: 200 OK + Payload + ETag: "8f3a1c9e2b4d5a7f"
+    Client->>Client: Cache ETag & Payload in etagCache
+    Client-->>UI: Return fresh batch data
+    UI->>UI: Update React state & render
+
+    Note over UI,API: Active interval passes (1.5s)
+    UI->>Client: pollBatch(batchId, slim=true)
+    Client->>API: GET /api/batches/{id}?slim=true<br/>If-None-Match: "8f3a1c9e2b4d5a7f"
+    API->>DB: Query Batch Aggregate Row (Fast ETag Check)
+    Note over API: Hash matches If-None-Match!<br/>Skips Jobs & Questions DB queries
+    API-->>Client: 304 Not Modified (0 bytes body)
+    Client->>Client: Retrieve cached payload from etagCache
+    Client-->>UI: Return cached batch data
+    UI->>UI: Smart Delta comparison unchanged -> Skip re-render!
+```
 
 ### 9.2 WCAG 2.1 AA Focus-Visible Glow Contract & Tactile Feedback
 
@@ -1239,6 +1274,17 @@ Accessible keyboard navigation and tactile feedback are implemented across the e
 - **Right Column (Linked Questions Carousel)**:
   - Stepper carousel (`PassageQuestionsCarousel.jsx`) navigating through linked questions with keyboard arrow shortcuts (`←` / `→`).
   - Score decoupling: Question cards display clean status pills (`Ready for Review` / `In Bank`) instead of raw internal score math.
+
+### 9.4 High-Scale Server-Driven Pagination & Cross-Page Selection Architecture
+
+To guarantee silky-smooth 60fps performance and minimal memory usage even with tens of thousands of questions and stimulus passages in the repository:
+
+- **Dual-Mode `usePagination` Hook**: Operates seamlessly in two modes:
+  1. *Client-side slice mode*: Used for locally buffered sub-arrays (e.g. batch job question carousels).
+  2. *Server-driven mode*: When supplied with `totalCount` from the backend (`GET /api/questions`, `GET /api/passages`), `usePagination` dynamically computes `totalPages`, page index offsets, and item boundary counters without holding the entire dataset in memory.
+- **Standardized `PaginationBar.jsx`**: Governs page size switching (10, 25, 50, 100), previous/next steps, and numeric jump pills across Question Bank View, AI Validated Questions View, Batch Activity View, and Passage Bank View.
+- **Persistent Cross-Page Multi-Selection**: In `QuestionBankView.jsx`, item selection keys are maintained in a global Set independent of page slicing. Educators can select questions across multiple pages, execute bulk operations (bulk status update, export, purge), or clear the entire selection across all pages in a single click using `.qbank-clear-selection-btn`.
+- **React 19 Derived Filter Key Synchronization**: In `usePassageBank.js`, a derived filter composite key (`${section}_${subtopic}_${search}_${sortBy}`) automatically resets the pagination cursor to page 1 upon any filter or sort modification during state transition, preventing orphan empty-page states.
 
 For complete UI design tokens, color scales, typography guidelines, and component contracts, consult [`DESIGN.md`](../DESIGN.md).
 
