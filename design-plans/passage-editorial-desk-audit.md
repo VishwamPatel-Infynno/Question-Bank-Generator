@@ -1,5 +1,11 @@
 # Design Audit Plan: Passage Editorial Desk & Stimulus Viewer
 
+> **Status: resolved.** All three findings below are already fixed in the code, so this plan is kept as a historical record. Verified against the current sources:
+> - Finding 1: `.passage-desk-textarea` in `frontend/src/styles/passage.css` uses `font-size: 1.05rem`, `line-height: 1.68` and `letter-spacing: -0.01em`.
+> - Finding 2: `frontend/src/components/passage/PassageLinkedQuestionCard.jsx` shows a status badge (`In Bank` or `Ready for Review`) instead of the raw score.
+> - Finding 3: `frontend/src/components/passage/PassageEditorialDesk.jsx` labels the button `Passage Readability`, has no inline style dictionaries left, and styles the panel with `.passage-diagnostics-card` and related classes in `passage.css`. The score header reads `Alignment: Strong` or `Alignment: Calibrating` (the plan proposed `Passage Alignment: Strong` / `Needs Polish`; the shipped wording differs slightly).
+> - The "Evidence" column and line numbers in the table describe the code as it was when the audit was written and no longer match the files.
+
 ## Design language
 - Audited surface: Passage Editorial Desk & Stimulus Viewer (`frontend/src/views/PassageBankView.jsx`, `frontend/src/components/passage/PassageEditorialDesk.jsx`, `frontend/src/components/passage/PassageLinkedQuestionCard.jsx`, `frontend/src/components/passage/PassageVisualStimulusEditor.jsx`, `frontend/src/styles/passage.css`)
 - Design sources: `DESIGN.md` (Section 1: Precision Minimalism & Editorial Typographic Hierarchy; Section 2: Tokens & Surface Architecture; Section 3.1: Font Stacks & Newsreader Serif metrics; Section 8: Everyday Human Language & Score Decoupling)

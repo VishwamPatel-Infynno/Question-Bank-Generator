@@ -16,8 +16,8 @@ Stack: React 19 (JSX, no TypeScript), Vite 8, oxlint, lucide-react icons, plain 
 
 ## Sections and layers
 - Section labels, codes, badge classes, colors and pacing come from the single `SECTIONS` table in `constants/mcat.js` (use `normalizeSectionId`, `getSectionColor`, `getSectionBadgeClass`, `getSectionPacingSeconds`); never add another per-section map.
-- Stacking uses the `--z-sticky/dropdown/modal/toast/overlay` tokens in `styles/tokens.css`, not literal z-index values.
-- Export code lives in `utils/export/` (`csv.js`, `json.js`, `htmlDoc.js`, `printPaperCss.js`) behind the `exportUtils.js` shim. `react/exhaustive-deps` is enforced by oxlint.
+- Stacking uses the `--z-sticky`, `--z-dropdown`, `--z-toast` and `--z-overlay` tokens in `styles/tokens.css` (there is no `--z-modal` token), not literal z-index values.
+- Export code lives in `utils/export/` (`csv.js`, `json.js`, `escape.js`, `htmlDoc.js`, `printPaperCss.js`) behind `utils/export/index.js` (there is no `exportUtils.js`). `react/exhaustive-deps` is enforced by oxlint.
 
 ## Styling
 - Source of truth: `DESIGN.md` and `src/styles/tokens.css`. Use CSS custom properties (`var(--bg-surface)`, `var(--border-light)`, `--infynno-gradient`), never raw hex values, so both `[data-theme="light"]` and `[data-theme="dark"]` work with no extra code.

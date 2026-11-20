@@ -15,7 +15,7 @@ Before starting, ensure your system meets the following requirements:
 | **Python** | `3.11+` | Backend runtime & FastAPI application |
 | **Node.js** | `24` (LTS; Vitest and jsdom need 22.12+) | Frontend runtime & Vite build engine |
 | **pnpm** | `12` (pinned by `packageManager`: `pnpm@12.21.0`) | Fast, disk space efficient package manager |
-| **Docker & Docker Compose** | `20.10+` / `v2+` | Containerized PostgreSQL 16 database |
+| **Docker & Docker Compose** | Engine `20.10+` / Compose `v2.24+` | Containerized PostgreSQL 16 database. Compose 2.24 or newer is required because `docker-compose.yml` uses the long `env_file` form (`path` + `required: false`) |
 | **Git** | `2.30+` | Version control |
 
 ---
@@ -30,7 +30,7 @@ cp .env.example .env
 
 ### Configuration Variables Reference
 
-The system defines 73 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`:
+The system defines 73 configuration fields in `backend/app/core/config.py` (`Settings`). Key environment variables are configured via `.env`. A few variables in the second table below are read by `docker-compose.yml` or the frontend build rather than by `Settings`.
 
 | Variable | Type | Default Value | Description |
 | :--- | :--- | :--- | :--- |
@@ -62,12 +62,12 @@ The system defines 73 configuration fields in `backend/app/core/config.py` (`Set
 | `MAX_LLM_CALLS_PER_SLOT` | `integer` | `36` | Hard cap on LLM calls spent on one question slot across all attempts (drafts, duplicate rewrites, regenerations, review and solve samples). When reached the slot stops with a rejection instead of spending more; `0` disables the cap |
 | `BLIND_SOLVER_MODEL` | `string` | `""` | Optional dedicated model for the Blind Solver so it is independent of the generator (empty = the request's model); the client's `api_key` is never sent to it |
 | `BLIND_SOLVER_SAMPLES` | `integer` | `2` | Independent solver samples shown in different option layouts (reversed, rotated); a strict majority must pick the author's key, a split vote is never verified. `1` restores single-sample behavior |
-| `OFFLINE_MODE` | `boolean` | `false` | Allow mock/heuristic fixtures when no LLM credentials are configured (demos, tests). When `false`, a missing key raises a clear configuration error and the run fails fast; mock-produced questions carry `stage_outcomes.offline_mode = true` |
-| `PARALLEL_REVIEW_AND_SOLVE` | `boolean` | `true` | `true` (default): Reviewer and Blind Solver run concurrently via `asyncio.gather`, saving one full LLM round trip per question. `false`: Blind Solver runs only for drafts the Reviewer passes |
+| `OFFLINE_MODE` | `boolean` | `false` | Allow mock/heuristic fixtures when no LLM credentials are configured (demos, tests). When `false` (the default), a missing key raises `LLMNotConfiguredError` and the run fails fast; mock-produced questions carry `stage_outcomes.offline_mode = true` |
+| `PARALLEL_REVIEW_AND_SOLVE` | `boolean` | `true` | `true` (default in `Settings`): Reviewer and Blind Solver run concurrently via `asyncio.gather`, saving one full LLM round trip per question. `false`: Blind Solver runs only for drafts the Reviewer passes. Known discrepancy: the comment above this variable in `.env.example` still describes `false` as the default; the code default and the `.env.example` value are both `true` |
 | `ENABLE_PROMPT_CACHING` | `boolean` | `true` | Mark static system prompts cacheable for providers that need an explicit marker (Anthropic) |
-| `ADMIN_API_KEY` | `string` | `""` | Optional secret for the full `/api/health` and `/api/config` payloads: the `x-admin-key` header must match it. When empty, nobody gets the full payload over HTTP (the masked one is always returned) |
+| `ADMIN_API_KEY` | `string` | `""` | Optional secret for the full `/api/health` and `/api/config` payloads: the `x-admin-key` header must match it. When empty, nobody gets the full payload over HTTP (the masked one is always returned). When set, `GET /metrics` and `GET /api/metrics` return HTTP 403 for a request that sends a non-matching `x-admin-key` or `Authorization` header (requests with neither header are still served) |
 | `API_ACCESS_KEY` | `string` | `""` | Optional shared secret for mutating API routes (`POST`/`PUT`/`PATCH`/`DELETE` need `X-API-Key`; reads and the duplicate pre-check stay open). Intended for deployments behind a gateway; a key built into the frontend via `VITE_API_ACCESS_KEY` is visible to browsers, so it is not a substitute for user authentication |
-| `GENERATION_RATE_LIMIT_PER_MINUTE` | `integer` | `30` | Per-client-IP request budget per minute for the LLM-spending routes (`POST /api/generate`, `/batches/start`, `/batches/{id}/retry`, `/batches/{id}/refill`); `0` disables. In-process, which is correct for the single-worker deployment. Behind a proxy, run Uvicorn with `--proxy-headers` so the real client IP is used |
+| `GENERATION_RATE_LIMIT_PER_MINUTE` | `integer` | `30` | Per-client-IP request budget per minute for the 7 LLM-spending routes (`POST /api/generate`, `/api/batches/start`, `/api/batches/{id}/retry`, `/api/batches/{id}/refill`, `/api/ai/enhance-instructions`, `/api/ai/refine-question`, `/api/ai/study-guide`); `0` disables. In-process, which is correct for the single-worker deployment. Behind a proxy, run Uvicorn with `--proxy-headers` so the real client IP is used |
 | `MAX_ACTIVE_BATCHES` | `integer` | `5` | Background batches allowed to run at once; further start/retry/refill requests get HTTP 429. `0` disables |
 | `MAX_REQUEST_BODY_MB` | `integer` | `25` | Largest accepted request body in megabytes; larger requests get HTTP 413 (`0` disables). The bundled `frontend/nginx.conf` enforces the same `client_max_body_size` in front of the API |
 | `LOG_FORMAT` | `string` | `text` | `text` or `json`; lines carry batch, job, run and slot ids for correlation |
@@ -106,10 +106,22 @@ The system defines 73 configuration fields in `backend/app/core/config.py` (`Set
 | `LITELLM_LOCAL_MODEL_COST_MAP` | `string` | `True` | Suppress remote model price map fetch to guarantee instant startup and offline resilience |
 | `LITELLM_TELEMETRY` | `string` | `False` | Disable LiteLLM telemetry and phone-home network requests |
 | `EMBEDDING_MODEL` | `string` | `text-embedding-3-small` | Model used for vector embeddings in pgvector and RAG |
-| `EMBEDDING_DIMENSION` | `integer` | `1536` | Dimension of the vector embedding in pgvector |
+| `EMBEDDING_DIMENSION` | `integer` | `1536` | Dimension used only by the startup migration that adds the `embedding` columns (`vector(N)`). The ORM models hard-code `Vector(1536)`, so changing this value does not resize columns created from the models; keep it at `1536` |
 | `ENABLE_PGVECTOR_RAG` | `boolean` | `true` | Enables native pgvector semantic retrieval and RAG context grounding |
 | `RAG_EXEMPLAR_MIN_SCORE` | `integer` | `90` | Minimum score threshold for existing questions to qualify as RAG exemplars |
 | `RAG_SEMANTIC_DEDUP_THRESHOLD` | `float` | `0.82` | Cosine similarity threshold for pgvector semantic duplicate flagging |
+
+#### Variables read outside `Settings`
+
+These appear in `.env.example` but are not `Settings` fields:
+
+| Variable | Read by | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `POSTGRES_DB` | `docker-compose.yml` | `mcat_db` | Database name created by the bundled `postgres` service; also used to derive the backend container's `DATABASE_URL` in the `app` profile |
+| `POSTGRES_USER` | `docker-compose.yml` | `mcat_user` | Database user of the bundled `postgres` service (and the derived container `DATABASE_URL`) |
+| `POSTGRES_PASSWORD` | `docker-compose.yml` | `mcat_password` | Database password of the bundled `postgres` service (local-development default; set it, and `DATABASE_URL`, for anything shared). Keep `DATABASE_URL` in step with these three when running the backend outside Docker |
+| `VITE_API_ACCESS_KEY` | Frontend (Vite) | empty | Optional shared secret the frontend sends as `X-API-Key`; must match the backend `API_ACCESS_KEY`. It is compiled into the bundle (visible to browsers). For `docker compose --profile app` it is passed to the `web` image build as a build arg, so rebuild the image after changing it |
+| `VITE_ALLOWED_HOSTS` | Vite dev server | empty | Extra hostnames the Vite dev server accepts, comma-separated (for example a tunnel hostname) |
 
 > [!NOTE]
 > `COST_PER_MILLION_INPUT_TOKENS` and `COST_PER_MILLION_OUTPUT_TOKENS` are dynamic `@property` getters with setters in `backend/app/core/config.py`: unset, they resolve to the active provider's rates (`DEEPINFRA_*`, `ANTHROPIC_*` or `OPENAI_*`); the setters allow programmatic overrides in tests. `FAST_MODEL_CASCADE` and `DEFAULT_IMAGE_MODEL` are read-only properties derived from the active providers.
@@ -131,19 +143,21 @@ Verify that the database container is healthy:
 docker ps --filter "name=mcat_postgres"
 ```
 
-*Expected output: Container `mcat_postgres` running `pgvector/pgvector:pg16` on `127.0.0.1:5432->5432/tcp`.*
+*Expected output: Container `mcat_postgres` running `pgvector/pgvector:pg16` on `127.0.0.1:5432->5432/tcp`. The image tag `pg16` is a floating tag (it tracks the latest PostgreSQL 16 / pgvector build), not a pinned version.*
 
 > [!NOTE]
-> The database initialization service (`init_db()` in `backend/app/db/session.py`) automatically runs `CREATE EXTENSION IF NOT EXISTS vector;` and constructs the Hierarchical Navigable Small World (HNSW) cosine index `idx_questions_embedding_hnsw` on first boot. For large question banks, you can tune vector indexing memory in PostgreSQL via `SET maintenance_work_mem = '64MB';` and query recall depth via `SET hnsw.ef_search = 40;`.
+> `init_db()` in `backend/app/db/session.py` calls `init_db_schema()` (`backend/app/db/init_db.py`), which runs `CREATE EXTENSION IF NOT EXISTS vector;` and `create_all`, then the migration steps in `backend/app/db/schema_migrations.py` create the Hierarchical Navigable Small World (HNSW) cosine indexes `ix_questions_embedding_hnsw` and `ix_passages_embedding_hnsw` (`USING hnsw (embedding vector_cosine_ops)`, no explicit `m` or `ef_construction`, so pgvector defaults apply). If the database is not reachable at startup the API keeps running and retries initialization in the background with backoff. For large question banks, you can tune vector indexing memory in PostgreSQL via `SET maintenance_work_mem = '64MB';` and query recall depth via `SET hnsw.ef_search = 40;` (these are not set by the application).
 
 ### Step 2: Backend Setup & Launch
 
 You can run the backend using standard Python `venv` or ultra-fast `uv`:
 
-#### Option A: Using `uv` (Recommended)
+#### Option A: Using `uv` to create and populate the virtual environment
+`pyproject.toml` declares no runtime dependencies and `uv.lock` contains only the project itself, so `uv sync` installs nothing useful. Install the pinned requirements files into the virtual environment instead, then use `uv run` (the root `package.json` scripts such as `pnpm run test:backend` and `pnpm run db:seed` call `uv run`, and they need this populated `.venv`):
 ```bash
-# 1. Sync dependencies into virtual environment
-uv sync
+# 1. Create the virtual environment and install backend dependencies (runtime + test + lint tools)
+uv venv --python 3.11
+uv pip install -r backend/requirements-dev.txt
 
 # 2. Launch FastAPI hot-reload server
 PYTHONPATH=backend uv run uvicorn app.main:app --port 8000 --reload
@@ -196,8 +210,8 @@ To enable live AI inference using DeepSeek V4.1 Flash 1017 on DeepInfra:
 1. Sign up and obtain an API key from [deepinfra.com/dash/api_keys](https://deepinfra.com/dash/api_keys).
 2. Set `DEEPINFRA_API_KEY=your_key_here` in your server `.env` file and restart the backend. API credentials are encrypted/isolated exclusively on the backend server for zero client-side credential exposure.
 
-### Graceful Mock Fallback Mode
-If no API key is provided, the backend automatically engages the **Authentic Mock Heuristic Engine**. This allows complete offline testing, local frontend development, and automated test execution without incurring token costs or requiring an internet connection.
+### Offline Mock Mode (`OFFLINE_MODE=true`)
+The mock heuristic fixtures are **not** an automatic fallback. With no API key and `OFFLINE_MODE=false` (the default), generation fails fast with `LLMNotConfiguredError` (for example "AI Gateway API Key is required...") instead of producing fake questions. To use the mock fixtures for offline testing, local frontend development or demos without token costs, set `OFFLINE_MODE=true`; mock-produced questions are marked `stage_outcomes.offline_mode = true`. The test suite sets this itself.
 
 ---
 
@@ -207,13 +221,13 @@ The repository maintains an uncompromising **Zero-Defect Quality Policy** enforc
 
 ### 5.1 Backend Verification Suite
 
-Run the complete 527-test backend verification suite across 78 modules (517 deterministic across 77 modules) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
+Run the complete 527-test backend verification suite across 78 test files (517 collected by default; the 10 `live_e2e` tests are deselected) using `pytest` (see [`docs/TESTING_AND_QA.md`](TESTING_AND_QA.md) for full test specifications):
 
 ```bash
 source .venv/bin/activate
 
-# 1. Run all 517 deterministic unit and integration tests across 77 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 394 pure unit tests pass and 114 DB tests skip cleanly
+# 1. Run all 517 default (non-live) unit and integration tests
+# Smart auto-skip: 90 tests are marked requires_db; if PostgreSQL is not reachable, those 90 skip cleanly and the other 427 run
 # The test suite is offline by default: tests/conftest.py strips API keys and enables
 # OFFLINE_MODE, so no live LLM is ever called without `-m live_e2e`
 PYTHONPATH=backend pytest backend/tests -v -m "not live_e2e"
@@ -227,10 +241,10 @@ ruff format --check .
 ```
 
 #### Dual Test Execution Modes
-- **Offline Mode** (PostgreSQL offline): Executes all 394 algorithmic, schema, agent, taxonomy sync, AI native planning, and mathematical tests in ~12 seconds (`394 passed, 118 skipped, 10 deselected`).
-- **Full Database Mode** (PostgreSQL online via Docker): Executes all 517 deterministic tests across 77 modules in ~23-28 seconds (10 live tests deselected).
+- **Offline Mode** (PostgreSQL offline): Runs the 427 tests that do not need a database (algorithmic, schema, agent, taxonomy sync, AI native planning, and mathematical tests) and skips the 90 `requires_db` tests (10 live tests deselected). Timings in earlier revisions of this guide are not re-measured: TODO: verify.
+- **Full Database Mode** (PostgreSQL online via Docker): Runs all 517 default tests (10 live tests deselected). Timings: TODO: verify.
 - **Live E2E Mode** (Live LLM gateways active): Executes all 10 live integration tests in `test_e2e_live.py` (`10 passed`).
-- **Total Backend Suite**: 527 tests across 78 test files.
+- **Total Backend Suite**: 527 tests across 78 test files (`cd backend && python -m pytest --collect-only -q` reports `517/527 tests collected (10 deselected)`).
 
 This verifies:
 - Multi-provider configuration switching (`ACTIVE_LLM_PROVIDER`), Anthropic Claude models, and prompt cache pricing.
@@ -328,7 +342,8 @@ docker compose --profile app up -d --build   # postgres + backend + web
 # open http://127.0.0.1:8080
 ```
 - `backend/Dockerfile`: multi-stage `python:3.11-slim`, non-root user, one Uvicorn worker, healthcheck on `/api/health/ready`. Build context is the repository root.
-- `frontend/Dockerfile` + `frontend/nginx.conf`: Vite build served by nginx with SPA fallback, gzip, immutable caching for `/assets/`, and an `/api/` proxy with `proxy_buffering off` and a 1 hour read timeout so SSE generation streams arrive live.
+- `frontend/Dockerfile` + `frontend/nginx.conf`: Vite build served by nginx with SPA fallback, gzip, immutable caching for `/assets/`, and an `/api/` proxy with `proxy_buffering off` and a 1 hour read timeout so SSE generation streams arrive live. Only `/api/` is proxied: the backend's root `/metrics` and `/docs` are not reachable through `http://127.0.0.1:8080` (use `/api/metrics`, which is). The backend port 8000 is not published to the host in the `app` profile; only the web port `127.0.0.1:8080` and Postgres `127.0.0.1:5432` are.
+- `VITE_API_ACCESS_KEY` is passed to the `web` build as a build arg (compose reads it from the shell or `.env` interpolation, default empty); rebuild with `--build` after changing it.
 - Settings come from `.env` (optional); `DATABASE_URL` is overridden to the compose `postgres` service. Postgres stays bound to loopback and the web port to `127.0.0.1:8080`; put a TLS-terminating proxy in front for anything shared.
 - `docker compose up -d` (no profile) still starts only Postgres, which is what local development uses (CI runs its own PostgreSQL service container).
 

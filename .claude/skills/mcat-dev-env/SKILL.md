@@ -13,13 +13,13 @@ docker compose up -d     # Postgres on 127.0.0.1:5432, loopback only (POSTGRES_U
 # Full stack in containers (backend + nginx web on 127.0.0.1:8080): docker compose --profile app up -d --build
 pnpm dev                 # predev frees :8000 and :5173, then runs backend + frontend together
 ```
-`pnpm dev:backend` / `pnpm dev:frontend` run each side alone. The backend command is `PYTHONPATH=backend ./.venv/bin/uvicorn app.main:app --port 8000 --reload`; `PYTHONPATH=backend` is required because imports are `from app...`.
+`pnpm dev:backend` / `pnpm dev:frontend` run each side alone. The backend script is `uv run uvicorn app.main:app --app-dir backend --port 8000 --reload`, so `uv` must be installed and `.venv` populated (`pyproject.toml` declares no dependencies, so `uv run` does not install them). Running uvicorn by hand needs `PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload` because imports are `from app...`.
 
 ## First-time setup
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r backend/requirements-dev.txt
-cp .env.example .env     # then fill provider keys
+uv venv && source .venv/bin/activate   # uv is required by the pnpm scripts; python3 -m venv .venv also works for direct uvicorn/pytest
+uv pip install -r backend/requirements-dev.txt   # or: pip install -r backend/requirements-dev.txt
+cp .env.example .env     # then fill provider keys (or set OFFLINE_MODE=true)
 pnpm install
 ```
 

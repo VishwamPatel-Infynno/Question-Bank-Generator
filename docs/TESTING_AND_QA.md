@@ -40,11 +40,11 @@ graph TD
 
 | Testing Layer | Scope | Tooling | Coverage / Status |
 | :--- | :--- | :--- | :--- |
-| **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms, zero debug artifacts | **Ruff** (Python 3.11 with SIM & RET), **Oxlint** (React 19) | 0 errors, 0 warnings policy (156 frontend files, 100% ruff compliance across 145 backend files; 0 TODO / 0 FIXME / 0 console.log) |
-| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry, pgvector RAG, query pipelining, and pagination limits | **Pytest**, **pytest-asyncio**, SQLite / PG Mock | **517 passing deterministic tests across 77 modules** (527 total backend tests across 78 files) (~35s) |
-| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** (React 19 testing library) | **150 passing tests across 18 test files** (~500ms) |
-| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests (527 total backend tests across 78 modules: 77 deterministic + 1 live E2E) |
-| **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/`; run manually (not part of CI) |
+| **Static Code Hygiene** | PEP 8, syntax correctness, modern JS/JSX idioms, zero debug artifacts | **Ruff** (Python 3.11; rules E, W, F, I, UP, B, C4, SIM, RET, G004, ASYNC, PT, RUF), **Oxlint** (React 19) | 0 errors, 0 warnings policy (oxlint last run: 169 files, 106 rules; `ruff check .` and `ruff format --check .` gate CI) |
+| **Deterministic Unit & Integration** | Schemas, agents, DAL, API endpoints, tokens, batch runner, deduplication, withholding guards, multi-provider, soft-delete, 3-trial retries, hard-delete dedup, taxonomy sync, HTTP caching, Prometheus telemetry, pgvector RAG, query pipelining, and pagination limits | **Pytest**, **pytest-asyncio**, PostgreSQL 16 (pgvector) for the 90 tests marked `requires_db` | **517 deterministic tests across 77 modules by default** (527 collected across 78 files, 10 `live_e2e` deselected); without a reachable PostgreSQL, 427 run and 90 skip |
+| **Frontend Unit Tests** | Component visual helpers, explanation formatting, batch helpers, form state, export serializers, request guards | **Vitest** with jsdom (components are rendered with `react-dom/client` and `act`; Testing Library is not installed) | **150 passing tests across 18 test files** |
+| **Live Multi-Agent Integration** | End-to-end LLM inference, DeepInfra & Anthropic gateways | **Pytest** (`-m live_e2e`) | 10 dedicated live tests in `test_e2e_live.py`; they call a running backend at `http://127.0.0.1:8000/api` (527 total backend tests across 78 modules: 77 deterministic + 1 live E2E) |
+| **Automated Browser E2E** | Guided wizard, SSE streaming, UI modals, bank CRUD | **Playwright**, **TestSprite AI** | 15 generated scripts in `e2e/` (TC001-TC015) plus a TestSprite plan JSON with 35 cases; run manually, no CI job |
 | **Runtime Psychometric Gate** | 100-point 4-pillar rubric, AAMC distractor traps | **Async workflow engine** | Threshold $> 80$ points (`PASSING_SCORE_THRESHOLD`) |
 
 ---
@@ -57,7 +57,7 @@ The deterministic test suite verifies all backend logic without making live exte
 
 ```
 backend/tests/
-├── conftest.py                       # Socket probe for offline DB auto-skipping, credential stripping, async client & patch_llm fixtures
+├── conftest.py                       # DB probe (TCP + asyncpg auth) for requires_db auto-skipping, credential stripping + OFFLINE_MODE for non-live tests, async client & patch_llm fixtures
 ├── factories.py                      # Shared test object builders (make_draft, make_question, make_request, collect_events)
 ├── test_additional_instructions.py   # Educator custom authoring instructions and prompt builder integration
 ├── test_agents.py                    # Multi-agent worker nodes, heuristics, blind solver routing & quality gates
@@ -90,6 +90,7 @@ backend/tests/
 ├── test_engine_cleanup.py            # Event stream cleanup & worker task cancellation on client disconnect
 ├── test_engine_slices.py             # Pure engine pieces: run layout, slot ledger, diversity context & sibling collision
 ├── test_extractors.py                # Polymorphic question extractors across dicts, Pydantic & ORM models
+├── test_gzip_compression.py          # GZipMiddleware: compresses payloads >= 1KB, skips small responses and requests without Accept-Encoding
 ├── test_http_caching.py              # HTTP Cache-Control, ETag headers & 304 conditional revalidation
 ├── test_image_calls.py               # Provider image generation retries & response parsing (HTTP mocked)
 ├── test_in_flight_pool_and_dedup.py  # Per-job in-flight dedup pool & cross-slot collision checks
@@ -106,9 +107,11 @@ backend/tests/
 ├── test_offline_mode.py              # OFFLINE_MODE gating: no mocks without it, tagged runs with it, fails loudly
 ├── test_openai.py                    # OpenAI text & image providers, pricing & vendor-masked config
 ├── test_ops_and_resolution.py        # Request IDs, body size limits, error sanitization & liveness
+├── test_optimizations.py             # Query pipelining, count_batches, passage pagination & concurrency
+├── test_optimizations_fullstack.py   # Session injection reusability, slim batch queries & passage repository mutations
 ├── test_passage_blueprints_decomposition.py # Modulo attempt-based domain/condition replenishment rotation
 ├── test_passage_set_blueprints_and_dedup.py # 5-slot cognitive blueprints for CARS and natural sciences
-├── test_pedagogy.py                  # Option length symmetry (±15%), distractor traps & taxonomy parity
+├── test_pedagogy.py                  # Option length symmetry (spread ≤ max(3, ceil(0.20 × mean)) words), distractor traps & taxonomy parity
 ├── test_pgvector_rag.py              # pgvector RAG, normalized embeddings, cosine metrics & hybrid search
 ├── test_pricing_table.py             # Verified provider rates, model pricing resolution & cache billing
 ├── test_projected_reads.py           # Lightweight repository reads for batch monitoring performance
@@ -139,18 +142,18 @@ backend/tests/
 ### 2.2 Test Suite Execution Commands & Execution Modes
 
 #### Execution Modes Breakdown
-- **Offline / Isolated Mode** (PostgreSQL offline): The smart socket probe in `conftest.py` automatically detects when PostgreSQL is not running on port 5432 and cleanly skips the database-dependent tests, executing all algorithmic, schema, prompt builder, taxonomy sync, HTTP caching, Prometheus metrics, AI native planning, and token pricing unit tests in ~12 seconds.
-- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 517 deterministic unit and integration tests execute across all 77 modules in ~23-28 seconds (10 live tests deselected).
-- **Live LLM Integration Mode**: When live API keys are provided in `.env`, all 10 live end-to-end multi-agent inference tests run in `test_e2e_live.py` (`10 passed`).
+- **Offline / Isolated Mode** (PostgreSQL offline): The probe in `conftest.py` detects when PostgreSQL is not reachable (or rejects the configured credentials) and cleanly skips the 90 tests marked `requires_db`; the other 427 default tests (algorithmic, schema, prompt builder, taxonomy sync, HTTP caching, Prometheus metrics, AI native planning, token pricing) still run.
+- **Full Database Mode** (PostgreSQL online): When Docker container `mcat_postgres` is healthy on `localhost:5432`, all 517 deterministic unit and integration tests execute across all 77 modules (10 live tests deselected). Wall-clock time depends on the machine (roughly tens of seconds); no precise figure is tracked here.
+- **Live LLM Integration Mode**: The 10 `live_e2e` tests in `test_e2e_live.py` send HTTP requests to a separately running backend at `http://127.0.0.1:8000/api` (start it first, e.g. `pnpm run dev:backend`) with provider credentials configured in `.env` (for example `DEEPINFRA_API_KEY` for the default provider). They are excluded by default (`addopts = "-m 'not live_e2e'"`); run them with `-m live_e2e`.
 - **Total Suite**: 527 backend tests across 78 test files (517 deterministic across 77 test files + 10 live E2E in `test_e2e_live.py`).
 
 ```bash
 # 1. Activate backend virtual environment
 source .venv/bin/activate
 
-# 2. Run all deterministic unit and integration tests across 73 modules
-# Smart auto-skip: If PostgreSQL is offline on localhost:5432, 388 pure unit tests pass and 96 DB tests cleanly skip
-# conftest.py strips provider keys and enables OFFLINE_MODE, so no test ever calls a live LLM
+# 2. Run all deterministic unit and integration tests across 77 modules (517 tests)
+# Smart auto-skip: If PostgreSQL is unreachable, 427 tests run and 90 requires_db tests cleanly skip
+# conftest.py strips provider keys and enables OFFLINE_MODE for every non-live test, so none calls a live LLM
 # (pyproject.toml sets the test path, PYTHONPATH and the "not live_e2e" marker)
 pytest -v
 
@@ -174,7 +177,7 @@ PYTHONPATH=backend pytest backend/tests/test_deduplication.py -v
 PYTHONPATH=backend pytest backend/tests/test_pgvector_rag.py -v
 PYTHONPATH=backend pytest backend/tests/test_api_questions.py -v
 
-# 4. Run live LLM tests (requires DEEPINFRA_API_KEY in .env)
+# 4. Run live LLM tests (requires a running backend on 127.0.0.1:8000 and provider keys in .env)
 PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
 ```
 
@@ -264,7 +267,7 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - `test_identical_questions_duplicate_detection`: Validates 1.0 similarity for verbatim question stems and options.
     - `test_paraphrased_high_similarity`: Evaluates token containment and hybrid similarity for paraphrased scientific stems sharing key terms ($> 0.80$).
     - `test_distinct_questions_in_same_subtopic_no_duplicate`: Confirms scoping isolation; distinct scientific concepts evaluate below the collision threshold ($< 0.35$).
-    - `test_two_tier_threshold_and_soft_warning`: Verifies hard duplicate threshold ($\ge 0.80$) and soft warning threshold ($0.65 - 0.79$).
+    - `test_two_tier_threshold_and_soft_warning`: Verifies that a pair between the soft threshold (0.60) and the hard threshold passed to `evaluate_duplicate` is flagged as a soft warning rather than a duplicate (runtime defaults: hard 0.75, soft 0.60, API 0.80).
     - `test_cluster_questions_groups_duplicates_correctly`: Verifies pairwise similarity clustering of question batches into leader and duplicate items.
     - `test_auto_resolve_batch_and_refill`: Tests end-to-end auto-resolve and refill pipeline on duplicate clusters.
     - `test_auto_resolve_does_not_claim_refill_when_no_job_was_launched`: Confirms that auto-resolve cleanly handles zero-shortfall runs without superfluous replenishment jobs.
@@ -399,56 +402,53 @@ PYTHONPATH=backend pytest backend/tests/test_e2e_live.py -v -m live_e2e
     - Tests end-to-end optimizations: native SQL batch aggregation (`count_batches`), reading passage pagination (`limit`/`offset`) and counting (`count_passages`), concurrent database query pipelining in `GET /api/questions` via `asyncio.gather`, concurrent batch status retrieval in `GET /api/batches`, concurrent single passage and linked questions loading in `GET /api/passages/{passage_id}`, and pipelined batch detail with duplicate clusters retrieval in `GET /api/batches/{batch_id}` and `GET /api/batches/{batch_id}/duplicate-clusters`.
 76. **`test_optimizations_fullstack.py` (3 tests)**:
     - Tests full-stack enterprise optimizations: database session injection and connection reusability across repository query functions (`get_questions`, `count_questions`, `get_repository_metrics`, `get_batches`, `count_batches`, `get_batch_by_id`, `get_jobs_by_batch_id`), slim telemetry projection on `GET /api/batches/{batch_id}?slim=true` omitting heavy JSONB audit payloads for >90% network transfer efficiency during live batch polling, and passage repository session injection with question mutations (`test_passage_session_injection_and_mutations`).
-77. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
+77. **`test_gzip_compression.py` (3 tests)**:
+    - `GZipMiddleware` compresses responses of 1 KB or more when `Accept-Encoding: gzip` is sent, leaves small responses uncompressed, and returns plain bodies when the client does not ask for gzip.
+78. **`test_e2e_live.py` (10 live tests - marked as `live_e2e`)**:
     - Live end-to-end integration tests: health connectivity, cross-section syllabus hierarchy, live SSE streaming, PostgreSQL persistence, export serializers, strict quality gate rejection boundary, combination matrix validation, UUID4 contracts, and image serving endpoints.
 
 ### 2.4 Smart Offline Database Detection (`conftest.py`)
 
-To maximize local developer velocity and ensure seamless CI execution even before database provisioning, `backend/tests/conftest.py` implements an active TCP socket probe:
+To keep local runs fast and CI-friendly even before the database is provisioned, `backend/tests/conftest.py` probes PostgreSQL once at import time (`is_postgres_available`):
 
-```python
-def is_postgres_available(host: str = "localhost", port: int = 5432, timeout: float = 0.5) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
-```
+1. A quick TCP connect (0.2 s) to the host and port from `DATABASE_URL`; if the port is closed, the database counts as unavailable.
+2. If the port is open, an `asyncpg` connection with the configured user, password and database runs `SELECT 1;` (3 s timeout), so a server that rejects the credentials also counts as unavailable.
 
-- When PostgreSQL is offline, `auto_skip_db_tests` dynamically detects tests decorated with `@pytest.mark.requires_db` and cleanly skips them with `PostgreSQL on localhost:5432 is offline. Skipping database-dependent test.`
-- All **388 pure unit and algorithmic tests** execute and pass with 100% velocity without requiring Docker or PostgreSQL.
-- Once PostgreSQL is started (`docker compose up -d`), all **517 deterministic tests across 77 modules** execute and pass automatically in ~23-28 seconds.
+- When the probe fails, the autouse fixture `auto_skip_db_tests` skips every test marked `@pytest.mark.requires_db` with the message `PostgreSQL is not reachable with the configured DATABASE_URL (offline, or the credentials failed). Skipping database-dependent test.`
+- 90 tests are marked `requires_db`, so the 427 other default tests run without Docker or PostgreSQL.
+- Once PostgreSQL is started (`docker compose up -d`), all **517 deterministic tests across 77 modules** run.
+- The autouse fixture `neutralize_llm_credentials` blanks `ANTHROPIC_API_KEY`, `DEEPINFRA_API_KEY` and `OPENAI_API_KEY` (config and environment) and sets `OFFLINE_MODE=True` for every test except those marked `live_e2e`.
 
 ---
 
 ## 3. TestSprite AI Playwright E2E Suite (TC001–TC015)
 
-The application includes an automated End-to-End browser test suite executed with Playwright under the TestSprite AI testing harness, with 15 generated scripts in `e2e/` (`TC001`-`TC015`). They target `http://localhost:5173/` (override with the `E2E_BASE_URL` environment variable) with the backend running, are run by hand, and are not part of the CI pipeline; the last recorded manual run passed 15/15.
+The application includes an automated End-to-End browser test suite executed with Playwright under the TestSprite AI testing harness, with 15 generated scripts in `e2e/` (`TC001`-`TC015`). They target `http://localhost:5173/` (override with the `E2E_BASE_URL` environment variable) with the backend running and are run by hand. There is no CI job for them, and Playwright is not listed in any requirements file (install it separately, for example `pip install playwright && playwright install chromium`). `e2e/testsprite_frontend_test_plan.json` describes 35 cases (TC001-TC035); only TC001-TC015 have generated scripts. TODO: verify the current pass/fail status of the scripts (no recorded run is kept in the repo).
 
 ### 3.1 Test Case Matrix
 
-| ID | Test Scenario | Primary User Flow | Automated Verification | Status |
-| :---: | :--- | :--- | :--- | :---: |
-| **TC001** | Configure and start guided generation | 3-Step Guided Wizard navigation | Validates all 3 wizard step transitions (Section Focus, Level & Format, Review & Launch) and initiates generation. | ✅ Passed |
-| **TC002** | Start guided generation from workspace | Generator tab interaction | Launches configuration modal directly from the single-canvas workspace without regressions. | ✅ Passed |
-| **TC003** | Complete generation run & review output | Full item generation | Streams single question, verifies 4 options, balanced word counts, and transition to Staged Review. | ✅ Passed |
-| **TC004** | Live generation progress & logs | SSE Telemetry tray | Verifies step-by-step agent milestones, stopwatch timer, and collapsible log tray rendering. | ✅ Passed |
-| **TC005** | Start guided generation from landing hero | Hero preset shortcuts | Launches wizard pre-configured with official AAMC section presets directly from hero buttons. | ✅ Passed |
-| **TC006** | Review completed generation output | Candidate card inspection | Verifies primary cognitive trap chip, dual score pills, and 3-part mentor explanation cards. | ✅ Passed |
-| **TC007** | Cancel active generation run | Pipeline interruption | Validates cancel button immediately halts SSE stream and preserves workspace state cleanly. | ✅ Passed |
-| **TC008** | Approve staged question into bank | Admin review gate | Approves individual candidate, verifies persistence to PostgreSQL, and verifies question bank sync. | ✅ Passed |
-| **TC009** | Start generation with default settings | Quick launch | Verifies generation with zero manual tweaks launches with authentic AAMC defaults. | ✅ Passed |
-| **TC010** | Edit staged question & save revision | Inline editor | Edits stem text and options in-place, saves revision, and verifies updated content persists. | ✅ Passed |
-| **TC011** | Approve all staged questions at once | Bulk approval | Atomically approves all candidate slots in a batch into the Question Bank in one operation. | ✅ Passed |
-| **TC012** | Inspect staged question audit trail | Psychometric audit modal | Opens audit modal, inspects 4-pillar breakdown (25 pts each), per-agent token table, and micro-costs. | ✅ Passed |
-| **TC013** | Switch between main workspace views | Tab bar navigation | Seamlessly transitions across Create Questions, Batch Progress, Review Queue, Question Bank, and Passage Bank. | ✅ Passed |
-| **TC014** | Filter question bank | Repository search & filters | Filters repository by section, difficulty, and keyword search with debounced queries. | ✅ Passed |
-| **TC015** | Delete question from the bank | Question deletion | Deletes item from bank, confirms modal prompt, and verifies row is purged from repository. | ✅ Passed |
+| ID | Test Scenario | Primary User Flow | Automated Verification |
+| :---: | :--- | :--- | :--- |
+| **TC001** | Configure and start guided generation | 3-Step Guided Wizard navigation | Validates all 3 wizard step transitions (Section Focus, Level & Format, Review & Launch) and initiates generation. |
+| **TC002** | Start guided generation from workspace | Generator tab interaction | Launches configuration modal directly from the single-canvas workspace without regressions. |
+| **TC003** | Complete generation run & review output | Full item generation | Streams single question, verifies 4 options, balanced word counts, and transition to Staged Review. |
+| **TC004** | Live generation progress & logs | SSE Telemetry tray | Verifies step-by-step agent milestones, stopwatch timer, and collapsible log tray rendering. |
+| **TC005** | Start guided generation from landing hero | Hero preset shortcuts | Launches wizard pre-configured with official AAMC section presets directly from hero buttons. |
+| **TC006** | Review completed generation output | Candidate card inspection | Verifies primary cognitive trap chip, dual score pills, and 3-part mentor explanation cards. |
+| **TC007** | Cancel active generation run | Pipeline interruption | Validates cancel button immediately halts SSE stream and preserves workspace state cleanly. |
+| **TC008** | Approve staged question into bank | Admin review gate | Approves individual candidate, verifies persistence to PostgreSQL, and verifies question bank sync. |
+| **TC009** | Start generation with default settings | Quick launch | Verifies generation with zero manual tweaks launches with authentic AAMC defaults. |
+| **TC010** | Edit staged question & save revision | Inline editor | Edits stem text and options in-place, saves revision, and verifies updated content persists. |
+| **TC011** | Approve all staged questions at once | Bulk approval | Atomically approves all candidate slots in a batch into the Question Bank in one operation. |
+| **TC012** | Inspect staged question audit trail | Psychometric audit modal | Opens audit modal, inspects 4-pillar breakdown (25 pts each), per-agent token table, and micro-costs. |
+| **TC013** | Switch between main workspace views | Tab bar navigation | Seamlessly transitions across Create Questions, Batch Progress, Review Queue, Question Bank, and Passage Bank. |
+| **TC014** | Filter question bank | Repository search & filters | Filters the question bank by section, difficulty, and status (per the script title). |
+| **TC015** | Delete question from the bank | Question deletion | Deletes item from bank, confirms modal prompt, and verifies row is purged from repository. |
 
 ### 3.2 Running E2E Playwright Tests
 
 ```bash
-# Run individual TestSprite Playwright test scripts
+# Run individual TestSprite Playwright test scripts (frontend on :5173 and backend on :8000 must be running)
 python3 e2e/TC001_Configure_and_start_guided_question_generation.py
 python3 e2e/TC003_Complete_a_generation_run_and_review_the_results.py
 python3 e2e/TC008_Approve_a_staged_question_into_the_bank.py
@@ -456,53 +456,11 @@ python3 e2e/TC008_Approve_a_staged_question_into_the_bank.py
 
 ---
 
-## 4. Code Hygiene, Formatting & Linters
-
-Both backend and frontend enforce strict zero-defect policies in local development and continuous integration.
-
-### 4.1 Python Standards (Ruff)
-
-- **Target Version**: Python 3.11 (`py311`)
-- **Max Line Length**: 100 characters
-- **Rules Enforced**: `E` (pycodestyle errors), `W` (warnings), `F` (pyflakes), `I` (isort imports), `UP` (pyupgrade modern 3.11 idioms).
-
-```bash
-# Check Python code style
-ruff check .
-
-# Automatically fix linting issues
-ruff check --fix backend
-
-# Format Python files
-ruff format .
-```
-
-### 4.2 Frontend Standards (Oxlint & Production Build)
-
-- **Target**: React 19 JSX & ES2022
-- **Scope**: 163 source files, 106 lint rules
-- **Automated Tests**: 142 passing unit/integration tests across 16 test files (100% pass rate via Vitest)
-- **Policy**: 0 errors, 0 warnings (0 TODO, 0 FIXME, 0 console.log occurrences across codebase)
-- **Production Build**: Clean compilation with Vite 8 (`pnpm build` in ~250ms)
-
-```bash
-# Run frontend linter (oxlint)
-cd frontend && node_modules/.bin/oxlint src
-
-# Run frontend tests (vitest)
-cd frontend && node_modules/.bin/vitest run
-
-# Compile production bundle
-cd frontend && pnpm build
-```
-
----
-
 ## 4. Frontend Vitest Automated Test Suite (150 Tests across 18 Suites)
 
-The frontend test suite is executed using **Vitest** (running with jsdom environment where browser DOM APIs are required) and covers pure data transforms, badge resolvers, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks.
+The frontend test suite is executed using **Vitest** (jsdom where DOM APIs are required; components are rendered with `react-dom/client` and `act`, and no Testing Library package is installed) and covers pure data transforms, badge resolvers, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks.
 
-All **150 tests across 18 test files** execute and pass in ~600ms with zero flaky tests:
+All **150 tests across 18 test files** pass (`pnpm --dir frontend run test`):
 
 ### 4.1 Frontend Test Suite Matrix
 
@@ -526,7 +484,7 @@ All **150 tests across 18 test files** execute and pass in ~600ms with zero flak
 | **16** | `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, and idempotency key handlers. |
 | **17** | `copilotAndSearchOptimizations.test.js` | `src/utils/__tests__/` | 6 | Slim batch query parameters (`fetchBatchDetail`), toast category token adherence (`error`), and adaptive vector cosine similarity preservation in semantic search. |
 | **18** | `usePagination.test.jsx` | `src/hooks/__tests__/` | 2 | Server-driven pagination handling (`totalCount`, page boundaries, and navigation callbacks). |
-| **Total** | **18 Test Suites** | | **150 Tests** | **100% Pass Rate (~670ms)** |
+| **Total** | **18 Test Suites** | | **150 Tests** | **100% Pass Rate** |
 
 ### 4.2 Running Frontend Tests
 
@@ -550,7 +508,7 @@ Both backend and frontend enforce strict zero-defect policies in local developme
 
 - **Target Version**: Python 3.11 (`py311`)
 - **Max Line Length**: 100 characters
-- **Rules Enforced**: `E` (pycodestyle errors), `W` (warnings), `F` (pyflakes), `I` (isort imports), `UP` (pyupgrade modern 3.11 idioms), `B` (bugbear), `C4` (comprehensions), `SIM` (simplify), `RET` (return), `PTH` (pathlib).
+- **Rules Enforced**: `E` (pycodestyle errors), `W` (warnings), `F` (pyflakes), `I` (isort imports), `UP` (pyupgrade modern 3.11 idioms), `B` (bugbear), `C4` (comprehensions), `SIM` (simplify), `RET` (return), `G004` (lazy logging), `ASYNC` (flake8-async), `PT` (pytest style), `RUF` (ruff-specific). Source of truth: `[tool.ruff.lint]` in the root `pyproject.toml` (a few rules such as `E501` and `UP042` are ignored there; `PTH` is not enabled).
 
 ```bash
 # Check Python code style across all modules and tests
@@ -566,11 +524,11 @@ uv run ruff format .
 ### 5.2 Frontend Standards (Oxlint, CSS Checker, & Production Build)
 
 - **Target**: React 19 JSX & ES2022
-- **Scope**: 169 source files, 106 lint rules + anti-shadowing verification
+- **Scope**: 169 files, 106 rules (as reported by `oxlint` on its last run; `.oxlintrc.json` enables the `react` and `oxc` plugins plus a handful of explicit rules)
 - **Automated Tests**: 150 passing unit/integration tests across 18 test files (100% pass rate via Vitest)
 - **Policy**: 0 errors, 0 warnings (0 TODO, 0 FIXME, 0 console.log occurrences across codebase)
 - **CSS Hygiene**: Enforced zero unused or missing CSS classes via `pnpm check:css`
-- **Production Build**: Clean compilation with Vite 8 (`pnpm build` in ~289ms)
+- **Production Build**: Clean compilation with Vite 8 (`pnpm build`)
 
 ```bash
 # Run frontend linter (oxlint)
@@ -587,7 +545,7 @@ pnpm --dir frontend run build
 
 ## 6. Full-Stack Concurrency & Load Benchmarking
 
-The repository includes a dedicated in-process ASGI high-concurrency stress harness ([scripts/benchmark_concurrency.py](file:///Users/infynnosolutions/Desktop/Code/Question%20Bank%20Generator/scripts/benchmark_concurrency.py)) that measures response latencies, throughput, and connection pool stability under escalating concurrent client loads:
+The repository includes a dedicated in-process ASGI high-concurrency stress harness ([scripts/benchmark_concurrency.py](../scripts/benchmark_concurrency.py)) that measures response latencies, throughput, and connection pool stability under escalating concurrent client loads:
 
 ```bash
 # Run multi-tier load benchmark (20, 50, 100 concurrent workers, 850 total requests)
@@ -615,13 +573,17 @@ PYTHONPATH=backend uv run python scripts/benchmark_concurrency.py
 
 ## 7. Continuous Integration (CI) Pipeline
 
-The repository integrates a GitHub Actions workflow (`.github/workflows/ci.yml`) that validates every pull request:
+The repository integrates a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs on every pull request targeting `main` and on every push to `main`:
 
 ```yaml
 # Summary of CI jobs (every job has a timeout)
 1. code-quality:     Ruff lint + format check (backend)
-2. backend-tests:    PostgreSQL 16 service, full deterministic Pytest suite (517 tests across 77 modules)
-3. frontend-build:   pnpm install once, Oxlint, Vitest (150 tests across 18 files), unused-CSS check, Vite production build
-4. docker-build:     builds the backend and web images
+2. backend-tests:    PostgreSQL 16 (pgvector) service, full deterministic Pytest suite with
+                     --cov=app --cov-fail-under=85 (the job fails below 85% coverage) and a
+                     coverage.xml artifact upload (backend-coverage)
+3. frontend-build:   pnpm install, Oxlint, Vitest, unused-CSS check, Vite production build
+4. docker-build:     builds the backend and web images (no push)
 5. dependency-audit: pip-audit + pnpm audit (advisory, never blocks)
 ```
+
+The Playwright scripts in `e2e/` are not run by CI.

@@ -10,4 +10,4 @@ description: Commit, branch and pull-request conventions for the Question Bank G
 - Before committing, run the mcat-verify gate and include doc updates (mcat-docs-sync) in the same commit.
 - Stage specific files, not `git add -A`: `.env`, `.venv`, `node_modules`, `.playwright-mcp`, caches and `e2e/tmp` outputs must not be committed. Check `git status` first.
 - Only commit or push when the user asks. Never force-push `main`.
-- PRs follow `.github/PULL_REQUEST_TEMPLATE.md`: read it and fill every section; CI runs lint, backend tests (with Postgres 16) and the frontend build.
+- PRs follow `.github/PULL_REQUEST_TEMPLATE.md`: read it and fill every section; CI (`.github/workflows/ci.yml`) runs `ruff check` and `ruff format --check`, backend tests with coverage (Postgres 16 service), frontend oxlint, Vitest, the unused-CSS check and the Vite build, plus an advisory dependency audit.

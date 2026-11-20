@@ -13,41 +13,46 @@ The system is constructed as an asynchronous, event-driven multi-agent workflow 
 ```mermaid
 graph TD
     User([User / Web Client]) -->|POST /api/generate| API[FastAPI Orchestrator]
-    API -->|Initialize State| Graph[Async Workflow Engine]
-    
-    subgraph "Quality-Gated Generation Workflow"
-        Graph --> NodeFused[Fused Draft & Self-Critique Engine]
-        NodeFused --> NodeVal[Deterministic Validator<br>free structural checks + dash repair]
+    API -->|Initialize State| Graph[Async Workflow Engine<br>engine.py + slot_worker.py]
 
-        NodeVal -->|Blocking defect & Iteration < 3| NodeRegen[Autonomous Remediation Engine]
+    subgraph "Quality-Gated Generation Workflow (one slot, up to 3 attempts)"
+        Graph --> NodeGen[Question Generator<br>draft only by default]
+        NodeGen --> NodeDedup[In-flight Dedup & Anti-Collision Check]
+        NodeDedup --> NodeVal[Deterministic Validator<br>free structural checks + dash repair]
+
+        NodeVal -->|Blocking defect & Iteration < 3| NodeRegen[Question Improver / Regenerator]
         NodeVal -->|Blocking defect & Iteration >= 3| NodeReject[Strict Quality Gate Reject]
-        NodeVal -->|Clean| Par[Run concurrently]
+        NodeVal -->|Clean| Par[Review step<br>PARALLEL_REVIEW_AND_SOLVE=true runs both concurrently]
 
         Par --> NodeRev[Independent Psychometric Auditor]
         Par --> NodeBlind[Blind-Solver Dual Validation Agent]
 
-        NodeRev -->|Audit Score <= 80 & Iteration < 3| NodeRegen
-        NodeRev -->|Score <= 80 & Iteration >= 3| NodeReject
+        NodeRev -->|Score <= 80 & Iteration < 3| NodeRegen
+        NodeRev -->|Score < 70 & Iteration >= 3| NodeReject
+        NodeRev -->|70 <= Score <= 80 & Iteration >= 3| NodeGood[Accepted as Good Quality<br>stays batch_only]
         NodeBlind -->|Discrepancy OR Confidence < 88% & Iteration < 3| NodeRegen
         NodeBlind -->|Discrepancy OR Confidence < 88% & Iteration >= 3| NodeReject
         NodeRegen --> NodeVal
 
-        NodeRev -->|Score > 80 AND Solver verified| NodeVis{Needs Visual?}
-        NodeBlind --> NodeVis
-        NodeVis -->|Yes| NodeImg[Infynno Visual & Vector Engine]
+        NodeRev -->|Score > 80| NodeVis{Needs Visual?}
+        NodeGood --> NodeVis
+        NodeBlind -->|Verified| NodeVis
+        NodeVis -->|Yes| NodeImg[Diagram & Chart Maker<br>image_node]
         NodeVis -->|No| NodeFin[Finalize & Staging Node]
         NodeImg --> NodeFin
     end
 
-    NodeReject -->|Halt & Discard Draft| SSEStream[SSE Event Stream]
-    NodeFin -->|Stage for Admin Review or Save| PG[(PostgreSQL 16 DB)]
+    NodeReject -->|Discard Draft, question_rejected event| SSEStream[SSE Event Stream]
+    NodeFin -->|Persist / Stage for Review| PG[(PostgreSQL 16 DB)]
     NodeFin --> SSEStream
     SSEStream -->|Real-Time SSE JSON Updates| User
 ```
 
+> The image node runs only after the reviewer gate and the blind solver have both passed. With the default `ALWAYS_INDEPENDENT_REVIEW=true` the generator drafts only (`generate_question`); the self-critique fused path (`generate_question_with_self_critique`) is used only when that flag is `false`, and then a self-score above the threshold skips the independent reviewer.
+
 ### 1.2 Dual First-Class AI Inference Architecture
 
-The multi-agent workflow is architected with a decoupled, provider-agnostic inference layer orchestrated by **LiteLLM**. The active inference engine is switchable on demand via the `ACTIVE_LLM_PROVIDER` environment variable without code modifications:
+The multi-agent workflow is architected with a decoupled, provider-agnostic inference layer orchestrated by **LiteLLM**. The active inference engine is switchable on demand via the `ACTIVE_LLM_PROVIDER` environment variable without code modifications (`deepinfra` is the default; `anthropic` and `openai` are also wired in `core/config.py`, the latter with `OPENAI_MODEL=gpt-4o-mini` by default):
 
 1. **DeepInfra Provider (`ACTIVE_LLM_PROVIDER=deepinfra`)**:
    - **Primary Model**: `deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017`
@@ -56,12 +61,12 @@ The multi-agent workflow is architected with a decoupled, provider-agnostic infe
    - **Visual Stimuli**: Integrated with `black-forest-labs/FLUX-2-klein-4b` ($0.014/unit base rate).
 
 2. **Anthropic Provider (`ACTIVE_LLM_PROVIDER=anthropic`)**:
-   - **Primary Model**: `claude-haiku-5-5` (or aliases `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`).
+   - **Primary Model**: `ANTHROPIC_MODEL`, default `claude-haiku-5-5`. Any model id containing `claude` (or prefixed `anthropic/`) is treated as an Anthropic model by `config.is_anthropic_model`; the code does not enforce a fixed alias list.
    - **Characteristics**: High nuance and instruction obedience, 200,000-token context window.
    - **Official Rate Card (Claude Haiku 5.5)**: $0.10 input / $0.50 output per 1M tokens ($\le$ 100K prompt); $0.50 input / $2.50 output (> 100K prompt).
    - **Prompt Caching Accounting**: First-class tracking for Anthropic ephemeral cache read ($0.01 / 1M tokens) and cache creation ($0.125 / 1M tokens) with automatic mathematical price calculations.
 
-Both engines strictly enforce model parameter constraints (`GENERATOR_TEMPERATURE = 0.5` for drafting variety, `PASSAGE_TEMPERATURE = 0.7`, `REGENERATOR_TEMPERATURE = 0.2`, `REVIEWER_TEMPERATURE = 0.1`, `BLIND_SOLVER_TEMPERATURE = 0.1`) and feed identical Pydantic transfer schemas into the workflow state.
+All providers use the same configured temperature parameters (`GENERATOR_TEMPERATURE = 0.5` for drafting variety, `PASSAGE_TEMPERATURE = 0.7`, `REGENERATOR_TEMPERATURE = 0.2`, `REVIEWER_TEMPERATURE = 0.1`, `BLIND_SOLVER_TEMPERATURE = 0.1`; the second blind-solver sample uses `BLIND_SOLVER_TEMPERATURE + 0.2`) and feed identical Pydantic transfer schemas into the workflow state.
 
 ### 1.3 Autonomous In-Flight AI Copilot Suite
 
@@ -84,46 +89,41 @@ flowchart TD
 
 ### 1.4 pgvector Semantic RAG & Anti-Collision Loop
 
-To guarantee semantic variety and prevent conceptual collisions across generations, the repository utilizes native PostgreSQL `pgvector` indexing with high-dimensional embeddings (`vector(1536)`). High-scoring exemplars are retrieved to ground prompts, while nearest-neighbor avoidance stems steer the generator away from previously tested hypotheses:
+To guarantee semantic variety and prevent conceptual collisions across generations, the repository utilizes native PostgreSQL `pgvector` indexing with high-dimensional embeddings (`vector(1536)`, `EMBEDDING_DIMENSION`). High-scoring exemplars are retrieved to ground prompts, while nearest-neighbor avoidance stems steer the generator away from previously tested hypotheses:
 
 ```mermaid
 flowchart LR
     subgraph "Vector Ingestion"
-        QItem[Approved / Staged Question] --> EmbedGen[1536-dim Embedding Generator<br>OpenAI / Transformer / Mock]
+        QItem[Approved / Staged Question] --> EmbedGen[1536-dim Embedding Generator<br>LiteLLM aembedding / deterministic hash fallback]
         EmbedGen --> PGVector[(PostgreSQL pgvector<br>HNSW Cosine Index)]
     end
 
     subgraph "Retrieval-Augmented Generation"
         DraftPrompt[Slot Blueprint Directives] --> RAGQuery[POST /api/questions/rag-context]
         RAGQuery --> PGVector
-        PGVector -->|Cosine Distance <= 0.12| Avoidance[Anti-Collision Negative Avoidance Stems]
-        PGVector -->|Final Score >= 90| Exemplars[Psychometric Benchmark Exemplars]
+        PGVector -->|Cosine Similarity >= 0.60, top 4| Avoidance[Anti-Collision Negative Avoidance Stems]
+        PGVector -->|final_score >= 90 RAG_EXEMPLAR_MIN_SCORE| Exemplars[Psychometric Benchmark Exemplars]
         Avoidance --> PromptAssembler[Dynamic Prompt Assembler]
         Exemplars --> PromptAssembler
-        PromptAssembler --> FusedDraft[Fused Generator Drafting Pass]
+        PromptAssembler --> FusedDraft[Question Generator Drafting Pass]
     end
 ```
 
 ### 1.5 5-Slot Cognitive Passage Set Specialization & Attempt Rotation
 
-Passage-based sets enforce a five-tier cognitive blueprint (`app/workflow/passage_blueprints.py`) ensuring distinct pedagogical archetypes for CARS and Science sections. When replenishment attempts occur, slot-specific domain and experimental conditions rotate deterministically to guarantee that retries never regenerate redundant variations:
+Passage-based sets enforce a five-tier cognitive blueprint (`app/workflow/passage_blueprints.py`) ensuring distinct pedagogical archetypes for CARS and Science sections. When a slot is re-attempted after a rejection (`WORKFLOW_MAX_WORKER_RETRIES = 2`, so up to 3 attempts per slot), the slot-specific application domain (CARS slot 4) or experimental condition (science slot 5) rotates through a 10-entry pool so a retry does not repeat the same perturbation:
 
 ```mermaid
 flowchart TD
-    Passage[Passage Synthesis / Input] --> Slots{Cognitive Blueprint Router}
-    Slots --> Slot1[Slot 1: Foundations & Main Idea]
-    Slots --> Slot2[Slot 2: Graphic / Quantitative Data]
-    Slots --> Slot3[Slot 3: Scientific Reasoning & Methods]
-    Slots --> Slot4[Slot 4: Application Across Domains<br>Rotates Domain on Retries]
-    Slots --> Slot5[Slot 5: Experimental / Assumption Critique<br>Rotates Condition on Retries]
+    Passage[Passage Synthesis / Input] --> Slots{Cognitive Blueprint Router<br>slot = question index % 5}
+    Slots --> Slot1[Slot 1: Central Claim / Main Thesis<br>Science: Scientific Concept & Principle Foundation]
+    Slots --> Slot2[Slot 2: Local Detail & Passage Evidence<br>Science: Data, Figure & Graph Interpretation]
+    Slots --> Slot3[Slot 3: Rhetorical Function / Author's Stance<br>Science: Experimental Design & Methodological Rationale]
+    Slots --> Slot4[Slot 4: Reasoning Beyond the Text: Novel Scenario Application<br>CARS retries rotate the application domain<br>Science: Scientific Reasoning & Problem Solving / Downstream Mechanism]
+    Slots --> Slot5[Slot 5: Reasoning Beyond the Text: Challenge / Weaken Assumptions<br>Science retries rotate the experimental condition<br>Science: Novel Experimental Condition / Hypothesis Testing]
 
-    Slot4 -->|Attempt 0: Domain idx 0| Worker4[Worker Slot 4]
-    Slot4 -->|Attempt 1: Domain idx 1| Worker4
-    Slot4 -->|Attempt 2: Domain idx 2| Worker4
-
-    Slot5 -->|Attempt 0: Condition idx 0| Worker5[Worker Slot 5]
-    Slot5 -->|Attempt 1: Condition idx 1| Worker5
-    Slot5 -->|Attempt 2: Condition idx 2| Worker5
+    Slot4 -->|Attempt 0 / 1 / 2: pool index from resolve_slot_domain_index| Worker4[Worker Slot 4]
+    Slot5 -->|Attempt 0 / 1 / 2: pool index from resolve_slot_domain_index| Worker5[Worker Slot 5]
 ```
 
 ### 1.6 ASGI Middleware Pipeline & Network Optimization
@@ -132,15 +132,17 @@ All HTTP traffic entering the FastAPI service passes through an ordered, high-pe
 
 ```mermaid
 graph TD
-    Client[Web Browser / HTTP Client] -->|HTTP Request| GZip[Starlette GZipMiddleware<br>minimum_size=1000]
-    GZip --> CORS[CORSMiddleware<br>Hardened Origins]
-    CORS --> Sec[SecurityHeadersMiddleware<br>OWASP Strict Headers]
-    Sec --> ReqId[RequestContextMiddleware<br>X-Request-ID Correlation & Body Cap]
-    ReqId --> Tel[TelemetryMiddleware<br>Prometheus Duration Histograms]
-    Tel --> Router[FastAPI API Router]
+    Client[Web Browser / HTTP Client] -->|HTTP Request| CORS[CORSMiddleware<br>Hardened Origins]
+    CORS --> GZip[Starlette GZipMiddleware<br>minimum_size=1000]
+    GZip --> Tel[TelemetryMiddleware<br>Prometheus Duration Histograms]
+    Tel --> ReqId[RequestContextMiddleware<br>X-Request-ID Correlation & Body Cap]
+    ReqId --> Sec[SecurityHeadersMiddleware<br>OWASP Strict Headers]
+    Sec --> Router[FastAPI API Router]
 ```
 
-1. **GZip Response Compression (`GZipMiddleware`)**:
+The order above is the request-processing order, outermost first, as registered in `backend/app/main.py` (`add_middleware` calls are applied in reverse: SecurityHeaders, RequestContext, Telemetry, GZip, then CORS last, which makes CORS outermost).
+
+1. **GZip Response Compression (`GZipMiddleware`)** (second in the stack, after CORS):
    - Configured with `minimum_size=1000` (1 KB threshold).
    - Automatically compresses large JSON exports, question batches, and bank datasets by **70–85%**, cutting network transfer latency.
    - Bypasses micro-responses ($<1\text{ KB}$, e.g. health checks and heartbeats) to prevent compression CPU overhead.
@@ -157,25 +159,26 @@ graph TD
 
 ## 2. Multi-Agent Quality-Gated Workflow
 
-The workflow enforces a strict psychometric quality contract. A question **must score higher than 80 out of 100** on the psychometric rubric (with background batches retaining items $\ge 70$) and pass **Blind-Solver independent validation** to be approved for publication.
+The workflow enforces a strict psychometric quality contract. A question **must score higher than 80 out of 100** on the psychometric rubric (`PASSING_SCORE_THRESHOLD`) and pass **Blind-Solver independent validation** to be approved for publication. The one exception is the final remediation cycle (iteration 3): a draft that still scores between 70 and 80 (`threshold - 10` up to `threshold`) and whose blind solver verifies the key is accepted as **Good Quality** and kept as `batch_only` (see `route_after_review` in `workflow/routes.py`); a draft below 70, or one the blind solver rejects, is rejected at that point.
 
 ### 2.1 Workflow State Diagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> FusedGenerator: Start Generation
+    [*] --> Generator: Start Generation
 
-    FusedGenerator --> Validator: Draft + honest self-critique
-    note right of FusedGenerator
-        Offline mode only (no credentials):
-        mock fixtures. Real provider errors
-        raise and the slot retries.
+    Generator --> DedupCheck: Draft (self-critique only if ALWAYS_INDEPENDENT_REVIEW=false)
+    note right of Generator
+        Offline mode only (no credentials and
+        OFFLINE_MODE=true): mock fixtures.
+        Real provider errors raise and the slot retries.
     end note
+    DedupCheck --> Validator: Anti-collision pass (hard threshold 0.75)
 
     state ValidatorRouter <<choice>>
-    Validator --> ValidatorRouter: Deterministic checks + dash repair
-    ValidatorRouter --> Regenerator: Blocking defect AND Cycles < 3
-    ValidatorRouter --> StrictQualityGate: Blocking defect AND Cycles == 3
+    Validator --> ValidatorRouter: Deterministic checks + dash repair (+ free duplicate re-check after a rewrite)
+    ValidatorRouter --> Regenerator: Blocking defect AND Iteration < 3
+    ValidatorRouter --> StrictQualityGate: Blocking defect AND Iteration == 3
     ValidatorRouter --> ReviewFork: Clean
 
     state ReviewFork <<fork>>
@@ -187,12 +190,15 @@ stateDiagram-v2
 
     state GateRouter <<choice>>
     ReviewJoin --> GateRouter
-    GateRouter --> Regenerator: Score <= 80 OR solver discrepancy/confidence < 88% (Cycles < 3)
-    GateRouter --> StrictQualityGate: Same failure at Cycles == 3
-    Regenerator --> Validator: Remediated draft (Cycle + 1)
+    GateRouter --> Regenerator: Score <= 80 OR solver discrepancy/confidence < 88% (Iteration < 3)
+    GateRouter --> StrictQualityGate: Score < 70 OR solver failure at Iteration == 3
+    GateRouter --> GoodQuality: 70 <= Score <= 80 at Iteration == 3 AND solver verified
+    Regenerator --> Validator: Remediated draft (Iteration + 1)
 
     GateRouter --> ImageGenerator: Passed AND Image Required
     GateRouter --> FinalizeNode: Passed AND Text Only
+    GoodQuality --> ImageGenerator: Image Required
+    GoodQuality --> FinalizeNode: Text Only
     ImageGenerator --> FinalizeNode: Attach SVG / AI Visual
 
     StrictQualityGate --> RejectedEnd: Discard Draft & Bypass DB
@@ -202,6 +208,8 @@ stateDiagram-v2
     PostgreSQL --> CompletedEnd: Publish to Bank
     CompletedEnd --> [*]
 ```
+
+Notes on the diagram: with `PARALLEL_REVIEW_AND_SOLVE=true` (the default) the reviewer and blind solver run concurrently and the solver verdict is applied after the reviewer verdict has been routed (a solver failure on a draft that fails review still bills the solver). With it `false` the solver runs only after the reviewer gate passes. A failed solver verdict caps the review's `total_score` at 75 and sets `passed = False` (`build_solver_update` in `node_reviewer.py`). If the reviewer score is at or below the threshold, or the review is marked not passed, the draft is routed to the Regenerator while iteration < 3; the blind solver failure at iteration 3 is always a rejection (`review_loop.py`).
 
 ### 2.2 Reviewer-Regenerator Visual Preservation Lifecycle
 
@@ -220,7 +228,7 @@ sequenceDiagram
     Gen->>Gen: Evaluates visual need -> image_needed: True<br/>Sets image_prompt_or_type & references Figure 1
     Gen->>Rev: Submit draft for 100-pt audit
     Note over Rev: Injects Accompanying Visual Stimulus Spec<br/>Enforces Anti-Deduction Audit Mandate
-    Rev-->>Gen: Audits stem + figure prompt alignment -> Passes (>80)
+    Rev-->>Gen: Audits stem + figure prompt alignment -> Passes (>80, or 70-80 at the final cycle)
     
     alt Remediation Required for Distractor/Explanation
         Gen->>Regen: Remediate weaknesses
@@ -228,7 +236,7 @@ sequenceDiagram
         Regen-->>Rev: Re-audited and passed
     end
 
-    Rev->>Img: _determine_item_diagram_requirement -> True!
+    Rev->>Img: After reviewer and blind solver pass, _determine_item_diagram_requirement -> True
     Img->>Img: Generates publication-grade stimulus diagram
     Img-->>User: Delivers finalized question with visual figure
 ```
@@ -239,37 +247,43 @@ The system implements a unified psychometric quality threshold model to ensure u
 
 | Gate | Governing Threshold | Scope & Application | System Consequence |
 | :--- | :---: | :--- | :--- |
-| **Quality Gate** | **$> 80$ Points**<br>`PASSING_SCORE_THRESHOLD = 80` | Applied uniformly to every candidate question drafted in live sessions or batch workers. | Questions scoring $> 80$ qualify for admission into the permanent **Question Bank** or promotion to the dedicated **AI Validated** repository (`status = 'ai_validated'`). Candidate items scoring $\le 80$ are remediated or discarded. |
+| **Quality Gate** | **$> 80$ Points**<br>`PASSING_SCORE_THRESHOLD = 80` | Applied to every candidate question drafted in live sessions or batch workers (`config.passes_quality_gate`, strictly greater than). | Questions scoring $> 80$ qualify for the **AI Validated** repository (`status = 'ai_validated'`) once their batch completes, or straight away for standalone runs. Candidate items scoring $\le 80$ are remediated while iteration < 3. |
+| **Good Quality hold** | **$70 \le \text{score} \le 80$**<br>`BATCH_PASSING_SCORE_THRESHOLD = PASSING_SCORE_THRESHOLD - 10` | Reached at the final remediation cycle (iteration 3) in `route_after_review`, and by `determine_question_status` for persisted scores. | Accepted and stored as `batch_only` (Good Quality). Scores below 70 are rejected at iteration 3 and persisted statuses below 70 are `below_threshold`. |
+
+> Code inconsistency to be aware of: `route_after_review` and `determine_question_status` treat 70 as inclusive (`>= threshold - 10`), whereas `config.passes_batch_quality_gate` is strictly `> 70`. `passes_batch_quality_gate` is defined in `core/config.py` but is not called anywhere in `backend/app` (only `passes_quality_gate` is).
 
 ### 2.4 Passage Set Cognitive Blueprints & Attempt Replenishment Rotation
 
 For passage-based question sets (standard 5-question passage blocks), the generator enforces pedagogical slot blueprints defined in [`backend/app/workflow/passage_blueprints.py`](../backend/app/workflow/passage_blueprints.py):
 
 #### Cognitive Slot Archetypes
+The static blueprints are `CARS_PASSAGE_SET_BLUEPRINTS` and `SCIENCE_PASSAGE_SET_BLUEPRINTS` in `passage_blueprints.py` (exact archetype strings below; the slot is `question index % 5`). In live mode `extract_passage_slot_blueprints` asks the LLM for passage-grounded directives and appends them to these static directives; offline or on failure it builds deterministic paragraph-anchored directives (`premise_excerpt`) instead.
 - **Critical Analysis and Reasoning Skills (CARS)**:
-  - **Slot 1 (Foundations of Comprehension)**: Literal meaning, central thesis, and primary purpose.
-  - **Slot 2 (Reasoning Within the Text)**: Authorial tone, rhetorical role of evidence, and paragraph relationships.
-  - **Slot 3 (Reasoning Beyond the Text)**: Extrapolation to external scenarios and analogical transfers.
-  - **Slot 4 (Cross-Domain Application)**: Contextual adaptation across philosophy, ethics, epistemology, and social sciences, drawing from `CARS_SLOT4_APPLICATION_DOMAINS`.
-  - **Slot 5 (Argument Critique & Vulnerability)**: Latent assumptions, counter-evidence evaluation, and argumentative weaknesses.
+  - **Slot 1** (`CARS1`): `Central Claim / Main Thesis`: the author's overarching thesis or primary communicative purpose.
+  - **Slot 2** (`CARS1`): `Local Detail & Passage Evidence`: direct comprehension of a concept or relationship in the early paragraphs.
+  - **Slot 3** (`CARS2`): `Rhetorical Function / Author's Stance`: the function of a phrase, metaphor or cited example in the middle of the passage.
+  - **Slot 4** (`CARS3`): `Reasoning Beyond the Text: Novel Scenario Application`: extrapolation to a new scenario; the scenario domain is drawn from `CARS_SLOT4_APPLICATION_DOMAINS`.
+  - **Slot 5** (`CARS3`): `Reasoning Beyond the Text: Challenge / Weaken Assumptions`: a counter-finding that challenges an assumption in the concluding paragraphs.
 - **Science Sections (Chem/Phys, Bio/Biochem, Psych/Soc)**:
-  - **Slot 1 (Foundational Knowledge & Direct Concept)**: Core pathway, biochemical definition, physical equation, or sociological model.
-  - **Slot 2 (Data-Based & Graphical Interpretation)**: Lineweaver-Burk plots, Western blot assays, titration curves, or behavioral reaction rates.
-  - **Slot 3 (Scientific Reasoning & Mechanism)**: Molecular pathway deductions, stoichiometry, and multi-step physiological regulation.
-  - **Slot 4 (Research Design & Variables)**: Identification of positive/negative controls, independent variables, and experimental validity.
-  - **Slot 5 (Experimental Perturbation & Novel Conditions)**: Evaluation of hypothetical follow-up interventions drawn from `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS` (e.g. competitive inhibitor addition, genetic knockout, thermal denaturation, altered pH).
+  - **Slot 1** (`Skill_1`): `Scientific Concept & Principle Foundation`.
+  - **Slot 2** (`Skill_4`): `Data, Figure & Graph Interpretation`.
+  - **Slot 3** (`Skill_3`): `Experimental Design & Methodological Rationale`.
+  - **Slot 4** (`Skill_2`): `Scientific Reasoning & Problem Solving / Downstream Mechanism`.
+  - **Slot 5** (`Skill_2`): `Novel Experimental Condition / Hypothesis Testing`: predict the outcome of a follow-up perturbation drawn from `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`.
 
 #### Dynamic Replenishment Attempt Rotation (`resolve_slot_domain_index`)
-When a candidate question in a passage set is rejected at the psychometric quality gate and re-attempted during shortfall replenishment:
-- The system calls `resolve_slot_domain_index(req, attempt)`:
-  $$\text{index} = (\text{base\_seed} + \text{attempt}) \pmod{|\text{rotation\_pool}|}$$
-- Slot 4 for CARS rotates deterministically to the next domain in `CARS_SLOT4_APPLICATION_DOMAINS` on each retry attempt.
-- Slot 5 for Science sections rotates deterministically to the next condition in `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`.
-- This ensures that retries never regenerate redundant variations or repeat identical experimental perturbations.
+Both rotation pools (`CARS_SLOT4_APPLICATION_DOMAINS`, `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`) have **10** entries; the full lists are in [`MCAT_RUBRIC.md`](MCAT_RUBRIC.md) §9.2. When a slot is re-attempted after rejection:
+- `resolve_slot_domain_index(req, attempt)` returns an index 0-9:
+  - If `req.thematic_angle` contains `job #N` or `set #N`: `(N - 1 + attempt) % 10`.
+  - Otherwise, if a seed string exists (`passage_id`, else `batch_id`, else `thematic_angle`, else `run_id`): `(abs(hash(seed)) + attempt) % 10`. This uses Python's built-in `hash`, so the index is only stable within one process unless `PYTHONHASHSEED` is fixed.
+  - With no seed at all: `attempt % 10`.
+- The retry directive in `slot_worker.py` applies the rotated domain only to question indexes `idx % 5 == 3` for CARS (the slot 4 position) and `idx % 5 == 4` for science sections (the slot 5 position); all other slots get a generic "formulate a completely distinct question" retry directive.
+- `passage_prep._build_batch_worker_request` also embeds the rotated domain or condition in the slot directive when no dynamically extracted blueprints are supplied.
+- `MODALITY_ROTATION_BY_SECTION` (per-section visual modality suggestions) is defined in `passage_blueprints.py` and re-exported by `passage_prep.py`, but no runtime code outside tests references it. TODO: verify intended use. It also lists `histopathology` and `diagnostic_radiology` as modality strings, which differ from the `MedicalModality` ids `histology` and `radiology` in `agents/medical_imaging.py` (a code inconsistency).
 
 #### Per-Slot Hard Call Budget
-- **Budget Ceiling**: `MAX_LLM_CALLS_PER_SLOT = 36` (calibrated for 3 full worker attempts $\times$ 12 calls per attempt: Generator draft, self-critique, validator retry, reviewer sample, blind solver samples 1-2, tie-breaker sample, remediation cycles 1-2, and deduplication check).
-- Once the budget is exhausted, the slot worker immediately halts further LLM expenditure, fails closed, and logs an itemized budget exhaustion report.
+- **Budget Ceiling**: `MAX_LLM_CALLS_PER_SLOT = 36` (default; `0` disables the cap). It is a flat cap on LLM calls (drafts, duplicate rewrites, regenerations, review and solve samples) across all attempts of one slot. The "3 attempts x 12 calls" figure in older notes is only the rationale for the number, not a computed quantity.
+- Once the budget is exhausted, the review loop and the slot retry loop stop before paying for another call and reject the slot with a clear reason (`LLM call budget (36) exhausted for this question slot.`).
 
 ---
 
@@ -277,22 +291,22 @@ When a candidate question in a passage set is rejected at the psychometric quali
 
 The system coordinates specialized autonomous engines with a deterministic quality gate:
 
-### 3.1 Fused Draft-and-Critique Cognitive Engine (`fused_generator_node` / `generator.py`)
-- **Mission**: Primary workflow entry point. Synthesizes a high-yield clinical or scientific scenario for the selected AAMC MCAT section with 4 distinct options (A, B, C, D) and immediately conducts an internal 100-point self-critique within a single LLM round-trip.
+### 3.1 Question Generator and Optional Fused Self-Critique (`fused_generator_node` / `generator.py`)
+- **Mission**: Primary workflow entry point. Synthesizes a high-yield clinical or scientific scenario for the selected AAMC MCAT section with 4 distinct options (A, B, C, D). With the default `ALWAYS_INDEPENDENT_REVIEW=true`, `fused_generator_node` calls the draft-only `generate_question` (the independent reviewer re-scores every draft anyway, so a self-critique would be paid for and discarded). Only when `ALWAYS_INDEPENDENT_REVIEW=false` does it call `generate_question_with_self_critique`, which also returns an internal 100-point self-critique in the same LLM round trip. The node's usage entry is named `Question Generator`; the SSE stage is shown as `Question Writer & Reviewer`.
 - **Core Prompt Strategy**:
   - Uses section-specific rules (e.g., enzyme kinetics and thermodynamics for Chem/Phys, rhetorical thesis and authorial intent for CARS, molecular pathways and biochemical regulation for Bio/Biochem, and behavioral theories and sociological stratification for Psych/Soc).
   - Explicitly crafts 1 definitive correct key and 3 sophisticated distractors representing realistic cognitive biases, arithmetic sign inversions, or calculation traps.
-  - **Option Symmetry & Anti-Guessability Engine**: Enforces strict word count parity (all options within 3 words of each other, or 20% of the average for longer options (`agents/standards.py`) of each other), parallel grammatical syntax, and balanced epistemic qualification.
+  - **Option Symmetry & Anti-Guessability Engine**: Enforces word count parity: the spread between the longest and shortest option may be at most `max(3, ceil(0.20 x mean option length))` words (`agents/standards.py`; the prompt text says "within 3 words of each other, or within 20% of the average length when options average more than 15 words"), plus parallel grammatical syntax and balanced epistemic qualification.
   - **Anti-AI Punctuation Standard**: Strictly forbids em dashes (`—`), en dashes (`–`), or double hyphens (`--`); enforces standard single hyphens (`-`).
   - **3-Part Structured Mentor Explanations**: Generates a rigorous 3-card explanation layout:
     1. *Why Option [Key] is Correct*: Establishes core intuition and step-by-step mathematical or deductive proof.
     2. *Why Other Options are Incorrect*: Itemized distractor cards dissecting why each wrong choice fails and why students are tempted.
     3. *Primary Cognitive Trap Spotlight*: Dedicated spotlight with exact Trap classification, Error Mechanism, and actionable Student Defense Strategy.
-  - **Automatic (Smart AI Choice) Cognitive Trap Engine**: When `primary_trap` is `"Automatic"`, the generator evaluates the drafted item and dynamically selects the best-fit trap from the 11 official MCAT trap types (`Scope_Shift`, `Keyword_Trap`, `Extreme_Language`, `Correlation_vs_Causation`, `Partial_Match`, `Half_Truth`, `Unwarranted_Assumption`, `Calculation_Formula_Trap`, `Out_of_Scope`, `False_Dichotomy`, `Over_generalisation`). The chosen trap is recorded in `draft.primary_trap` and persisted across the workflow.
-  - **Fallback Trap Detection**: If `primary_trap` is omitted or unpopulated, `generator.py` and `nodes.py` run regex taxonomy matching against the explanation text to extract and assign the trap automatically.
-  - **Immediate Self-Critique Object**: Evaluates Authenticity, Clarity, Distractor Traps, and Explanation Rigor.
+  - **Automatic (Smart AI Choice) Cognitive Trap Engine**: When `primary_trap` is `"Automatic"`, the generator evaluates the drafted item and selects the best-fit trap from the taxonomy in `backend/app/data/mcat_dependent_taxonomy.json` (`generation_options.primary_trap`, exposed as `PRIMARY_TRAPS` in `schemas/mcat.py`). It contains **25** UPPER_SNAKE ids: `CONCEPT_CONFUSION`, `WRONG_BASE`, `UNIT_CONVERSION`, `FORMULA_MISAPPLICATION`, `SIGN_CONVENTION`, `PROPORTIONALITY_ERROR`, `ASSUMPTION_MISSED`, `CAUSE_EFFECT_CONFUSION`, `CORRELATION_CAUSATION`, `CONTROL_GROUP_CONFUSION`, `VARIABLE_CONFUSION`, `SAMPLE_SIZE_BIAS`, `STATISTICAL_SIGNIFICANCE`, `GRAPH_AXIS_MISREADING`, `TABLE_COMPARISON_ERROR`, `TREND_EXTRAPOLATION`, `MECHANISM_CONFUSION`, `EXCEPTION_OVERLOOKED`, `NEGATION_MISREAD`, `SCOPE_SHIFT`, `UNSUPPORTED_INFERENCE`, `PASSAGE_CONTRADICTION`, `OVERGENERALIZATION`, `DISTRACTOR_OVERINTERPRETATION`, `ANSWER_CHOICE_CONFLATION` (internal generation taxonomy, not official AAMC labels). `normalize_primary_trap` maps free text onto these ids. A companion `likely_mistake_pattern` taxonomy (23 ids such as `USES_WRONG_REFERENCE_VALUE`, `CONFUSES_KM_VMAX`) is stored as its human-readable value text. `ALT_TRAP_ROTATION` (8 ids, `schemas/mcat.py`) is used by the engine's diversity context to re-seed traps across sibling slots and attempts.
+  - **Fallback Trap Detection**: If `primary_trap` is omitted or unpopulated, `detect_primary_trap` in `agents/draft_parser.py` falls back to the request override and then to regex matching of the explanation text against the taxonomy.
+  - **Self-Critique Object (only when `ALWAYS_INDEPENDENT_REVIEW=false`)**: Evaluates Authenticity, Clarity, Distractor Traps, and Explanation Rigor.
 - **Review Routing**:
-  - The self-critique is an honest, evidence-based pre-check (points are deducted for every named flaw; scores are not scripted). With `ALWAYS_INDEPENDENT_REVIEW=true` (default) the independent Auditor and the Blind Solver audit every draft regardless of the self-score. Setting it to `false` restores the legacy shortcut where a self-score above 80 skips the Auditor.
+  - With `ALWAYS_INDEPENDENT_REVIEW=true` (default) no self-critique is requested: the draft goes to the independent Auditor and the Blind Solver in every case (`fused_self_passed` is always `false`). Setting it to `false` restores the legacy shortcut: the fused path produces an honest, evidence-based self-critique, and a self-score above the passing threshold sets `fused_self_passed=true`, which skips the Auditor (the Blind Solver still runs).
   - A draft that fails the Deterministic Validator never reaches an LLM reviewer: it is regenerated with the exact findings, or rejected once attempts are exhausted.
 - **Custom Authoring Instructions Priority**:
   - Accepts educator-specified pedagogical directives (`additional_instructions`) from `GenerationRequest` via Guided Wizard Step 3.
@@ -310,25 +324,25 @@ The system coordinates specialized autonomous engines with a deterministic quali
   - **Key Agreement**: The blind-solver's selected answer key must match the draft's intended `correct_answer_id`.
   - **Confidence Benchmark**: The blind-solver's confidence must satisfy $\ge 88\%$ (`BLIND_SOLVER_CONFIDENCE_THRESHOLD = 88`).
 - **Fail-Closed Behavior**: Missing or invalid solver output (bad key, missing confidence) is retried once and then raises `QualityCheckUnavailableError`; an item is never certified because the solver errored. The only bypass is offline mode (no LLM credentials configured at all).
-- **Independence & voting**: With `BLIND_SOLVER_SAMPLES=2` (default) two samples solve the question concurrently on different option layouts (original and reversed; a third, rotated layout only breaks a tie when `BLIND_SOLVER_SAMPLES=3`). Layout variation is skipped when an option refers to another by letter. Verification needs a strict majority on the author's key, mean confidence of the agreeing samples at or above the threshold, and no majority ambiguity flag; a split vote is never verified. The optional `BLIND_SOLVER_MODEL` runs the solver on a different model than the generator, and the figure description is included when a diagram is required. Answers are parsed from standalone letters ("Option C", "THE ANSWER IS D"), and the reasoning is requested before the key.
-- **Concurrency vs cost**: By default (`PARALLEL_REVIEW_AND_SOLVE=false`) the solver runs only for drafts the Auditor passes, so a weak draft costs no solver tokens. Setting it to `true` runs both concurrently, saving one LLM round trip per question at the price of billing the solver even when the review fails first.
+- **Independence & voting**: With `BLIND_SOLVER_SAMPLES=2` (default) two samples solve the question concurrently on different option layouts (original and reversed; a third, rotated layout only breaks a tie when `BLIND_SOLVER_SAMPLES=3`; the second and third samples use temperature `BLIND_SOLVER_TEMPERATURE + 0.2 = 0.3`). Layout variation is skipped when an option refers to another by letter. Verification needs a strict majority on the author's key, mean confidence of the agreeing samples at or above the threshold, and no majority ambiguity flag; a split vote is never verified. The optional `BLIND_SOLVER_MODEL` runs the solver on a different model than the generator, and the figure description is included when a diagram is required. Answers are parsed from standalone letters ("Option C", "THE ANSWER IS D"), and the reasoning is requested before the key.
+- **Concurrency vs cost**: By default (`PARALLEL_REVIEW_AND_SOLVE=true`, `config.py`) the Auditor and the solver run concurrently (`run_review_and_solve`), saving one LLM round trip per question at the price of billing the solver even when the review fails first (that spend is still recorded in the usage breakdown). Setting it to `false` runs the solver only for drafts the Auditor routes forward, so a weak draft costs no solver tokens.
 - **Per-slot call budget**: `MAX_LLM_CALLS_PER_SLOT` (default 36) caps the LLM calls spent on one question slot across all attempts (drafts, duplicate rewrites, regenerations, review and solve samples). The review loop, the duplicate-retry loop and the slot retry loop all stop before paying for another call once it is reached; the slot is rejected with a clear reason. A rewrite that is still a hard duplicate of an existing question is sent back to the regenerator before any review or solve call is spent on it.
 - **Autonomous Rerouting**:
   - If the blind solver **agrees** with high confidence ($\ge 88\%$), `blind_solver_passed = True`, and the question bypasses lengthy remediation directly to the visual engine or finalize node.
-  - If the blind solver **disagrees** or has low confidence ($< 88\%$), the discrepancy proves that the distractors or stem contain genuine ambiguity or misleading premises. The workflow sets `blind_solver_passed = False` and routes the draft directly to the Remediation Engine with the blind solver's dissenting proof.
-- **Inference Gateway**: High-throughput enterprise reasoning model (Temperature: `0.1` for deterministic, zero-hallucination solving, max tokens: `1200`).
+  - If the blind solver **disagrees** or has low confidence ($< 88\%$), the discrepancy proves that the distractors or stem contain genuine ambiguity or misleading premises. The workflow sets `blind_solver_passed = False`, caps the review's `total_score` at 75, sets `passed = False`, appends the solver's critique to the review weaknesses, and routes the draft to the Remediation Engine while iteration < 3. At iteration 3 a failed solver verdict is always a rejection.
+- **Inference Gateway**: High-throughput reasoning model (Temperature: `BLIND_SOLVER_TEMPERATURE = 0.1` for the first sample; `max_tokens = BLIND_SOLVER_MAX_TOKENS = 2048`).
 
 ### 3.3 Independent Senior Psychometric Auditor (`reviewer.py`)
-- **Mission**: Acts as an impartial Senior Psychometric Auditor, independently evaluating candidate questions whenever the initial draft does not clear the self-critique threshold, fails blind-solver validation, or has completed a remediation cycle.
+- **Mission**: Acts as an impartial Senior Psychometric Auditor, independently evaluating every candidate question that passes the deterministic validator (unless the legacy `ALWAYS_INDEPENDENT_REVIEW=false` self-score shortcut applied), including after each remediation cycle. Its usage entry is named `Question Reviewer`; the SSE stage is `Quality Reviewer`. It audits only the question item (stem, options, key, explanation), not the shared passage's length or style.
 - **Evaluation Rubric (100 Points)**:
   1. *MCAT Authenticity & Scientific Rigor* (0-25 points)
   2. *Clarity & Logical Soundness* (0-25 points)
-  3. *Distractor Trap Quality & Anti-Guessability* (0-25 points) - Docks 5-8 points if option length disparity $\ge 20\%$.
+  3. *Distractor Trap Quality & Anti-Guessability* (0-25 points) - the reviewer prompt treats options within the length-parity limit as fully symmetric and deducts only for an obvious length outlier or hedging qualifiers present only in the key.
   4. *Explanation & Key Rigor* (0-25 points)
 - **Quality Benchmark**:
   - Passing Score: **$> 80$** points ($81 - 100$).
-  - Failing Score: **$\le 80$** points ($0 - 80$).
-- **Strict Parsing**: Every pillar score must be present and within 0-25. Missing or out-of-range scores no longer default to a passing value; the call is retried once and then fails closed with `QualityCheckUnavailableError`.
+  - Failing Score: **$\le 80$** points ($0 - 80$); at iteration 3 a score of 70-80 is still accepted as Good Quality (see §2.3).
+- **Strict Parsing**: Every pillar score must be present and within 0-25. Missing or out-of-range scores no longer default to a passing value; `call_llm_validated` makes one repair call at temperature 0 and then fails closed (a second failure raises). Reviewer `max_tokens` is `REVIEWER_MAX_TOKENS = 4096`.
 - **Visual Stimulus & Medical Imaging Audit Boundary**:
   - When `draft.image_needed` is `True`, the prompt injects the complete figure specification:
     ```
@@ -345,28 +359,33 @@ The system coordinates specialized autonomous engines with a deterministic quali
 - **Inference Gateway**: High-throughput enterprise reasoning model (Temperature: `0.1` for objective, deterministic evaluation).
 
 ### 3.4 Autonomous Remediation Engine (`regenerator.py`)
-- **Mission**: Triggered exclusively when the score is $\le 80$ or blind solver fails. It digests the exact critique, distractor deficiencies, dissenting blind-solver rationales, and recommendations to repair the draft.
+- **Mission**: Triggered (usage entry `Question Re-Generator`, SSE stage `Question Improver`) when the score is $\le 80$, the review is marked not passed, the blind solver fails, or the deterministic validator or duplicate re-check finds a blocking defect, while iteration < 3. It digests the exact critique, distractor deficiencies, dissenting blind-solver rationales, and recommendations to repair the draft.
 - **Rules & Visual Preservation**:
   - Fixes borderline ambiguities, equalizes option lengths, and sharpens distractor plausibility.
   - Deepens step-by-step rationales explaining why the key is incontrovertible and why every distractor fails.
   - **Rule 12 (Visual Stimulus & Medical Imaging Preservation)**: When an accompanying figure is specified (`orig_img_needed == True`), the regenerator **MUST preserve** `image_needed: True` and retain references to "Figure 1" or the diagnostic imaging finding. It is strictly forbidden from stripping the figure or converting empirical visual data into text math unless specifically instructed that a visual is disallowed.
   - `_parse_regenerated()` guarantees that `orig_img_needed` is preserved in the returned `QuestionDraft`.
-  - Re-submits the updated draft back to the Reviewer for re-audit.
+  - Sends the updated draft back through the deterministic gate (and a free duplicate re-check) before the Reviewer re-audits it.
 - **Inference Gateway**: High-throughput enterprise reasoning model (Temperature: `0.2` for disciplined remediation).
 
-### 3.5 Strict Quality Gate (`reject_node` in `app/workflow/nodes.py`)
-- **Mission**: Deterministic circuit breaker. If a candidate draft fails to exceed 80 points after reaching the maximum permitted remediation cycles (`MAX_REGENERATION_ATTEMPTS = 3`), the workflow halts immediately.
+### 3.5 Strict Quality Gate (`reject_node` in `app/workflow/node_finalize.py`, routing in `routes.py`)
+- **Mission**: Deterministic circuit breaker (`nodes.py` is only a re-exporting facade; `reject_node` is implemented in `node_finalize.py`). `route_after_review` works as follows (`MAX_REGENERATION_ATTEMPTS = 3`):
+  - Score $> 80$ and review not failed: proceed (image node if required, else finalize).
+  - Score $\le 80$ or review failed, iteration < 3: route to the Regenerator.
+  - Iteration 3 and score $\ge 70$ (`threshold - 10`): accepted as **Good Quality** and proceeds (stored `batch_only`); the blind solver must still verify it, and a failed solver verdict at iteration 3 is a rejection.
+  - Iteration 3 and score $< 70$: reject.
+  - No review at all counts as score 0 (fail closed).
 - **Safety Guarantee**:
   - **Bypasses Image Generation**: Prevents wasted computation and unnecessary token expenses.
   - **Discards from Database**: Zero substandard questions enter the PostgreSQL repository.
-  - **Diagnostic Payload**: Transmits full rejection telemetry and history via SSE for audit inspection.
+  - **Diagnostic Payload**: Transmits full rejection telemetry and history via the non-terminal `question_rejected` SSE event for audit inspection.
 
 ### 3.6 Infynno Visual Stimulus & Medical Imaging Subsystem (`image_generator.py` & `medical_imaging.py`)
 - **Mission**: Synthesizes publication-grade scientific figures, anatomical illustrations, and clinical diagnostic stimuli for candidate questions across natural sciences (Chemical and Physical Foundations, Biological and Biochemical Foundations). Strictly disabled for CARS in compliance with official AAMC exam guidelines.
 - **Autonomous Medical Modality Classification (`medical_imaging.py`)**:
   The system analyzes the question stem, reading passage, and educator custom instructions using calibrated regex pattern recognition to autonomously classify stimuli into one of seven medical and scientific modalities:
   1. *Radiology (`radiology`)*: Axial, coronal, and sagittal CT scans, MRI sequences (T1, T2, FLAIR), standard chest and skeletal radiographs, sonograms/ultrasounds, PET scans, and fluoroscopy.
-  2. *Histopathology (`histopathology`)*: High-resolution light micrographs featuring hematoxylin and eosin (H&E) staining, specialized tissue biopsies, cytological smears, and cellular architectures (e.g., glomerular crescents, squamous vs. columnar epithelium, Reed-Sternberg cells).
+  2. *Histology / Histopathology (`histology`; display label "Histopathology (H&E)")*: High-resolution light micrographs featuring hematoxylin and eosin (H&E) staining, specialized tissue biopsies, cytological smears, and cellular architectures (e.g., glomerular crescents, squamous vs. columnar epithelium, Reed-Sternberg cells).
   3. *Gross Anatomy (`gross_anatomy`)*: Detailed anatomical atlas-style illustrations of organ systems, cadaveric dissections, neurovascular bundles (e.g., Circle of Willis, brachial plexus), and cardiac cross-sections. Prompts undergo automated safety sanitization to emphasize clean medical textbook illustration and eliminate gore/trauma triggers.
   4. *Cellular Electron Microscopy (`cellular_microscopy`)*: Transmission electron micrographs (TEM) and scanning electron micrographs (SEM) highlighting cellular organelle ultrastructure (e.g., mitochondrial cristae, rough endoplasmic reticulum, Golgi cisternae, ciliary axonemes).
   5. *Physiological & ECG Traces (`physiology_trace`)*: Standard 12-lead electrocardiograms, rhythm strips (P-QRS-T complexes), cardiac action potential curves, ventricular pressure-volume (PV) loops, and spirometric flow-volume loops.
@@ -375,7 +394,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
 - **Dual-Provider Neural & Vector Visual Engine**:
   - *OpenAI GPT Image 2.5 (`gpt-image-2.5-flare` / `dall-e-3`)*: Token-billed from provider response usage; delivers ultra-high fidelity anatomical and radiographic representations with base64 decoded PNG/JPEG binary delivery.
   - *DeepInfra FLUX-2-klein-4b*: State-of-the-art rectified-flow transformer (`black-forest-labs/FLUX-2-klein-4b`) hosted on DeepInfra for photorealistic scientific illustrations with dynamic provider cost extraction and a flat \$0.014 unit baseline rate.
-  - *Programmatic SVG Vector Engine*: Pure Python deterministic renderer generating crisp, high-DPI vector diagrams with DOMPurify sanitization.
+  - *Programmatic SVG Vector Engine*: Pure Python deterministic renderer generating crisp, high-DPI vector diagrams; the frontend renders it through `SafeSvg` (DOMPurify SVG profile).
 - **Automated Content Moderation Safety Fallback**:
   Commercial image APIs employ automated content moderation filters that occasionally misinterpret legitimate medical and anatomical terminology (such as "organ dissection", "lesion", or "necrotic biopsy") as violative content, raising HTTP 400 content policy violations.
   The engine implements an automated retry fallback:
@@ -397,14 +416,14 @@ The system coordinates specialized autonomous engines with a deterministic quali
     3. Enforcing Rule 12 in `REGENERATOR_SYSTEM_PROMPT` and `orig_img_needed` preservation in `_parse_regenerated()`.
   - **3-Tier Discretion Safeguard**:
     1. *Form State Decoupling*: The frontend "Include Images When Needed" toggle activates `allow_ai_images: true` while defaulting `require_image: false`, granting visual permission without commanding mandatory figures.
-    2. *Batch Item Safeguard (`is_standalone_batch` in `passage_prep.py`)*: Multi-question independent batches (`total_qty > 1` and `passage_mode == 'independent'`) enforce `is_standalone_batch`, ensuring individual worker items inherit `require_image: false` and `allow_ai_images: true` so parent batch flags never force figures onto standalone items.
+    2. *Per-Item Request Derivation (`_build_batch_worker_request` in `passage_prep.py`)*: Each worker item request sets `require_image = req.require_image and section is not CARS` and `allow_ai_images = (req.allow_ai_images or req.require_image or req.visual_type in KNOWN_VISUAL_TYPES) and section is not CARS`. A parent request that only enables "Include Images When Needed" therefore gives every item AI discretion without mandating a figure on any of them. (There is no symbol named `is_standalone_batch` in the code; the behavior is covered by `tests/test_visuals.py::test_standalone_batch_*`.)
     3. *Unrestricted Pedagogical Prompt Discretion (`prompt_builder.py`)*: Empowers the generator with complete creative and academic freedom to include visual stimuli across all 7 medical/scientific modalities whenever an accompanying figure, clinical finding, or scientific diagram enriches or illustrates the item, while allowing the model to set `image_needed: false` when choosing a pure text-based problem.
-  - **Active Full-Spectrum Modality Calibration (Anti-Clustering Architecture)**:
+  - **Active Full-Spectrum Modality Calibration (Anti-Clustering Architecture)** (the seven ids are `radiology`, `histology`, `gross_anatomy`, `cellular_microscopy`, `physiology_trace`, `clinical_pathology`, `scientific_diagram`):
     To prevent generative LLMs from clustering exclusively on 2D line plots (such as standard Michaelis-Menten or Lineweaver-Burk enzyme kinetics graphs), the multi-agent pipeline actively drives modality diversity across three synchronized authoring layers:
     - *Prompt Builder (`prompt_builder.py`)*: Emits explicit `FULL MODALITY SPECTRUM ENCOURAGED` directives prompting the generator to actively draw from all 7 modalities—Diagnostic Radiology (chest/bone X-rays, CT scans, MRI, ultrasound), Histopathology (H&E biopsy slides, cytology smears), Gross Anatomy & Dissections, Cellular Electron Microscopy (TEM/SEM micrographs), Physiological Traces (12-lead ECG strips, cardiac action potentials, PV loops), Clinical Pathology (dermatology, fundoscopy), and Scientific Figures.
     - *Passage Methodology Scope (`generator.py`)*: Broadens passage research methodology premises beyond in-vitro laboratory assays to routinely incorporate diagnostic imaging scans, biopsy histopathology, physiological recordings, and cellular electron microscopy.
     - *Section-Specific System Calibrations (`prompts.py`)*: Calibrates section guidelines in `GENERATOR_SYSTEM_PROMPT` to embed diagnostic radiology physics (X-rays, CT attenuation, MRI resonance, ultrasound) into Chemical/Physical Foundations (CP), organ systems physiology, histology, and tissue biopsies into Biological/Biochemical Foundations (BB), and neuroimaging (brain MRI/fMRI, EEG traces) into Psychological/Social Foundations (PS).
-  - **CARS Visual Suppression Safeguard**: In strict compliance with official AAMC regulations, visual stimuli are permanently suppressed for Critical Analysis and Reasoning Skills (CARS) across UI toggles, payload builder defense guards (`batchPayload.js`), and server-side workflow validators (`passage_prep.py`).
+  - **CARS Visual Suppression Safeguard**: In strict compliance with official AAMC regulations, visual stimuli are permanently suppressed for Critical Analysis and Reasoning Skills (CARS) across UI toggles, payload builder defense guards (`frontend/src/utils/batchPayload.js`), and server-side workflow validators (`passage_prep.py`).
 - **Persistence & Delivery Pipeline**:
   - Images are persisted as decoded binary data or raw SVG XML in PostgreSQL `image_url` and `image_svg`.
   - Served via `GET /api/questions/{question_id}/image` with content negotiation (`image/svg+xml`, `image/png`, `image/jpeg`, or HTTP 307 CDN redirect) and strict MIME type sandboxing.
@@ -419,32 +438,29 @@ The system coordinates specialized autonomous engines with a deterministic quali
   3. *2-Gram Jaccard Metric* ($S_{\text{jaccard\_2gram}}$, 20% weight): Measures preservation of adjacent scientific bigrams (e.g., "activation energy", "uncompetitive inhibition", "capillary hydrostatic pressure").
   4. *SequenceMatcher Ratio* ($S_{\text{sequence\_ratio}}$, 20% weight): Captures character-level longest contiguous matching sub-sequences via Gestalt pattern matching.
   - **Cost gating**: `evaluate_duplicate` calls the stem scorer with `prune=True`. When cheap upper bounds (`real_quick_ratio`, `quick_ratio`) prove the blended score stays under 0.35 the expensive ratio is skipped; such pairs can never be flagged, so duplicate verdicts, matched ids and flagged scores are identical (a randomized test checks this). Pools of 150+ references are scored in a worker thread so the event loop stays responsive.
-  5. *Distractor Options Overlap Booster*: Evaluates pairwise lexical similarity across candidate and reference option sets ($A, B, C, D$). If $\ge 70\%$ of options are identical or near-identical (`_OPTION_MATCH_RATIO = 0.70`), the engine applies an options collision penalty that elevates overall similarity or establishes an empirical collision floor.
-- **Calibrated Decision Boundaries**:
-  - **Near-Duplicate ($\ge 0.70$)**: Flagged as a duplicate collision (`is_duplicate = True`). Triggers the autonomous anti-collision loop or flags the item for educator review.
-  - **Substantial Overlap ($\ge 0.50$)**: High-similarity threshold triggering cautionary anti-collision remediation.
-  - **Same-Passage Key Overlap & Containment Guard**: When two items share the exact same reading passage, the engine computes substantive key token containment. If the candidate and reference share $\ge 3$ substantive content tokens, have a key containment ratio $\ge 0.45$, or key similarity $\ge 0.40$ (or stem similarity $\ge 0.50$), it triggers a collision. This prevents different slots from asking about the same conclusion with slight rephrasings.
-  - **Retry Guidance Preservation**: When an in-flight collision triggers replenishment, the engine appends the collision directive to the existing `thematic_angle` rather than overwriting it, preserving the psychometric archetype.
-- **Passage Set Cognitive Blueprints (`passage_prep.py`)**:
-  Multi-question passage sets follow deterministic psychometric schedules (`CARS_PASSAGE_SET_BLUEPRINTS` and `SCIENCE_PASSAGE_SET_BLUEPRINTS`):
-  - **Slot 1 (Central Thesis / Primary Claim)**: Main idea, overarching hypothesis, or foundational finding.
-  - **Slot 2 (Local Detail & Contextual Meaning)**: Specific mechanism, definition in context, or paragraph-level argument.
-  - **Slot 3 (Author Stance & Rhetorical Function)**: Tone, author purpose, or structural rationale for citing an observation.
-  - **Slot 4 (Novel Scenario Application & Extrapolation)**: Applying passage principles to an unmentioned clinical case or hypothetical system (strictly forbidden from re-testing Slot 1 definitions).
-  - **Slot 5 (Critique / Alternative Evidence / Challenge)**: Identifying assumptions, counterarguments, or findings that weaken/strengthen passage arguments.
-- **Autonomous Anti-Collision Loop (`_run_deduplication_anti_collision_loop`)**:
-  When drafting questions during batch or live generation, the candidate is compared against:
-  1. Existing questions in PostgreSQL matching the exact **Section** and **Subtopic**.
-  2. Previously generated sibling items within the active batch session.
-  If a collision ($\ge 0.80$) is detected during generation, the engine executes an autonomous anti-collision prompt injection:
+  5. *Distractor Options Overlap*: `compute_options_overlap` counts an option as matched when its normalized text is identical or its sequence ratio exceeds `_OPTION_MATCH_RATIO = 0.70` (pairs whose length ratio is below `_OPTION_LENGTH_RATIO_FLOOR = 0.55` are skipped), and returns matched / max(option count). That *fraction* is then compared with separate constants: `_OPTIONS_NEAR_IDENTICAL = 0.75` (combined with stem similarity $\ge 0.40$, the score becomes `0.5 x stem + 0.5 x options`) and `_OPTIONS_SUBSTANTIAL = 0.50` (combined with stem similarity $\ge 0.50$, the score becomes `0.6 x stem + 0.4 x options`). The 0.70 per-option ratio and the 0.75 overlap fraction are two different quantities.
+- **Verdict thresholds (config, not the internal stem constants)**: `is_duplicate` and `is_soft_warning` come only from `evaluate_duplicate` comparing the final score with configured thresholds:
+  - **Hard duplicate** (`DUPLICATE_HARD_THRESHOLD = 0.75`): `is_duplicate = True`. Used by the in-flight anti-collision loop, batch clustering (`cluster_questions`, `find_cluster_duplicates`) and the `duplicate-clusters` endpoint default.
+  - **Soft warning** (`DUPLICATE_SOFT_THRESHOLD = 0.60` up to below 0.75): `is_soft_warning = True` and a variety warning, no forced rewrite.
+  - **On-demand API** (`POST /api/questions/check-duplicate`): the stricter `DUPLICATE_API_THRESHOLD = 0.80`.
+  - **Semantic (embedding) check**: `dedup_inflight` also compares embeddings and flags a collision at `min(RAG_SEMANTIC_DEDUP_THRESHOLD, 0.80)`, which is 0.80 with the default `RAG_SEMANTIC_DEDUP_THRESHOLD = 0.82`.
+- **Internal scoring constants (not verdict thresholds)**: inside `compute_question_similarity` the stem constants `_STEM_NEAR_DUPLICATE = 0.70`, `_STEM_SUBSTANTIAL = 0.50`, `_STEM_MODERATE = 0.40` and `_STEM_PRUNE_BELOW = 0.35` only choose which scoring branch applies (for example, stem similarity $\ge 0.70$ lets the stem score stand alone). A pair is flagged only if the resulting score reaches the config thresholds above, so "0.70" and "0.50" are not duplicate cut-offs.
+- **Same-Passage Key Overlap & Containment Guard**: When two items share the same reading passage, the engine compares the correct-answer ("key") texts. A same-passage key collision is declared when the key is substantive and either key similarity $\ge 0.55$, or at least 3 shared key tokens with key containment $\ge 0.30$ or key similarity $\ge 0.25$ (`dedup_metrics.py`). Such collisions score at least 0.78; a same-passage stem similarity $\ge 0.50$ scores at least 0.76; an inverse same-passage question collision scores 0.82. These floors sit above the 0.75 hard threshold, so they are flagged. Outside the same passage, identical key rationale (key similarity $\ge 0.70$ with stem $\ge 0.35$ or options $\ge 0.50$) scores at least 0.76.
+- **Retry Guidance Preservation**: When an in-flight collision triggers replenishment, the engine appends the collision directive to the existing `thematic_angle` rather than overwriting it, preserving the psychometric archetype.
+- **Passage Set Cognitive Blueprints**: The per-slot archetypes (`CARS_PASSAGE_SET_BLUEPRINTS`, `SCIENCE_PASSAGE_SET_BLUEPRINTS`) live in `workflow/passage_blueprints.py`, not `passage_prep.py`; see §2.4 for the exact archetype names.
+- **Autonomous Anti-Collision Loop (`_run_deduplication_anti_collision_loop` in `workflow/dedup_inflight.py`)**:
+  Right after drafting (before the review step) the candidate is compared against:
+  1. Questions already in PostgreSQL for the same **section** and **subtopic** (the reference pool).
+  2. Previously generated sibling items of the active batch and in-flight sibling drafts (workers start staggered, see §4.2, so siblings can see each other).
+  If the score reaches the hard threshold (0.75), the engine re-prompts the generator with an anti-collision directive and alternate trap re-seeding, at most `DEDUP_REGEN_MAX_RETRIES = 1` time. A similarity from 0.60 to below 0.75 only logs a variety warning. After a later regeneration, `recheck_duplicate` repeats the (free) check before any paid review call. The directive text is:
   ```
   CRITICAL: The drafted question is too similar to an existing item in this subtopic.
   Conflicting Item: "[matched_question_stem]"
   You MUST pivot to a completely different clinical scenario, distinct biochemical mechanism,
   or alternative calculation angle while preserving the target AAMC skill.
   ```
-- **Administrative Inspection & Override Audit Trail**:
-  If a flagged question is presented to educators during review, the UI displays an amber badge `⚠️ Duplicate Risk (XX%)`. Educators can open the side-by-side **Duplicate Comparison Modal** to compare stems, options, and explanations. Choosing **"Override & Approve"** dispatches `POST /api/questions/{id}/override-duplicate`, stamping the record with:
+- **Duplicate flags, override endpoint and audit trail (backend)**:
+  A flagged question carries `duplicate_info` (fields `is_duplicate`, `is_soft_warning`, `similarity_score`, `matched_question_id`, `matched_question_stem`, `matched_options`, `matched_explanation`, `match_reason`). `POST /api/questions/{id}/override-duplicate` (`override_question_duplicate`) sets `is_duplicate_override = true`, adds `is_overridden` and `overridden_at` to `duplicate_info`, and moves the question to `in_bank` (a `batch_only` question stays `batch_only`). Example stored shape:
   ```json
   {
     "is_duplicate_override": true,
@@ -459,8 +475,9 @@ The system coordinates specialized autonomous engines with a deterministic quali
     }
   }
   ```
-- **Batch Duplicate Cluster Resolution & Permanent Purge**:
-  When clustering batch questions via `GET /api/batches/{id}/duplicate-clusters`, educators can resolve duplicate groups via `POST /api/batches/{id}/resolve-duplicates`. Under `action="delete"`, identified redundant duplicates are permanently hard-deleted from PostgreSQL via `hard_delete_questions_batch`, completely eliminating ghost records from batch monitors and ensuring clean subsequent refills. Alternatively, `action="archive"` marks duplicate items with status `discarded`.
+  **Frontend status**: the React app (`frontend/src`) does not currently render a duplicate-risk badge, a duplicate comparison modal or an "Override & Approve" button, and it does not call the override, `duplicate-clusters` or `resolve-duplicates` endpoints; `services/api.js` only defines `checkQuestionDuplicate` (`POST /questions/check-duplicate`), and the batch lifecycle stepper has a "2. Duplicate Audit" stage label. These endpoints are currently API-only. TODO: verify whether a UI is planned.
+- **Batch Duplicate Cluster Resolution**:
+  `GET /api/batches/{id}/duplicate-clusters` (optional `threshold` query, 0.5 to 1.0, default 0.75) returns clusters of mutually similar active questions, each with an elected leader (highest score, or a caller-chosen leader). `POST /api/batches/{id}/resolve-duplicates` resolves them: `action="archive"` (the default) sets duplicates to status `discarded` (recoverable), while `action="delete"` permanently removes them via `hard_delete_questions_batch`. The runner's `auto_resolve_batch_and_refill` uses the same clustering but always permanently deletes the redundant duplicates (`hard_delete_questions_batch`), trims any set that exceeds its target (lowest scores first), and then refills any deficit (up to `MAX_REFILL_CYCLES = 3` rounds, with a small over-generation buffer of 1 or 2 questions).
 
 ---
 
@@ -474,7 +491,7 @@ The system coordinates specialized autonomous engines with a deterministic quali
 
 ### 3.9 Fail-Closed Generation Policy
 - Reviewer, Blind Solver, Generator, Fused Generator, Passage Writer and Regenerator use heuristic or mock fixtures **only** when no LLM credentials are configured **and** `OFFLINE_MODE=true` is set explicitly (demos and offline tests). Without the flag, a missing key raises `LLMNotConfiguredError`, the run fails fast with a clear message (no slot retries), and mock-produced questions are tagged `stage_outcomes.offline_mode`.
-- Any real provider failure raises instead; the per-slot retry in `engine.py` (up to 3 attempts) absorbs it and emits `question_failed` if all attempts fail. No canned question is ever saved in place of a failed generation.
+- Any real provider failure raises instead; the per-slot retry in `slot_worker.py` (`WORKFLOW_MAX_WORKER_RETRIES = 2`, i.e. up to 3 attempts per slot) absorbs it and emits `question_failed` if all attempts fail. No canned question is ever saved in place of a failed generation.
 - **Validated outputs**: every agent parses model JSON through `call_llm_validated` (`agents/base.py`). Invalid output (missing stem/explanation/key, key not among the options, not 4 options, non-object JSON, out-of-range scores) gets exactly one repair call at temperature 0 that shows the model its own reply and the error; both calls are billed. A second failure raises, so nothing malformed becomes a default (a missing answer key is never guessed as option A, and design metadata such as the trap and AAMC skill is carried over by the regenerator instead of being re-invented).
 - Truncated completions (`finish_reason == "length"`) are retried with a doubled token budget up to `LLM_MAX_TOKENS_CEILING` rather than being "repaired" from partial JSON.
 
@@ -486,51 +503,81 @@ Workflow state is tracked via a typed dictionary `AgentWorkflowState` defined in
 
 ```python
 class AgentWorkflowState(TypedDict, total=False):
-    request: Dict[str, Any]  # Original GenerationRequest parameters
-    current_draft: Optional[Dict[str, Any]]  # Active candidate QuestionDraft
-    current_review: Optional[Dict[str, Any]]  # Latest ReviewScore rubric
-    iteration_count: int  # Current iteration counter (1, 2, 3)
-    iterations_history: List[Dict[str, Any]]  # Full audit history of drafts and reviews
-    image_url: Optional[str]  # URL if external image generated
-    image_svg: Optional[str]  # Embedded SVG markup
-    image_description: Optional[str]  # Accessibility alt text
-    final_question: Optional[Dict[str, Any]]  # Finalized Question model
-    rejection_data: Optional[Dict[str, Any]]  # Telemetry if rejected by Quality Gate
-    status: str  # Workflow lifecycle phase
-    active_agent: str  # Currently executing agent node
-    log_messages: List[str]  # Running log entries
+    # Request & context configuration
+    request: dict[str, Any]              # Original GenerationRequest parameters
+    run_id: str
+    batch_id: str | None
+    diversity_context: str | None        # Cross-item trap/mistake diversity + RAG context
+    passing_threshold: float
+    slot_prior_calls: int                # LLM calls spent by earlier attempts of this slot
 
-    # Per-Request Token Usage & Cost Accumulator
-    total_tokens: int  # Cumulative tokens consumed
-    total_prompt_tokens: int  # Cumulative input tokens
-    total_completion_tokens: int  # Cumulative output tokens
-    total_cost_usd: float  # Cumulative cost in USD (per-model rates, see docs/TOKEN_TRACKING.md)
-    agent_usage_breakdown: List[Dict[str, Any]]  # Itemized usage per agent cycle
-    latest_usage: Optional[Dict[str, Any]]  # Usage of the most recently executed node
+    # Authoring & review lifecycle
+    current_draft: dict[str, Any] | None
+    current_review: dict[str, Any] | None
+    iteration_count: int                 # 1, 2, 3
+    iterations_history: list[IterationHistoryEntry]
+    fused_self_passed: bool              # legacy shortcut (ALWAYS_INDEPENDENT_REVIEW=false)
+    status: str
+    active_agent: str
+    log_messages: list[str]
+    blind_solver_result: dict[str, Any]  # set by build_solver_update
+    blind_solver_passed: bool
+
+    # Deduplication state
+    duplicate_info: DuplicateInfoDict | None
+    regenerated_pending_dedup: bool      # request a free duplicate re-check after a rewrite
+
+    # Visual stimulus & medical imaging
+    image_url: str | None
+    image_svg: str | None
+    image_description: str | None
+    visual_medical_category: str | None
+    visual_clinical_description: str | None
+
+    # Finalization & rejection payloads
+    final_question: dict[str, Any] | None
+    rejection_data: RejectionData | None
+
+    # Telemetry, tokens, and billing
+    total_tokens: int
+    total_prompt_tokens: int
+    total_completion_tokens: int
+    total_cost_usd: float
+    agent_usage_breakdown: list[AgentUsageEntry]
+    latest_usage: dict[str, Any] | None
+    stage_outcomes: StageOutcomes        # drafting, quality_audit, blind_solver_validation, ...
 ```
 
+(Abridged from `backend/app/workflow/state.py`. `blind_solver_result` and `blind_solver_passed` are written by `node_reviewer.build_solver_update`; they are not declared in the `TypedDict` itself, which is `total=False` and only type-checks the declared keys. TODO: verify whether they should be declared.)
+
 ### 4.1 State Accumulation Pattern
-At each node execution, token consumption from the LLM response is unpacked and added to cumulative state counters:
-1. `fused_generator_node`: Accumulates single-pass authoring and 100-point self-critique tokens, appending `Question Writer & Reviewer` entry to `agent_usage_breakdown`.
-2. `regenerator_node`: Accumulates remediation tokens if initial score $\le 80$ and appends `Question Improver` entry.
-3. `reviewer_node`: Accumulates independent audit tokens during remediation cycles and records usage in `iterations_history`.
-4. `image_node`: Accumulates visual stimulus synthesis tokens / compute units for `Diagram & Chart Maker`.
-5. `finalize_node`: Binds final accumulated totals and itemized breakdown directly into the `Question` schema for database persistence.
+At each node execution, token consumption from the LLM response is unpacked and added to cumulative state counters (`record_agent_usage`). Entries in `agent_usage_breakdown` use these **usage names**, which differ from the SSE `agent_name` values (given in parentheses):
+1. `fused_generator_node`: appends a `Question Generator` entry (SSE: `Question Writer & Reviewer`); it covers the draft and, only when `ALWAYS_INDEPENDENT_REVIEW=false`, the self-critique.
+2. `regenerator_node`: appends a `Question Re-Generator` entry (SSE: `Question Improver`).
+3. `reviewer_node` / `run_review_and_solve`: append a `Question Reviewer` entry (SSE: `Quality Reviewer`) and record the audit in `iterations_history`.
+4. `blind_solver_node` / `build_solver_update`: append a `Blind-Solver Dual Validation` entry (same name in SSE). If the solver ran in parallel with a failing review, `build_usage_only_update` still records its spend.
+5. `image_node`: appends the usage dict returned by `generate_image_stimulus` (entry name `Image Generator`; SSE: `Diagram & Chart Maker`).
+6. `Passage Writer` entries for the shared passage come from `passage_prep.py` (same name in SSE).
+7. `finalize_node`: Binds final accumulated totals and itemized breakdown directly into the `Question` schema for database persistence (`token_usage_details`).
+Each entry (`AgentUsageEntry`) holds `agent`, `iteration`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `cost_usd`, `calls` and an optional `duration_ms`; there is no `model` field.
 
 ### 4.2 Modular Execution Architecture (`engine.py` and its helper modules)
 The streaming execution pipeline is implemented in [`backend/app/workflow/engine.py`](../backend/app/workflow/engine.py) via `run_workflow_stream` and `run_workflow`. The engine resolves the run layout (`RunLayout`), keeps per-slot spend in a `SlotLedger`, and delegates per-question slot lifecycles to an isolated worker; orchestration helpers live in dedicated modules:
-- [`stream_emitter.py`](../backend/app/workflow/stream_emitter.py): `drain_event_queue` encapsulates bounded queue polling, consumer timeout handling, and backpressure enforcement, while `format_sse_event` and `build_terminal_workflow_event` manage SSE event data framing and terminal completion/rejection/error event assembly.
+- [`stream_emitter.py`](../backend/app/workflow/stream_emitter.py): `drain_event_queue` encapsulates bounded queue polling, consumer timeout handling, and backpressure enforcement (the queue is created in `engine.py` with `_EVENT_QUEUE_MAX = 256`), while `format_sse_event` and `build_terminal_workflow_event` manage SSE event data framing and terminal completion/rejection/error event assembly.
 - [`slot_worker.py`](../backend/app/workflow/slot_worker.py): `run_slot_worker(ctx: SlotWorkerContext)` encapsulates the attempt/replenishment lifecycle for a single slot, handling generation attempts, in-flight anti-duplication, review loops, image generation, and slot finalization.
-- [`passage_prep.py`](../backend/app/workflow/passage_prep.py): `_build_batch_worker_request` (per-item request), `_determine_item_diagram_requirement`, `_prepare_shared_passage_and_visual` (drafts shared stimulus and diagram), and deterministic cognitive slot blueprints (`CARS_PASSAGE_SET_BLUEPRINTS` and `SCIENCE_PASSAGE_SET_BLUEPRINTS`).
-- [`review_loop.py`](../backend/app/workflow/review_loop.py): `_run_question_review_loop` runs the free deterministic gate, the reviewer, the Blind-Solver and the Question Improver remediation cycles against the 100-point rubric, under the per-slot LLM call budget.
-- [`dedup_inflight.py`](../backend/app/workflow/dedup_inflight.py): duplicate detection against the database pool, staged siblings and in-flight sibling drafts, with anti-collision regeneration and retry guidance preservation.
+- [`passage_prep.py`](../backend/app/workflow/passage_prep.py): `_build_batch_worker_request` (per-item request), `_determine_item_diagram_requirement`, `_prepare_shared_passage_and_visual` (drafts shared stimulus and diagram, emits the `Passage Writer` events). It re-exports the blueprint symbols.
+- [`passage_blueprints.py`](../backend/app/workflow/passage_blueprints.py): `CARS_PASSAGE_SET_BLUEPRINTS`, `SCIENCE_PASSAGE_SET_BLUEPRINTS`, `CARS_SLOT4_APPLICATION_DOMAINS`, `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`, `MODALITY_ROTATION_BY_SECTION`, `resolve_slot_domain_index` and `extract_passage_slot_blueprints`.
+- [`review_loop.py`](../backend/app/workflow/review_loop.py): `_run_question_review_loop` runs the free deterministic gate (a failing gate is turned into a synthetic failing review by `_validator_review`: all four pillars 15, `total_score` 60, `passed=False`; no LLM is called), the reviewer, the Blind-Solver and the Question Improver remediation cycles against the 100-point rubric, under the per-slot LLM call budget.
+- [`dedup_inflight.py`](../backend/app/workflow/dedup_inflight.py): duplicate detection against the database pool, staged siblings and in-flight sibling drafts, with anti-collision regeneration (`DEDUP_REGEN_MAX_RETRIES = 1`) and retry guidance preservation.
 - [`live_job_store.py`](../backend/app/workflow/live_job_store.py): `_persist_live_question` and the job/batch finalisation, cancellation and failure handlers for standalone live runs.
-- [`routes.py`](../backend/app/workflow/routes.py): `route_after_review` implements Quality Gate routing for review outcomes (advancing passing items, routing to remediation, or rejecting upon retry exhaustion).
-- [`sse.py`](../backend/app/workflow/sse.py): SSE event serialization, keepalive comment emission every 15 seconds, and client disconnect handling.
+- [`routes.py`](../backend/app/workflow/routes.py): `route_after_review` implements Quality Gate routing for review outcomes (advancing passing items, routing to remediation, accepting a 70-80 score as Good Quality at the final iteration, or rejecting upon retry exhaustion; see §3.5).
+- [`sse.py`](../backend/app/workflow/sse.py): only `iter_sse_events`, the parser that turns the engine's `data: ...` text stream back into event dicts (used by the batch worker). SSE keepalive is not here: `with_keepalive` in [`api/v1/generation.py`](../backend/app/api/v1/generation.py) emits a `: keepalive` comment every `SSE_KEEPALIVE_SECONDS = 15` seconds.
+- **Staggered worker start**: `engine.py` delays worker `w_idx` by `min(WORKER_STAGGER_SECONDS (0.35) x w_idx, WORKER_STAGGER_MAX_SECONDS (2.0))` so siblings can see each other's in-flight stems for deduplication; per-slot retry pauses are `SLOT_REPLENISH_DELAY_SECONDS = 0.5` and `SLOT_ERROR_RETRY_DELAY_SECONDS = 1.0` (`slot_worker.py`).
+- **SSE event types**: `workflow_start`, `agent_start`, `agent_complete`, `agent_action`, `batch_progress`, `question_generated`, `question_rejected`, `question_failed`, `workflow_complete`, `workflow_rejected`, `workflow_error`. SSE `agent_name` values: `Passage Writer`, `Question Writer & Reviewer`, `Quality Reviewer`, `Blind-Solver Dual Validation`, `Question Improver`, `Quality Gate`, `Diagram & Chart Maker`, `System`, `System Error`.
 - [`state.py`](../backend/app/workflow/state.py): `AgentWorkflowState` typed data contracts defining the active workflow context.
 - **Lifecycle Node Partitioning**: The discrete graph nodes are partitioned across specialized modules:
   - [`node_generator.py`](../backend/app/workflow/node_generator.py): `fused_generator_node`, `agent_usage_entry`, and `_record_agent_usage`.
-  - [`node_reviewer.py`](../backend/app/workflow/node_reviewer.py): `reviewer_node`, `ReviewAndSolveOutcome`, `run_review_and_solve`, `blind_solver_node`, and `regenerator_node`.
+  - [`node_reviewer.py`](../backend/app/workflow/node_reviewer.py): `reviewer_node`, `ReviewAndSolveOutcome`, `run_review_and_solve`, `blind_solver_node`, `regenerator_node` and the state-update builders `build_review_update`, `build_solver_update`, `build_usage_only_update`.
   - [`node_finalize.py`](../backend/app/workflow/node_finalize.py): `reject_node`, `image_node`, and `finalize_node`.
   - [`nodes.py`](../backend/app/workflow/nodes.py): Transparent facade re-exporting all symbols in `__all__` with dynamic `_WorkflowNodesFacade` monkeypatch routing.
 
@@ -538,7 +585,7 @@ The streaming execution pipeline is implemented in [`backend/app/workflow/engine
 
 ## 5. Background Batch Execution Service (`batch_runner.py`)
 
-The backend utilizes an asynchronous worker pool managed by [`backend/app/services/batch_runner.py`](../backend/app/services/batch_runner.py) supporting 2 calibrated Generation Scopes governed by the unified 5-question Job architecture:
+The backend utilizes an asynchronous worker pool managed by [`backend/app/services/batch_runner.py`](../backend/app/services/batch_runner.py) governed by a unified 5-question Job architecture. `launch_background_batch` accepts any `questions_to_generate` from 1 to 50 and splits it into `ceil(target / QUESTIONS_PER_JOB)` jobs with `QUESTIONS_PER_JOB = 5` (so 12 questions become jobs of 5, 5 and 2). The wizard exposes two presets, 5 and 50 questions:
 
 1. **5 Questions (1 Single Job)**:
    - Dispatches a single background worker job comprising 5 questions linked to a shared reading passage (or 5 discretes).
@@ -553,10 +600,10 @@ graph TD
     API --> Runner[launch_background_batch]
     
     Runner --> BatchDB[Create Batch Record in DB]
-    Runner --> JobDB[Create Job Records in DB: 1 for 5 Questions, 10 for 50 Questions]
+    Runner --> JobDB[Create Job Records in DB: ceil(target / 5), e.g. 1 for 5 Questions, 10 for 50 Questions]
     Runner --> BackgroundTask[Spawn Async Background Worker Pool]
     
-    API -->> Client|202 Accepted + Batch/Job UUIDs| Client
+    API -->|202 Accepted + Batch/Job UUIDs| Client
 
     subgraph "Parallel Worker Execution (1 Job [5 Qs] or 10 Jobs [50 Qs])"
         BackgroundTask --> Job1[Job 1: 5 Qs]
@@ -587,22 +634,26 @@ graph TD
 
 To support heavy concurrent workloads and prevent thread starvation or provider rate limits, the batch execution engine implements multi-layered concurrency controls:
 
-1. **Global Worker Pool Semaphore (`_GLOBAL_JOB_SEMAPHORE`)**:
+1. **Global Worker Pool Semaphore (`_GLOBAL_JOB_SEMAPHORE`, `services/batch_concurrency.py`)**:
    - Initialized as a singleton semaphore: `asyncio.Semaphore(config.GLOBAL_MAX_CONCURRENT_JOBS)` (default: **4 concurrent jobs**).
    - Constrains simultaneous job execution across **all active running batches** in the system, preventing resource exhaustion when multiple batches are launched concurrently.
-2. **Global LLM Concurrency Limiter**:
+2. **Global Question Pipeline Semaphore (`core/concurrency.py`)**:
+   - `GLOBAL_MAX_CONCURRENT_PIPELINES` (default **8**) caps question pipelines in flight across all runs (every slot worker acquires it in `slot_worker.py`).
+3. **Global LLM Concurrency Limiter**:
    - Managed via `config.GLOBAL_MAX_CONCURRENT_LLM_CALLS` (default: **10 concurrent inference calls**).
-   - Bounds the maximum number of simultaneous HTTP requests dispatched to DeepInfra.
-3. **Exponential Backoff & Rate-Limit Resilience (`call_llm` in `app/agents/base.py`)**:
-   - Automatically intercepts HTTP 429 (Rate Limit) and 503 (Service Unavailable) responses.
-   - Retries up to `LLM_MAX_RETRIES = 4` times using exponential backoff:
+   - Enforced in `call_llm` (`agents/base.py`) for every provider (DeepInfra, Anthropic, OpenAI); it is not DeepInfra-specific. The semaphore is held only for the call itself, never during backoff.
+4. **Cost and Admission Guards**:
+   - `GENERATION_RATE_LIMIT_PER_MINUTE = 30` requests per client IP per minute and `MAX_ACTIVE_BATCHES = 5` concurrently running batches protect the LLM-spending routes (`POST /generate`, `/batches/start`, retry, refill); `0` disables either guard.
+5. **Exponential Backoff & Rate-Limit Resilience (`call_llm` in `app/agents/base.py`)**:
+   - Classifies errors (`_classify_llm_error`): rate limit (429), overloaded or server errors (500, 502, 503, 504, 529) and timeouts are *transient* and back off exponentially; connection errors retry after a short fixed pause; everything else fails immediately.
+   - `LLM_MAX_RETRIES = 3` (default) means up to **4 attempts** (the first call plus 3 retries). LiteLLM's own retries are disabled (`num_retries=0`), so retries happen at exactly one layer. Transient backoff is:
      $$\text{Wait Seconds} = \text{base\_backoff} \times 2^{\text{attempt}} + \text{jitter}$$
-     with `LLM_BASE_BACKOFF_SECONDS = 1.5` and random fractional jitter to prevent thundering herd problems.
-4. **Atomic Database State Aggregation (`refresh_batch_aggregates`)**:
+     with `LLM_BASE_BACKOFF_SECONDS = 1.5` and random fractional jitter (0.1 to 0.5 s) to prevent thundering herd problems. Truncated completions are retried separately with a doubled `max_tokens` up to `LLM_MAX_TOKENS_CEILING`.
+6. **Atomic Database State Aggregation (`refresh_batch_aggregates`)**:
    - Executes atomic SQL subqueries to calculate `completed_jobs`, `failed_jobs`, `actual_count`, `total_tokens`, and `cost_usd` directly inside PostgreSQL.
    - Eliminates read-modify-write race conditions between parallel background worker tasks.
-5. **Autonomous In-Flight 3-Trials Policy & Resilient Batch Lifecycle**:
-   - **Autonomous In-Flight Retries**: When executing batch jobs (`_run_single_job`), if fewer than the target number of questions are generated (e.g., due to strict psychometric threshold rejections), the runner automatically executes in-flight retries up to `3 max trials per set`. Each trial is tracked in `job.trial_count` and persisted to PostgreSQL.
+7. **Autonomous In-Flight 3-Trials Policy & Resilient Batch Lifecycle**:
+   - **Autonomous In-Flight Retries**: When executing batch jobs (`_run_single_job`), if fewer than the target number of questions are generated (e.g., due to strict psychometric threshold rejections), the runner automatically executes in-flight retries up to `MAX_JOB_TRIALS = 3` trials per set (`services/batch_worker.py`). Each trial is tracked in `job.trial_count` and persisted to PostgreSQL. Separately, each question slot inside a trial gets up to 3 attempts (`WORKFLOW_MAX_WORKER_RETRIES = 2`), and after the batch finishes `auto_resolve_batch_and_refill` can run up to `MAX_REFILL_CYCLES = 3` duplicate-resolution/refill rounds.
    - **Live Telemetry & Trial State Indicators**: Active jobs undergoing shortfall retries broadcast live `AUTO-RETRYING (X/3)` status. If all 3 trials are completed without achieving the target count, the UI displays `3/3 TRIALS EXHAUSTED`, clearly signaling that no further autonomous trials remain.
    - **Graceful Batch Halt (`POST /api/batches/{id}/stop`)**: Cancels running asyncio worker tasks and updates remaining pending jobs to `"cancelled"` while preserving all successfully generated questions in the bank.
    - **Controlled Resume Sets (`POST /api/batches/{id}/retry`)**: Strictly reserved for manually stopped or cancelled batches that have incomplete jobs with remaining trials (`trial_count < 3`). Re-launches incomplete jobs into the worker pool. If all incomplete jobs have already exhausted 3 trials, the endpoint returns an explicit **HTTP 400 Bad Request** (`All incomplete sets in batch have already reached the maximum 3-trial limit or have already completed, and cannot be retried.`), preventing infinite retry loops.
@@ -686,11 +737,12 @@ stateDiagram-v2
     Discarded --> InBank: Restore Question
 ```
 
-- **`batch_only`**: Active withholding and good-quality status. Candidate questions generated during in-progress batches (scoring $\ge 70$) are saved in `batch_only` while the parent batch is running. This strictly prevents incomplete batches from leaking into the educator's "Ready for Review" queue. Upon batch completion, items scoring $> 80$ are promoted to `ai_validated`, while items scoring between 70 and 80 remain safely in `batch_only` as Good Quality questions.
-- **`ai_validated`**: Questions that cleared the quality gate (`score > 80`, controlled via `.env:L81` `PASSING_SCORE_THRESHOLD=80`) whose parent batch has successfully completed (`status == 'completed'`) or that were generated in standalone runs. Atomically promoted by `promote_completed_batch_questions` and visible in the educator's review queue.
+- **`batch_only`**: Active withholding and good-quality status. Candidate questions generated during in-progress batches (scoring $\ge 70$, `determine_question_status`) are saved in `batch_only` while the parent batch is running; those below 70 are `below_threshold`. This strictly prevents incomplete batches from leaking into the educator's "Ready for Review" queue. Upon batch completion, items scoring $> 80$ are promoted to `ai_validated`, while items scoring between 70 and 80 remain safely in `batch_only` as Good Quality questions.
+- **`ai_validated`**: Questions that cleared the quality gate (`score > 80`, controlled by `PASSING_SCORE_THRESHOLD`, default `80`, in `core/config.py` / `.env`) whose parent batch has successfully completed (`status == 'completed'`) or that were generated in standalone runs. Atomically promoted by `promote_completed_batch_questions` and visible in the educator's review queue.
 - **`in_bank`**: Formally approved questions published in the primary searchable Question Bank repository.
 - **`below_threshold`**: Drafts that failed to achieve the 70-point batch threshold (`score < 70`) after 3 remediation cycles (flagged as "Needs Polish").
 - **`discarded`**: Archived or rejected items removed from active question banks or resolved during duplicate clustering.
+- The `ck_questions_status` CHECK constraint allows nine values in total: `in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded`, plus `approved`, `rejected_below_threshold`, `error` and `failed` (the last four are not produced by the flows described here; TODO: verify where, if anywhere, they are written).
 
 ### 5.4 Canonical Status Determination, Withholding Guards & Batch Idempotency
 
@@ -716,11 +768,12 @@ stateDiagram-v2
    - If a batch is actively stopped, cancelled, or aborted mid-run, `promote_completed_batch_questions` is bypassed entirely, safely retaining questions in `batch_only` without polluting review queues.
 
 3. **Dynamic Job Allocation & Exact Target Count Guarantees**:
-   In [`backend/app/services/batch_runner.py`](../backend/app/services/batch_runner.py), `launch_background_batch` dynamically partitions target quotas into parallel jobs capped at 5 questions per job (`QUESTIONS_PER_JOB = 5`, with maximum batch volume calculated via `QUESTIONS_PER_JOB * 10` to avoid magic numbers):
+   In [`backend/app/services/batch_runner.py`](../backend/app/services/batch_runner.py), `launch_background_batch` dynamically partitions target quotas into parallel jobs capped at 5 questions per job (`QUESTIONS_PER_JOB = 5`; a request accepts 1 to 50 questions, enforced by `GenerationRequest.questions_to_generate`):
    - 5 questions $\to$ 1 job of 5 items.
    - 50 questions $\to$ 10 jobs of 5 items.
    - 12 questions $\to$ 3 jobs of 5, 5, and 2 items.
-   When duplicate resolution or quality gate dropouts create a deficit, `auto_resolve_batch_and_refill` and `refill_batch_deficit` launch targeted replacement jobs with diverse thematic angles, ensuring exact target count delivery.
+   When duplicate resolution or quality gate dropouts create a deficit, `auto_resolve_batch_and_refill` and `refill_batch_deficit` launch targeted replacement jobs with diverse thematic angles, ensuring exact target count delivery. The pure helpers for clustering, per-job partitioning, excess trimming and deficit maths live in `services/batch_resolution.py`.
+   **Thematic angles per job**: the live path uses `agents/batch_planner.py` (`resolve_batch_thematic_angle`): an LLM brainstorm of syllabus-coherent angles cached per `batch_id`, or, offline or on failure, deterministic angles of the form `Set #N: <topic> - <pedagogical aspect>` built from `CARS_PEDAGOGICAL_ASPECTS` / `SCIENCE_PEDAGOGICAL_ASPECTS`. The curated static lists in `data/thematic_angles.py` (`CARS_THEMATIC_ANGLES` and the three science lists, plus `batch_thematic_angle`) are imported and re-exported by `services/batch_worker.py` but are not called in the job path. TODO: verify whether they are intended as a fallback. The `Set #N` / `job #N` text in the angle is what `resolve_slot_domain_index` parses for slot rotation.
 
 4. **Idempotent Batch Counter Synchronization**:
    [`backend/app/repositories/question_repository.py`](../backend/app/repositories/question_repository.py) enforces idempotent batch counter updates in `save_question`. When editing an existing question or re-saving an approved item, the repository detects the existing record and skips counter increments, preventing counter inflation across re-edits or stage-to-bank transitions.
@@ -754,126 +807,155 @@ The generation entry point provides a high-velocity, deterministic authoring int
 
 The pgvector RAG subsystem prevents conceptual repetition and guarantees novelty across large repositories:
 1. **Vector Embedding Ingestion (`app/services/embeddings.py`)**:
-   - Computes 1536-dimensional dense vector representations using pluggable backends: OpenAI `text-embedding-3-small`, local HuggingFace `sentence-transformers`, or a deterministic hash fallback for offline environments.
-   - Embeds concatenated stem, options, and explanation text into `QuestionModel.embedding`.
-2. **Exemplar Retrieval for In-Context Learning**:
-   - Queries historical questions with `final_score >= 90` within the target section and subtopic.
-   - Injects top-scoring exemplars into Generator prompts to demonstrate authentic MCAT tone, option symmetry, and trap construction.
+   - Computes `EMBEDDING_DIMENSION` (1536) dense vectors through LiteLLM `aembedding` with `EMBEDDING_MODEL` (default `text-embedding-3-small`), authenticating with `OPENAI_API_KEY` or, if empty, `DEEPINFRA_API_KEY`. Results are cached in memory (SHA-256 key). When `OFFLINE_MODE` is on, or the call fails or returns an unexpected shape, a deterministic hash-based unit vector (`deterministic_unit_vector`) is used instead. There is no `sentence-transformers` / local HuggingFace backend.
+   - Embeds a concatenation of section, subtopic, stem, options, key and the first 500 characters of the explanation (`build_question_embedding_text`) into `QuestionModel.embedding`.
+2. **Exemplar Retrieval for In-Context Learning (`retrieve_rag_exemplar_context`)**:
+   - Runs a hybrid (vector + full-text) search within the target section and subtopic and keeps matches with `final_score >= RAG_EXEMPLAR_MIN_SCORE` (default 90).
+   - Injects top-scoring exemplars into Generator prompts to demonstrate authentic MCAT tone, option symmetry, and trap construction. The slot worker requests `limit=2` exemplars per slot (the API default is 3).
 3. **Nearest-Neighbor Anti-Collision Shield**:
-   - Calculates cosine distance over the HNSW index (`vector_cosine_ops`) against existing questions in the bank.
-   - Stems within a cosine distance $\le 0.12$ ($> 88\%$ semantic similarity) are extracted as **Avoidance Stems**.
-   - Avoidance stems and observed cognitive traps are passed directly into prompt builders to enforce explicit differentiation.
+   - `find_similar_questions` ranks stored questions by pgvector cosine distance (`<=>`) over the HNSW index (`vector_cosine_ops`) and keeps up to 4 neighbors whose cosine similarity is at least `min_similarity = 0.60` as **Avoidance Stems** (stems are truncated to 160 characters).
+   - Avoidance stems and the most frequent historical traps for the subtopic are passed directly into prompt builders to enforce explicit differentiation.
 4. **Decomposed Deduplication Metrics (`app/services/dedup_metrics.py` & `dedup_clustering.py`)**:
-   - Combines vector cosine similarity with lexical token overlap (Jaccard similarity and SequenceMatcher) to detect verbatim copies, near-duplicates, and conceptual clones without false positives.
+   - Combines lexical token overlap (containment, 1-gram and 2-gram Jaccard, SequenceMatcher) with a pgvector similarity floor (`_vector_similarity`, when present) to detect verbatim copies, near-duplicates, and conceptual clones; thresholds are listed in §3.7. The in-flight semantic check flags at `min(RAG_SEMANTIC_DEDUP_THRESHOLD, 0.80)`.
 
 ---
 
 ## 6. PostgreSQL 16 Database Architecture
 
-The persistence tier runs on **PostgreSQL 16** managed through **SQLAlchemy 2.0 Async** and the **`asyncpg`** driver, featuring enterprise connection pooling and zero-downtime startup migrations (`init_db()` in [`backend/app/db/session.py`](../backend/app/db/session.py), delegating to schema and FTS verification in [`backend/app/db/init_db.py`](../backend/app/db/init_db.py)):
+The persistence tier runs on **PostgreSQL 16** managed through **SQLAlchemy 2.0 Async** and the **`asyncpg`** driver, featuring enterprise connection pooling and idempotent startup migrations (`init_db()` in [`backend/app/db/session.py`](../backend/app/db/session.py) calls `init_db_schema` in [`backend/app/db/init_db.py`](../backend/app/db/init_db.py), which runs `Base.metadata.create_all` and then `run_schema_migrations`; the step functions themselves live in [`backend/app/db/schema_migrations.py`](../backend/app/db/schema_migrations.py)):
 
 ### 6.1 Enterprise Connection Pooling Parameters
-To prevent database connection drops and handle parallel batch worker loads, the async engine is configured with:
-- `pool_size = 20`: Core persistent database connections maintained in the pool.
-- `max_overflow = 30`: Additional burst connections during heavy multi-batch load (total 50 connections).
-- `pool_timeout = 60`: Seconds to wait before timing out if all connections are busy.
-- `pool_recycle = 1800`: Automatically recycles connections after 30 minutes to prevent stale TCP sockets.
+To prevent database connection drops and handle parallel batch worker loads, the async engine (`db/session.py`) is configured from `core/config.py` with:
+- `pool_size = DB_POOL_SIZE` (default `10`): Core persistent database connections maintained in the pool.
+- `max_overflow = DB_MAX_OVERFLOW` (default `10`): Additional burst connections during heavy multi-batch load (default total 20 connections).
+- `pool_timeout = DB_POOL_TIMEOUT` (default `60`): Seconds to wait before timing out if all connections are busy.
+- `pool_recycle = DB_POOL_RECYCLE` (default `1800`): Automatically recycles connections after 30 minutes to prevent stale TCP sockets.
 - `pool_pre_ping = True`: Automatically validates connection health prior to checking out.
 
 ### 6.2 Entity-Relationship Diagram (ERD)
 
 ```mermaid
 erDiagram
-    PASSAGES ||--o{ QUESTIONS : "contains (1:N)"
-    BATCHES ||--o{ JOBS : "contains (1:N)"
-    BATCHES ||--o{ QUESTIONS : "groups (1:N)"
-    JOBS ||--o{ QUESTIONS : "produces (1:N)"
+    PASSAGES ||--o{ QUESTIONS : "contains (1:N, ON DELETE CASCADE)"
+    BATCHES ||--o{ JOBS : "contains (1:N, ON DELETE CASCADE)"
+    BATCHES ||--o{ QUESTIONS : "groups (1:N, ON DELETE SET NULL)"
+    JOBS ||--o{ QUESTIONS : "produces (1:N, ON DELETE SET NULL)"
 
     PASSAGES {
-        VARCHAR(64) id PK "Unique UUID4 passage identifier"
-        VARCHAR(64) section "MCAT section enum (chem_phys, cars, bio_biochem, psych_soc)"
-        VARCHAR(128) subtopic "Categorized syllabus topic"
-        TEXT passage_text "Shared clinical or academic reading passage"
-        TEXT visual_stimulus_svg "Programmatic SVG diagram"
-        TEXT visual_stimulus_url "External diagram URL"
-        TEXT visual_description "Alt text description"
-        INTEGER question_count "Number of questions sharing this passage"
-        BOOLEAN is_deleted "Soft-delete flag (admin DELETE triggers cascade question purge)"
-        VARCHAR(64) deleted_at "ISO-8601 UTC deletion timestamp"
-        VARCHAR(64) created_at "ISO-8601 UTC timestamp"
+        VARCHAR_64 id PK "Passage identifier"
+        VARCHAR_256 title "Optional title"
+        TEXT text "Shared reading passage"
+        INTEGER word_count "Passage word count"
+        VARCHAR_64 section "MCAT section code (indexed)"
+        VARCHAR_128 subtopic "Syllabus topic (indexed)"
+        TEXT image_url "Optional external or data-URI figure"
+        TEXT image_svg "Programmatic inline SVG markup"
+        TEXT image_description "Accessibility alt text"
+        BOOLEAN is_deleted "Soft-delete flag"
+        TIMESTAMPTZ deleted_at "Soft-delete timestamp"
+        TIMESTAMPTZ created_at "Creation time (server default now)"
+        TIMESTAMPTZ updated_at "Last update (onupdate now)"
+        VECTOR_1536 embedding "pgvector embedding, HNSW cosine index"
     }
 
     BATCHES {
-        VARCHAR(64) id PK "Unique UUID4 batch identifier"
-        VARCHAR(64) section "MCAT section enum"
-        VARCHAR(128) subtopic "Categorized syllabus topic"
-        VARCHAR(32) difficulty "low | medium | high"
-        INTEGER total_questions "Total items requested in batch (e.g. 50)"
-        INTEGER staged_questions "Items verified and staged"
-        VARCHAR(32) status "in_progress | completed | failed"
-        VARCHAR(64) created_at "ISO-8601 UTC timestamp"
+        VARCHAR_64 id PK "Batch identifier (table generation_batches)"
+        VARCHAR_64 section "MCAT section code"
+        VARCHAR_128 subtopic "Syllabus topic"
+        VARCHAR_32 difficulty "low | medium | high"
+        VARCHAR_32 passage_mode "single_passage | independent ..."
+        INTEGER target_count "Questions requested"
+        INTEGER actual_count "Active questions produced"
+        INTEGER total_jobs "Jobs planned"
+        INTEGER completed_jobs "Jobs completed"
+        INTEGER failed_jobs "Jobs failed"
+        INTEGER total_tokens "Aggregated tokens"
+        DOUBLE cost_usd "Aggregated cost in USD"
+        VARCHAR_32 status "pending | in_progress | running | completed | partially_completed | failed | cancelled | stopped"
+        TEXT error_message "Sanitized error text"
+        JSONB request_payload "Stored GenerationRequest (api_key stripped)"
+        TIMESTAMPTZ created_at "Creation time"
+        TIMESTAMPTZ updated_at "Last update"
     }
 
     JOBS {
-        VARCHAR(64) id PK "Unique UUID4 job identifier"
-        VARCHAR(64) batch_id FK "Reference to parent BATCHES"
-        INTEGER job_number "Sequential index (1 to 10)"
-        VARCHAR(32) status "pending | in_progress | completed | failed"
-        INTEGER target_count "Target items for this job (e.g. 5)"
-        INTEGER actual_count "Completed items count"
-        INTEGER trial_count "Autonomous trial count (1 to 3 max)"
-        VARCHAR(64) created_at "ISO-8601 UTC timestamp"
+        VARCHAR_64 id PK "Job identifier (table generation_jobs)"
+        VARCHAR_64 batch_id FK "Parent batch (CASCADE)"
+        INTEGER job_number "Sequential index within the batch"
+        VARCHAR_32 status "pending | in_progress | running | completed | failed | cancelled | stopped"
+        INTEGER target_count "Target items (default 5)"
+        INTEGER actual_count "Produced items"
+        INTEGER trial_count "Autonomous trial count (default 1, max 3)"
+        VARCHAR_64 passage_id "Shared passage id (indexed, no FK)"
+        INTEGER total_tokens "Job tokens"
+        INTEGER prompt_tokens "Job prompt tokens"
+        INTEGER completion_tokens "Job completion tokens"
+        DOUBLE cost_usd "Job cost in USD"
+        TEXT error_message "Sanitized error text"
+        TIMESTAMPTZ created_at "Creation time"
+        TIMESTAMPTZ started_at "Execution start"
+        TIMESTAMPTZ completed_at "Execution end"
     }
 
     QUESTIONS {
-        VARCHAR(64) id PK "Unique UUID4 identifier"
-        VARCHAR(64) passage_id FK "Optional reference to PASSAGES"
-        VARCHAR(64) batch_id FK "Optional reference to BATCHES"
-        VARCHAR(64) job_id FK "Optional reference to JOBS"
-        VARCHAR(64) section "MCAT section enum"
-        VARCHAR(128) section_label "Human-readable subtest name"
-        VARCHAR(128) subtopic "Categorized syllabus topic"
-        VARCHAR(32) difficulty "low | medium | high"
-        VARCHAR(32) status "in_bank | ai_validated | below_threshold | discarded"
-        BOOLEAN is_deleted "Soft-delete flag preserving batch progress"
-        VARCHAR(64) deleted_at "ISO-8601 UTC deletion timestamp"
-        INTEGER mcat_scaled_score "Legacy optional scaled score (omitted in active UI)"
-        VARCHAR(128) aamc_skill "AAMC SIRS (Skill 1-4) or CARS Skill"
-        TEXT stimulus_text "Clinical passage or context scenario"
+        VARCHAR_64 id PK "Question identifier"
+        VARCHAR_64 passage_id FK "Optional PASSAGES reference (CASCADE)"
+        VARCHAR_64 batch_id FK "Optional BATCHES reference (SET NULL)"
+        VARCHAR_64 job_id FK "Optional JOBS reference (SET NULL)"
+        VARCHAR_64 run_id "Execution run id (indexed)"
+        VARCHAR_64 section "MCAT section code"
+        VARCHAR_128 section_label "Human-readable subtest name"
+        VARCHAR_128 subtopic "Syllabus topic"
+        VARCHAR_32 difficulty "low | medium | high"
+        VARCHAR_32 status "in_bank | ai_validated | batch_only | below_threshold | discarded | approved | rejected_below_threshold | error | failed"
+        BOOLEAN is_deleted "Soft-delete flag"
+        TIMESTAMPTZ deleted_at "Soft-delete timestamp"
+        INTEGER mcat_scaled_score "Legacy optional scaled score"
+        VARCHAR_128 aamc_skill "AAMC SIRS or CARS skill"
+        TEXT stimulus_text "Passage or scenario text"
         TEXT question_stem "Core question prompt"
-        JSONB options "Array of strictly 4 options [{id, text}]"
-        VARCHAR(8) correct_answer_id "A | B | C | D"
-        TEXT explanation "3-part structured cognitive rationale"
-        TEXT image_url "Optional external diagram URL"
-        TEXT image_svg "Programmatic inline SVG markup"
+        JSONB options "Four options [{id, text}]"
+        VARCHAR_32 correct_answer_id "A | B | C | D"
+        JSONB correct_answer_ids "List of correct keys"
+        TEXT explanation "3-part structured rationale"
+        TEXT image_url "Optional external figure URL"
+        TEXT image_svg "Inline SVG markup"
         TEXT image_description "Accessibility alt text"
-        INTEGER final_score "100-point 4-pillar audit score (> 80 passing)"
+        INTEGER final_score "0-100 audit score (CHECK 0..100)"
         JSONB review_rubric "4-pillar scores, strengths, remediation"
         INTEGER iteration_count "Cycles executed (1-3)"
-        JSONB iterations_history "Full evolutionary diff log"
-        INTEGER total_tokens "Cumulative tokens consumed"
-        INTEGER prompt_tokens "Cumulative prompt tokens"
-        INTEGER completion_tokens "Cumulative completion tokens"
-        DOUBLE_PRECISION cost_usd "Total cost in USD (rate per active provider)"
-        JSONB token_usage_details "Per-agent itemized token breakdown"
-        VARCHAR(64) combination_id "Matrix combination code (CMB00001)"
-        VARCHAR(64) run_id "Execution run UUID4"
-        VARCHAR(128) subcategory "Matrix subcategory taxonomy"
-        VARCHAR(128) content_domain "Matrix domain (Science, Ethics)"
-        VARCHAR(128) question_type "Passage_Based_Set, Independent_Discrete"
-        VARCHAR(64) interaction_type "single_choice"
-        VARCHAR(128) primary_trap "Cognitive distractor trap classification"
-        VARCHAR(16) passage_required "Yes or No"
+        JSONB iterations_history "Evolution log"
+        INTEGER total_tokens "Tokens consumed"
+        INTEGER prompt_tokens "Prompt tokens"
+        INTEGER completion_tokens "Completion tokens"
+        DOUBLE cost_usd "Cost in USD"
+        JSONB token_usage_details "Per-agent usage breakdown"
+        VARCHAR_64 combination_id "Matrix combination code"
+        VARCHAR_128 content_domain "Content domain tag"
+        VARCHAR_128 question_type "Question type or slot archetype"
+        VARCHAR_64 interaction_type "single_choice"
+        VARCHAR_128 primary_trap "Trap id (UPPER_SNAKE taxonomy)"
+        VARCHAR_16 passage_required "Yes or No"
+        VARCHAR_32 passage_mode "Passage mode"
         INTEGER passage_questions "Passage question count"
-        VARCHAR(16) image_required "Yes or No"
-        VARCHAR(64) visual_type "None, SVG_Diagram, AI_FLUX_Image"
-        JSONB duplicate_info "Collision metrics, matched stem & override timestamp"
-        BOOLEAN is_duplicate_override "Explicit administrative override flag"
-        TSVECTOR tsv_content "PostgreSQL FTS token vector for hybrid search"
-        VECTOR(1536) embedding "1536-dimensional vector embedding indexed via HNSW vector_cosine_ops"
-        VARCHAR(64) created_at "ISO-8601 UTC timestamp"
+        VARCHAR_64 visual_type "None, SVG_Diagram, AI_FLUX_Image ..."
+        VARCHAR_64 visual_medical_category "Detected image modality (indexed)"
+        TEXT visual_clinical_description "Clinical figure description"
+        VARCHAR_128 subject "Taxonomy subject"
+        VARCHAR_128 unit "Taxonomy unit"
+        VARCHAR_128 topic "Taxonomy topic"
+        VARCHAR_256 subskill "Taxonomy subskill"
+        TEXT likely_mistake_pattern "Targeted student misconception text"
+        JSONB duplicate_info "Collision metrics and override stamp"
+        BOOLEAN is_duplicate_override "Administrative override flag"
+        JSONB stage_outcomes "Raw multi-stage outcome JSON"
+        VECTOR_1536 embedding "pgvector embedding, HNSW cosine index"
+        TIMESTAMPTZ created_at "Creation time"
+        TIMESTAMPTZ updated_at "Last update"
     }
 ```
+
+Source of truth: `backend/app/models/{passage,batch,job,question}.py`. Tables are `questions`, `passages`, `generation_batches` and `generation_jobs`. Questions have CHECK constraints on `section` (non-empty), `status` (the nine values above) and `final_score` (0 to 100); batches and jobs have CHECK constraints on `status`. `correct_answer_id` is `VARCHAR(32)`; there are no `subcategory`, `image_required` or `tsv_content` columns (the CSV export header `Subcategory` is filled from `subtopic`). Timestamps are `TIMESTAMPTZ` (`DateTime(timezone=True)`), not strings.
 
 ### 6.3 Passage Entity Lifecycle, Soft-Deletion & Batch Integrity
 When multiple questions are generated as a passage set, they share a foreign key reference (`passage_id`) pointing to the parent `PASSAGES` record:
@@ -882,28 +964,25 @@ When multiple questions are generated as a passage set, they share a foreign key
 - **Batch History Preservation**: Crucially, soft-deletion does **not** clear `job.passage_id` and does **not** decrement job or batch `actual_count` metrics. This guarantees that Batch Progress monitors and audit historical execution records remain 100% intact even if an educator deletes questions from the Question Bank.
 - **Restoration Architecture**: Soft-deleted questions can be restored at any time via `POST /api/questions/{question_id}/restore` (`restore_question`). If the restored question references a soft-deleted passage, the parent passage is automatically restored (`is_deleted = false`, `deleted_at = null`) alongside it.
 - **pgvector Extension & HNSW Indexing**:
-  - The repository utilizes PostgreSQL's native `pgvector` extension for sub-millisecond approximate nearest neighbor (ANN) vector search.
-  - Initialized via `CREATE EXTENSION IF NOT EXISTS vector;`.
-  - Indexed via Hierarchical Navigable Small World (HNSW) cosine metric:
-    `CREATE INDEX IF NOT EXISTS idx_questions_embedding_hnsw ON questions USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);`
-  - Memory tuning: `maintenance_work_mem = 64MB` during index builds; runtime probe search depth `hnsw.ef_search = 40`.
+  - The repository utilizes PostgreSQL's native `pgvector` extension for approximate nearest neighbor (ANN) vector search.
+  - Initialized via `CREATE EXTENSION IF NOT EXISTS vector;` (in `init_db_schema` before `create_all`, and again in `_step_pgvector_columns`).
+  - Indexed via Hierarchical Navigable Small World (HNSW) cosine metric, with default pgvector build parameters (the code passes no `m` / `ef_construction` options):
+    `CREATE INDEX IF NOT EXISTS ix_questions_embedding_hnsw ON questions USING hnsw (embedding vector_cosine_ops);` (and an equivalent `ix_passages_embedding_hnsw` on `passages`).
+  - The code sets no `maintenance_work_mem` or `hnsw.ef_search` values. TODO: verify whether any deployment configuration tunes them.
+- **Full-Text Search Index**: there is no `tsv_content` column. `_step_fulltext_index` creates the expression index `ix_questions_fts`, a GIN index on `to_tsvector('english', question_stem || stimulus_text || subtopic || explanation)` (each coalesced).
 - **Decomposed Database Migration Suite ([`backend/app/db/schema_migrations.py`](../backend/app/db/schema_migrations.py))**:
-  - Replaces monolithic schema migrations with atomic, single-responsibility step functions:
-    - `_step_create_pgvector_extension`: Creates pgvector extension idempotently.
-    - `_step_add_embedding_column`: Adds 1536-dim vector column with safety checks.
-    - `_step_create_hnsw_index`: Builds HNSW cosine index.
-    - `_step_add_tsv_column`: Adds full-text search tsvector and GIN index.
-    - `_step_drop_redundant_indexes`: Drops single-column indexes covered by composite indexes.
-    - `_step_add_soft_delete_columns`: Idempotently adds soft delete tracking flags and composite index.
-- **Composite Index Optimization**: To maintain high-velocity querying across thousands of questions, the `questions` table maintains 7 composite indexes:
+  - Replaces monolithic schema migrations with idempotent step functions run by `run_schema_migrations` through an `_IdempotentConnection` that skips DDL already present (so startup does not take table locks). Schema steps, in order (`_SCHEMA_STEPS`): `_step_token_columns`, `_step_matrix_columns`, `_step_taxonomy_columns`, `_step_dedup_columns`, `_step_run_batch_columns`, `_step_retry_tracking_columns`, `_step_soft_delete_columns`, `_step_composite_indexes`, `_step_job_tracking_columns`, `_step_passage_batch_indexes`, `_step_fulltext_index`, `_step_pgvector_columns`, `_step_drop_redundant_indexes`.
+  - Data steps (`_DATA_STEPS`, run in a second transaction): `_step_backfill_passages`, `_step_backfill_batches`, `_step_fk_question_passage`, `_step_fk_question_batch`, `_step_fk_question_job`, `_step_reconcile_question_status` (re-derives `batch_only` / `below_threshold` from the current thresholds).
+- **Index inventory**: the `QuestionModel` declares 7 explicit `Index(...)` entries in `__table_args__`, of which only one is single-column:
   - `ix_questions_status_created` (`status`, `created_at`)
   - `ix_questions_section_created` (`section`, `created_at`)
   - `ix_questions_batch_job` (`batch_id`, `job_id`)
   - `ix_questions_section_subtopic` (`section`, `subtopic`)
-  - `ix_questions_is_duplicate_override` (`is_duplicate_override`)
+  - `ix_questions_is_duplicate_override` (`is_duplicate_override`), the single-column one
   - `ix_questions_section_difficulty` (`section`, `difficulty`)
   - `ix_questions_status_final_score` (`status`, `final_score`)
-  - Single-column `status`, `section` and `batch_id` indexes are intentionally absent: each is the leading column of a composite above (`ix_questions_status_created`, `ix_questions_section_created`/`ix_questions_section_status`, `ix_questions_batch_job`), and the `_step_drop_redundant_indexes` migration removes them from older databases only when the covering composite exists.
+  - Further composite indexes are created only by migration (`_step_composite_indexes`): `ix_questions_status_is_del_created` (`status`, `is_deleted`, `created_at DESC`), `ix_questions_section_status` (`section`, `status`) and `ix_batches_status_created` on `generation_batches`. Many columns also carry `index=True` single-column indexes in the models (for example `subtopic`, `difficulty`, `run_id`, `job_id`, `primary_trap`, `is_deleted`, `created_at`).
+  - Single-column `status`, `section` and `batch_id` indexes on `questions` are intentionally absent: each is the leading column of a composite (`ix_questions_status_created`, `ix_questions_section_status`, `ix_questions_batch_job`), and `_step_drop_redundant_indexes` removes the legacy `ix_questions_status`, `ix_questions_section` and `ix_questions_batch_id` from older databases only when the covering composite exists.
 
 ### 6.4 Deduplication & Override Schema Architecture
 The deduplication subsystem extends the PostgreSQL schema with two persistent fields:
@@ -920,7 +999,7 @@ The deduplication subsystem extends the PostgreSQL schema with two persistent fi
    }
    ```
 2. `is_duplicate_override BOOLEAN DEFAULT FALSE`: Indexed boolean enabling lightning-fast administrative filtering of overridden questions in the Question Bank table.
-- **Database Self-Healing**: Automated migration in [`init_db.py`](../backend/app/db/init_db.py) applies idempotent DDL statements (`ALTER TABLE questions ADD COLUMN IF NOT EXISTS duplicate_info JSONB;` and `ALTER TABLE questions ADD COLUMN IF NOT EXISTS is_duplicate_override BOOLEAN DEFAULT FALSE;`) upon application bootstrap.
+- **Database Self-Healing**: `_step_dedup_columns` in [`schema_migrations.py`](../backend/app/db/schema_migrations.py) applies idempotent DDL (`ADD COLUMN IF NOT EXISTS` for `duplicate_info` and `is_duplicate_override`, plus the `ix_questions_section_subtopic` and `ix_questions_is_duplicate_override` indexes) upon application bootstrap.
 
 ### 6.5 Data Access Layer (DAL) & CQRS Decomposition
 
@@ -974,7 +1053,7 @@ To maintain strict modular boundaries and prevent internal submodule leakage, th
 
 ### 6.9 Single-Session `scoped_session` Dependency Injection Pattern
 
-To eliminate connection thrashing, socket leakage, and uncoordinated transactions under high concurrent loads, all FastAPI endpoints and Data Access Layer (DAL) repositories standardize strictly on the `scoped_session` context manager (`app/database.py`):
+To eliminate connection thrashing, socket leakage, and uncoordinated transactions under high concurrent loads, all FastAPI endpoints and Data Access Layer (DAL) repositories standardize strictly on the `scoped_session` context manager (defined in [`backend/app/db/session.py`](../backend/app/db/session.py); there is no `app/database.py`):
 
 - **Standardized Session Context (`scoped_session`)**: All database entry points—including FastAPI routes (`batches.py`, `questions.py`, `passages.py`) and repository methods (`batch_repository.py`, `job_repository.py`, `question_repository.py`, `passage_repository.py`)—execute within `async with scoped_session(session) as s:`. When an active session is passed from an outer transaction, it is transparently reused without nested commits; when omitted (e.g. background tasks or unit tests), an isolated session is acquired and cleanly disposed, completely eliminating unbound `async_session_factory()` calls.
 - **Zero Socket Thrashing**: Eliminates redundant checkout/checkin cycles within a single HTTP request lifecycle. Previously, an endpoint might acquire multiple distinct connections sequentially for queries, counts, and updates, increasing socket churn and risk of exhausting the pool.
@@ -1029,44 +1108,42 @@ xychart-beta
 ## 7. Export & Study Studio Architecture
 
 The **Export & Study Studio** ([`ExportPrintModal.jsx`](../frontend/src/components/modals/ExportPrintModal.jsx)) provides client-side document synthesis, AI study guide compilation, and multi-format export capabilities for educators and candidates. The modal is decomposed into modular sub-panes for scope selection, data formatting, and study guide synthesis:
-- **Scope Selector ([`ExportScopeSelector.jsx`](../frontend/src/components/modals/ExportScopeSelector.jsx))**: Configures item selection across the active Question Bank (`in_bank`), review queue (`ai_validated`), or explicitly checked candidate items.
-- **Data Format Pane ([`ExportDataFormatPane.jsx`](../frontend/src/components/modals/ExportDataFormatPane.jsx))**: Manages document compilation for PDF exam simulations, study packs, CSV tables, JSON bundles, and Anki flashcard decks.
-- **Study Guide Export Pane ([`StudyGuideExportPane.jsx`](../frontend/src/components/modals/StudyGuideExportPane.jsx))**: Interacts with `POST /api/ai/study-guide` to synthesize high-yield summaries, cognitive trap checklists, and interactive flashcard previews.
+- **Scope Selector ([`ExportScopeSelector.jsx`](../frontend/src/components/modals/ExportScopeSelector.jsx))**: Three scopes: `Selected (n)` (explicitly checked items, shown when any are selected), `Filtered (n)` (shown when filters are active) and `All (n)`. `All` is the in-bank pool (`fetchQuestions({status: 'in_bank', slim: true})`); the review queue (`ai_validated`) is not an export scope.
+- **Data Format Pane ([`ExportDataFormatPane.jsx`](../frontend/src/components/modals/ExportDataFormatPane.jsx))**: Renders the callout and preview for the CSV and JSON formats. The modal's format tabs are `paper` (with `student` and `studypack` modes), `csv`, `json` and `study_guide`.
+- **Study Guide Export Pane ([`StudyGuideExportPane.jsx`](../frontend/src/components/modals/StudyGuideExportPane.jsx))**: Interacts with `POST /api/ai/study-guide` to synthesize high-yield summaries, cognitive trap checklists, and flashcard previews; it downloads the guide as Markdown (`.md`) and the flashcards as an Anki-compatible tab-separated file (`.tsv`).
 
 ```mermaid
 graph TD
-    QB[Question Bank / Filtered Items] --> Scope[ExportScopeSelector<br>in_bank / ai_validated / selected]
+    QB[Question Bank / Filtered Items] --> Scope[ExportScopeSelector<br>selected / filtered / all in_bank]
     Scope --> Studio[Export & Study Studio Engine]
-    
-    Studio --> PDF[Official AAMC Exam Simulation PDF]
-    Studio --> StudyPack[Comprehensive Study Pack PDF]
-    Studio --> Anki[Anki Flashcard Deck Package .csv]
+
+    Studio --> PDF[Printable Exam Paper - student mode]
+    Studio --> StudyPack[Study Pack - answers and explanations]
     Studio --> CSV[Standardized CSV Spreadsheet]
     Studio --> JSON[Normalized JSON Bundle]
     Studio --> Guide[AI High-Yield Study Guide]
-    
-    PDF --> PrintStyles["@media print Layout Engine<br>(Header block, timer, page-break rules)"]
+
+    PDF --> PrintStyles["@media print Layout Engine<br>(Print / Save as PDF)"]
     StudyPack --> PrintStyles
-    Anki --> BrowserDL[Browser Direct Download]
-    CSV --> BrowserDL
+    CSV --> BrowserDL[Browser Direct Download]
     JSON --> BrowserDL
-    Guide --> BrowserDL
+    Guide --> MD[Markdown .md download]
+    Guide --> Anki[Anki flashcards .tsv download]
 ```
 
 ### 7.1 Export Modes & Formats
-1. **Official AAMC Exam Simulation Paper (PDF / Print)**:
+1. **Printable Exam Paper, student mode (Print / Save as PDF through the browser print dialog)**:
    - Formatted for classroom and mock exam printing with candidate name/date header, official section specifications, and clean typographic separation.
    - Enforces `.page-break { break-before: page; }` CSS print rules to ensure reading passages and question options never split awkwardly across page folds.
-2. **Comprehensive Study Pack (PDF / Print)**:
+2. **Study Pack, `studypack` mode (Print / Save as PDF)**:
    - Includes reading stimulus, question stem, answer key, and the complete step-by-step cognitive proof and distractor trap analysis.
-3. **Anki Flashcard Deck Package (`.csv`)**:
-   - Formats questions into Anki-ready comma-separated rows with HTML formatting. Front field holds the scenario and question stem; back field contains the correct key, complete 3-card mentor proof, and cognitive trap warning; tagged with AAMC section, skill, and difficulty.
-4. **Standardized CSV Spreadsheet Export**:
-   - Converts relational questions into standardized comma-separated columns (`id`, `section`, `subtopic`, `difficulty`, `stem`, `option_a` through `option_d`, `key`, `explanation`, `score`).
-5. **Normalized JSON Relational Bundle**:
-   - Serializes complete question items including full 4-pillar review rubrics, per-agent token tracking telemetry, vector metadata, and evolution histories.
-6. **AI Synthesized High-Yield Study Guide**:
-   - Formatted Markdown and PDF summary including an executive thematic synthesis, a checklist of common candidate pitfalls, and quick-drill flashcard pairs.
+3. **Standardized CSV Spreadsheet Export (client side, `utils/export/csv.js`)**:
+   - Converts questions into RFC 4180 CSV with columns `Question Number`, `ID`, `Section`, `Subtopic`, `Difficulty`, `Stimulus / Passage`, `Question Stem`, `Visual Type`, `Image URL`, `Image Description`, `Option A` through `Option D`, `Correct Answer`, `Explanation`, `Primary Trap`, `Quality Score`. Cells starting with `=`, `+`, `-`, `@`, tab or CR are prefixed with an apostrophe to defuse spreadsheet formulas.
+   - The backend has its own CSV export (`GET /api/export?format=csv`, `services/csv_export.py`) with the header `ID, Run_ID, Batch_ID, Combination_ID, Section, Subcategory, Difficulty, MCAT_Scaled_Score, AAMC_Skill, Content_Domain, Question_Type, Interaction_Type, Primary_Trap, Passage_Required, Visual_Type, Image_URL, Image_Description, Stimulus, Question Stem, Option A, Option B, Option C, Option D, Correct Answer, Explanation, Final Score, Cycles, Created At` (the `Subcategory` column holds the question's `subtopic`).
+4. **Normalized JSON Bundle (`utils/export/json.js`)**:
+   - Serializes the selected question objects with `JSON.stringify(questions, null, 2)`, so it contains whatever fields the fetched question records carry (the export modal requests `slim=true`, which omits heavy audit-history columns).
+5. **AI Synthesized High-Yield Study Guide and Anki Deck**:
+   - The study guide pane downloads a Markdown guide (executive thematic synthesis, checklist of common candidate pitfalls) and an Anki-compatible `.tsv` of the guide's flashcard pairs (`#separator:tab`, HTML enabled, a fixed tag column). Neither is a PDF.
 
 ---
 
@@ -1106,8 +1183,8 @@ The frontend follows an enterprise domain-driven component architecture split in
 
 ```
 frontend/src/
+├── App.jsx                       # Application shell (view routing, modals)
 ├── views/                        # Top-level application view screens (code-split)
-│   ├── index.js                  # Views barrel export
 │   ├── AiValidatedQuestionsView.jsx # Dedicated AI Validated (>80) quality review desk
 │   ├── BatchActivityView.jsx     # Live & historical batch monitoring dashboard
 │   ├── PassageBankView.jsx       # Reading passages repository & editorial desk
@@ -1117,8 +1194,11 @@ frontend/src/
 │   ├── wizard/                   # Streamlined 3-Step Guided Question Wizard
 │   │   ├── GuidedWizard.jsx      # Central 3-step wizard controller
 │   │   ├── HeroLanding.jsx       # Welcome landing hero header with instant presets
+│   │   ├── WizardChoiceCard.jsx, WizardFooterNav.jsx, WizardHeaderStepper.jsx # Shared wizard chrome
+│   │   ├── wizardConstants.js    # Wizard option constants
 │   │   ├── index.js              # Wizard barrel export
 │   │   └── steps/                # Streamlined 3-step modular components
+│   │       ├── WizardAdvancedSettings.jsx, WizardReviewSummary.jsx # Step 3 sub-sections
 │   │       ├── WizardStep1SectionFocus.jsx # Step 1: Section, pacing & focus
 │   │       ├── WizardStep2LevelFormat.jsx  # Step 2: Level (Low/Med/High), format & scope (5/50)
 │   │       ├── WizardStep3ReviewAdvanced.jsx # Step 3: Compact review table & advanced accordion
@@ -1126,15 +1206,20 @@ frontend/src/
 │   ├── question/                 # Question presentation & editing
 │   │   ├── MentorExplanationView.jsx # 3-card mentor explanation view (Intuition, Distractors, Trap)
 │   │   ├── QuestionCard.jsx      # Interactive student practice & review card
+│   │   ├── QuestionCardHeader.jsx, QuestionCardFooter.jsx, QuestionOptionsList.jsx # Card sub-components
 │   │   ├── QuestionCopilotStrip.jsx # Interactive AI Copilot editorial refinement strip
 │   │   ├── QuestionInlineEditor.jsx # In-place authoring & remediation editor
 │   │   ├── QuestionScorecardTab.jsx # 100-point rubric breakdown accordion
 │   │   ├── ReviewAuditView.jsx   # 100-point rubric breakdown & token cost modal (Focus Trapped)
+│   │   ├── AuditIterationTimeline.jsx, AuditMetricsGrid.jsx, AuditStageBreakdown.jsx, PillarBars.jsx # Audit modal sections
 │   │   ├── SharedPassageCard.jsx # Shared reading passage stimulus display card
 │   │   ├── StageJsonInspector.jsx# Deep stage outcome JSON inspector accordion
 │   │   ├── VisualStimulusViewer.jsx # SVG & neural visual diagram renderer
+│   │   ├── VisualStimulusLightboxModal.jsx # Full-screen figure lightbox
 │   │   └── index.js              # Question barrel export
 │   ├── passage/                  # Reading passage bank components
+│   │   ├── PassageBankCardRow.jsx # Passage row card
+│   │   ├── PassageQuestionsCarousel.jsx # Linked questions carousel
 │   │   ├── PassageBankFilters.jsx# Passage search, section, and difficulty filters
 │   │   ├── PassageBankTable.jsx  # Passage stimuli repository cards & question sets
 │   │   ├── PassageEditorialDesk.jsx # Reading passage editor & preview desk
@@ -1142,12 +1227,16 @@ frontend/src/
 │   │   ├── PassageVisualStimulusEditor.jsx # Passage diagram & figure attachment editor
 │   │   └── index.js              # Passage bank barrel export
 │   ├── bank/                     # Question Bank repository
+│   │   ├── QuestionBankCardRow.jsx # Question card row
 │   │   ├── QuestionBankFilters.jsx # Section, difficulty (Low/Medium/High), and search filters
 │   │   ├── QuestionBankTable.jsx # Canonical Editorial Cards view, batch selection, and actions
 │   │   └── index.js              # Bank barrel export
 │   ├── batch/                    # Batch monitoring components
 │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live multi-batch controller
 │   │   ├── BatchCard.jsx         # Summary status card for generation batches
+│   │   ├── BatchCardJobsGrid.jsx, BatchCardSummary.jsx, BatchLifecycleStepper.jsx, BatchOutcomeCard.jsx # Batch card sections and stage stepper
+│   │   ├── BatchJobHeader.jsx, BatchJobPillStrip.jsx, BatchJobTelemetryBadges.jsx # Job card sections
+│   │   ├── BatchQuestionActions.jsx, BatchQuestionOptionsList.jsx, BatchQuestionPassageDrawer.jsx # Staged question item sections
 │   │   ├── BatchEmptyState.jsx   # Decomposed zero-state canvas for batch activity
 │   │   ├── BatchFiltersBar.jsx   # Section, status, and search filters
 │   │   ├── BatchHeaderBanner.jsx # Top summary banner for active batch metrics
@@ -1162,12 +1251,13 @@ frontend/src/
 │   │   └── index.js              # Validated barrel export
 │   ├── modals/                   # Accessible dialog modals (WCAG AA Focus Trapped)
 │   │   ├── ConfirmationModal.jsx # Accessible confirmation modal replacing window.confirm
+│   │   ├── confirmModalProps.js  # Confirmation modal prop helpers
 │   │   ├── DeletePassageModal.jsx# Dedicated passage deletion and cascade warning dialog (Hoisted)
-│   │   ├── ExportDataFormatPane.jsx # Export format selection sub-pane (PDF, CSV, JSON, Anki)
+│   │   ├── ExportDataFormatPane.jsx # CSV / JSON preview and callout sub-pane
 │   │   ├── ExportPaperPreview.jsx# Live print layout previewer
-│   │   ├── ExportPrintModal.jsx  # Exam Paper (PDF), Study Pack, CSV and JSON export modal
-│   │   ├── ExportScopeSelector.jsx # Export scope selection sub-pane (All in bank, validated, selected)
-│   │   ├── StudyGuideExportPane.jsx # High-yield study guide preview & synthesis pane
+│   │   ├── ExportPrintModal.jsx  # Exam Paper (print / PDF), Study Pack, CSV, JSON and Study Guide export modal
+│   │   ├── ExportScopeSelector.jsx # Export scope selection sub-pane (Selected, Filtered, All in bank)
+│   │   ├── StudyGuideExportPane.jsx # High-yield study guide preview, Markdown and Anki .tsv download
 │   │   └── index.js              # Modals barrel export
 │   ├── layout/                   # Global layout
 │   │   ├── Footer.jsx            # Infynno Solutions LLP attribution & resource footer
@@ -1175,6 +1265,8 @@ frontend/src/
 │   │   └── index.js              # Layout barrel export
 │   └── common/                   # Shared UI primitives
 │       ├── CustomSelect.jsx      # Accessible custom dropdown select primitive
+│       ├── EmptyState.jsx, LoadError.jsx, Modal.jsx # Empty/error states and base modal
+│       ├── SafeSvg.jsx           # DOMPurify-sanitized SVG renderer
 │       ├── ErrorBoundary.jsx     # Production React error boundary with fallback UI
 │       ├── FormattedText.jsx     # Inline markdown & cognitive trap chip highlighter
 │       ├── InfynnoLogo.jsx       # Official corporate vector logo primitive
@@ -1192,21 +1284,28 @@ frontend/src/
 │   ├── useAppState.js            # Centralized view routing & global event broker
 │   ├── useFocusTrap.js           # Accessible WCAG AA keyboard focus-trapping hook for modals
 │   ├── useGeneratorForm.js       # Form state & validation logic
-│   ├── useKeyboardShortcuts.js   # Global hotkeys (⌘↵, A, D, T, /, Esc)
+│   ├── useKeyboardShortcuts.js   # Global hotkeys (Cmd/Ctrl+Enter, A, D, T, /, Esc)
 │   ├── usePagination.js          # Client and server pagination calculations and state management
 │   ├── useQuestionBank.js        # Debounced search, sorting, and bank fetching
-│   └── useTheme.js               # Dual-theme engine (dark / light with localStorage)
-├── services/
+│   ├── useTheme.js               # Dual-theme engine (dark / light with localStorage)
+│   ├── useBatchActivity.js, useBatchFilters.js, useBatchMutations.js # Batch monitor polling, filters and actions
+│   ├── useAiValidated.js, usePassageBank.js, useGlobalCounts.js, useBankDeletion.js # View data hooks
+│   ├── useExportActions.js, useQuestionDraft.js, useConfirmModal.js # Export, inline draft and confirmation helpers
+│   └── useCopyToClipboard.js, useDebouncedValue.js, useRequestGuard.js # Small utility hooks
 │   ├── api.js                    # FastAPI client (question, batch, passage, and AI copilot functions)
 │   └── index.js                  # Services barrel export
 ├── utils/                        # Pure utility helpers
+│   ├── export/                   # csv.js, json.js, htmlDoc.js (A4 print document), escape.js, printPaperCss.js; index.js exports generateExamCsv, generateExamJson, generateExamHtmlDoc
+│   ├── batchPayload.js           # buildBatchPayload (request builder incl. CARS image-suppression guards)
+│   ├── batchHelpers.js, batchJobHelpers.js # Batch stage stepper and job display helpers
 │   ├── explanationHelpers.js     # Structured explanation parser
-│   ├── exportUtils.js            # A4 HTML print document builder, CSV, JSON & Anki serializers
 │   ├── formatters.js             # Time, word count, token & currency formatters
-│   ├── index.js                  # Utilities barrel export
 │   ├── optionHelpers.js          # Option length parity & calculateOptionSymmetry engine
-│   └── trapHelpers.js            # Cognitive trap resolution & text detectors
-├── styles/                       # Modular domain stylesheets (tokens, base, layout, wizard, question, batch, bank, passage, modals, print, study-guide-modal, question-copilot, stage-inspector)
+│   ├── trapHelpers.js            # Cognitive trap resolution & text detectors
+│   ├── questionHelpers.js, passageHelpers.js, taxonomyHelpers.js, visualHelpers.js # Domain helpers (export selection, modality detection, ...)
+│   ├── download.js, generatorFormState.js, ids.js, pagination.js, requestGuard.js, selectHelpers.js, selection.js # Small shared helpers
+│   └── index.js                  # Utilities barrel export
+├── styles/                       # Modular domain stylesheets (tokens, base, layout, accessibility, wizard, question, batch, batch-activity, batch-card-summary, bank, passage, modals, print, study-guide-modal, question-copilot, stage-inspector)
 ├── index.css                     # Aggregator hub importing all domain stylesheets
 └── main.jsx                      # React 19 application root
 ```
@@ -1295,23 +1394,25 @@ For complete UI design tokens, color scales, typography guidelines, and componen
 - **Graceful shutdown**: the FastAPI lifespan hook stops all running batches (progress and generated questions are preserved) and disposes the database engine.
 - **Restart recovery**: on startup, `in_progress` batches become `stopped`, their qualifying questions are promoted, and jobs left `pending`/`running` become `stopped` so the UI never shows phantom running work. Stopped jobs below target remain retryable through the standard retry flow (3-trial ceiling).
 - **No leaked workers**: `run_workflow_stream` cancels and drains all worker and monitor tasks on every exit path (completion, error, cancellation, or consumer close).
-- **LLM call hygiene**: the global LLM semaphore is held only during the API call, never during retry backoff; 500/502/503/504/529 and rate-limit errors are retried once at a single layer; request timeout scales with `max_tokens`; static system prompts are marked cacheable for Anthropic (`ENABLE_PROMPT_CACHING`).
+- **LLM call hygiene**: the global LLM semaphore is held only during the API call, never during retry backoff; 500/502/503/504/529, timeouts and rate-limit errors are retried at a single layer (`LLM_MAX_RETRIES = 3` retries, so up to 4 attempts; LiteLLM's own retries are disabled); request timeout scales with `max_tokens`; static system prompts are marked cacheable for Anthropic (`ENABLE_PROMPT_CACHING`).
 - **Health probes**: `GET /api/health` (overview, reports `degraded` when PostgreSQL is unreachable), `GET /api/health/live` (liveness, no database access) and `GET /api/health/ready` (readiness, `503` when the database is down). With `ADMIN_API_KEY` set, the full diagnostic payload requires a matching `x-admin-key` header.
 - **Correlation logging**: every log line inside a batch job or worker carries `batch_id`, `job_id`, `run_id` and `slot` (`LOG_FORMAT=json` for structured output). Each LLM call records `duration_ms` in the per-agent usage breakdown.
-- **SSE keepalive**: `/api/generate` emits a `: keepalive` comment every 15 seconds during quiet LLM stages so proxies do not drop the stream.
+- **SSE keepalive**: `/api/generate` emits a `: keepalive` comment every 15 seconds (`SSE_KEEPALIVE_SECONDS`, implemented by `with_keepalive` in `api/v1/generation.py`) during quiet LLM stages so proxies do not drop the stream.
 - **Live run finalization**: a standalone `/generate` run always finalizes its job row (`completed`, or `failed` when nothing was produced) before emitting the terminal event, so a client that closes the stream on `workflow_complete` cannot leave the job `cancelled`, and batches reach `completed`. Spend from rejected or failed attempts is counted (`cumulative_usage` on the rejected/error events) and persisted.
 - **Events**: a single rejected attempt emits the non-terminal `question_rejected`; `workflow_rejected` is emitted once, when every slot of the run was rejected.
 - **Resume correctness**: retry and resume run the jobs they selected (their in-memory status is stale after the reset), `stopped` jobs are executable, jobs a finished runner left pending/running are marked `failed`, and the auto-refill only reports "launched" when a job actually started. A stopped `partially_completed` batch stays terminal.
 - **Concurrency limits**: one process-wide pipeline cap (`GLOBAL_MAX_CONCURRENT_PIPELINES`) replaces the per-run limiter that multiplied concurrency; batch aggregate refreshes take a `FOR NO KEY UPDATE` row lock (it serializes writers without conflicting with the key-share lock of question inserts); schema DDL that already exists is skipped, so startup never takes the table locks that deadlocked with running batches.
 - **Security**: client-supplied `api_key` values are never persisted or returned (legacy payloads are scrubbed at startup); an optional `API_ACCESS_KEY` requires `X-API-Key` on mutating routes; text inputs are length-limited; unexpected errors return a generic `{detail, code}` body and keep details in the server log.
 
-### Batch lifecycle guarantees (round 2)
+### Batch lifecycle guarantees
+*(Added during a hardening review pass; the statements below were spot-checked against `batch_repository.py`, `batch_runner.py` and `main.py`.)*
 - `refresh_batch_aggregates(allow_complete=True)` resolves a batch with no pending/running job to a terminal status (`completed`, `partially_completed`, `failed` or `cancelled`); live streamed runs call it on cancellation and failure so they never stay `in_progress`.
 - `stop`/`retry`/`delete` leave a batch that is already terminal (and not running) untouched; `refill` answers 409 while the batch is running.
 - Every job path (main, refill, cancelled, single-slot failure, truncated-output retries) records the tokens and cost it spent.
 - If PostgreSQL is down at startup, the API retries schema initialization in the background (5 s backoff up to 60 s) and then runs the startup maintenance.
 
-### Operational hardening (round 2)
+### Operational hardening
+*(Same review pass. Verified against `main.py`, `core/errors.py`, `frontend/nginx*.conf` and the Dockerfiles.)*
 - Every response carries `X-Request-ID` (a safe caller-supplied value or a generated one) and every log line produced while handling the request includes it.
 - Request bodies above `MAX_REQUEST_BODY_MB` are refused with HTTP 413 before any work; nginx enforces the same limit. Bulk id lists are capped at 1000 and bulk question saves at 500.
 - `GET /api/health/live` is a database-free liveness probe; `/api/health/ready` stays the readiness probe.
@@ -1328,8 +1429,8 @@ The backend enforces strict type precision and zero-suppression code hygiene acr
    - Generic bare `dict` type annotations are strictly prohibited across the codebase.
    - All dictionary schemas enforce precise parameterization via `dict[str, Any]` or dedicated `TypedDict` definitions.
 2. **Typed Agent State & Token Breakdown**:
-   - `AgentUsageEntry` (`app.workflow.state`): Strongly typed dictionary defining per-agent spend (`agent`, `model`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `cost_usd`, `duration_ms`).
-   - `AgentWorkflowState` (`app.workflow.state`): Complete typed contract for the asynchronous workflow runtime (`request`, `current_draft`, `current_review`, `stage_outcomes`, `iteration_count`, `agent_usage_breakdown`, `blind_solver_verdict`).
+   - `AgentUsageEntry` (`app.workflow.state`): Strongly typed dictionary defining per-agent spend (`agent`, `iteration`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `cost_usd`, `duration_ms`, `calls`; there is no `model` key).
+   - `AgentWorkflowState` (`app.workflow.state`): Typed contract for the asynchronous workflow runtime (`request`, `current_draft`, `current_review`, `stage_outcomes`, `iteration_count`, `agent_usage_breakdown`, `passing_threshold`, `slot_prior_calls`, `fused_self_passed`, `duplicate_info`, `regenerated_pending_dedup`, `diversity_context`, ...; see §4). The solver verdict keys `blind_solver_result` / `blind_solver_passed` are written by the nodes but are not declared in the TypedDict.
    - `SlotLedger` (`app.workflow.engine_layout`): Structured per-slot financial ledger parameterized with `usage: list[list[AgentUsageEntry]]` and `all_usage(self) -> list[AgentUsageEntry]`.
 3. **Explicit Coroutine Return Types**:
    - Background tasks and event loop monitors explicitly declare their return contract (e.g., `async def _monitor_tasks() -> None`).
@@ -1340,7 +1441,7 @@ The backend enforces strict type precision and zero-suppression code hygiene acr
    - Rather than masking rule violations, linter findings are resolved architecturally:
      - `B039` (mutable ContextVar default) is resolved by passing immutable `default=None` and using `_log_context.get() or {}`.
      - `ASYNC109` (timeout parameter collision) is resolved by parameter renaming to `timeout_seconds: float`.
-     - `F401` (unused model imports in init_db) is resolved via explicit `__all__ = ["GenerationBatchModel", "GenerationJobModel", "PassageModel", "QuestionModel", "init_db_schema"]`.
+     - `F401` (unused model and migration-step imports in `db/init_db.py`) is resolved via an explicit `__all__` that re-exports the four models, `init_db_schema`, `run_schema_migrations` and the migration step helpers.
      - `ARG001` (unused arguments) and `PERF102` (dictionary key iteration) are resolved by surgical signature alignment and `.values()` loops.
 6. **Constant & Query Guard Symmetry**:
    - In [`backend/app/api/v1/questions.py`](../backend/app/api/v1/questions.py), `MAX_BULK_QUESTIONS: int = 500` is defined as a strongly typed constant, ensuring the bulk save and purge limit exactly matches the `le=500` validation guard on the `GET /questions` limit parameter.

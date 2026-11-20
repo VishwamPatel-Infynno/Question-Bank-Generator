@@ -46,7 +46,7 @@ with $P$ prompt tokens, $K$ cached tokens, $C$ completion tokens, $f_{\text{cach
 For **Anthropic** (with prompt caching; for Haiku 5.5 the four rates come from the tier table above):
 $$\text{Cost}_{\text{USD}} = \frac{\text{Base In}}{10^6} R_{\text{in}} + \frac{C}{10^6} R_{\text{out}} + \frac{\text{Cache Read}}{10^6} R_{\text{read}} + \frac{\text{Cache Create}}{10^6} R_{\text{write}}$$
 
-Results are rounded to **7 decimal places** (sub-micro-cent precision). A model that matches no known provider or table is costed with the DeepInfra rates and logged once as `No price known for model ...`.
+For Anthropic models the app sends `thinking: disabled`, and for Claude Haiku 5.5 it also drops the `temperature` parameter (the model does not accept it), so the temperature settings do not apply to Haiku 5.5 calls (`call_llm` in `agents/base.py`). Results are rounded to **7 decimal places** (sub-micro-cent precision). A model that matches no known provider or table is costed with the DeepInfra rates and logged once as `No price known for model ...`.
 
 ### Calculation Examples (DeepInfra standard price, $0.20 in / $0.60 out)
 
@@ -61,11 +61,13 @@ Results are rounded to **7 decimal places** (sub-micro-cent precision). A model 
 | 1 million input tokens | 1,000,000 | 0 | $0.200000 | $0.000000 | **$0.200000** |
 | 1 million output tokens | 0 | 1,000,000 | $0.000000 | $0.600000 | **$0.600000** |
 
+> The per-stage token counts in this table (and the 50-question row) are illustrative estimates computed with the formula above; they are not constants in the code and not measured averages: TODO: verify against real runs.
+
 The same micro benchmark on Claude Haiku 5.5 is $0.000600 ($0.10 in + $0.50 out) and on `gpt-4o-mini` $0.000750.
 
 ### 2.1 AI Copilot & Vector Embedding Pricing
 
-In addition to question generation workflow runs, the platform tracks token usage for interactive AI Copilot endpoints and vector embeddings:
+In addition to question generation workflow runs, the platform tracks token usage for interactive AI Copilot endpoints and vector embeddings. The token counts and costs below are rough estimates, not values defined in code: TODO: verify.
 
 | Operation | Typical Prompt Tokens | Typical Completion Tokens | Avg Cost (DeepInfra standard) | Description |
 | :--- | :---: | :---: | :---: | :--- |
@@ -116,7 +118,7 @@ graph TD
     subgraph "Per-Request LLM Call (app.agents.base)"
         LLM[LiteLLM API Response] --> Extract[Extract usage: prompt_tokens, completion_tokens]
         Extract --> CalcCost[calculate_token_cost: in_cost + out_cost]
-        CalcCost --> TokenUsageObj[TokenUsage Schema: p_tokens, c_tokens, total, cost_usd]
+        CalcCost --> TokenUsageObj[TokenUsage Schema: p_tokens, c_tokens, total, cost_usd, duration_ms, calls]
     end
 
     subgraph "Agent State Graph (app.workflow.nodes & app.workflow.engine)"
@@ -134,7 +136,7 @@ graph TD
 
 ### 4.1 Data Structures
 
-#### `TokenUsage` Schema ([`app/schemas/token.py`](../backend/app/schemas/token.py#L9-L15))
+#### `TokenUsage` Schema ([`app/schemas/token.py`](../backend/app/schemas/token.py))
 ```python
 class TokenUsage(BaseModel):
     prompt_tokens: int = Field(0, description="Input tokens processed")
@@ -142,27 +144,33 @@ class TokenUsage(BaseModel):
     total_tokens: int = Field(0, description="Sum of prompt and completion tokens")
     cost_usd: float = Field(0.0, description="Estimated total cost in USD")
     duration_ms: int | None = Field(
-        None, description="Wall-clock latency of the LLM call in ms, retries included"
+        None, description="Wall-clock latency of the LLM call in milliseconds, retries included"
     )
+    calls: int = Field(0, description="Number of LLM calls this usage covers (0 for mock results)")
 ```
+
+`sum_usage(usages, parallel=False)` in the same module combines several usages: tokens, cost and `calls` always add up; `duration_ms` adds up for sequential calls but is the slowest call when `parallel=True`.
 
 #### `agent_usage_breakdown` Item Schema
 ```json
 {
-  "agent": "Question Writer & Reviewer",
+  "agent": "Question Generator",
   "iteration": 1,
   "prompt_tokens": 450,
   "completion_tokens": 320,
   "total_tokens": 770,
   "cost_usd": 0.0001474,
+  "calls": 1,
   "duration_ms": 2140
 }
 ```
 
+`duration_ms` is omitted when no latency was recorded. The `agent` names written into `token_usage_details` / `usage_breakdown` are `Question Generator`, `Question Reviewer`, `Question Re-Generator`, `Blind-Solver Dual Validation`, `Passage Writer` and `Image Generator`. These differ from the `agent_name` values of the live SSE events (`Question Writer & Reviewer`, `Question Improver`, `Quality Reviewer`, `Diagram & Chart Maker`, ...; see `docs/API.md`). Image entries have a different shape: `agent`, `model`, `prompt_tokens`, `completion_tokens`, `total_tokens` (all zero tokens), `cost_usd` and a `details` object; they carry no `iteration` or `calls`.
+
 `duration_ms` is recorded by `call_llm` (backoff and model fallback included) and flows into the per-agent breakdown, so per-stage latency can be compared alongside cost.
 
 #### Concurrent Review and Spend Accounting
-Each usage entry records `calls` (LLM calls it covers; the blind solver's samples add up), which feeds the `MAX_LLM_CALLS_PER_SLOT` budget. With `PARALLEL_REVIEW_AND_SOLVE=true` (default is `false`: the solver runs only after a passing review) the Auditor and Blind Solver run concurrently. Both calls are always billed: if the review fails first, the solver call is still recorded as a usage-only entry (`build_usage_only_update`) so cumulative cost matches real provider spend.
+Each usage entry records `calls` (LLM calls it covers; the blind solver's samples add up), which feeds the `MAX_LLM_CALLS_PER_SLOT` budget. With `PARALLEL_REVIEW_AND_SOLVE=true` (the default; set `false` to run the solver only after a passing review) the Reviewer and Blind Solver run concurrently. Both calls are always billed: if the review fails first, the solver call is still recorded as a usage-only entry (`build_usage_only_update`) so cumulative cost matches real provider spend.
 
 #### Prompt Caching
 Static system prompts are sent as `cache_control: ephemeral` blocks for Anthropic models (`ENABLE_PROMPT_CACHING`). Cache reads and writes already appear in the cost math above. OpenAI and DeepInfra apply automatic prefix caching and need no marker. Prompts shorter than the provider minimum are not cached.
@@ -170,10 +178,10 @@ Static system prompts are sent as `cache_control: ephemeral` blocks for Anthropi
 ### 4.2 Per-Slot Call Budget & Token Ceilings
 
 To protect infrastructure spend and prevent runaway loops during multi-turn remediation, the engine enforces strict limits:
-1. **Hard Per-Slot LLM Call Budget (`MAX_LLM_CALLS_PER_SLOT = 36`)**:
-   - Caps total LLM calls spent on an individual question slot across all attempts (initial drafts, self-critiques, validator retries, reviewer samples, blind solver samples 1-2, tie-breaker evaluations, and remediation cycles 1-2).
-   - Mathematical allocation: 3 worker attempts $\times$ 12 calls per attempt = 36 calls.
-   - Once 36 calls are reached, the slot worker terminates LLM expenditure immediately, flags the item as budget-exhausted, and halts cleanly.
+1. **Hard Per-Slot LLM Call Budget (`MAX_LLM_CALLS_PER_SLOT`, default `36`, `0` disables)**:
+   - Caps total LLM calls spent on an individual question slot across all attempts (initial drafts, self-critiques, validator retries, reviewer samples, blind solver samples, tie-breaker evaluations, and remediation cycles). Each usage entry's `calls` value feeds this budget.
+   - `36` is a configured ceiling (a `Settings` default), not a value derived in code. The config comment sizes it for full multi-agent lifecycles across up to 3 worker attempts (`WORKFLOW_MAX_WORKER_RETRIES + 1`, default 3); the code does not enforce a per-attempt allowance of 12 calls.
+   - When the budget is spent the slot worker does not start a further attempt and the review loop stops the item as budget-exhausted (a rejection rather than more spend).
 2. **Calibrated Completion Token Ceilings**:
    - `DEFAULT_MAX_TOKENS = 4096`: Default output token allowance for drafting nodes.
    - `REVIEWER_MAX_TOKENS = 4096`: Calibrated ceiling ensuring comprehensive 4-pillar review rubrics and detailed remediation recommendations never truncate prematurely.
@@ -196,14 +204,17 @@ Each question persisted in PostgreSQL stores both aggregate summary metrics and 
 | `token_usage_details` | `JSONB` | Granular array of `agent_usage_breakdown` objects |
 
 ### Repository-Wide Aggregation
-When the client calls `GET /api/questions/metrics`, the backend computes repository totals via `get_repository_metrics` in [`question_queries.py`](../backend/app/repositories/question_queries.py) (re-exported through [`question_repository.py`](../backend/app/repositories/question_repository.py)):
+There is no `GET /api/questions/metrics` endpoint. The repository totals are returned as `total_tokens` and `total_cost_usd` on `GET /api/questions` (together with `total_count` and `bank_total_count`). The endpoint calls `get_repository_metrics` in [`question_queries.py`](../backend/app/repositories/question_queries.py) (re-exported through [`question_repository.py`](../backend/app/repositories/question_repository.py)), which aggregates in SQL over non-soft-deleted questions, optionally restricted to the requested `status` (`all` means no status filter):
 
 ```python
-total_tokens = sum(q.total_tokens or 0 for q in questions)
-total_cost_usd = round(sum(q.cost_usd or 0.0 for q in questions), 5)
+select(
+    func.count(QuestionModel.id),
+    func.coalesce(func.sum(QuestionModel.total_tokens), 0),
+    func.coalesce(func.sum(QuestionModel.cost_usd), 0.0),
+).where(active_question_clause())  # plus status filter; cost is rounded to 5 decimals
 ```
 
-This delivers global repository cost and token totals directly to the Question Bank header.
+This delivers global repository cost and token totals directly to the Question Bank header. Prometheus counters `mcat_tokens_consumed_total` and `mcat_inference_cost_usd_total` are also exposed at `/metrics`.
 
 ---
 
@@ -222,7 +233,7 @@ Token and cost data is surfaced across all active views and specialized domain c
 
 ### 3. Psychometric Review & Cost Audit Modal ([`ReviewAuditView.jsx`](../frontend/src/components/question/ReviewAuditView.jsx))
 - **Summary Metric Cards**: 4-card grid showing Prompt Tokens, Completion Tokens, Total Tokens, and Accumulated Cost.
-- **Granular Breakdown Table**: Itemizes every LLM request with prompt tokens, completion tokens, cache reads/writes, total tokens, and sub-micro-cent USD cost.
+- **Granular Breakdown Table**: Itemizes every LLM request with prompt tokens, completion tokens, total tokens, and sub-micro-cent USD cost. The UI may also show cache read/write columns, but `TokenUsage` and the persisted breakdown entries have no cache fields: TODO: verify what the UI shows.
 
 ### 4. Question Bank Repository ([`QuestionBankView.jsx`](../frontend/src/views/QuestionBankView.jsx))
 - **Repository Stat Metric**: Displays total accumulated tokens and total expenditure for the entire database:
@@ -231,7 +242,7 @@ Token and cost data is surfaced across all active views and specialized domain c
   `🪙 2,850 tok • $0.00053`
 
 ### 5. Batch Activity Monitor & Job Cards ([`BatchActivityView.jsx`](../frontend/src/views/BatchActivityView.jsx), [`BatchCard.jsx`](../frontend/src/components/batch/BatchCard.jsx))
-- Displays cumulative batch token consumption and aggregate batch cost across all 10 worker jobs.
+- Displays cumulative batch token consumption and aggregate batch cost across all of the batch's worker jobs (1 job per 5 questions, e.g. 10 jobs for a 50-question batch).
 - Allows educators to inspect individual jobs via [`BatchJobCard.jsx`](../frontend/src/components/batch/BatchJobCard.jsx) with their respective token weights, prompt/completion breakdown, and question scores.
 
 ### 6. AI Validated Quality Bank ([`AiValidatedQuestionsView.jsx`](../frontend/src/views/AiValidatedQuestionsView.jsx))

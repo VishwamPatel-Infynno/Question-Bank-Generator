@@ -12,10 +12,13 @@ Fixes #(issue number)
 - [ ] CI / Build configuration
 
 ## Quality Gate & Testing Checklist
+These mirror the jobs in `.github/workflows/ci.yml`:
 - [ ] Python linting passes: `ruff check .`
-- [ ] Pytest test suite passes: `pytest -v` (386 deterministic tests across 59 modules)
+- [ ] Python formatting passes: `ruff format --check .`
+- [ ] Pytest test suite passes: `pytest -v` (tests marked `requires_db` need PostgreSQL; note if they were skipped)
 - [ ] Frontend linting passes: `pnpm --dir frontend lint`
-- [ ] Frontend unit tests pass: `pnpm --dir frontend run test` (118 tests across 13 files)
+- [ ] Frontend unit tests pass: `pnpm --dir frontend run test`
+- [ ] No unused CSS classes: `pnpm --dir frontend run check:css`
 - [ ] Frontend builds cleanly: `pnpm --dir frontend build`
 - [ ] Adheres to the strict psychometric quality benchmark (> 80 passing threshold; `PASSING_SCORE_THRESHOLD=80`)
 - [ ] No sensitive API keys or credentials committed

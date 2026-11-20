@@ -83,7 +83,7 @@ Official MCAT distractors are **never trivial or obviously wrong**; they are del
 
 | Score Range | Descriptor | Criteria |
 | :---: | :--- | :--- |
-| **23 - 25** | *Exceptional Traps* | All 3 distractors are highly plausible, scientifically coherent, and target distinct cognitive traps. Options exhibit symmetric length and grammatical parallelism ($\pm 15\%$). |
+| **23 - 25** | *Exceptional Traps* | All 3 distractors are highly plausible, scientifically coherent, and target distinct cognitive traps. Options exhibit symmetric length (word-count spread within `max(3, ceil(0.20 x mean))` words, see `agents/standards.py`) and grammatical parallelism. |
 | **19 - 22** | *Strong Distractors* | Options represent genuine misconceptions with strong plausibility; minor length variance. |
 | **14 - 18** | *Mediocre Distractors* | One distractor is easily eliminated by basic common sense; trap mechanisms are weak. |
 | **0 - 13** | *Defective Options* | Distractors are silly, obviously absurd, or mathematically incoherent. |
@@ -105,21 +105,42 @@ The correct answer must be incontrovertible. Before any model-based scoring, fre
 
 ---
 
-## 4. The 11-Trap Cognitive Taxonomy for Distractors
+## 4. The Cognitive Trap Taxonomy for Distractors
 
-The engine applies an authoritative taxonomy of 11 psychological traps:
+The engine's trap taxonomy is data, not hard-coded prose: `backend/app/data/mcat_dependent_taxonomy.json` (`generation_options.primary_trap`), loaded as `PRIMARY_TRAPS` in `backend/app/schemas/mcat.py`. It contains **25** ids in UPPER_SNAKE case (the file notes these are internal generation taxonomies, not official AAMC labels, and that one primary trap is used per question). The earlier "11 official trap types" list (`Scope_Shift`, `Keyword_Trap`, ...) does not exist in the code.
 
-1. **Scope Shift**: Extrapolates beyond experimental boundaries or shifts from in vitro to in vivo without evidence.
-2. **Keyword Trap**: Uses verbatim vocabulary from the passage in a scientifically inverted or irrelevant context.
-3. **Extreme Language**: Uses absolute terms ("always", "completely", "never") unsupported by biological variability.
-4. **Correlation vs Causation**: Assumes a causal mechanism when the passage only demonstrates statistical association.
-5. **Partial Match**: Contains true scientific facts that fail to address the specific question stem.
-6. **Half-Truth**: First half of the option is scientifically accurate, but the conclusion is subtly inverted.
-7. **Unwarranted Assumption**: Relies on external assumptions not supported by the experimental passage.
-8. **Calculation Formula Trap**: Intermediate calculation error, inverted reciprocal, or wrong unit prefix ($10^{-3}$ vs $10^{-6}$).
-9. **Out of Scope**: Introduces facts completely outside the tested scope or curriculum domain.
-10. **False Dichotomy**: Presumes an all-or-nothing binary between two biological mechanisms when both operate synergistically.
-11. **Over-generalisation**: Generalizes results observed in an isolated enzyme to an entire metabolic pathway or organism.
+| # | Trap id | UI label (`mcatTraps.js`) | Error mechanism / student advice (`mcatTraps.js`) |
+| :---: | :--- | :--- | :--- |
+| 1 | `CONCEPT_CONFUSION` | Concept Confusion | Conflates two closely related scientific concepts, models, or physiological mechanisms. |
+| 2 | `WRONG_BASE` | Wrong Base or Reference Value | Uses the incorrect initial quantity, baseline value, or denominator when computing changes. |
+| 3 | `UNIT_CONVERSION` | Unit Conversion Error | Forgets or mishandles dimensional unit conversions (e.g., nm to m, mL to L, or kJ to J). |
+| 4 | `FORMULA_MISAPPLICATION` | Formula Misapplication | Selects a formula whose underlying assumptions or physical boundary conditions are violated. |
+| 5 | `SIGN_CONVENTION` | Sign or Direction Convention | Reverses a vector direction, thermodynamic sign convention (+/- Delta G/H), or electrochemical potential. |
+| 6 | `PROPORTIONALITY_ERROR` | Proportionality Error | Mistakes an inverse relationship for direct proportionality, or overlooks a squared/square-root exponent. |
+| 7 | `ASSUMPTION_MISSED` | Missed Assumption or Condition | Fails to check essential boundary conditions (e.g. STP, ideal gas, steady-state enzyme kinetics). |
+| 8 | `CAUSE_EFFECT_CONFUSION` | Cause-Effect Confusion | Reverses the direction of causality between two biological, biochemical, or social phenomena. |
+| 9 | `CORRELATION_CAUSATION` | Correlation vs. Causation | Mistakes an observed statistical association for proof of a direct mechanistic cause-and-effect relationship. |
+| 10 | `CONTROL_GROUP_CONFUSION` | Control-Group Confusion | Confuses the negative/vehicle control with experimental manipulation groups or baseline states. |
+| 11 | `VARIABLE_CONFUSION` | Independent/Dependent Variable Confusion | Swaps the variable manipulated by researchers with the outcome variable being measured. |
+| 12 | `SAMPLE_SIZE_BIAS` | Sampling or Sample-Size Bias | Draws broad clinical or population generalizations from an underpowered or non-representative sample. |
+| 13 | `STATISTICAL_SIGNIFICANCE` | Statistical Significance Misconception | Equates failure to reject the null hypothesis with proof of no effect, or confuses p-values with effect magnitude. |
+| 14 | `GRAPH_AXIS_MISREADING` | Graph or Axis Misreading | Misreads axes, logarithmic scales, inverted coordinates, or compares mismatched experimental series. |
+| 15 | `TABLE_COMPARISON_ERROR` | Table Comparison Error | Misaligns rows and columns or compares treatment groups without normalizing to baseline controls. |
+| 16 | `TREND_EXTRAPOLATION` | Unsupported Trend Extrapolation | Extrapolates a linear or monotonic trend beyond the empirical range tested in the study. |
+| 17 | `MECHANISM_CONFUSION` | Mechanism Confusion | Proposes an unverified reaction pathway, enzymatic intermediate, or physiological cascade. |
+| 18 | `EXCEPTION_OVERLOOKED` | Exception or Qualifier Overlooked | Ignores crucial qualifying conditions in the stem such as "under aerobic conditions only" or "at physiological pH". |
+| 19 | `NEGATION_MISREAD` | Negation or NOT/EXCEPT Misread | Overlooks negative phrasing (e.g., "LEAST likely", "EXCEPT", "NOT supported") and picks a true statement. |
+| 20 | `SCOPE_SHIFT` | Scope Shift | Generalizes a finding observed in cell culture or animal models directly to whole-organism human physiology. |
+| 21 | `UNSUPPORTED_INFERENCE` | Unsupported Inference | Selects an answer that sounds scientifically plausible but lacks empirical proof in the supplied passage. |
+| 22 | `PASSAGE_CONTRADICTION` | Passage Contradiction | States a claim that directly contradicts experimental data, figures, or author arguments in the passage. |
+| 23 | `OVERGENERALIZATION` | Overgeneralization | Uses unhedged absolutes ("always", "never", "invariably") where only a conditional effect was shown. |
+| 24 | `DISTRACTOR_OVERINTERPRETATION` | Distractor Overinterpretation | Reads complex unstated motives or unwarranted biochemical consequences into simple factual data. |
+| 25 | `ANSWER_CHOICE_CONFLATION` | Answer-Choice Conflation | Merges elements of two distinct answer choices to form a seemingly comprehensive but erroneous hybrid. |
+
+The backend taxonomy file (`generation_options.primary_trap`) stores only the id and a short `value` label per trap; the richer label and advice text above come from the frontend constant `frontend/src/constants/mcatTraps.js` (`MCAT_TRAP_DEFINITIONS`, keyed by the same 25 ids).
+
+- **Automatic mode**: the default request value `"Automatic"` lets the generator pick the best-fit id; `normalize_primary_trap` then maps whatever the model returns onto this list (case, space and hyphen tolerant, with a label-text fallback), and `detect_primary_trap` (`agents/draft_parser.py`) falls back to regex matching of the explanation when no trap is returned.
+- **Trap rotation**: on a slot replenishment attempt (attempt $> 0$) the engine's diversity context (`_build_diversity_context` in `workflow/engine_layout.py`) tells the generator to use `ALT_TRAP_ROTATION[(idx + attempt) % 8]` (`schemas/mcat.py`): `CONCEPT_CONFUSION`, `FORMULA_MISAPPLICATION`, `SIGN_CONVENTION`, `PROPORTIONALITY_ERROR`, `VARIABLE_CONFUSION`, `CAUSE_EFFECT_CONFUSION`, `TREND_EXTRAPOLATION`, `ASSUMPTION_MISSED`. On the first attempt it instead lists the traps already used by sibling slots and asks for a complementary one.
 
 ---
 
@@ -143,7 +164,7 @@ Every question candidate is evaluated against a 100-point psychometric audit str
 | :--- | :--- | :---: |
 | **1. Authenticity & Tone** | Medical school curriculum alignment, authentic clinical/research vignettes, scientific precision, and AAMC tone authenticity. | **25** |
 | **2. Clarity & Scientific Logic** | Unambiguous question stem, sound deductive logic, rigorous chemical/biological mechanisms, and avoidance of AI artifacts. | **25** |
-| **3. Distractor Traps & Symmetry** | Strictly 4 options, mathematical length parity (within 3 words or 20% of average), parallel grammar, and authentic AAMC cognitive distractor traps. | **25** |
+| **3. Distractor Traps & Symmetry** | Strictly 4 options, length parity (word-count spread of at most `max(3, ceil(0.20 x mean option length))`), parallel grammar, and authentic AAMC cognitive distractor traps. | **25** |
 | **4. Explanation Rigor** | 3-part pedagogical rationale (why correct key is incontrovertible, itemized flaws for each of the 3 distractors, and cognitive trap defense advice). | **25** |
 
 ### 6.1 First-Pass 100/100 Excellence Directive
@@ -154,87 +175,100 @@ Every question candidate is evaluated against a 100-point psychometric audit str
 
 ## 7. Quality Threshold Model & Quality Gates
 
-The system enforces a strict psychometric quality evaluation framework governed by a single canonical threshold in `.env:L81` (`PASSING_SCORE_THRESHOLD = 80`):
+The system enforces a strict psychometric quality evaluation framework governed by a single canonical threshold, `PASSING_SCORE_THRESHOLD` (default `80`, `backend/app/core/config.py`, overridable through `.env`):
 
 ### 7.1 Dynamic Three-Tier Threshold Model
 1. **High Quality (`score > 80`)**:
-   - Items scoring $> 80$ on the 100-point rubric qualify for promotion to the **AI Validated Questions** workspace (`status = 'ai_validated'`) and direct admission into the **Question Bank** (`status = 'in_bank'`).
+   - Items scoring $> 80$ on the 100-point rubric (`config.passes_quality_gate`, strictly greater) qualify for the **AI Validated Questions** workspace (`status = 'ai_validated'`, after their batch completes) and, once an educator approves them, admission into the **Question Bank** (`status = 'in_bank'`).
 2. **Good Quality (`70 <= score <= 80`)**:
    - Automatically derived via `config.BATCH_PASSING_SCORE_THRESHOLD = PASSING_SCORE_THRESHOLD - 10 = 70`.
-   - Items scoring between 70 and 80 remain safely in `batch_only` status within active or completed batches as solid, high-yield practice items.
+   - Items scoring between 70 and 80 remain safely in `batch_only` status within active or completed batches as solid, high-yield practice items (`determine_question_status` treats 70 as inclusive; the unused helper `config.passes_batch_quality_gate` is strictly `> 70`, a minor code inconsistency).
 3. **Needs Polish (`score < 70`)**:
-   - Items scoring $< 70$ are flagged as `below_threshold` and routed through autonomous remediation.
+   - A persisted score below 70 maps to `below_threshold`. In the live pipeline a draft below 70 is remediated while iterations remain, and at iteration 3 it is rejected (`reject`), not saved.
 
-### 7.2 3-Trial Quality Optimization Workflow (`routes.py`)
-- **Attempts 1 & 2**: When a candidate scores $\le 80$, the workflow routes the draft to the **Regenerator** agent to repair specific distractor flaws or deepen rationale proofs, actively striving to exceed 80.
-- **Attempt 3 (Final Trial)**: If the item achieves `score >= 70` after 3 cycles, it is accepted into the batch as Good Quality (`"image_generator"` / `"finalize"`). Only items that fail to achieve 70 points across all 3 trials are halted and rejected (`"reject"`).
+### 7.2 3-Iteration Quality Optimization Workflow (`workflow/routes.py`, `review_loop.py`)
+- **Iterations 1 & 2**: When a candidate scores $\le 80$ (or the review is marked failed, for example by the blind solver), the workflow routes the draft to the **Regenerator** agent to repair specific distractor flaws or deepen rationale proofs, actively striving to exceed 80. Deterministic validator failures (structure, a hard duplicate after a rewrite) are also sent to the Regenerator before any LLM review is paid for.
+- **Iteration 3 (Final Cycle)**: If the item scores $\ge 70$ it is accepted into the batch as Good Quality and continues to image generation or finalize (`"image_generator"` / `"finalize"`), provided the blind solver verifies the key; a blind-solver failure at iteration 3 is always a rejection. Items below 70 at iteration 3 are halted and rejected (`"reject"`).
+- **Blind-solver interaction**: a failed solver verdict caps the review's `total_score` at 75 and sets `passed = False`; the solver samples use `BLIND_SOLVER_MAX_TOKENS = 2048` and the second sample runs at `BLIND_SOLVER_TEMPERATURE + 0.2`.
+- **Structural-failure score**: a draft that fails the free deterministic checks is represented to the Regenerator by a synthetic review (all four pillars 15, `total_score` 60), not by an LLM score.
+- **Job-level trials**: separately from these in-slot iterations, a batch job may replenish shortfalls over up to `MAX_JOB_TRIALS = 3` trials (see `ARCHITECTURE.md` §5).
 
 ---
 
 ## 8. Smart AI Choice & Targeted Misconception Calibration (`likely_mistake_pattern`)
 
 Beyond standard cognitive traps, the engine operationalizes pedagogical misconception diagnosis:
-1. **Automatic (Smart AI Choice)**: The generator agent analyzes the scientific research study, equations, and question stem to autonomously diagnose the most authentic student calculation or conceptual error for the tested concept (e.g., `USES_WRONG_REFERENCE_VALUE`, `INVERTS_FRACTION`, `FORGETS_SQUARE_ROOT`, `CONFUSES_ENANTIOMERS_DIASTEREOMERS`, `MISREADS_GRAPH_AXES`, `FAILS_TO_SUBTRACT_BASELINE`, `CONFUSES_KM_VMAX`, `DROPS_NEGATIVE_SIGN`).
+1. **Automatic (Smart AI Choice)**: The generator agent analyzes the scientific research study, equations, and question stem to autonomously diagnose the most authentic student calculation or conceptual error for the tested concept. The curated taxonomy (`generation_options.likely_mistake_pattern` in `mcat_dependent_taxonomy.json`, exposed as `LIKELY_MISTAKE_PATTERNS`) has 23 ids, among them `USES_WRONG_REFERENCE_VALUE`, `CONFUSES_ABSOLUTE_RELATIVE_CHANGE`, `CONFUSES_KM_VMAX`, `ASSUMES_BOTH_ENZYME_PARAMETERS_CHANGE`, `IGNORES_UNITS`, `USES_WRONG_EQUATION`, `DROPS_NEGATIVE_SIGN`, `CONFUSES_RATE_WITH_AMOUNT`, `CONFUSES_MOLARITY_MOLES`, `MISREADS_GRAPH_AXES`, `ASSUMES_CORRELATION_CAUSATION`, `MISIDENTIFIES_VARIABLES`, `MISUNDERSTANDS_CONTROL`, `IGNORES_CONFOUND`, `OVERREADS_STATISTICAL_SIGNIFICANCE`, `FAILURE_TO_REJECT_AS_PROOF`, `EXTRAPOLATES_BEYOND_DATA`, `USES_OUTSIDE_KNOWLEDGE_OVER_PASSAGE`, `CONFUSES_AUTHOR_VIEW_WITH_REPORTED_VIEW`, `SELECTS_PARTLY_TRUE_OPTION`, `MISSES_QUALIFIER`, `CONFUSES_SIMILAR_TERMS`, `ASSUMES_UNSTATED_CAUSE`, `OVERGENERALIZES_RESULT`. A custom free-text pattern is also accepted.
 2. **Explicit Distractor Targeting**: At least one distractor option is engineered specifically to attract students committing that exact misconception, and the complete error mechanism is detailed in the 3-card mentor explanation.
-3. **Audit Trail Persistence**: The diagnosed pattern is saved to PostgreSQL in `likely_mistake_pattern` and displayed on question cards and audit modals.
+3. **Audit Trail Persistence**: The diagnosed pattern is saved to PostgreSQL in `likely_mistake_pattern` (a `TEXT` column; `normalize_mistake_pattern` stores the taxonomy's human-readable `value` text for a recognized id) and shown in the question and audit views.
 
 ---
 
 ## 9. Cognitive Slot Blueprints & Replenishment Rotation for Passage Sets
 
-When generating 5-question passage sets, the multi-agent pipeline enforces structured pedagogical archetypes defined in [`backend/app/workflow/passage_blueprints.py`](../backend/app/workflow/passage_blueprints.py). This prevents the common LLM failure mode of drafting 5 questions that test identical passage recall facts.
+When generating 5-question passage sets, the multi-agent pipeline enforces structured pedagogical archetypes defined in [`backend/app/workflow/passage_blueprints.py`](../backend/app/workflow/passage_blueprints.py) (`CARS_PASSAGE_SET_BLUEPRINTS`, `SCIENCE_PASSAGE_SET_BLUEPRINTS`; the slot is the question index modulo 5). This prevents the common LLM failure mode of drafting 5 questions that test identical passage recall facts. The archetype strings below are the exact `archetype` values in code; the `skill` column is the blueprint's `skill` code.
 
 ### 9.1 Slot Blueprints Specification
 
 #### Critical Analysis and Reasoning Skills (CARS)
-| Slot Index | Cognitive Archetype | AAMC Reasoning Skill | Core Pedagogical Mandate |
-| :---: | :--- | :--- | :--- |
-| **Slot 1** | **Foundations of Comprehension** | Skill 1: Foundations | Literal meaning, central thesis, author's primary communicative intent, or central claim. |
-| **Slot 2** | **Reasoning Within the Text** | Skill 2: Within the Text | Rhetorical function of evidence, authorial tone, implicit assumptions, or logical transitions. |
-| **Slot 3** | **Reasoning Beyond the Text** | Skill 3: Beyond the Text | Analogical reasoning, applying passage principles to novel external scenarios, or evaluating hypothetical counter-evidence. |
-| **Slot 4** | **Cross-Domain Adaptation** | Skill 3: Beyond the Text | Adapting the author's argument into a distinct external academic domain drawn from `CARS_SLOT4_APPLICATION_DOMAINS`. |
-| **Slot 5** | **Argument Critique & Vulnerability** | Skill 2 / 3: Synthesis | Identifying latent weaknesses, unstated presuppositions, or identifying which finding most severely undermines the central thesis. |
+| Slot Index | Archetype (exact code string) | Skill code | Core Pedagogical Mandate (from the slot directive) |
+| :---: | :--- | :---: | :--- |
+| **Slot 1** | **Central Claim / Main Thesis** | `CARS1` | The author's overarching thesis, central argument or primary communicative purpose across the whole passage. |
+| **Slot 2** | **Local Detail & Passage Evidence** | `CARS1` | Direct textual comprehension of a specific concept, term or relationship in the early paragraphs; not the overall thesis. |
+| **Slot 3** | **Rhetorical Function / Author's Stance** | `CARS2` | The logical or rhetorical function of a phrase, metaphor or cited example in the middle of the passage. |
+| **Slot 4** | **Reasoning Beyond the Text: Novel Scenario Application** | `CARS3` | Extrapolate the author's reasoning to a new hypothetical scenario not in the text; the scenario domain is drawn from `CARS_SLOT4_APPLICATION_DOMAINS` (see 9.2). |
+| **Slot 5** | **Reasoning Beyond the Text: Challenge / Weaken Assumptions** | `CARS3` | Which new finding or counter-example would most directly challenge a boundary condition or assumption in the concluding paragraphs; must not repeat slots 1 to 4. |
 
 #### Natural, Behavioral & Social Sciences (Chem/Phys, Bio/Biochem, Psych/Soc)
-| Slot Index | Cognitive Archetype | AAMC SIRS Skill | Core Pedagogical Mandate |
-| :---: | :--- | :--- | :--- |
-| **Slot 1** | **Foundational Concept & Mechanism** | Skill 1: Knowledge of Concepts | Direct recognition of core biochemical pathways, physiological mechanisms, or physical equations referenced in the passage. |
-| **Slot 2** | **Quantitative & Graphical Data Analysis** | Skill 4: Data-Based Reasoning | Interpreting experimental figures: Lineweaver-Burk plots, Western blots, dose-response curves, titration graphs, or reaction rate tables. |
-| **Slot 3** | **Scientific Reasoning & Problem Solving** | Skill 2: Problem Solving | Deducing mechanistic explanations, executing stoichiometric or thermodynamic calculations, and evaluating theoretical predictions. |
-| **Slot 4** | **Research Design & Experimental Execution** | Skill 3: Research Design | Evaluating positive/negative controls, independent/dependent variables, instrumentation limitations, or assay reliability. |
-| **Slot 5** | **Experimental Perturbation & Novel Conditions** | Skill 2 / 3: Novel Scenarios | Proposing hypothetical follow-up experiments under altered conditions drawn from `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`. |
+| Slot Index | Archetype (exact code string) | Skill code | Core Pedagogical Mandate (from the slot directive) |
+| :---: | :--- | :---: | :--- |
+| **Slot 1** | **Scientific Concept & Principle Foundation** | `Skill_1` | Foundational concepts, definition, nomenclature or fundamental law referenced in the introductory paragraph. |
+| **Slot 2** | **Data, Figure & Graph Interpretation** | `Skill_4` | Data-based and statistical reasoning on a quantitative trend, table, figure or assay baseline described in the passage. |
+| **Slot 3** | **Experimental Design & Methodological Rationale** | `Skill_3` | Why a control was chosen, how a variable was isolated, or the rationale for an assay or reagent. |
+| **Slot 4** | **Scientific Reasoning & Problem Solving / Downstream Mechanism** | `Skill_2` | Multi-step mechanistic deduction combining a middle or late passage observation with outside knowledge. |
+| **Slot 5** | **Novel Experimental Condition / Hypothesis Testing** | `Skill_2` | Predict the outcome of a follow-up experiment under a perturbation drawn from `SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS` (see 9.2). |
+
+In live mode, `extract_passage_slot_blueprints` additionally asks the LLM for a passage-grounded target per slot and appends it to the static directive; offline or on failure it builds deterministic paragraph-anchored directives instead.
 
 ---
 
 ### 9.2 Replenishment Rotation Pools & Modulo Arithmetic
 
-When candidate questions in a passage set fail the psychometric quality gate and trigger shortfall replenishment, the engine prevents regeneration loops by deterministically rotating experimental conditions and application domains:
+When a question slot is re-attempted (`WORKFLOW_MAX_WORKER_RETRIES = 2`, so up to 3 attempts per slot), `slot_worker.py` rotates the slot's application domain or experimental condition so a retry does not repeat the same one:
 
 ```python
 domain_idx = resolve_slot_domain_index(request, attempt=attempt)
-# Calculated as: (base_seed + attempt) % len(rotation_pool)
+# job/set #N in thematic_angle -> (N - 1 + attempt) % 10
+# otherwise a seed (passage_id, batch_id, thematic_angle or run_id) -> (abs(hash(seed)) + attempt) % 10
+# no seed -> attempt % 10
 ```
 
+Both pools have **10** entries, so the modulus is 10. The rotation is applied to question indexes `idx % 5 == 3` for CARS (the Slot 4 position, domain pool) and `idx % 5 == 4` for science sections (the Slot 5 position, condition pool). The hash-based branch uses Python's built-in `hash`, which is randomized per process unless `PYTHONHASHSEED` is set.
+
 #### CARS Slot 4 Application Domains (`CARS_SLOT4_APPLICATION_DOMAINS`)
-| Index | Application Domain | Focus |
+| Index | Application Domain | Focus (examples in the code string) |
 | :---: | :--- | :--- |
-| `0` | **Medical Ethics & Bioethics** | Clinical triage, patient autonomy, institutional review boards |
-| `1` | **Legal Philosophy & Jurisprudence** | Constitutional interpretation, precedent, statutory intent |
-| `2` | **Cognitive Psychology & Decision Theory** | Heuristics, cognitive biases, bounded rationality |
-| `3` | **Epistemology & Philosophy of Science** | Empirical falsification, paradigm shifts, demarcation |
-| `4` | **Public Policy & Resource Economics** | Externalities, distributive justice, utilitarian optimization |
-| `5` | **Historiography & Archival Analysis** | Narrative bias, revisionist history, primary source validity |
-| `6` | **Cultural Anthropology & Linguistics** | Semiotics, cultural relativism, social constructivism |
-| `7` | **Aesthetic Theory & Literary Criticism** | Structuralism, intentional fallacy, reader-response theory |
+| `0` | **Clinical Medical Ethics & Patient Autonomy** | triage protocols, informed consent disputes, surrogate decision-making |
+| `1` | **Environmental Policy & Conservation Governance** | water rights allocation, biodiversity treaties, ecological remediation |
+| `2` | **Historical Jurisprudence & Constitutional Law** | statutory interpretation, judicial precedent, executive wartime powers |
+| `3` | **Art Curation & Architectural Preservation** | museum restitution claims, urban monument removal, adaptive reuse ethics |
+| `4` | **Behavioral Economics & Consumer Welfare** | regulatory nudges, anti-monopoly enforcement, public utility rate-setting |
+| `5` | **Artificial Intelligence & Algorithmic Governance** | automated recidivism risk scoring, facial recognition limits, transparency mandates |
+| `6` | **Higher Education & Standardized Evaluation Policy** | affirmative action, holistic admissions, vocational tracking |
+| `7` | **Civic Infrastructure & Urban Planning** | transit equity, eminent domain, disaster mitigation zoning |
+| `8` | **Academic Publishing & Scientific Integrity** | peer review confidentiality, replication mandates, patenting academic discoveries |
+| `9` | **International Diplomacy & Treaty Compliance** | arms inspection protocols, cross-border carbon border adjustments, diplomatic immunity |
 
 #### Science Slot 5 Experimental Conditions (`SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`)
-| Index | Experimental Condition | Biochemical / Physical Perturbation |
+| Index | Experimental Condition | Example perturbation (from the code string) |
 | :---: | :--- | :--- |
-| `0` | **Competitive Inhibitor Addition** | Excess substrate titration, $K_m$ shift without $V_{\max}$ change |
-| `1` | **Uncompetitive / Noncompetitive Inhibition** | Allosteric site binding, parallel Lineweaver-Burk shift, $V_{\max}$ depression |
-| `2` | **Target Gene Knockout / siRNA Silencing** | Complete loss-of-function phenotype, pathway accumulation |
-| `3` | **Thermal Denaturation / Temperature Shift** | Disruption of tertiary/quaternary hydrogen bonds and hydrophobic interactions |
-| `4` | **pH Perturbation (Acidosis / Alkalosis)** | Alteration of histidine imidazole protonation, active site electrostatic disruption |
-| `5` | **Osmotic & Tonicity Challenge** | Hypertonic/hypotonic cellular response, membrane transport kinetics |
-| `6` | **Allosteric Activator / Effector Co-Incubation** | Cooperative sigmoidal shift, Hill coefficient ($n_H > 1$) alteration |
-| `7` | **Isotopic Tracer Labeling ($^{14}\text{C}$, $^{32}\text{P}$)** | Radio-labeling to trace metabolic flux and reaction intermediate sequences |
+| `0` | **Targeted Small-Molecule Enzyme Inhibition** | novel competitive vs allosteric inhibitor added to assay |
+| `1` | **Genetic Knockdown / CRISPR Disruption** | siRNA silencing of target kinase or transporter |
+| `2` | **Physiological Stress / Environmental Perturbation** | altered extracellular pH, hyperosmotic shock, hypothermic incubation |
+| `3` | **Isotopic Tracer / Radioligand Competition** | deuterated substrate substitution or pulse-chase labeling |
+| `4` | **Site-Directed Mutagenesis** | conservative vs non-conservative active-site residue substitution |
+| `5` | **Receptor Antagonism / Channel Blockade** | selective receptor blocker or ionophore titration |
+| `6` | **Metabolic Intermediate Depletion** | nutrient starvation, glycolytic inhibitor, or uncoupling agent |
+| `7` | **Co-culture / Multi-Tissue Interaction** | conditioned media transfer or paracrine signaling assay |
+| `8` | **Altered Kinetic Substrate Range** | varying substrate concentrations across Vmax / Km regimes |
+| `9` | **In Vivo Animal Model Validation** | knockout mouse phenotype vs in vitro cell culture findings |

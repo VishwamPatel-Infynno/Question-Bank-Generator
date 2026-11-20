@@ -6,16 +6,16 @@ description: Work on the multi-agent question-generation pipeline of the Questio
 # AI pipeline
 
 ## Flow (production path: workflow/engine.py + review_loop.py, passage_prep.py, dedup_inflight.py, live_job_store.py)
-`fused_generator` (draft + honest 100-point self-critique) -> dedup/anti-collision loop -> `_run_question_review_loop`: deterministic validator (`agents/validators.py`, free; auto-repairs dashes; blocking defects regenerate or reject without any review call) -> reviewer, then blind solver (sequential by default; `PARALLEL_REVIEW_AND_SOLVE=true` runs both at once through `run_review_and_solve`; both billed either way) -> `route_after_review`: score > threshold and solver verified goes to `image_generator` (only if a diagram is needed) then `finalize`; otherwise `regenerator` and back to the validator; attempts exhausted goes to `reject`.
+`fused_generator_node` (draft only by default; the 100-point self-critique is produced in the same call only when `ALWAYS_INDEPENDENT_REVIEW=false`) -> dedup/anti-collision loop -> `_run_question_review_loop`: deterministic validator (`agents/validators.py`, free; auto-repairs dashes; blocking defects regenerate or reject without any review call) -> independent reviewer and blind solver (run concurrently through `run_review_and_solve` by default, `PARALLEL_REVIEW_AND_SOLVE=true`; `false` runs them sequentially; both billed either way) -> `route_after_review`: score > threshold and solver verified goes to `image_generator` (only if a diagram is needed) then `finalize`; otherwise `regenerator` and back to the validator; once `MAX_REGENERATION_ATTEMPTS` is used, a score of at least threshold - 10 (70) is accepted as Good Quality (`batch_only`) and anything lower goes to `reject`.
 
 There is no LangGraph runtime: the flow is the hand-written loop in `engine.py`/`review_loop.py`; `routes.py` only provides `route_after_review` (used by the loop). Change the loop and keep `route_after_review` consistent with it.
 
-Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_update`, `build_usage_only_update`, `run_review_and_solve`), `routes.py`, `state.py` (`AgentWorkflowState`), `engine.py` + `review_loop.py`/`passage_prep.py`/`dedup_inflight.py`/`live_job_store.py`, `agents/*` (LLM calls), `agents/validators.py`, `agents/prompts.py`, `agents/prompt_builder.py`.
+Files: node functions live in `workflow/node_generator.py` (`fused_generator_node`), `workflow/node_reviewer.py` (reviewer, blind solver and regenerator nodes plus `build_review_update`, `build_solver_update`, `build_usage_only_update`, `run_review_and_solve`) and `workflow/node_finalize.py` (reject, image, finalize); `workflow/nodes.py` is a re-export facade over them (it also keeps monkeypatching in tests working), `routes.py`, `state.py` (`AgentWorkflowState`), `engine.py` + `review_loop.py`/`passage_prep.py`/`dedup_inflight.py`/`live_job_store.py`, `agents/*` (LLM calls), `agents/validators.py`, `agents/prompts.py`, `agents/prompt_builder.py`.
 
 ## Invariants (do not weaken without the user asking)
-- Quality gate: score must be above the threshold (`config.passes_quality_gate`, default `PASSING_SCORE_THRESHOLD=80`); up to 3 regeneration attempts; then reject.
+- Quality gate: score must be above the threshold (`config.passes_quality_gate`, default `PASSING_SCORE_THRESHOLD=80`); up to `MAX_REGENERATION_ATTEMPTS` (3) iterations; then a score of 70-80 (threshold - 10 up to the threshold) is accepted into the batch only (`batch_only`, see `determine_question_status`) and a lower score is rejected.
 - Blind solver independently answers without seeing the key; a key mismatch or confidence below 88% triggers remediation.
-- Exactly 4 options A-D, one correct answer; option lengths within +/-15% of each other (`option_balancer.py`).
+- Exactly 4 options A-D, one correct answer; the option word-count spread must stay within `max(3, ceil(0.20 x mean option words))` (`agents/standards.py`, enforced by `validators.py`; `option_balancer.py` scores symmetry and shuffles key positions).
 - Single hyphens only: em dashes and en dashes are forbidden in prompts and in generated output.
 - Discrete questions (no passage) must not emit a passage; CARS uses only passage-justified reasoning, no outside science.
 - `additional_instructions` from the educator must be injected with high priority into passage drafting, question drafting and remediation prompts (covered by `test_additional_instructions.py`).
@@ -25,7 +25,7 @@ Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_u
 - `agents/validators.py` runs free structural checks (and repairs forbidden dashes) before any LLM review; blocking findings go to the regenerator or reject.
 - Reviewer and blind solver raise `QualityCheckUnavailableError` after two failed attempts instead of passing an item. Only `LLMNotConfiguredError` (no credentials) combined with `OFFLINE_MODE=true` uses heuristic fixtures; `tests/conftest.py` enables it for offline tests. Tests that simulate offline mode must raise `LLMNotConfiguredError`, not a generic error.
 - Generator and regenerator no longer substitute mock questions for real provider failures; the engine's slot retry handles the exception.
-- `ALWAYS_INDEPENDENT_REVIEW=true` forces the reviewer even if the self-critique passed. Truncated completions (`finish_reason == "length"`) are retried with a larger budget up to `LLM_MAX_TOKENS_CEILING`.
+- `ALWAYS_INDEPENDENT_REVIEW=true` (default) forces the reviewer on every draft and skips the self-critique entirely (draft only); `false` enables the fused draft + self-critique, and a self-score above the threshold then skips the independent review. Truncated completions (`finish_reason == "length"`) are retried with a larger budget up to `LLM_MAX_TOKENS_CEILING`.
 
 ## Authoring standards, outputs and the solver
 - Numbers (option-length spread, passage word bands) live only in `agents/standards.py`; prompts use `<<TOKEN>>` placeholders resolved there, and the validator imports the same values. Never hardcode "within N words" or a passage length in a prompt.
@@ -35,7 +35,7 @@ Files: `workflow/nodes.py` (node fns plus `build_review_update`, `build_solver_u
 
 ## Cost controls
 - `MAX_LLM_CALLS_PER_SLOT` caps calls per question slot (counted from the `calls` field of usage entries; mock results count zero). Any new loop that can spend LLM calls must check `llm_budget_exhausted(state)` first.
-- Default flow is sequential: the solver runs only after the reviewer passes (`PARALLEL_REVIEW_AND_SOLVE=false`). A regenerated draft is duplicate-checked for free before the next review.
+- Default flow is parallel: reviewer and solver run concurrently (`PARALLEL_REVIEW_AND_SOLVE=true`), so solver tokens are spent on weak drafts too; set it to `false` for the sequential flow. A regenerated draft is duplicate-checked for free before the next review.
 
 ## Editing prompts
 Prompts are long and heavily tuned. Make surgical edits, keep section numbering, and run `test_agents.py`, `test_pedagogy.py`, `test_additional_instructions.py`. If a rubric or threshold changes, update `docs/MCAT_RUBRIC.md` and `docs/ARCHITECTURE.md` too.

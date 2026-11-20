@@ -10,7 +10,7 @@ Built with **React 19**, **Vite 8**, **Oxlint**, and a custom dark-glass precisi
 
 The frontend provides an intuitive, real-time command canvas for AAMC MCAT question generation, AI team tracking, and question bank management:
 
-- **Streamlined 3-Step Guided Wizard**: High-velocity authoring workflow consolidating section selection, syllabus disciplines, major units, multi-select subtopic concepts, difficulty calibration (**Low**, **Medium**, **High**), format (Passage-Based vs Independent Single-Choice), streamlined generation scope (**5 Questions** vs **50 Questions**), visual stimuli, and the new **Additional Authoring Instructions** input textarea (with visible `Custom Instructions Active` badge pill) into three focused decision stages (Section & Focus, Level & Format, Review & Launch).
+- **Streamlined 3-Step Guided Wizard**: High-velocity authoring workflow consolidating section selection, syllabus disciplines, major units, multi-select subtopic concepts, difficulty calibration (**Low**, **Medium**, **High**), format (Passage-Based vs Independent Single-Choice), streamlined generation scope (**5 Questions** vs **50 Questions**), visual stimuli, and the new **Additional Authoring Instructions** input textarea (with a visible `+ Custom Prompt Active` badge) into three focused decision stages (Section & Focus, Level & Format, Review & Launch).
 - **2 Calibrated Generation Scopes**:
   - **5 Questions**: 1 Single Job background worker drafting on a shared passage or discrete set (~35-50s) streamed into the AI Validated Bank and Batch Activity Desk with live telemetry.
   - **50 Questions**: Enterprise background multi-job batch (10 concurrent jobs x 5 questions) with automatic AI validation and in-place slot replenishment.
@@ -21,8 +21,8 @@ The frontend provides an intuitive, real-time command canvas for AAMC MCAT quest
 - **Passage Editorial Desk & Readability Diagnostics**: Dedicated split-pane reading passage workstation (`PassageEditorialDesk.jsx`) rendered in **Newsreader Serif** with medical journal typography (`font-size: 1.05rem; line-height: 1.68; letter-spacing: -0.01em;`), live word count, figure attachment showcase, server-driven pagination with database sort modes (`newest`, `oldest`, `title`, `questions`), and **Passage Readability & Alignment Diagnostics** (`/api/ai/audit-passage`) with decoupled status pills (`Alignment: Strong` / `Alignment: Calibrating`). Linked questions carousel displays decoupled status badges (`Ready for Review` / `In Bank`).
 - **Question Quality & Cost Breakdown**: Comprehensive 100-point 4-pillar quality check with itemized token tracking and micro-dollar cost calculations.
 - **AI Copilot Studio (`QuestionCopilotStrip.jsx`)**: Real-time context-aware assistant strip anchored to the generation and review workspace, offering in-flight cognitive tools: Prompt Enhancement (`/enhance-instructions`), Question Refinement (`/refine-question`), Passage Audit (`/audit-passage`), and High-Yield Study Guide Generation (`/study-guide`).
-- **Comprehensive 6-Format Publication & Export Studio**: Decomposed modal architecture (`ExportPrintModal.jsx`, `ExportScopeSelector.jsx`, `ExportDataFormatPane.jsx`, `StudyGuideExportPane.jsx`) supporting Official Exam Booklet (Standard PDF), Exam Simulation Booklet (Split-Pane AAMC Layout PDF), Comprehensive Study Pack (Annotated Review PDF), Anki Flashcard Deck (TSV with Cloze / QA Tags), Standardized CSV, and Normalized JSON.
-- **Publication-Grade Medical & Scientific Visual Studio**: Dedicated figure renderer supporting all 7 clinical and experimental modalities (Radiology, Histopathology, Gross Anatomy, Cellular Electron Microscopy, Physiology/ECG Traces, Clinical Pathology, and SVG Vector Diagrams) with modality badging, autonomous AI visual discretion for standalone and passage questions ("Include Images When Needed"), high-contrast dark container rendering for radiographic clarity, and click-to-zoom accessible lightbox inspection (`VisualStimulusLightboxModal.jsx`).
+- **Publication & Export Studio**: Decomposed modal architecture (`ExportPrintModal.jsx`, `ExportScopeSelector.jsx`, `ExportDataFormatPane.jsx`, `StudyGuideExportPane.jsx`) with four export formats: printable paper (`Student Test` or `Full Study Pack` paper type), CSV, JSON, and AI Study Guide (which also offers an Anki-compatible TSV download from `StudyGuideExportPane.jsx`).
+- **Publication-Grade Medical & Scientific Visual Studio**: Dedicated figure renderer supporting all 7 clinical and experimental modalities (Radiology, Histology, Gross Anatomy, Cellular Electron Microscopy, Physiology/ECG Traces, Clinical Pathology, and SVG Vector Diagrams) with modality badging, autonomous AI visual discretion for standalone and passage questions ("Include Images When Needed"), high-contrast dark container rendering for radiographic clarity, and click-to-zoom accessible lightbox inspection (`VisualStimulusLightboxModal.jsx`).
 - **Enterprise Question Bank**: High-speed searchable, filterable repository with multi-format export, lifecycle status management, and copy-to-clipboard actions.
 - **WCAG AA Semantic Controls & Universal Focus Rings**: All interactive buttons across wizards, filter bars, cards, and modal dialogs are implemented as native semantic `<button>` elements with explicit `aria-pressed`, `aria-current="step"`, `aria-expanded`, and descriptive `aria-label`s on selection checkboxes and bulk actions. Universal WCAG 2.1 AA `:focus-visible` dual-ring brand glow outline (`2px solid var(--brand-primary)` with 2px offset and `var(--brand-ring)` box shadow) in `accessibility.css` ensures complete keyboard accessibility across all interactive controls.
 
@@ -32,8 +32,8 @@ The frontend provides an intuitive, real-time command canvas for AAMC MCAT quest
 
 ```
 frontend/src/
+├── App.jsx                       # Root component: lazy-loaded views, wizard dock and modals
 ├── views/                        # Top-level application view screens (code-split)
-│   ├── index.js                  # Views barrel export
 │   ├── AiValidatedQuestionsView.jsx # Dedicated review deck for AI-validated items (Review Queue)
 │   ├── BatchActivityView.jsx     # Live & historical batch monitoring dashboard (Batch Progress)
 │   ├── PassageBankView.jsx       # Reading passages repository & editorial desk (Passage Bank)
@@ -49,14 +49,21 @@ frontend/src/
 │   │   ├── index.js              # Batch barrel export
 │   │   ├── ActiveMultiBatchMonitor.jsx # Global concurrency metrics & live multi-batch controller
 │   │   ├── BatchCard.jsx         # Summary status card for generation batches & Resume Sets action
+│   │   ├── BatchCardJobsGrid.jsx # Grid of per-set job cards inside a batch card
+│   │   ├── BatchCardSummary.jsx  # Batch card summary block
 │   │   ├── BatchEmptyState.jsx   # Decomposed zero-state canvas for batch activity
 │   │   ├── BatchFiltersBar.jsx   # Section, status, and search filters
 │   │   ├── BatchHeaderBanner.jsx # Decomposed top summary banner for active batch metrics
 │   │   ├── BatchJobCard.jsx      # Per-set worker card with 5-question visual progress strip
+│   │   ├── BatchJobHeader.jsx    # Header row of a per-set job card
+│   │   ├── BatchJobPillStrip.jsx # Per-question progress pill strip for a job
 │   │   ├── BatchJobTelemetryBadges.jsx # Live telemetry badges (in-progress, completed, needs polish)
+│   │   ├── BatchLifecycleStepper.jsx # Batch lifecycle stage stepper
 │   │   ├── BatchOutcomeCard.jsx  # Final batch outcome and completion summary card
 │   │   ├── BatchQuestionActions.jsx # Decomposed question row actions
 │   │   ├── BatchQuestionItem.jsx # Staged question item with review modal
+│   │   ├── BatchQuestionOptionsList.jsx # Options list for a staged batch question
+│   │   ├── BatchQuestionPassageDrawer.jsx # Passage drawer for a staged batch question
 │   │   └── BatchStatsHeader.jsx  # High-level aggregate batch statistics
 │   ├── common/
 │   │   ├── index.js              # Common primitives barrel export
@@ -75,18 +82,16 @@ frontend/src/
 │   │   ├── index.js              # Layout barrel export
 │   │   ├── Footer.jsx            # Infynno Solutions LLP attribution & resource footer
 │   │   └── Navbar.jsx            # Header with branding, navigation tabs, status, and theme toggle
-│   ├── copilot/
-│   │   ├── index.js              # Copilot barrel export
-│   │   └── QuestionCopilotStrip.jsx # Interactive in-flight educator assistance strip
 │   ├── modals/
 │   │   ├── index.js              # Modals barrel export
 │   │   ├── ConfirmationModal.jsx # Accessible WCAG AA confirmation modal replacing native window.confirm
+│   │   ├── confirmModalProps.js  # Helper mapping a useConfirmModal() state object to ConfirmationModal props
 │   │   ├── DeletePassageModal.jsx# Dedicated passage deletion and cascade warning dialog
 │   │   ├── ExportPaperPreview.jsx# Live print layout previewer
-│   │   ├── ExportPrintModal.jsx  # 6-format Export Studio modal (Focus Trapped)
+│   │   ├── ExportPrintModal.jsx  # Export Studio modal: paper, CSV, JSON, study guide (Focus Trapped)
 │   │   ├── ExportScopeSelector.jsx# Decomposed export scope & filter selector
-│   │   ├── ExportDataFormatPane.jsx# Decomposed CSV / JSON / Anki TSV format configuration
-│   │   └── StudyGuideExportPane.jsx# Decomposed study guide settings pane
+│   │   ├── ExportDataFormatPane.jsx# Decomposed CSV / JSON format configuration
+│   │   └── StudyGuideExportPane.jsx# Decomposed study guide pane (includes the Anki TSV download)
 │   ├── passage/
 │   │   ├── index.js              # Passage bank barrel export
 │   │   ├── PassageBankFilters.jsx# Passage search, section, and difficulty filters
@@ -105,6 +110,8 @@ frontend/src/
 │   │   ├── QuestionCard.jsx      # Primary student practice & review card orchestrator
 │   │   ├── QuestionCardFooter.jsx# Decomposed footer with token metrics, cost in USD & actions
 │   │   ├── QuestionCardHeader.jsx# Decomposed header with status badge, score, trap & timers
+│   │   ├── PillarBars.jsx        # Four quality pillars as labelled progress bars (compact or audit-grid layout)
+│   │   ├── QuestionCopilotStrip.jsx # Interactive in-flight educator assistance strip (AI Copilot)
 │   │   ├── QuestionInlineEditor.jsx # In-place authoring & remediation editor
 │   │   ├── QuestionOptionsList.jsx# Decomposed 4-choice options renderer with symmetry validation
 │   │   ├── QuestionScorecardTab.jsx # 100-point rubric breakdown accordion
@@ -162,7 +169,7 @@ frontend/src/
 │   └── useTheme.js               # Dark/light mode persistence
 ├── services/
 │   ├── index.js                  # Services barrel export
-│   └── api.js                    # FastAPI client & SSE stream reader (29 methods: question CRUD/restore, pgvector search, AI Copilot, batches, passages)
+│   └── api.js                    # FastAPI client & SSE stream reader (34 exports: question CRUD/restore, pgvector search, AI Copilot, batches, passages)
 ├── utils/
 │   ├── index.js                  # Utilities barrel export
 │   ├── batchHelpers.js           # Calculates current execution stage, badges, descriptions, and refill status for a batch
@@ -170,7 +177,7 @@ frontend/src/
 │   ├── batchPayload.js           # The POST /batches/start payload builder with defense-in-depth CARS visual suppression
 │   ├── download.js               # Text file download helper
 │   ├── explanationHelpers.js     # Pure JS distractor line & trap parser
-│   ├── export/                   # csv.js, json.js, htmlDoc.js (print builder), printPaperCss.js, escape.js, anki.js, index.js
+│   ├── export/                   # csv.js, json.js, htmlDoc.js (print builder), printPaperCss.js, escape.js, index.js (entry point)
 │   ├── formatters.js             # Currency, pacing, and token formatting
 │   ├── generatorFormState.js     # Pure wizard form reducers: subtopic toggles, section rules
 │   ├── ids.js                    # RFC4122-style random id. crypto.randomUUID only exists in secure contexts (HTTPS/localhost),
@@ -213,21 +220,22 @@ In the repository root or `frontend` directory, you can run:
 
 ```bash
 # Start local development server with Hot Module Replacement (HMR)
-# Automatically runs 'predev' hook to clean ports 8000 and 5173
+# From the repo root, the root `predev` script (clean:ports) frees ports 8000 and 5173 first
+# and `pnpm dev` starts backend and frontend together; inside frontend/ it runs plain `vite`
 pnpm dev
 
 # Run Vitest automated test suite (150 tests across 18 test files, 100% pass rate)
 pnpm test
-# or from root:
+# or from the repo root (root package.json script):
 pnpm run test:frontend
 
-# Run Oxlint high-speed linter across frontend sources (0 errors, 0 warnings policy)
+# Run Oxlint (0 errors, 0 warnings policy; last run: 169 files, 106 rules)
 pnpm lint
 
 # Check CSS class usage and verify zero unused or missing classes
 pnpm check:css
 
-# Synchronize backend taxonomy JSON to frontend constants
+# Synchronize backend taxonomy JSON to frontend constants (root package.json script, run from the repo root)
 pnpm run sync:taxonomy
 
 # Build production bundle with Vite (compiles cleanly)
@@ -241,7 +249,7 @@ pnpm preview
 
 ## 🧪 Automated Testing Suite (Vitest)
 
-The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **18 test files (150 total tests)**:
+The frontend test suite covers pure helpers, formatters, question validation, distractor extraction, batch calculators, multi-format export builders, and custom hooks across **18 test files (150 total tests)**. Tests run on Vitest with jsdom and render components via `react-dom/client` plus `act` (no Testing Library is installed):
 
 | Test Suite | Path | Tests | Coverage |
 | :--- | :--- | :-: | :--- |
@@ -263,7 +271,7 @@ The frontend test suite covers pure helpers, formatters, question validation, di
 | `QuestionBankViewHandlers.test.js` | `src/views/__tests__/` | 4 | Filter reset handlers, table row selection toggling, stale selection pruning |
 | `requestGuard.test.js` | `src/utils/__tests__/` | 3 | In-flight request deduplication, debounce guards, idempotency keys |
 | `usePagination.test.jsx` | `src/hooks/__tests__/` | 2 | Server-driven pagination handling (`totalCount`, page boundaries, and navigation callbacks) |
-| **Total** | **18 Suites** | **150** | **100% Pass Rate (~670ms)** |
+| **Total** | **18 Suites** | **150** | **100% Pass Rate** |
 
 ---
 
@@ -293,4 +301,4 @@ The frontend uses an enterprise precision design system. For exhaustive tokens, 
    - **0 TODO**, **0 FIXME**, and **0 `console.log`** statements in source code.
    - Canonical status constants (`QUESTION_STATUS.AI_VALIDATED`) instead of raw strings.
    - Unidirectional symmetric state pairs (`[rawSelectedIds, setRawSelectedIds]`).
-   - Zero lint errors or warnings via Oxlint (`0 warnings and 0 errors across 168 files`).
+   - Zero lint errors or warnings via Oxlint (`0 warnings and 0 errors across 169 files`, as reported by `oxlint`).

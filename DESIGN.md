@@ -2,7 +2,7 @@
 
 > **Infynno Solutions LLP • Infinite Innovations • [infynno.com](https://infynno.com/)**  
 > **Product**: Infynno MCAT Question Bank Generator v2.0  
-> **Aesthetic Philosophy**: Linear/Vercel-inspired high-precision minimalism, alabaster light mode default with dark obsidian mode, scientific research passages and CARS essays, and animated electric conduit telemetry.
+> **Aesthetic Philosophy**: Linear/Vercel-inspired high-precision minimalism, alabaster light mode default with dark obsidian mode, scientific research passages and CARS essays, and live batch telemetry.
 
 ---
 
@@ -12,7 +12,7 @@ The Infynno MCAT Question Studio is built for pre-med educators, test-prep autho
 
 1. **Precision Minimalism**: Quiet surfaces, hairline borders (`1px solid var(--border-light)`), subtle elevations, and zero card clutter.
 2. **Editorial Typographic Hierarchy**: Clinical reading passages rendered in warm, high-legibility serif type (`Newsreader`, line-height `1.68`), while UI controls and telemetry use modern sans-serif (`Plus Jakarta Sans`) and monospace (`JetBrains Mono`).
-3. **Reactive Observability**: Complex multi-agent workflow steps (Generator, Reviewer, Regenerator, Image Engine) are visualized through glowing electric conduit animations without distracting from the editorial workspace.
+3. **Reactive Observability**: Complex multi-agent workflow steps (Generator, Reviewer, Regenerator, Image Engine) are visualized through live progress strips, pulse indicators and stage badges without distracting from the editorial workspace.
 4. **Seamless Dual-Theme Ergonomics**: First-class alabaster light (`#f8fafc`) default and dark obsidian (`#080c14`) palettes toggled instantly with zero flicker (`T` shortcut or navbar control).
 5. **Print & Export Fidelity**: Built-in `@media print` CSS rules and clean paper layouts for professional PDF exam booklets and student study packs.
 
@@ -47,7 +47,7 @@ These core gradient tokens anchor the brand identity across buttons, active tab 
 | `--infynno-blue` | `#335ACF` | Core Infynno royal blue |
 | `--infynno-cyan` | `#1E7ADF` | Vibrant electric cyan accent |
 | `--infynno-gradient` | `linear-gradient(135deg, #4F30B9 0%, #335ACF 50%, #1E7ADF 100%)` | Interactive primary actions, badges, progress bars |
-| `--infynno-glow` | `0 0 16px rgba(51, 90, 207, 0.25)` | Focused element glow |
+| `--infynno-glow` | `0 0 20px rgba(51, 90, 207, 0.25)` | Focused element glow |
 
 ---
 
@@ -86,11 +86,13 @@ graph LR
 
 ### 2.3 Status & Psychometric Scoring Tokens
 
-| Status Pillar | Foreground Token | Dark BG / Border | Light BG / Border | Semantic Role |
+The foreground hex values below are the dark-theme values; the light theme uses darker foregrounds (success `#059669`, danger `#e11d48`, purple `#7c3aed`; warning `#d97706`) defined in `tokens.css`.
+
+| Status Pillar | Foreground Token (dark theme) | Dark BG / Border | Light BG / Border | Semantic Role |
 | :--- | :--- | :--- | :--- | :--- |
 | **Pass / Success** | `--status-success` (`#10b981`) | `rgba(16,185,129,0.06)` / `0.22` | `#ecfdf5` / `#a7f3d0` | Psychometric Score > 80, Approved |
 | **Warning / Caution** | `--status-warning` (`#f59e0b`) | `rgba(245,158,11,0.06)` / `0.22` | `#fffbeb` / `#fde68a` | Remediation in progress, Borderline draft |
-| **Reject / Danger** | `--status-danger` (`#f43f5e`) | `rgba(244,63,94,0.06)` / `0.22` | `#fff1f2` / `#fecdd3` | Score <= 80 after 3 cycles (batch < 70), Discarded draft |
+| **Reject / Danger** | `--status-danger` (`#f43f5e`) | `rgba(244,63,94,0.06)` / `0.22` | `#fff1f2` / `#fecdd3` | Rejected draft (score below 70 after 3 cycles), Discarded draft |
 | **Cognitive Trap** | `--status-purple` (`#8b5cf6`) | `rgba(139,92,246,0.06)` / `0.22` | `#f5f3ff` / `#ddd6fe` | Distractor analysis, trap rationalization |
 
 ---
@@ -119,10 +121,10 @@ Psychological, Social & Biological (PS)  -> Royal Violet  (#a855f7 / #7c3aed)
 
 - **Plus Jakarta Sans**: Primary application typography. Clean, modern geometric proportions ensure high legibility in buttons, tabs, wizards, and tables.
 - **Newsreader Serif**: Used exclusively for clinical reading passages and stimulus articles. Set with `font-size: 1.05rem`, `line-height: 1.68`, and letter-spacing `-0.01em` to emulate high-end medical journal formatting and prevent cognitive fatigue.
-- **JetBrains Mono**: Used for token metrics, stopwatch timers, cost calculations, JSON trees, and shortcut badges (`⌘↵`, `A`, `D`).
+- **JetBrains Mono**: Used for token metrics, stopwatch timers, cost calculations, JSON trees, and shortcut badges (`⌘↵`).
 
 ### 3.2 Spatial Scale & Border Radii
-- **Workspace Canvas**: Constrained to `maxWidth: 1040px` centered with auto margins, ensuring consistent eye travel without overly wide reading lines.
+- **Workspace Canvas**: `.app-main-content` (`layout.css`) is constrained to `max-width: 1440px`, centered with auto margins and `24px` padding. The guided wizard dock (`.wizard-card`) is narrower (`max-width: 880px`).
 - **Radius Hierarchy**:
   - `--radius-xs`: `4px` (micro tags, tooltips)
   - `--radius-sm`: `8px` (buttons, select menus, input fields)
@@ -149,7 +151,7 @@ Streamlined 3-step authoring workflow with quick-launch hero presets:
   - **Advanced Settings Drawer (`WizardAdvancedSettings.jsx`)**: Decomposed collapsible accordion drawer giving fine-grained control over cognitive distractor traps, SIRS reasoning skills, and targeted student mistake patterns. Accordion header uses `.wizard-advanced-header-title-group` for structured semantic heading alignment and is an accessible native `<button type="button">` with `aria-expanded={showAdvanced}` and `aria-controls="wizard-advanced-panel"`, paired with `id="wizard-advanced-panel"` on the collapsible content container.
 - **Spatial Radius & Transition Scale Compliance (`.wizard-card` & Sub-Cards)**:
   - `.wizard-card` (the outer dock) strictly enforces `border-radius: var(--radius-lg)` (`16px`), aligning with main workspace panels and modal dialogs per §3.2.
-  - Sub-cards and option decision containers—including `.wizard-section-card` (Step 1 section choices), `.wizard-tier-card` (difficulty & format choices), `.wizard-review-card` (Step 3 parameter overview), and `.wizard-diagram-card` (scientific diagrams toggle)—strictly enforce `border-radius: var(--radius-md)` (`12px`) and `transition: var(--transition-ui)` (`200ms cubic-bezier(0.16, 1, 0.3, 1)`), eliminating sibling radius drift across wizard steps.
+  - Sub-cards and option decision containers—including `.wizard-section-card` (Step 1 section choices), `.wizard-tier-card` (difficulty & format choices), `.wizard-review-card` (Step 3 parameter overview), and `.wizard-diagram-card` (scientific diagrams toggle)—strictly enforce `border-radius: var(--radius-md)` (`12px`) and `transition: var(--transition-ui)` (the interactive-state property list in `tokens.css` at `var(--transition-fast)`, `0.12s ease-out`), eliminating sibling radius drift across wizard steps.
   - Section badges within cards enforce `border-radius: var(--radius-full)`.
   - Action buttons and tags strictly enforce `border-radius: var(--radius-sm)` (`8px`) and `var(--radius-xs)` (`4px`).
 
@@ -158,7 +160,7 @@ Streamlined 3-step authoring workflow with quick-launch hero presets:
   - **Uncapped Mathematical Progress Bar**: Calculates true question delivery (`actual_count / target_count * 100%`), eliminating artificial 95% caps and render-time mutations. Completed batches lock at 100% emerald.
   - **4-Stage Visual Lifecycle Stepper (`.batch-lifecycle-stepper`)**:
     1. `Drafting Sets`: Parallel item generation across active worker slots (`Layers` icon).
-    2. `Duplicate Audit`: Autonomous pairwise clustering (>75% similarity) and quality rubric gate (`ShieldCheck` icon).
+    2. `Duplicate Audit`: Autonomous pairwise clustering (hard duplicate threshold 0.75 similarity) and quality rubric gate (`ShieldCheck` icon).
     3. `In-Set Refill`: Autonomous replenishment trials (2-3) targeting deficient slots without passage drift (`RotateCcw` icon; marked `Fulfilled` if no refills required).
     4. `Ready for Review`: Atomic elevation to Review Queue (`CheckCircle2` icon).
 - **Contextual Batch Outcome Banners (`.batch-outcome-card`)**:
@@ -166,19 +168,20 @@ Streamlined 3-step authoring workflow with quick-launch hero presets:
   - **Partially Completed Batches**: Amber notification detailing fulfilled vs shortfall counts after 3 exhausted trials with 1-click access to valid questions.
   - **Stopped Batches**: Neutral summary showing safely preserved question counts with instant `[Resume Sets]` controlled resumption.
 - **Job Card Live Micro-Progress (`BatchJobCard.jsx`)**:
-  - **Worker Queue State**: Explicitly highlights `⏳ Queued in Worker Pool` for jobs waiting for semaphore capacity vs `⚡ Active Worker Slot` with pulsing electric conduit indicator.
+  - **Worker Queue State**: Explicitly highlights `⏳ Queued in Worker Pool` for jobs waiting for semaphore capacity vs `⚡ Active Worker Slot` with a pulse dot (`.batch-job-pulse-dot`).
   - **5-Question Progress Pills (`.job-q-pill-strip`)**: Micro-status pills (`Q1`–`Q5`) displaying exact question slot lifecycle states via `resolveStatus`:
     - `.done`: Completed and ready for review (`✓ Q1`), emerald accent (`var(--emerald)`).
     - `.in-bank`: Completed and already approved into the Question Bank (`✓ Q1`), royal violet accent (`var(--infynno-violet)`).
-    - `.active`: Currently generating or self-evaluating candidate (`● Q2`), pulsing electric conduit cyan animation (`animate-pulse`).
+    - `.active`: Currently generating or self-evaluating candidate (`● Q2`), brand-colored glow (`var(--brand-light)` background, `var(--brand-primary)` text, `box-shadow: 0 0 6px var(--brand-ring)`).
     - `.pending`: Muted placeholder slot awaiting worker assignment (`Q3`), hairline dashed outline (`var(--border-light)`).
+    - `.failed`: Slot that did not produce a question (styled in `batch.css`).
   - **Resilient Autonomous Trial Telemetry Badges**:
-    - `AUTO-RETRYING (X/3)`: Pulsing amber badge (`.job-retry-badge`) indicating active in-flight shortfall replenishment.
-    - `3/3 TRIALS EXHAUSTED`: Crimson warning badge (`.job-exhausted-badge`) signaling that the maximum 3 trial attempts have completed without hitting full target count.
+    - `Replenishing Slot (Trial X/3)`: Active-slot badge (`.worker-queue-badge.active-slot.batch-job-badge-replenish`, shown when `trial_count > 1`) indicating in-flight shortfall replenishment.
+    - `3/3 TRIALS EXHAUSTED`: Warning badge (`.badge.badge-warning.batch-job-status-badge`) signaling that the maximum 3 trial attempts have completed without hitting full target count.
     - `CANCELLED`: Neutral badge for user-aborted sets.
   - **Live Duration Stopwatch**: Self-contained runtime counter (`LiveStopwatch`) tracking elapsed generation duration on running sets and active batches.
 - **Autonomous Set-Preserving Duplicate Resolution Engine (`batch_resolution.py`)**:
-  - Autonomous pairwise clustering analyzing question similarity (>75% threshold).
+  - Autonomous pairwise clustering analyzing question similarity (hard duplicate threshold `DUPLICATE_HARD_THRESHOLD=0.75`).
   - Permanent purge (`action="delete"`) of duplicate drafts with automatic in-place slot replenishment preserving the original set's reading passage and thematic angle.
   - Guaranteed exact target count delivery (e.g. exactly 50 questions across 10 jobs) without requiring manual educator intervention.
 
@@ -207,18 +210,16 @@ Streamlined 3-step authoring workflow with quick-launch hero presets:
 - Displays the 4-pillar breakdown (Authenticity, Clarity, Distractor Traps, Explanation Rigor) scored out of 25 each.
 - Itemized per-cycle token usage table detailing prompt tokens, completion tokens, execution time, and sub-micro-cent USD cost.
 
-### 4.5 Comprehensive 6-Format Publication & Export Studio (`ExportPrintModal.jsx`, `ExportPaperPreview.jsx`)
+### 4.5 Publication & Export Studio (`ExportPrintModal.jsx`, `ExportPaperPreview.jsx`)
 - **Decomposed Modular Panes**:
   - `ExportScopeSelector.jsx`: Target scope configuration (All In-Bank, Current Page, or Staged Review Queue).
-  - `ExportDataFormatPane.jsx`: Format configurations for tabular and spaced-repetition exports (CSV, JSON, Anki TSV).
-  - `StudyGuideExportPane.jsx`: Custom study guide compilation parameters, active recall questions, and takeaway depth.
-- **6 Standardized Publication Formats**:
-  1. **Official Exam Booklet (Standard PDF)**: Formatted with examination title blocks, candidate name/ID lines, section timing guidelines, and `.page-break` rules preventing awkward page splits across stems and options.
-  2. **Exam Simulation Booklet (Split-Pane AAMC Layout PDF)**: Authentic full-length test day layout with reading passage on the left, paired questions on the right, and dedicated answer bubble sheets.
-  3. **Comprehensive Study Pack (Annotated Review PDF)**: Pairs every research or CARS stimulus with its question stem, correct key, cognitive trap analysis, and complete step-by-step cognitive proof rationales.
-  4. **Anki Flashcard Deck (TSV with Cloze / QA Tags)**: Clean TSV export formatted with front/back fields, tags for AAMC section and difficulty, and formatted explanation proofs for instant import into Anki.
-  5. **Standardized CSV (`mcat_question_bank.csv`)**: Normalized tabular dataset of all questions, options, keys, rubrics, and token metrics for spreadsheet manipulation.
-  6. **Normalized JSON (`mcat_question_bank.json`)**: Complete hierarchical schema export preserving full JSONB metadata, agent evolutions, and psychometric scores.
+  - `ExportDataFormatPane.jsx`: Format configuration for the tabular exports (CSV, JSON).
+  - `StudyGuideExportPane.jsx`: Study guide compilation parameters, active recall questions, takeaway depth, and the Anki-compatible TSV download.
+- **4 Export Formats** (`format` state in `ExportPrintModal.jsx`: `paper`, `csv`, `json`, `study_guide`):
+  1. **Paper (printable)**: Print layout with a live preview (`ExportPaperPreview.jsx`) and two paper types (`paperMode`): `Student Test` (questions only, with examination title block and timing) and `Full Study Pack` (adds the correct key, cognitive trap analysis, and step-by-step rationales). `.page-break` rules in the print CSS prevent awkward page splits across stems and options.
+  2. **CSV (`mcat_question_bank.csv`)**: Normalized tabular dataset of questions, options, keys, rubrics, and token metrics for spreadsheet manipulation.
+  3. **JSON (`mcat_question_bank.json`)**: Complete hierarchical export preserving metadata, agent evolutions, and psychometric scores.
+  4. **Study Guide**: AI-compiled high-yield study guide (`/api/ai/study-guide`) with an additional **Anki flashcard deck (`.tsv`)** download implemented inside `StudyGuideExportPane.jsx`.
 
 ### 4.6 Conversational Mentor Explanation View (`MentorExplanationView.jsx`)
 Renders pedagogical rationales across three distinct, beautifully styled visual cards:
@@ -230,13 +231,13 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - Structure: Contains individual itemized sub-cards for each distractor choice (`[A]`, `[C]`, `[D]`) detailing the specific fallacy, miscalculation, or deceptive wording that disqualifies it.
 - **Card 3: Primary Cognitive Trap Spotlight (Purple / Tactical Defense)**:
   - Tokens: Background `rgba(139, 92, 246, 0.06)` (dark) / `#f5f3ff` (light), border `rgba(139, 92, 246, 0.25)` (dark) / `#ddd6fe` (light), text `--status-purple` (`#8b5cf6`), `Zap` & `ShieldCheck` icons.
-  - Content: Spotlights the dominant MCAT trap from the 11-trap taxonomy (`MCAT_TRAP_DEFINITIONS`), detailing the precise psychological **Error Mechanism** and providing an actionable **Student Defense Strategy** for test day.
+  - Content: Spotlights the dominant MCAT trap from the 25-trap taxonomy (`MCAT_TRAP_DEFINITIONS`), detailing the precise psychological **Error Mechanism** and providing an actionable **Student Defense Strategy** for test day.
 - **Top Metadata Trap Badging**:
   - `QuestionCard.jsx` and `QuestionBankTable.jsx` render a persistent purple badge chip in the card header: background `rgba(139, 92, 246, 0.12)`, text `#a78bfa` (dark) / `#6d28d9` (light), border `rgba(139, 92, 246, 0.3)`.
 - **Responsive Modes**: Supports `isCompact=true` for staged review decks and full expanded mode for in-depth editorial analysis.
 
 ### 4.7 Active Multi-Batch Concurrency Monitor (`ActiveMultiBatchMonitor.jsx`)
-- **Global Worker Pool Concurrency Gauge**: Displays live worker slot occupancy against server semaphore limits (`Worker Pool: X / 4 Active Slots Busy • Y Sets Queued in Pool`).
+- **Global Worker Pool Concurrency Gauge**: Displays live worker slot occupancy against server semaphore limits (`Worker Pool Concurrency`: `N / 4 Slots Busy`, `N Sets Generating in Parallel`, `N Sets Queued for Slots`). The limit `4` is hard-coded in `ActiveMultiBatchMonitor.jsx`, not read from the server.
 - **Live Operational Stage Breakdown**: Aggregate status chips distinguishing sets generating in parallel, queued sets, and completed sets.
 - **Uncapped Progress Telemetry**: Accurate overall percentage across active batches without artificial progress throttling.
 - **Interactive Batch Lifecycle Actions**:
@@ -245,20 +246,20 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Cancel All Batches**: Global administrative emergency stop.
 
 ### 4.8 Live Stopwatch & Precision Telemetry (`LiveStopwatch.jsx`)
-- Renders an active runtime duration stopwatch using `font-family: var(--font-mono)` with glowing amber pulse animation during active generation runs.
+- Renders an active runtime duration stopwatch using `font-family: var(--font-mono)` while a generation run is active.
 
 ### 4.9 Top-Level Application Views & Accessible Filter Controls
 1. **Question Studio Landing & Guided Wizard (`HeroLanding.jsx`, `GuidedWizard.jsx`)**: The primary authoring portal (`activeTab: 'generator'`), switching smoothly between the minimalist welcome canvas (`HeroLanding.jsx` in `viewMode: 'hero'`) with instant section presets and the streamlined 3-step authoring wizard (`GuidedWizard.jsx` in `viewMode: 'wizard'`). Live generation dispatches 1-job 5-Question Sets or 10-job 50-Question Batches directly to background worker pools with real-time telemetry streaming into the Review Queue (`AiValidatedQuestionsView.jsx`) and Batch Progress dashboard (`BatchActivityView.jsx`) (Navigation Tab: `Create Questions`).
 2. **AI Validated Questions View (`AiValidatedQuestionsView.jsx`)**: Dedicated review deck for items generated in background batches that passed the >80 quality threshold, supporting one-click individual or bulk publishing into the primary Question Bank (Navigation Tab: `Review Queue`).
 3. **Question Bank View (`QuestionBankView.jsx`, `QuestionBankFilters.jsx`, `QuestionBankTable.jsx`)**: Full-featured searchable, filterable repository strictly consolidated on the canonical **Editorial Cards** view. Legacy table grid mode and view-switcher toolbar controls have been deprecated and removed, dedicating the entire layout to high-density reading cards with inline editing, multi-format CSV/JSON exports, bulk deletion, lifecycle status updates, and repository-wide token analytics (Navigation Tab: `Question Bank`). Supports persistent multi-selection across page boundaries paired with the dedicated `.qbank-clear-selection-btn` button to reset selected sets globally. Toolbar features full WCAG AA compliance with explicit `type="button"` and descriptive `aria-label`s on Select All and Bulk Delete buttons, `aria-pressed={isActive}` on Section and Difficulty filter pills, and standardized `var(--transition-ui)` animations.
-4. **Batch Activity View (`BatchActivityView.jsx`, `BatchFiltersBar.jsx`, `BatchCardSummary.jsx`)**: Live and historical monitor displaying running batch jobs, per-job question counts, status indicators, and background worker progress. Features dedicated scope filtering (`All Batches`, `Mini-Batches [1 Job]`, `Full Sections [10 Jobs]`) and visual badges distinguishing 1-job mini-batches from 10-job full mock sections (Navigation Tab: `Batch Progress`). Toolbar controls implement `aria-pressed` on Scope tabs and Status tabs, `aria-label="Toggle live auto-sync polling"` on the auto-sync checkbox, and descriptive `aria-label`s on Stop, Resume Sets, and Delete batch action buttons.
+4. **Batch Activity View (`BatchActivityView.jsx`, `BatchFiltersBar.jsx`, `BatchCardSummary.jsx`)**: Live and historical monitor displaying running batch jobs, per-job question counts, status indicators, and background worker progress. Features dedicated scope filtering (`All Sets`, `Quick Sets (5 Questions)`, `Full Sets (50 Questions)`) and visual badges distinguishing 1-job mini-batches from 10-job full mock sections (Navigation Tab: `Batch Progress`). Toolbar controls implement `aria-pressed` on Scope tabs and Status tabs, `aria-label="Toggle live auto-sync polling"` on the auto-sync checkbox, and descriptive `aria-label`s on Stop, Resume Sets, and Delete batch action buttons.
 5. **Passage Bank View (`PassageBankView.jsx`, `PassageBankFilters.jsx`)**: Full-featured reading passage stimuli repository and editorial workspace. Provides search by passage narrative or concept, section filtering (with instant return-to-catalog reset on tab navigation), server-driven pagination with database sort modes (`newest`, `oldest`, `title`, `questions`), and the interactive **Passage Editorial Desk** (`PassageEditorialDesk.jsx`). Supports in-place editing of passage text and metadata, attachment or discarding of figures (`PassageVisualStimulusEditor.jsx`), inspection of all linked questions (`PassageLinkedQuestionCard.jsx`), and dedicated cascade passage deletion with linked question removal via hoisted `DeletePassageModal` (Navigation Tab: `Passage Bank`). Toolbar features `aria-pressed` on Section filter pills and descriptive `aria-label`s on Reset and "+ New Passage" buttons.
 
 ### 4.10 Common Primitives & Accessible Pagination (`PaginationBar.jsx`)
 - **Component**: [`frontend/src/components/common/PaginationBar.jsx`](frontend/src/components/common/PaginationBar.jsx) provides a standardized, WCAG AA compliant pagination footer across all list-based views (`QuestionBankView.jsx`, `AiValidatedQuestionsView.jsx`, `BatchActivityView.jsx`, `PassageBankView.jsx`).
 - **Features**:
-  - Live page range counter displaying `"Showing X - Y of Z items"`.
-  - Configurable page size selector (`10`, `25`, `50`, `100` items/page).
+  - Live page range counter (`Showing X-Y of Z`).
+  - Configurable page size selector (`PAGE_SIZE_OPTIONS = [15, 30, 50, -1]` in `utils/pagination.js`; `-1` means All).
   - Previous (`ChevronLeft`) and Next (`ChevronRight`) navigation buttons with disabled boundary states.
   - Page number buttons with dynamic window truncation (ellipsis for $> 5$ pages) and active gradient pill indicators.
 - **Semantic CSS System Classes** defined across [`frontend/src/styles/`](frontend/src/styles) (aggregated in [`frontend/src/index.css`](frontend/src/index.css)):
@@ -268,13 +269,8 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - `.batch-activity-banner`: Top status information banner for batch execution monitors.
 
 ### 4.11 Autonomous Duplicate Resolution & Collision Avoidance
-- **Architecture**: Question deduplication is handled autonomously in the background pipeline (`services/deduplication.py` and `services/batch_resolution.py`) using multi-metric mathematical similarity (token containment, 1-gram & 2-gram Jaccard, SequenceMatcher ratio).
-- **Candidate Warnings & Overrides**:
-  - **Similarity Alert Bar**: When a candidate question exhibits $\ge 80\%$ similarity to an existing Question Bank item, `QuestionCard` renders an amber collision alert (`--status-warning`) detailing the overlap score and match rationale.
-  - **Audit Shield Badge (`🛡️ Overridden`)**: When an educator approves an item with duplicate warnings, the system marks `is_duplicate_override = true`, displaying a royal blue shield pill (`rgba(51, 90, 207, 0.12)`, text `#60a5fa`, border `rgba(51, 90, 207, 0.25)`) across staging cards and verified bank cards to signify audited editorial exemptions.
-- **Badge Specifications**:
-  - `⚠️ Duplicate Risk (XX%)`: Amber pill (`rgba(245, 158, 11, 0.12)`, text `#f59e0b`, border `rgba(245, 158, 11, 0.25)`).
-  - `🛡️ Overridden`: Royal blue shield pill (`rgba(51, 90, 207, 0.12)`, text `#60a5fa`, border `rgba(51, 90, 207, 0.25)`).
+- **Architecture**: Question deduplication is handled autonomously in the backend pipeline (`services/deduplication.py` and `services/batch_resolution.py`) using multi-metric mathematical similarity (token containment, 1-gram & 2-gram Jaccard, SequenceMatcher ratio). Thresholds come from `core/config.py`: hard duplicate `DUPLICATE_HARD_THRESHOLD=0.75`, soft warning `DUPLICATE_SOFT_THRESHOLD=0.60`, API-level check `DUPLICATE_API_THRESHOLD=0.80`.
+- **UI status**: The frontend does not currently render duplicate-collision UI. There is no similarity alert bar, `Duplicate Risk (XX%)` badge, `Overridden` shield badge, or comparison modal in `frontend/src` (no references to `duplicate_info` or `is_duplicate_override`). Duplicates are resolved in the background and surface to educators only through batch outcomes (see §4.2). TODO: verify whether a duplicate-collision UI is planned.
 
 ### 4.12 Polymorphic Figure & Diagram Viewer (`VisualStimulusViewer.jsx`)
 - **Component**: [`frontend/src/components/question/VisualStimulusViewer.jsx`](frontend/src/components/question/VisualStimulusViewer.jsx) provides a publication-grade viewer for AAMC scientific figures, reaction pathways, and experimental charts across all 7 medical and scientific modalities.
@@ -307,20 +303,18 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
 - **Component**: [`frontend/src/components/question/QuestionCard.jsx`](frontend/src/components/question/QuestionCard.jsx) serves as the primary presentation surface for reviewing, practicing, and editing candidate items.
 - **Decomposed Architectural Structure**:
   To maintain high maintainability, reduce re-render cycles, and enforce strict single-responsibility boundaries, `QuestionCard` is decomposed into four specialized subcomponents:
-  1. **Question Card Header (`QuestionCardHeader.jsx`)**: Renders the section badge, calibrated scaled score pill (`118–132`), primary cognitive trap chip (`primary_trap`), question index counter, elapsed generation timer, and top action buttons: **Quality Review** (`ShieldCheck` icon, opens psychometric modal) and **Edit** (`Edit3` icon, toggles inline editor).
+  1. **Question Card Header (`QuestionCardHeader.jsx`)**: Renders the section badge, score badge (`<Award /> final_score/100`), primary cognitive trap chip (`primary_trap`), question index counter, elapsed generation timer, and top action buttons: **Quality Review** (`ShieldCheck` icon, opens psychometric modal) and **Edit** (`Edit3` icon, toggles inline editor).
   2. **Question Card Footer (`QuestionCardFooter.jsx`)**: Renders itemized prompt and completion token counters, calculated micro-dollar inference cost in USD, and primary lifecycle transition actions (e.g., Approve into Bank, Discard).
   3. **Question Options List (`QuestionOptionsList.jsx`)**: Renders the 4 options ($A, B, C, D$) with length-symmetry indicators ($\pm 15\%$), interactive student practice selection, correct key highlighting (emerald), and distractor failure indications (crimson).
   4. **Conversational Mentor Explanations (`MentorExplanationView.jsx`)**: 3-part structured breakdown cards (*Why Correct*, *Why Other Options Incorrect*, *Primary Cognitive Trap Spotlight*).
 - **Multi-Tab Workspace Architecture**:
   - **Preview Tab (`preview`)**: Standard student practice canvas with 4-choice interactive selection, immediate feedback, and collapsible mentor explanation cards.
   - **Scorecard Tab (`scorecard`)**: 100-point rubric accordion breaking down the 4 pillars with itemized reviewer feedback.
-  - **Telemetry Tab (`telemetry`)**: Deep stage JSON inspector displaying raw inference payloads, timing metrics, and token costs.
+  - **Details Tab (`telemetry`, labelled `Details`)**: Deep stage JSON inspector displaying raw inference payloads, timing metrics, and token costs.
 - **Editorial Quick-Edit Mode (`QuestionInlineEditor.jsx`)**:
   - Toggles in-place inputs for the question stem, optional passage/scenario, 4 options, and explanation without navigating away.
   - Integrates the **Option Length Symmetry Engine** (`calculateOptionSymmetry`), showing live percentage word-count deviations to guarantee options stay within the AAMC $\pm 15\%$ anti-guessability standard.
-- **Collision & Override Integration**:
-  - Evaluates `duplicate_info`: displays amber collision warning banner when similarity $\ge 80\%$ with matched question stem and similarity metrics.
-  - Displays persistent `🛡️ Overridden` badge when an educator has verified and cleared the candidate for bank storage.
+- **Collision & Override Integration**: Not implemented in the current UI (see §4.11).
 
 ### 4.14 Reusable Accessible Confirmation Dialog (`ConfirmationModal.jsx`)
 - **Component**: [`frontend/src/components/modals/ConfirmationModal.jsx`](frontend/src/components/modals/ConfirmationModal.jsx) replaces native browser `window.confirm` popups across all application views with an accessible, WCAG AA compliant confirmation dialog.
@@ -354,7 +348,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Standardized Size Constraints**: Accommodates `sm`, `md`, `lg`, `xl`, and `full` widths with automatic vertical scrolling on overflow.
 
 ### 4.17 AI Copilot Studio (`QuestionCopilotStrip.jsx`, `question-copilot.css`)
-- **Component**: [`frontend/src/components/copilot/QuestionCopilotStrip.jsx`](frontend/src/components/copilot/QuestionCopilotStrip.jsx) delivers a context-aware floating educator assistance strip anchored directly to the question generation and review workspace.
+- **Component**: [`frontend/src/components/question/QuestionCopilotStrip.jsx`](frontend/src/components/question/QuestionCopilotStrip.jsx) delivers a context-aware floating educator assistance strip anchored directly to the question generation and review workspace.
 - **Design Tokens & Styling**:
   - Backdrop: `var(--bg-surface-elevated)` with hairline border `1px solid var(--border-medium)` and elevation shadow `var(--shadow-lg)`.
   - Border Radius: `var(--radius-full)` (`9999px`) for the floating pill capsule, with `var(--radius-sm)` (`8px`) on popover panels.
@@ -382,13 +376,13 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - Right-column stepper carousel with keyboard arrow navigation (`←` / `→`).
   - Score Decoupling: In accordance with §8, question cards display clean status pills (`Ready for Review` / `In Bank`) instead of raw score math.
 - **Visual Architecture & Design Tokens**:
-  - **Hero Container (`.hero-landing-container`)**: Centered layout with vertical rhythm, responsive padding, and subtle backdrop gradient.
+  - **Hero Container (`.hero-wrapper` / `.hero-content`)**: Centered layout with vertical rhythm and responsive padding.
   - **Status Pill (`.hero-landing-badge-inline`)**: Anchors brand identity via `InfynnoLogo` and provides a clean interactive link to Infynno Solutions with `aria-label="Infynno Solutions (opens in a new tab)"`.
   - **Headline Typography**: High-contrast heading (`.hero-title`) combining primary text with an electric brand gradient highlight (`var(--infynno-gradient)`).
   - **Dual Primary Actions (`.hero-cta-group`)**:
-    - `btn-hero-start` ("Create Questions"): Primary gradient button using `var(--infynno-gradient)` with `var(--text-on-accent)` and trailing `<ArrowRight size={16} aria-hidden="true" />`.
-    - `btn-hero-open-bank` ("Question Bank"): Elevated secondary action button using `var(--bg-surface-elevated)` and border `var(--border-medium)` with leading `<Database size={15} aria-hidden="true" />`.
-  - **Section Presets Dock (`.hero-presets-strip`)**:
+    - `.hero-primary-cta` (`#btn-hero-get-started`, "Create Questions"): Primary gradient button using `var(--infynno-gradient)` with `var(--text-on-accent)` and trailing `<ArrowRight size={16} aria-hidden="true" />`.
+    - `.hero-secondary-cta` (`#btn-hero-open-bank`, "Question Bank"): Elevated secondary action button using `var(--bg-surface-elevated)` and border `var(--border-medium)` with leading `<Database size={15} aria-hidden="true" />`.
+  - **Section Presets Dock (`.hero-presets-container`, with `.hero-presets-label` and `.hero-presets-chips`)**:
     - Section presets for **Chemical and Physical (CP)**, **Critical Analysis (CARS)**, **Biological and Biochemical (BB)**, and **Psychological and Social (PS)**.
     - Each preset is an interactive chip (`.hero-preset-chip`) styled with `var(--bg-surface-subtle)`, border `var(--border-subtle)`, and hover elevation.
 - **Accessibility & WCAG AA Conformance**:
@@ -397,7 +391,7 @@ Renders pedagogical rationales across three distinct, beautifully styled visual 
   - **Decorative Icon Hiding**: Lucide icons (`ArrowRight`, `Database`, and subject icons) are marked with `aria-hidden="true"` to prevent redundant auditory clutter.
   - **Keyboard Focus Management**: Adheres to `var(--brand-ring)` focus styles on keyboard `Tab` navigation.
 
-### 4.19 Component Memoization & Render Isolation
+### 4.20 Component Memoization & Render Isolation
 To ensure high-frequency interface responsiveness during live SSE streaming and large dataset operations, performance-critical components implement explicit render memoization and local state isolation:
 1. **Passage Stimuli Row Card (`PassageBankCardRow.jsx`)**: Extracted from `PassageBankTable.jsx` and wrapped in `React.memo`. Internalizes transient `isCopied` clipboard state so clicking "Copy Passage ID" on a passage row isolates re-rendering to that specific card, completely eliminating catalog-wide re-render cascades.
 2. **Question Bank Row Card (`QuestionBankCardRow.jsx`)**: Wrapped in `React.memo` to isolate question state mutations and card expansions during Question Bank exploration.
@@ -409,22 +403,9 @@ To ensure high-frequency interface responsiveness during live SSE streaming and 
 
 ## 5. Micro-Animations & Dynamic Feedback
 
-1. **Electric Conduit Pulse**:
-```css
-@keyframes conduitFlow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-```
-2. **Skeleton Shimmer**:
-```css
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-```
-3. **Card Lift**: Subtle `-1px` vertical translation on button and interactive card hover paired with `--shadow-md`.
-4. **Theme Transition**: Smooth `0.18s ease-out` transition applied to background colors and borders to eliminate abrupt flashes when switching between dark and light themes.
+1. **Defined keyframes** (`frontend/src/styles/`): `wizardFadeEnter` (`wizard.css`), `toast-slide-in`, `modalScaleIn`, `fadeIn`, and `spin` (`base.css`). The batch pulse dots (`.batch-monitor-pulse-dot`, `.batch-summary-pulse-dot`, `.batch-job-pulse-dot`) are static colored dots; there are no `conduitFlow` or `shimmer` keyframes in the stylesheets.
+2. **Card Lift**: Subtle `-1px` vertical translation on button and interactive card hover paired with `--shadow-md`.
+3. **Theme Transition**: Smooth `0.18s ease-out` transition applied to background colors and borders to eliminate abrupt flashes when switching between dark and light themes.
 
 ---
 
@@ -435,10 +416,8 @@ To ensure high-frequency interface responsiveness during live SSE streaming and 
 - **Global Keyboard Accelerators**:
   - `⌘ + Enter` / `Ctrl + Enter`: Trigger question or batch generation.
   - `T`: Instant toggle between Dark and Light themes.
-  - `/`: Immediately focus the Question Bank search input.
-  - `A`: Approve active staged question.
-  - `D`: Discard active staged question.
-  - `Escape`: Close any open dialog modal (Audit View, Stage JSON, Export Studio).
+  - `/`: Focus the active view's search input (ignored while typing in a form field; wired in the Question Bank, Review Queue, Batch Progress and Passage Bank views).
+  - `Escape`: Dismiss the open modal or editor (handled in `useKeyboardShortcuts.js`, works even while typing).
 
 ---
 
@@ -477,6 +456,6 @@ To ensure the product feels thoughtfully crafted by human educators rather than 
   - *Edit Question*
 - **Score Decoupling & Streamlined UI Copy**:
   - Internal rubric score ranges (`>80`, `70-80`) are removed from user-facing badges, stats bars, and cards to keep the UI clean and student-focused.
-  - Telemetry badges show clean status labels (*Ready for Review*, *In Bank*, *Auto-Retrying (X/3)*, *3/3 Trials Exhausted*) without internal score math cluttering the visual hierarchy.
+  - Telemetry badges show clean status labels (*Ready for Review*, *In Bank*, *Replenishing Slot (Trial X/3)*, *3/3 Trials Exhausted*) without internal score math cluttering the visual hierarchy.
   - Unused or noisy auxiliary counters (such as *Discarded* or *Needs Polish* counters on review desks) are pruned in favor of direct actionable items with permanent purge confirmation.
 - **Tone of Voice**: Professional, clear, direct, and unpretentious editor voice (seasoned pre-med instructor explaining concepts to colleagues and students without AI filler or marketing hype).

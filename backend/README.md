@@ -33,7 +33,6 @@ backend/
 │   │   ├── engine.py        # Core streaming execution engine & event emitters
 │   │   ├── stream_emitter.py # Asynchronous SSE queue consumer, backpressure polling & terminal event construction
 │   │   ├── slot_worker.py   # Isolated single-slot worker lifecycle & attempt replenishment
-│   │   ├── draft_parser.py  # Strict JSON parsing, markdown stripping, schema validation & deterministic repair
 │   │   ├── passage_blueprints.py # CARS & Science 5-slot cognitive blueprint definitions, skill mapping & archetypes
 │   │   ├── engine_layout.py # Run layout, SlotLedger & SSE event formatting
 │   │   ├── review_loop.py   # Deterministic gate, reviewer, Blind-Solver and remediation loop for one draft
@@ -51,14 +50,14 @@ backend/
 │   │   ├── _mock_tokens.py  # Mock token cost fixtures
 │   │   ├── base.py          # LiteLLM execution wrapper & sub-micro-cent token cost engine (DeepInfra + Anthropic)
 │   │   ├── batch_planner.py # AI native batch thematic planning & blueprint claim extraction
-│   │   ├── blind_solver.py  # Blind-solver dual-validation candidate verification agent (fail-closed)
-│   │   ├── draft_parser.py  # Strict draft JSON parsing, markdown stripping & cognitive trap extraction
+│   │   ├── blind_solver.py  # Blind-solver dual-validation candidate verification agent (fail-closed; `BLIND_SOLVER_MAX_TOKENS=2048`)
+│   │   ├── draft_parser.py  # Strict draft JSON parsing, markdown stripping, schema validation, deterministic repair & cognitive trap extraction
 │   │   ├── generator.py     # Fused clinical question synthesis & self-critique agent
 │   │   ├── image_generator.py # FLUX-2-klein-4b neural visual & SVG vector generator
 │   │   ├── medical_imaging.py # High-fidelity anatomical & clinical diagnostic prompt synthesis (radiology, ECG, histology)
 │   │   ├── mock_fixtures.py # Deterministic fallback fixtures for offline resilience
 │   │   ├── mock_drafts.py   # Table of the seven canned mock drafts (section x passage/independent)
-│   │   ├── option_balancer.py # Mathematical option length balancing (±15%) & anti-guessability
+│   │   ├── option_balancer.py # Option length balancing (spread ≤ max(3, ceil(0.20 × mean)) words, `agents/standards.py`) & anti-guessability
 │   │   ├── prompt_builder.py # User prompt assembly & cross-item diversity calibration
 │   │   ├── prompts.py       # Centralized system prompts, pacing rules & rubrics
 │   │   ├── regenerator.py   # Autonomous remediation agent (<= 80 score trigger; Rule 12 visual retention)
@@ -69,7 +68,7 @@ backend/
 │   │   ├── __init__.py          # Services facade re-exporting lifecycles, duplicate clustering & export builders
 │   │   ├── ai_copilot.py    # Real-time educator copilot tooling (prompt enhancement, refine, audit, study guide)
 │   │   ├── rag.py           # Semantic RAG retrieval & exemplar extraction via pgvector
-│   │   ├── embeddings.py    # Real-time OpenAI text-embedding-3-small vector generation
+│   │   ├── embeddings.py    # Embedding generation via LiteLLM `aembedding` (OpenAI or DeepInfra key) with a deterministic hash-based fallback and in-process cache
 │   │   ├── dedup_clustering.py # Hierarchical duplicate clustering & cluster querying
 │   │   ├── dedup_metrics.py # Multi-metric similarity calculations (token containment, jaccard, sequence matcher)
 │   │   ├── batch_runner.py  # High-level pool managing 5 Questions (1-job) and 50 Questions (10-job batch)
@@ -96,13 +95,13 @@ backend/
 │   │   ├── batch.py         # GenerationBatchModel for multi-question generation runs
 │   │   └── job.py           # GenerationJobModel for background batch jobs with persisted trial_count
 │   ├── schemas/             # Domain Transfer Layer (Pydantic V2)
-│   │   ├── __init__.py          # Domain transfer facade re-exporting schemas, extractors & token accumulators
+│   │   ├── __init__.py          # Domain transfer facade re-exporting schemas, extractors & token helpers
 │   │   ├── mcat.py          # MCAT sections, difficulty tiers (low/medium/high) & subtopic taxonomy
-│   │   ├── token.py         # TokenUsage & TokenCostAccumulator schemas
-│   │   ├── question.py      # QuestionOption, QuestionDraft, Question, determine_question_status helper
-│   │   ├── status.py        # QuestionStatus enum & lifecycle transitions
+│   │   ├── token.py         # TokenUsage schema & sum_usage helper
+│   │   ├── question.py      # QuestionStatus enum, OptionChoice, ReviewScore, QuestionDraft, Question, Passage, GenerationBatch/Job, request models, determine_question_status helper
+│   │   ├── status.py        # BatchStatus & JobStatus enums
 │   │   ├── extractors.py    # Polymorphic question extractors (field, options, keys, answer text)
-│   │   └── workflow.py      # GenerationRequest, ReviewScore, WorkflowEvent
+│   │   └── workflow.py      # GenerationRequest, WorkflowEvent
 │   ├── core/                # Configuration & Settings
 │   │   ├── config.py        # Pydantic SettingsConfigDict, dual-provider defaults & settings (73 fields)
 │   │   ├── pricing.py       # Model price fallback tables and LiteLLM registry lookup
@@ -111,12 +110,12 @@ backend/
 │   │   └── errors.py        # Standardized domain exceptions & error codes
 │   ├── middleware/          # ASGI Middlewares
 │   │   ├── telemetry.py     # Prometheus HTTP request timing, status code counters & latency histograms
-│   │   └── __init__.py      # Re-exports; GZipMiddleware (minimum_size=1000) & SecurityHeaders registered in main.py
+│   │   └── __init__.py      # Package marker; GZipMiddleware (minimum_size=1000) and SecurityHeadersMiddleware (defined in main.py) are registered in main.py
 │   ├── db/                  # Database Lifecycle & Migrations
 │   │   ├── base.py          # Declarative Base
-│   │   ├── init_db.py       # Ordered idempotent migration steps, pgvector extension, composite indexes & FTS
-│   │   ├── schema_migrations.py # Schema migrations, HNSW cosine index (idx_questions_embedding_hnsw), foreign keys & column additions
-│   │   └── session.py       # Async engine, connection pool & startup migrations
+│   │   ├── init_db.py       # Re-export shim: imports ORM models and re-exports the migration steps defined in `schema_migrations.py`
+│   │   ├── schema_migrations.py # Ordered idempotent schema migrations: pgvector extension, HNSW cosine indexes (`ix_questions_embedding_hnsw`, `ix_passages_embedding_hnsw`), composite indexes, FTS, foreign keys & column additions
+│   │   └── session.py       # Async engine, connection pool, `scoped_session`, `init_db` startup & health check
 │   └── data/                # Static Taxonomy & Curricula
 │       ├── mcat_dependent_taxonomy.json # AAMC official syllabus foundational concepts & skills
 │       └── thematic_angles.py # Curated science and CARS thematic angle distributions
@@ -173,6 +172,7 @@ backend/
     ├── test_offline_mode.py                # Mocks are an explicit opt-in: no credentials without OFFLINE_MODE must fail loudly
     ├── test_openai.py                      # OpenAI text and image provider wiring (HTTP mocked)
     ├── test_ops_and_resolution.py          # Request ids, body limits, error sanitising, liveness, batch resolution helpers
+    ├── test_optimizations.py               # End-to-end optimizations: query pipelining, count_batches, passage pagination and concurrency
     ├── test_optimizations_fullstack.py     # Session injection reusability, slim batch queries, and passage repository mutations
     ├── test_passage_blueprints_decomposition.py # Unit tests for decomposed 5-slot passage blueprint structures
     ├── test_passage_set_blueprints_and_dedup.py # CARS & Science slot blueprints, psychometric archetypes, and slot specialization directives
@@ -223,29 +223,28 @@ graph TD
     ScoreCheck -->|Yes & Text Only| NodeFin[Finalize & Persist Node]
     NodeImg --> NodeFin
     NodeRegen --> NodeRev
-    ScoreCheck -->|Yes & Needs Diagram| NodeImg
-    ScoreCheck -->|Yes & Text Only| NodeFin
     ScoreCheck -->|No & Cycles < 3| NodeRegen
-    ScoreCheck -->|No & Cycles >= 3| NodeReject[Strict Quality Gate Reject]
+    ScoreCheck -->|No, Cycles >= 3 and score < 70| NodeReject[Strict Quality Gate Reject]
+    ScoreCheck -->|No, Cycles >= 3 and score 70-80| NodeFin
     
     NodeReject --> Discard([Discard Candidate & Halt])
     NodeFin --> Success([Stream to Review Desk / Persist])
 ```
 
-- **Fused Draft-and-Critique Entry Point**: Drafts question and generates immediate 100-point self-critique in a single pass (`fused_generator_node`), combining drafting and self-critique in one inference round-trip; the independent reviewer and blind solver still audit every draft by default (`ALWAYS_INDEPENDENT_REVIEW`).
+- **Generator Entry Point (`fused_generator_node`)**: With the default `ALWAYS_INDEPENDENT_REVIEW=true` the node produces the draft only (no self-critique, since the independent reviewer re-scores every draft anyway). Only when `ALWAYS_INDEPENDENT_REVIEW=false` does it run the fused draft-and-self-critique call (`generate_question_with_self_critique`), and a self-critique score above the threshold may then skip the independent review.
 - **Passing Threshold**: A question candidate must score **$> 80$** out of 100 on the standardized rubric to be approved for publication (`config.passes_quality_gate`, default `PASSING_SCORE_THRESHOLD=80`).
-- **Deterministic Gate & Fail-Closed Checks**: Before any LLM review, `validators.py` checks structure and repairs forbidden dashes. The Reviewer runs first and the Blind Solver after it by default (`PARALLEL_REVIEW_AND_SOLVE=true` runs them concurrently); both raise `QualityCheckUnavailableError` rather than passing an item they could not check. Mock fixtures are used only when no credentials are configured.
+- **Deterministic Gate & Fail-Closed Checks**: Before any LLM review, `validators.py` checks structure and repairs forbidden dashes. By default (`PARALLEL_REVIEW_AND_SOLVE=true`) the Reviewer and the Blind Solver run concurrently; set it to `false` to run the Reviewer first and the Blind Solver after it; both raise `QualityCheckUnavailableError` rather than passing an item they could not check. Mock fixtures are used only when no credentials are configured **and** `OFFLINE_MODE=true`; otherwise a missing key fails loudly.
 - **Option Symmetry & Anti-Guessability**: Generator and Reviewer enforce word count parity (within 3 words, or 20% of the average for longer options) across all 4 options ($A, B, C, D$), parallel grammar, and balanced qualifiers to eliminate test-wiseness guessing cues.
 - **Anti-AI Formatting Standard**: Strictly forbids em dashes, en dashes, or double hyphens; standard single hyphens (`-`) only.
 - **3-Part Structured Mentor Explanations**: Renders pedagogical explanations across three specialized visual cards: Core Intuition & Proof, Itemized Distractor Analysis, and Primary Cognitive Trap Spotlight.
-- **Autonomous Remediation**: If score $\le 80$, the Remediation node (`regenerator.py`) digests the exact weaknesses and distractor recommendations, attempting repairs for up to 3 cycles.
-- **Strict Quality Gate**: If score remains $\le 80$ after 3 attempts (or $< 70$ in background batches), the candidate is discarded immediately, preserving question bank integrity.
+- **Autonomous Remediation**: If score $\le 80$ (or the review is marked not passed, e.g. blind solver disagreement), the Remediation node (`regenerator.py`) digests the exact weaknesses and distractor recommendations, attempting repairs for up to `MAX_REGENERATION_ATTEMPTS` (default 3) iterations.
+- **Strict Quality Gate**: If the score is still $\le 80$ after the final iteration (3), a candidate scoring at least `PASSING_SCORE_THRESHOLD - 10` (70 by default) is accepted as Good Quality (retained as `batch_only`); only a score below that (< 70) is rejected and discarded, preserving question bank integrity (`workflow/routes.py`).
 
 ### 2.1 Medical Imaging Subsystem (`medical_imaging.py` & `image_generator.py`)
 
 The backend integrates an unrestricted medical and scientific imaging engine capable of synthesizing publication-grade visual stimuli across seven distinct clinical modalities:
 - **Radiology (`radiology`)**: Axial, coronal, and sagittal CT scans, MRI (T1, T2, FLAIR sequences), standard chest and skeletal radiographs, ultrasound sonograms, and fluoroscopy.
-- **Histopathology (`histopathology`)**: H&E light microscopy, cytological smears, and specialized immunohistochemical tissue sections (e.g., glomerular crescents, Reed-Sternberg cells).
+- **Histology (`histology`)**: H&E light microscopy, cytological smears, and specialized immunohistochemical tissue sections (e.g., glomerular crescents, Reed-Sternberg cells).
 - **Gross Anatomy (`gross_anatomy`)**: Clean medical atlas-style organ dissections and neurovascular pathways, with automated prompt sanitization to eliminate gore/trauma triggers.
 - **Cellular Microscopy (`cellular_microscopy`)**: High-magnification TEM and SEM electron micrographs displaying organellar ultrastructure (mitochondria, rough ER, Golgi, ciliary axonemes).
 - **Physiology & ECG Traces (`physiology_trace`)**: 12-lead ECG rhythm strips, cardiac action potential curves, ventricular pressure-volume (PV) loops, and spirometric flow-volume loops.
@@ -257,26 +256,27 @@ The backend integrates an unrestricted medical and scientific imaging engine cap
 ### 2.2 5-Slot Cognitive Blueprints & Modulo Replenishment Rotation (`passage_blueprints.py`, `slot_worker.py`)
 
 To ensure passage sets reflect the multi-faceted cognitive demands of the authentic MCAT, the backend organizes 5-question passage sets into specialized cognitive slots:
-- **CARS Archetypes**: Slot 1 (Foundations of Comprehension), Slot 2 (Within the Text - Inferential), Slot 3 (Within the Text - Contrasting Arguments), Slot 4 (Beyond the Text - Novel Application), Slot 5 (Beyond the Text - Challenge Assumption).
-- **Science Archetypes**: Slot 1 (Foundational Scientific Knowledge), Slot 2 (Scientific Reasoning & Deduction), Slot 3 (Research Design & Methodology), Slot 4 (Data-based & Statistical Reasoning), Slot 5 (Novel Hypothesis / Experimental Manipulation).
-- **Deterministic Domain Rotation**: When a candidate slot fails review or requires replenishment during batch execution, `resolve_slot_domain_index` rotates deterministically through 8 curated CARS application domains or 8 Science experimental conditions:
-  $$\text{domain\_index} = (\text{base\_index} + \text{attempt} - 1) \pmod 8$$
-- **Hard 36-Call LLM Slot Budget**: Enforces `MAX_LLM_CALLS_PER_SLOT = 36` (3 attempts $\times$ 12 calls) per slot to guarantee finite execution and prevent runaway inference expenses.
+- **CARS Archetypes** (the `archetype` strings in `CARS_PASSAGE_SET_BLUEPRINTS`): Slot 1 (Central Claim / Main Thesis), Slot 2 (Local Detail & Passage Evidence), Slot 3 (Rhetorical Function / Author's Stance), Slot 4 (Reasoning Beyond the Text: Novel Scenario Application), Slot 5 (Reasoning Beyond the Text: Challenge / Weaken Assumptions).
+- **Science Archetypes** (`SCIENCE_PASSAGE_SET_BLUEPRINTS`): Slot 1 (Scientific Concept & Principle Foundation), Slot 2 (Data, Figure & Graph Interpretation), Slot 3 (Experimental Design & Methodological Rationale), Slot 4 (Scientific Reasoning & Problem Solving / Downstream Mechanism), Slot 5 (Novel Experimental Condition / Hypothesis Testing).
+- **Deterministic Domain Rotation**: When a candidate slot fails review or requires replenishment during batch execution, `resolve_slot_domain_index` rotates deterministically through 10 curated CARS Slot 4 application domains (`CARS_SLOT4_APPLICATION_DOMAINS`) or 10 Science Slot 5 experimental conditions (`SCIENCE_SLOT5_EXPERIMENTAL_CONDITIONS`). When the thematic angle names a job (`job #N` / `set #N`) the index is:
+  $$\text{domain\_index} = (\text{job\_number} - 1 + \text{attempt}) \pmod{10}$$
+  Otherwise a hash of the passage/batch/angle/run id (or just `attempt`) is used as the base, also modulo 10. The pool entries begin: CARS (Clinical Medical Ethics & Patient Autonomy; Environmental Policy & Conservation Governance; Historical Jurisprudence & Constitutional Law; Art Curation & Architectural Preservation; Behavioral Economics & Consumer Welfare; Artificial Intelligence & Algorithmic Governance; Higher Education & Standardized Evaluation Policy; Civic Infrastructure & Urban Planning; Academic Publishing & Scientific Integrity; International Diplomacy & Treaty Compliance) and Science (Targeted Small-Molecule Enzyme Inhibition; Genetic Knockdown / CRISPR Disruption; Physiological Stress / Environmental Perturbation; Isotopic Tracer / Radioligand Competition; Site-Directed Mutagenesis; Receptor Antagonism / Channel Blockade; Metabolic Intermediate Depletion; Co-culture / Multi-Tissue Interaction; Altered Kinetic Substrate Range; In Vivo Animal Model Validation).
+- **Hard 36-Call LLM Slot Budget**: Enforces `MAX_LLM_CALLS_PER_SLOT = 36` (config default; `0` disables the cap) across all drafts, dedup retries, regenerations, review/solve samples and slot replenishments, to guarantee finite execution and prevent runaway inference expenses.
 
 ### 2.3 pgvector Semantic RAG & Anti-Collision Subsystem (`rag.py`, `embeddings.py`, `dedup_clustering.py`)
 
 - **Vector Persistence**: Uses `pgvector/pgvector:pg16` Docker container with 1536-dimensional float vectors stored in `questions.embedding`.
-- **HNSW Cosine Indexing**: Automatically builds `idx_questions_embedding_hnsw` on startup (`m=16`, `ef_construction=64`, distance metric `vector_cosine_ops`), configured with runtime `hnsw.ef_search = 40`.
-- **Dual-Shield Anti-Collision Loop**: Combines pgvector semantic similarity distance ($1 - \text{cosine\_similarity}$) with n-gram lexical overlap ($>75\%$). If a collision is flagged, the generator is prompted with an explicit anti-collision directive to re-steer the item.
+- **HNSW Cosine Indexing**: Automatically builds `ix_questions_embedding_hnsw` on startup (`db/schema_migrations.py`) (operator class `vector_cosine_ops`, default pgvector HNSW build parameters; no `m`/`ef` values are set in code), plus `ix_passages_embedding_hnsw` for passages.
+- **Dual-Shield Anti-Collision Loop**: Combines pgvector semantic similarity distance ($1 - \text{cosine\_similarity}$) with multi-metric lexical similarity (hard duplicate threshold `DUPLICATE_HARD_THRESHOLD=0.75`, soft warning `DUPLICATE_SOFT_THRESHOLD=0.60`, API-level check `DUPLICATE_API_THRESHOLD=0.80`; semantic RAG threshold `RAG_SEMANTIC_DEDUP_THRESHOLD=0.82`, capped at 0.80 in the in-flight check). If a collision is flagged, the generator is prompted with an explicit anti-collision directive to re-steer the item.
 - **Hierarchical Clustering**: Groups repository items into semantic clusters for batch duplicate resolution and portfolio pruning.
 
 ### 2.4 AI Copilot Studio (`ai_copilot.py`)
 
 - **AI Copilot Suite**: Powers real-time educator assistance across 4 specialized endpoints:
-  - `/api/v1/ai/enhance-instructions`: Refines authoring prompts with explicit AAMC phrasing, SIRS reasoning verbs, and distractor constraints.
-  - `/api/v1/ai/refine-question`: Proposes targeted fixes for ambiguous wording, key clarity, distractor symmetry, or cognitive trap calibration.
-  - `/api/v1/ai/audit-passage`: Reviews stimulus length (500-600 words for CARS, 200-400 for Science), reading grade level, vocabulary density, and empirical data validity.
-  - `/api/v1/ai/study-guide`: Synthesizes high-yield clinical takeaway sheets and active recall summaries from passage sets.
+  - `/api/ai/enhance-instructions`: Refines authoring prompts with explicit AAMC phrasing, SIRS reasoning verbs, and distractor constraints.
+  - `/api/ai/refine-question`: Proposes targeted fixes for ambiguous wording, key clarity, distractor symmetry, or cognitive trap calibration.
+  - `/api/ai/audit-passage`: Deterministic heuristic audit (`services/readability.py`, no LLM): word count (350-650 words rated optimal, under 300 flagged short, above 650 flagged long), Flesch-Kincaid grade (11.0-15.0 matches target rigor), reading ease, and empirical data density (5 or more quantitative anchors is rich). Generation-time authoring targets in `agents/standards.py` are 500-600 words for CARS and 300-500 for Science.
+  - `/api/ai/study-guide`: Synthesizes high-yield clinical takeaway sheets and active recall summaries from passage sets.
 
 ---
 
@@ -401,7 +401,7 @@ High-traffic counters bypass model hydration and memory-heavy allocations via na
 - **`count_passages(section, subtopic, search)`**: Executes native `SELECT count(PassageModel.id)` to support bounded pagination (`limit`, `offset`) on reading passages.
 
 ### Standardized `scoped_session` Architecture
-To eliminate connection thrashing, socket leakage, and uncoordinated transactions, all FastAPI endpoints and Data Access Layer (DAL) repositories strictly standardize on `scoped_session` (`app/database.py`). All repository write and update operations (`save_batch`, `update_batch_progress`, `save_job`, `update_job_status`, `save_passage`, `delete_passage`) and API routes accept or manage `session: AsyncSession` via `scoped_session(session)`, completely eliminating unbound `async_session_factory()` calls:
+To eliminate connection thrashing, socket leakage, and uncoordinated transactions, all FastAPI endpoints and Data Access Layer (DAL) repositories strictly standardize on `scoped_session` (`app/db/session.py`). Repository write and update operations (`save_batch`, `refresh_batch_aggregates`, `save_job`, `update_job_progress`, `save_passage`, `delete_passage`) and API routes accept or manage `session: AsyncSession` via `scoped_session(session)`, completely eliminating unbound `async_session_factory()` calls:
 - **Zero Socket Thrashing**: Eliminates redundant checkout/checkin cycles within a single HTTP request lifecycle.
 - **Atomic Operations**: Guarantees mutations execute within an explicit transactional boundary that rolls back cleanly upon unhandled exceptions.
 - **Transparent Mocking & Testing**: Test fixtures inject test-scoped transaction sessions without requiring external network mock configurations.
@@ -413,7 +413,7 @@ For high-frequency polling and monitoring (such as background batch progress tra
 ### Canonical Facade Layer Architecture
 Submodule reaching is eliminated through authoritative layer facades:
 - **`backend/app/services/__init__.py`**: Re-exports all service operations (`launch_background_batch`, `stop_background_batch`, `cancel_all_background_batches`, `get_active_batch_metrics`, `forget_batch_request`, `find_cluster_duplicates`, `cluster_questions`, `evaluate_duplicate`, `embed_question`, `find_similar_questions`, `generate_questions_csv`, `build_csv_headers`, `build_csv_row`).
-- **`backend/app/schemas/__init__.py`**: Re-exports domain transfer schemas (`Question`, `Passage`, `GenerationRequest`, `TokenUsage`), extractors (`extract_field`, `extract_correct_answer_text`), and token accumulators (`sum_usage`).
+- **`backend/app/schemas/__init__.py`**: Re-exports domain transfer schemas (`Question`, `Passage`, `GenerationRequest`, `TokenUsage`), extractors (`extract_field`, `extract_correct_answer_text`), and token helpers (`sum_usage`).
 
 ### Automated Response Compression (`GZipMiddleware`)
 High-volume HTTP responses are automatically compressed over the wire:

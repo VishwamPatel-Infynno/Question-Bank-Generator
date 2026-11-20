@@ -11,7 +11,7 @@ This document provides a comprehensive technical reference for all REST endpoint
 - **Base URL**: `http://localhost:8000` (or configured deployment host)
 - **Content Type**: `application/json` (REST endpoints), `text/event-stream` (Live generation SSE stream)
 - **CORS Policy & Security Headers**: Restricted to trusted origins (`http://localhost:5173`, etc.) with OWASP security headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`).
-- **Autonomous Inference Gateway**: Multi-provider inference engine supporting dual first-class providers: **DeepInfra** (DeepSeek V4.1 Flash at $0.20 in / $0.60 out per 1M tokens, standard price) and **Anthropic** (Claude Haiku 5.5 / Sonnet / Opus with prompt cache read/write rates), dynamically switchable via `ACTIVE_LLM_PROVIDER`.
+- **Autonomous Inference Gateway**: Multi-provider inference engine supporting three providers: **DeepInfra** (DeepSeek V4.1 Flash at $0.20 in / $0.60 out per 1M tokens, standard price; the default), **Anthropic** (Claude Haiku 5.5 / Sonnet / Opus with prompt cache read/write rates) and **OpenAI** (default model `gpt-4o-mini`), switchable via `ACTIVE_LLM_PROVIDER` (`deepinfra`, `anthropic` or `openai`). All routes live under `/api/...` (there is no `/v1` URL prefix; `v1` is only the backend package name), e.g. `/api/ai/enhance-instructions`.
 - **MCAT 4-Choice Purity**: All question endpoints enforce strictly 4 options ($A, B, C, D$) with length symmetry and zero multi-choice artifacts.
 - **Payload Compression & Middlewares**: Integrated with Starlette `GZipMiddleware(minimum_size=1000)` for automated GZip compression on HTTP responses $\ge 1\text{ KB}$ (`Content-Encoding: gzip`), while bypassing micro-responses and SSE streams. Every response carries an `X-Request-ID` header for log correlation.
 
@@ -24,9 +24,47 @@ The backend runs an ASGI middleware stack that governs network optimization and 
 | Middleware | Role | Behavior |
 | :--- | :--- | :--- |
 | **`GZipMiddleware`** | Bandwidth optimization | Automatically applies GZip compression (`Content-Encoding: gzip`) to JSON and CSV payloads $\ge 1\text{ KB}$ when requested via `Accept-Encoding: gzip` (yielding 70–85% size reductions on `/api/export`, bulk `/api/questions`, and batch details). Small responses ($<1\text{ KB}$) and Server-Sent Events (`text/event-stream` at `/api/generate`) bypass compression. |
-| **`SecurityHeadersMiddleware`** | OWASP Security Headers | Automatically injects `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, and `Referrer-Policy: strict-origin-when-cross-origin`. |
-| **`RequestContextMiddleware`** | Traceability & Ingestion Caps | Extracts or assigns an `X-Request-ID` bound to all server logs and echoed back on responses; rejects requests exceeding `MAX_REQUEST_BODY_MB` with HTTP 413 (`payload_too_large`). |
+| **`SecurityHeadersMiddleware`** | OWASP Security Headers | Automatically injects `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: geolocation=(), camera=(), microphone=()`. |
+| **`RequestContextMiddleware`** | Traceability & Ingestion Caps | Extracts or assigns an `X-Request-ID` bound to all server logs and echoed back on responses; rejects requests whose declared `Content-Length` exceeds `MAX_REQUEST_BODY_MB` with HTTP 413 (`{"detail": "Request body exceeds N MB.", "code": "payload_too_large"}`). |
 | **`TelemetryMiddleware`** | Observability | Records request latency histograms and HTTP status counters exposed at `/metrics`. |
+
+---
+
+## 1.2 Authentication, Rate Limits & Errors
+
+### Shared-secret gate (`API_ACCESS_KEY`)
+- When the server sets `API_ACCESS_KEY`, every mutating request (`POST`, `PUT`, `PATCH`, `DELETE`) under `/api` must send the same value in the `X-API-Key` header (constant-time comparison). A missing or wrong key returns `401` with `{"detail": "A valid X-API-Key header is required for this operation."}`.
+- `GET` requests are never gated. `POST /api/questions/check-duplicate` is exempt (read-only check). `GET /metrics` (root) is outside `/api` and is not gated by this key.
+- With `API_ACCESS_KEY` empty (the default) all routes are open. This is a shared secret for deployments behind a gateway, not per-user authentication. The SSE `POST /api/generate` call must send the header too.
+
+### Admin diagnostics (`x-admin-key`)
+- `ADMIN_API_KEY` defaults to empty. With no key configured nobody is treated as admin, so `GET /api/config` and `GET /api/health` always return the masked payload (see 3.33 and 3.34). With a key configured, an `x-admin-key` header that matches it (constant-time) unlocks the full payload.
+- `GET /metrics` and `GET /api/metrics` are public by default. When `ADMIN_API_KEY` is set and the caller sends an `x-admin-key` or `Authorization` header that does not match it, the endpoint returns `403` (`{"detail": "Invalid admin credentials for metrics."}`). Callers that send neither header are still served.
+
+### Rate limits and concurrency caps (cost guards)
+| Guard | Applies to | Setting | Failure |
+| :--- | :--- | :--- | :--- |
+| Per-client sliding window (60 s, keyed by client IP) | `POST /api/generate`, `POST /api/batches/start`, `POST /api/batches/{batch_id}/retry`, `POST /api/batches/{batch_id}/refill`, `POST /api/ai/enhance-instructions`, `POST /api/ai/refine-question`, `POST /api/ai/study-guide` | `GENERATION_RATE_LIMIT_PER_MINUTE` (default `30`, `0` disables) | `429` `{"detail": "Too many generation requests. Please slow down."}` with a `Retry-After` header (seconds) |
+| Active batch cap | `POST /api/batches/start`, `POST /api/batches/{batch_id}/retry`, `POST /api/batches/{batch_id}/refill` | `MAX_ACTIVE_BATCHES` (default `5`, `0` disables) | `429` `{"detail": "N batches are already running. Wait for one to finish or stop one."}` (no `Retry-After`) |
+
+`POST /api/ai/audit-passage` is not rate limited (it makes no LLM call).
+
+### Status codes and error body
+| Status | When |
+| :--- | :--- |
+| `400` | `POST /api/batches/{batch_id}/retry` when no incomplete job can be retried |
+| `401` | Missing or wrong `X-API-Key` while `API_ACCESS_KEY` is set |
+| `403` | `GET /metrics` with a non-matching `x-admin-key`/`Authorization` header while `ADMIN_API_KEY` is set |
+| `404` | Question, passage or batch not found (`{"detail": "Question not found"}`, `"Passage not found"`, `"Batch not found"`); question without an image |
+| `409` | `POST /api/batches/{batch_id}/refill` while the batch is still running (`{"detail": "This batch is still running."}`) |
+| `413` | Body larger than `MAX_REQUEST_BODY_MB` (`code: payload_too_large`), or more than 500 questions in `POST /api/questions/batch` |
+| `415` | Unsupported stored image type or location on the image endpoint |
+| `422` | Request validation failure (FastAPI default), invalid question status on `POST /api/questions` / `POST /api/questions/batch`, invalid batch status on `POST /api/batches` |
+| `429` | Rate limit or active-batch cap (see above) |
+| `500` | Unhandled error: `{"detail": "Internal server error.", "code": "internal_error"}` (details are logged server side only); endpoint-specific 500s such as `{"detail": "Failed to enhance instructions."}` |
+| `503` | `GET /api/health/ready` when the database does not answer |
+
+Every response carries an `X-Request-ID` header (a safe caller-supplied value is echoed, otherwise one is generated).
 
 ---
 
@@ -41,7 +79,7 @@ The backend runs an ASGI middleware stack that governs network optimization and 
 | `POST` | `/api/ai/study-guide` | **AI Synthesis**: Generates high-yield study guide, executive summaries, trap checklists, and flashcards |
 | `POST` | `/api/questions` | **Admin Review Gate**: Persists an approved candidate question into the Question Bank |
 | `POST` | `/api/questions/batch` | **Admin Review Gate**: Bulk-persists an array of approved candidates atomically |
-| `GET` | `/api/questions` | Lists saved questions with filtering, pagination (`limit`/`offset`), `slim` projection, and repository token metrics |
+| `GET` | `/api/questions` | Lists saved questions with filtering (`status` defaults to `in_bank`, `all` disables it), pagination (`limit`/`offset`), `slim` projection, and repository token metrics |
 | `GET` | `/api/questions/counts` | Returns question counts grouped by lifecycle status (`in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded`, `deleted`, `total`) |
 | `GET` | `/api/questions/{question_id}` | Retrieves a single question by UUID4 primary key |
 | `POST` | `/api/questions/{question_id}/override-duplicate` | **Admin Review Gate**: Explicitly overrides duplicate collision alert and approves into bank |
@@ -54,33 +92,33 @@ The backend runs an ASGI middleware stack that governs network optimization and 
 | `POST` | `/api/questions/delete-batch` | **Admin Action**: Bulk soft-deletes multiple questions atomically, preserving batch progress |
 | `DELETE` | `/api/questions/{question_id}/permanent` | **Admin Action**: Permanently hard-deletes a single question from PostgreSQL by ID, bypassing soft-delete flags |
 | `POST` | `/api/questions/purge-batch` | **Admin Action**: Permanently hard-deletes multiple questions by IDs from PostgreSQL, eliminating database ghost records |
-| `POST` | `/api/questions/update-status` | **Admin Action**: Bulk-updates question lifecycle status (`in_bank`, `ai_validated`, `discarded`) |
+| `POST` | `/api/questions/update-status` | **Admin Action**: Bulk-updates question lifecycle status (any of the 9 `QuestionStatus` values) |
 | `PATCH` | `/api/questions/{question_id}/status` | Updates lifecycle status for an individual question |
-| `GET` | `/api/questions/{question_id}/image` | Serves visual stimulus (FLUX AI image or Vector SVG diagram) with content negotiation |
+| `GET` | `/api/questions/{question_id}/image` | Serves visual stimulus (AI raster image or Vector SVG diagram) with a sandboxing `Content-Security-Policy` header |
 | `GET` | `/api/passages` | Lists shared reading passages with query filtering, search, sorting (`sort_by`), pagination (`limit`/`offset`), and active question counts (`total_count`) |
 | `GET` | `/api/passages/{passage_id}` | Retrieves a single reading passage along with all its linked active questions |
 | `POST` | `/api/passages` | Admin endpoint to create or update a shared reading passage record |
 | `DELETE` | `/api/passages/{passage_id}` | Admin endpoint to soft-delete a passage and its linked questions, preserving batch progress history |
 | `POST` | `/api/passages/{passage_id}/restore` | Admin endpoint to restore a soft-deleted passage record (404 if not found) |
-| `GET` | `/api/batches` | Lists generation batches (newest first; `limit` 1-500 default 100, `offset`) with active running counts and global concurrency metrics. Rows omit `request_payload`; client API keys are never stored or returned |
+| `GET` | `/api/batches` | Lists generation batches (newest first; `section`, `status`, `limit` 1-500 default 100, `offset`) with active running counts and global concurrency metrics. Rows omit `request_payload`; client API keys are never stored or returned |
 | `GET` | `/api/batches/{batch_id}` | Retrieves a generation batch with all jobs and grouped questions. Supports conditional HTTP validation via `If-None-Match`/`ETag` with `304 Not Modified` fast-path and `slim` diagnostic projection |
-| `POST` | `/api/batches/start` | Launches an asynchronous background batch generation (dynamically allocated, e.g., 50 Qs = 10 jobs) |
+| `POST` | `/api/batches/start` | Launches an asynchronous background batch generation (jobs of up to 5 questions: 5 Qs = 1 job, 50 Qs = 10 jobs) |
 | `POST` | `/api/batches/{batch_id}/stop` | **Batch Control**: Gracefully halts active background jobs for a batch without deleting questions |
 | `POST` | `/api/batches/{batch_id}/retry` | **Batch Control**: Resumes incomplete sets for manually paused batches with remaining trials (HTTP 400 when 3 trials exhausted) |
 | `POST` | `/api/batches/cancel-all` | **Batch Control**: Gracefully halts all active background batches across the system |
 | `DELETE` | `/api/batches/{batch_id}` | Deletes a generation batch and cascades delete to jobs and questions |
 | `POST` | `/api/batches` | Admin endpoint to create or update a generation batch record |
 | `GET` | `/api/batches/{batch_id}/duplicate-clusters` | Clusters batch questions by similarity to identify leader items and redundant duplicates |
-| `POST` | `/api/batches/{batch_id}/resolve-duplicates` | Resolves duplicate clusters by keeping designated leaders and hard-deleting or archiving duplicates |
+| `POST` | `/api/batches/{batch_id}/resolve-duplicates` | Resolves duplicate clusters by keeping designated leaders and archiving (default) or hard-deleting duplicates |
 | `POST` | `/api/batches/{batch_id}/refill` | Replenishes batch question deficit up to target count using pedagogical thematic variations |
-| `GET` | `/api/export` | Exports repository in standardized JSON or CSV format |
-| `GET` | `/api/health` | Service health, database connectivity, active provider, models, and pricing |
+| `GET` | `/api/export` | Exports `in_bank` questions in standardized JSON or CSV format (`format` is the only parameter) |
+| `GET` | `/api/health` | Service health and database connectivity; public (masked) payload by default, full provider/model diagnostics with a valid `x-admin-key` |
 | `GET` | `/api/health/live` | Liveness probe: `200 {"status": "alive"}` while the process serves requests; never touches the database |
 | `GET` | `/api/health/ready` | Readiness probe: `200` when the database answers, `503` otherwise (for orchestrators and load balancers); `/api/health` reports `degraded` when the database is down |
-| `GET` | `/api/config` | Retrieves active model configuration, runtime parameters, and pricing constants |
-| `GET` | `/api/sections` | Returns official AAMC MCAT sections, syllabus hierarchy, skills, and pacing |
-| `GET` | `/api/taxonomy` | Returns the complete official AAMC Dependent Taxonomy JSON tree |
-| `GET` | `/metrics` | Root Prometheus/OpenMetrics text exposition endpoint (concurrency, status counts, token burn, HTTP traffic) |
+| `GET` | `/api/config` | Retrieves runtime parameters and pricing constants (25 fields masked, 36 fields with a valid `x-admin-key`); supports `ETag`/`304` |
+| `GET` | `/api/sections` | Returns official AAMC MCAT sections, syllabus hierarchy, skills, and pacing (`ETag`/`304`, cacheable) |
+| `GET` | `/api/taxonomy` | Returns the complete official AAMC Dependent Taxonomy JSON tree (`ETag`/`304`, cacheable) |
+| `GET` | `/metrics` | Root Prometheus/OpenMetrics text exposition endpoint (concurrency, status counts, token burn, HTTP traffic); `403` on a wrong `x-admin-key` when `ADMIN_API_KEY` is set |
 | `GET` | `/api/metrics` | Versioned alias for Prometheus/OpenMetrics exposition |
 
 ---
@@ -90,7 +128,7 @@ The backend runs an ASGI middleware stack that governs network optimization and 
 ### 3.1 Start Multi-Agent Generation (SSE Stream)
 `POST /api/generate`
 
-Initiates the multi-agent generation and psychometric evaluation workflow. Per-attempt rejections arrive as the non-terminal `question_rejected` event; `workflow_rejected` is terminal (all slots rejected) and, like `workflow_error`, carries `cumulative_usage`. When the server sets `API_ACCESS_KEY`, send it as the `X-API-Key` header (all `POST`/`PUT`/`PATCH`/`DELETE` routes; `POST /api/questions/check-duplicate` stays open). While a long LLM stage is quiet the stream emits an SSE comment line (`: keepalive`) every 15 seconds so proxies keep the connection open; clients ignore comment lines. Returns a live Server-Sent Events stream delivering step-by-step agent telemetry, intermediate drafts, review rubrics, token usage, and candidate question payloads. Supports single-item and live 5-question set generation.
+Initiates the multi-agent generation and psychometric evaluation workflow. Per-attempt rejections arrive as the non-terminal `question_rejected` event; `workflow_rejected` is terminal (all slots rejected) and, like `workflow_error`, carries `cumulative_usage`. When the server sets `API_ACCESS_KEY`, send it as the `X-API-Key` header (see section 1.2; `POST /api/questions/check-duplicate` stays open). The route is rate limited per client IP (`429` with `Retry-After`). While a long LLM stage is quiet the stream emits an SSE comment line (`: keepalive`) every 15 seconds so proxies keep the connection open; clients ignore comment lines. Returns a live Server-Sent Events stream delivering step-by-step agent telemetry, intermediate drafts, review rubrics, token usage, and candidate question payloads. Supports single-item and live 5-question set generation.
 
 #### Request Headers
 ```http
@@ -109,7 +147,6 @@ Accept: text/event-stream
   "require_image": false,
   "require_passage_image": false,
   "visual_type": "None",
-  "custom_prompt": "Focus on Michaelis-Menten kinetics and competitive enzyme inhibition.",
   "additional_instructions": "Include experimental Lineweaver-Burk data interpretation with explicit Km and Vmax calculation distractor traps.",
   "questions_to_generate": 1,
   "passage_mode": "single_passage",
@@ -132,12 +169,12 @@ Accept: text/event-stream
 | `allow_ai_images` | `boolean` | No | `false` | Whether AI is permitted to generate visual stimuli across all 7 medical/scientific modalities with full pedagogical and creative freedom |
 | `require_image` | `boolean` | No | `false` | Force visual stimulus generation for the question stem |
 | `require_passage_image`| `boolean` | No | `false` | Force visual diagram generation for the shared passage stimulus |
-| `visual_type` | `string` | No | `"None"` | Visual stimulus generation type: `"None"`, `"AI_FLUX_Image"`, `"SVG_Diagram"`, or `"AI_OpenAI_Image"` (from `KNOWN_VISUAL_TYPES`) |
-| `additional_instructions` | `string` | No | `null` | Educator instructions specifying constraints, clinical scenarios, or pedagogical rules strictly enforced across passage generation, question generation, and remediation critique cycles |
+| `visual_type` | `string` | No | `"None"` | Visual stimulus generation type: `"None"`, `"AI_FLUX_Image"`, `"SVG_Diagram"`, `"AI_Image"`, or `"AI_OpenAI_Image"` (`"None"` plus the four `KNOWN_VISUAL_TYPES`) |
+| `additional_instructions` | `string` | No | `null` | Educator instructions specifying constraints, clinical scenarios, or pedagogical rules strictly enforced across passage generation, question generation, and remediation critique cycles (max 4000 characters) |
 | `questions_to_generate` | `integer` | No | `5` | Quantity to generate (Wizard UI provides `5` [1 Single Job] and `50` [10-Job Batch]; backend permits 1 to 50) |
 | `passage_mode` | `string` | No | `"single_passage"` | `"single_passage"` (all Qs linked to 1 passage) or `"independent"` (standalone discretes) |
 | `interaction_type` | `string` | No | `"single_choice"` | Standard 4-choice single choice item |
-| `primary_trap` | `string` | No | `"Automatic"` | Cognitive trap selection: `"Automatic"` (Smart AI choice) or an explicit trap name; the frontend offers the names in `frontend/src/constants/mcatTraps.js` and the API stores the string as given |
+| `primary_trap` | `string` | No | `null` | Cognitive trap selection: an explicit trap name (the frontend offers the names in `frontend/src/constants/mcatTraps.js`; the frontend may send `"Automatic"` for Smart AI choice) or `null`; the API stores the string as given |
 | `subject` | `string` | No | `null` | Taxonomy subject (e.g. `General Chemistry`) |
 | `unit` | `string` | No | `null` | Taxonomy unit (e.g. `Atomic Structure and Periodicity`) |
 | `topic` | `string` | No | `null` | Taxonomy topic (e.g. `Periodic Trends`) |
@@ -148,21 +185,62 @@ Accept: text/event-stream
 | `batch_id` | `string` | No | `null` | Optional batch identifier grouping questions |
 | `auto_save` | `boolean` | No | `false` | Auto-persist to DB (`false` retains Admin Review Gate) |
 | `passing_threshold` | `integer` | No | `80` | Quality benchmark passing threshold score (defaults to config.PASSING_SCORE_THRESHOLD = 80; config.BATCH_PASSING_SCORE_THRESHOLD = 70 for batch jobs) |
-| `model_name` | `string` | No | Gateway Default | Model identifier override |
-| `api_key` | `string` | No | `null` | Ephemeral API key override |
+| `model_name` | `string` | No | Gateway Default | Model identifier override (max 200 characters) |
+| `api_key` | `string` | No | `null` | Ephemeral API key override (max 500 characters; never stored on batch records) |
+| `job_id` | `string` | No | `null` | Optional batch job UUID4 binding questions to a specific job (max 64 characters; set by the batch runner) |
+| `content_domain` | `string` | No | `null` | Manager-matrix content domain, e.g. `General_Chemistry` |
+| `content_domains` | `list[string]` | No | `null` | Multi-selected content domains |
+| `question_type` | `string` | No | `null` | Manager-matrix question type, e.g. `Passage_Based_Set`, `Independent_Discrete` |
+| `passage_required` | `string` or `boolean` | No | `null` | `"Yes"`/`"No"`; normalized by the request validator (CARS is always `"Yes"`) |
+| `passage_id` | `string` | No | `null` | Shared UUID for questions linked to the same passage |
+| `shared_stimulus` | `string` | No | `null` | Pre-generated shared passage text (max 20000 characters) |
+| `passage_questions` | `integer` | No | `null` | Number of passage questions, e.g. `5` |
+| `passage_count` | `integer` | No | `null` | Number of passage-type items (0 to 50); overwritten by the validator |
+| `passage_question_count` | `integer` | No | `5` | Questions linked to the shared passage (0 to 50); overwritten by the validator |
+| `image_required` | `string` or `boolean` | No | `null` | `"Yes"`/`"No"` matrix flag |
+| `thematic_angle` | `string` | No | `null` | Optional angle/scenario focus to keep passages diverse across jobs |
+
+> `custom_prompt` is not a field of `GenerationRequest`; use `additional_instructions`. `passage_mode`, `passage_required`, `passage_count` and `passage_question_count` are resolved by a model validator into an all-passage or all-independent set (CARS is always passage-based).
 
 #### SSE Event Format
-Events are delivered as standard Server-Sent Events lines: `data: {JSON_PAYLOAD}\n\n`
+Events are delivered as standard Server-Sent Events lines: `data: {JSON_PAYLOAD}\n\n`. Each payload is a dump of the `WorkflowEvent` model with these top-level keys:
+
+| Key | Type | Description |
+| :--- | :--- | :--- |
+| `event_id` | `string` | Unique event UUID4 |
+| `run_id` | `string` or `null` | Execution run UUID4 (per-question run id for slot events) |
+| `batch_id` | `string` or `null` | Batch UUID4 |
+| `event_type` | `string` | One of the event types below |
+| `agent_name` | `string` | `Question Writer & Reviewer`, `Question Improver`, `Quality Reviewer`, `Blind-Solver Dual Validation`, `Diagram & Chart Maker`, `Passage Writer`, `Quality Gate`, `System`, or `System Error` |
+| `message` | `string` | Human-readable progress message |
+| `data` | `object` or `null` | Event-specific payload; `batch_id` and `job_id` are stamped in when not already present |
+| `timestamp` | `string` | ISO 8601 UTC timestamp |
+
+| `event_type` | Terminal | Notes |
+| :--- | :--- | :--- |
+| `workflow_start` | No | `data`: `total_questions`, `single_count`, `passage_count`, `batch_id`, `passage_id` plus shared passage fields |
+| `agent_start` | No | An agent began a stage (writer, improver, reviewer, blind solver, diagram maker, passage writer) |
+| `agent_complete` | No | `data` carries stage results, e.g. `draft`, `review`, `score`, `latest_usage`, `index`, `total`, `stage` |
+| `agent_action` | No | Anti-collision regeneration after a duplicate was detected (`similarity_score`, `matched_question_stem`, `assigned_trap`) |
+| `batch_progress` | No | Multi-question runs: `current_index`, `total_count`, `stage`, passage flags |
+| `question_generated` | No | A question passed the quality gate: `data.question`, `index`, `total` |
+| `question_rejected` | No | One attempt was rejected (score or duplicate); the slot may retry |
+| `question_failed` | No | A slot failed after retries: `index`, `error` (and `attempts_exhausted`) |
+| `workflow_complete` | Yes | `data`: `questions`, `question` (first), `batch_id`, `passage_id`, `cumulative_usage`, `usage_breakdown` |
+| `workflow_rejected` | Yes | All slots rejected: `rejections`, `total_rejected`, `cumulative_usage` |
+| `workflow_error` | Yes | `error`, `errors` and `cumulative_usage` when all slots failed; just `error` on an unexpected exception |
 
 ```
-data: {"event": "workflow_start", "data": {"stage": "init", "message": "Starting multi-agent workflow..."}}
+data: {"event_id": "...", "run_id": "d81f668e-...", "batch_id": "...", "event_type": "workflow_start", "agent_name": "System", "message": "...", "data": {"total_questions": 1, "batch_id": "...", "job_id": "..."}, "timestamp": "2026-10-26T12:00:00+00:00"}
 
-data: {"event": "agent_start", "data": {"agent": "Question Writer & Reviewer", "message": "Drafting scenario and conducting 100-pt self-critique..."}}
+data: {"event_id": "...", "event_type": "agent_start", "agent_name": "Question Writer & Reviewer", "message": "...", "data": {...}, ...}
 
-data: {"event": "agent_complete", "data": {"agent": "Question Writer & Reviewer", "score": 94, "latest_usage": {"prompt_tokens": 720, "completion_tokens": 480, "total_tokens": 1200, "cost_usd": 0.0002117}}}
+data: {"event_id": "...", "event_type": "agent_complete", "agent_name": "Question Writer & Reviewer", "message": "...", "data": {"draft": {...}, "score": 94, "latest_usage": {"prompt_tokens": 720, "completion_tokens": 480, "total_tokens": 1200, "cost_usd": 0.0002117}, "index": 1, "total": 1, "stage": "drafting"}, ...}
 
-data: {"event": "workflow_complete", "data": {"status": "completed", "question": {...}, "total_tokens": 1200, "total_cost_usd": 0.0002117}}
+data: {"event_id": "...", "event_type": "workflow_complete", "agent_name": "System", "message": "...", "data": {"questions": [...], "question": {...}, "cumulative_usage": {...}, "usage_breakdown": [...]}, ...}
 ```
+
+While a long LLM stage is quiet the stream also emits the comment line `: keepalive` every 15 seconds; clients ignore it. The exact `data` keys inside each event are produced by `backend/app/workflow/`; fields not listed above: TODO: verify.
 
 ---
 
@@ -181,7 +259,7 @@ Lists saved questions from the Question Bank repository with optional filtering,
 | `run_id` | `string` | No | Filter by execution run UUID4 |
 | `batch_id` | `string` | No | Filter by batch run UUID4 |
 | `passage_id` | `string` | No | Filter by shared stimulus passage UUID4 |
-| `status` | `string` | No | Filter by lifecycle status: `in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded` |
+| `status` | `string` | No | Filter by lifecycle status. Defaults to `in_bank`; pass `all` to disable the status filter. Accepts any `QuestionStatus` value: `in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded`, `approved`, `rejected_below_threshold`, `error`, `failed` |
 | `sort_by` | `string` | No | Sorting criteria: `newest` (default), `oldest`, `highest_score`, `lowest_score` |
 | `limit` | `integer` | No | Optional maximum number of questions to return (`1` to `500`) |
 | `offset` | `integer` | No | Optional number of questions to skip for server-side pagination |
@@ -307,12 +385,13 @@ Retrieves a single question by UUID4 primary key, including complete 4-pillar re
   "iteration_count": 1,
   "token_usage_details": [
     {
-      "agent": "Question Writer & Reviewer",
+      "agent": "Question Generator",
       "iteration": 1,
       "prompt_tokens": 720,
       "completion_tokens": 480,
       "total_tokens": 1200,
-      "cost_usd": 0.0002117
+      "cost_usd": 0.0002117,
+      "calls": 1
     }
   ]
 }
@@ -323,7 +402,7 @@ Retrieves a single question by UUID4 primary key, including complete 4-pillar re
 ### 3.5 Serve Question Visual Stimulus
 `GET /api/questions/{question_id}/image`
 
-Serves the visual stimulus image (AI neural image across all 7 medical modalities or Vector SVG diagram) for a question. Automatically handles base64 decoded binaries, SVG MIME content delivery, and external CDN redirects with strict media type sandboxing.
+Serves the visual stimulus image (AI raster image across all 7 medical modalities or Vector SVG diagram) for a question. Decodes `data:` URI images, serves stored SVG, and redirects to external `http(s)` image URLs. Every non-redirect response carries `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'` (plus the global `X-Content-Type-Options: nosniff`) so an image opened directly can never run script on the API origin.
 
 #### Medical Modality Delivery
 The endpoint serves images generated across all 7 supported modalities:
@@ -336,13 +415,14 @@ The endpoint serves images generated across all 7 supported modalities:
 - **Scientific Diagrams**: Scalable vector reaction mechanisms and kinetics plots (`image/svg+xml`)
 
 #### Response Negotiation
-- SVG Vector Graphic: `Content-Type: image/svg+xml` (sanitized with DOMPurify SVG profile)
-- Base64 Decoded Raster Image: `Content-Type: image/png` or `image/jpeg`
-- External CDN Storage: `HTTP 307 Temporary Redirect` to validated secure image URL
+- SVG Vector Graphic (stored `image_svg`, used when there is no `image_url`): `Content-Type: image/svg+xml`, served with the sandboxing CSP header above. The backend does not sanitize the SVG; the sandbox header is the protection.
+- Base64 `data:` URI raster image: `Content-Type` is the data URI's media type, which must be one of `image/png`, `image/jpeg`, `image/webp` or `image/gif` (a data URI with no media type is treated as `image/jpeg`)
+- External image URL (`https://` or `http://`): `HTTP 307 Temporary Redirect` to the stored URL
 
 #### Error Responses
-- `HTTP 404 Not Found`: Returned when the question exists but has no visual stimulus (`{"detail": "No image or SVG available for this question"}`) or the question UUID does not exist.
-- `HTTP 415 Unsupported Media Type`: Returned if the stored image format is unrecognized or potentially unsafe (`{"detail": "Unsupported image format"}`).
+- `HTTP 404 Not Found`: `{"detail": "Question not found"}` when the question UUID does not exist, or `{"detail": "No visual stimulus image found for this question"}` when it has neither `image_url` nor `image_svg`.
+- `HTTP 415 Unsupported Media Type`: `{"detail": "Unsupported image type"}` for a `data:` URI whose media type is not in the allowed list, or `{"detail": "Unsupported image location"}` when `image_url` is neither a `data:` URI nor an `http(s)` URL.
+- `HTTP 500`: `{"detail": "Invalid base64 image encoding"}` when a `data:` URI cannot be decoded.
 
 #### cURL Example
 ```bash
@@ -400,7 +480,7 @@ Bulk-persists an array of approved candidate questions into the Question Bank re
 ### 3.8 Update Question Status
 `PATCH /api/questions/{question_id}/status`
 
-Updates the lifecycle status of an individual question (`in_bank`, `ai_validated`, `below_threshold`, `discarded`).
+Updates the lifecycle status of an individual question. Accepts any of the 9 `QuestionStatus` values (`in_bank`, `ai_validated`, `batch_only`, `below_threshold`, `discarded`, `approved`, `rejected_below_threshold`, `error`, `failed`); any other value is rejected with `422`. Unknown question id returns `404`.
 
 #### Request Body
 ```json
@@ -423,7 +503,7 @@ Updates the lifecycle status of an individual question (`in_bank`, `ai_validated
 ### 3.9 Bulk Update Question Status
 `POST /api/questions/update-status`
 
-Bulk updates lifecycle status for multiple questions in a single atomic transaction.
+Bulk updates lifecycle status for multiple questions in a single atomic transaction (`ids` max 1000; `status` accepts the same 9 `QuestionStatus` values as the single-question endpoint, otherwise `422`).
 
 #### Request Body
 ```json
@@ -518,7 +598,9 @@ Evaluates a candidate question draft against the existing Question Bank reposito
 ### 3.12 Semantic & Hybrid Question Search (pgvector + FTS)
 `POST /api/questions/semantic-search`
 
-Finds semantically similar questions from the Question Bank repository using native PostgreSQL `pgvector` HNSW cosine distance (`vector_cosine_ops`) or hybrid retrieval combining vector similarity with PostgreSQL full-text search (`ts_rank_cd`).
+Finds semantically similar questions from the Question Bank repository using native PostgreSQL `pgvector` HNSW cosine distance (`vector_cosine_ops`) or hybrid retrieval combining vector similarity with PostgreSQL full-text search (`ts_rank_cd`). Request limits: `query` 2-2000 characters, `limit` 1-50 (default 10), `hybrid` default `true`, `min_similarity` 0.0-1.0 (default 0.4; applied only when `hybrid` is `false`).
+
+Each result carries `id`, `section`, `subtopic`, `question_stem`, `correct_answer_id`, `explanation`, `final_score`, `similarity`, `retrieval_method`, `options` (may be `null`), `distractor_analysis` (may be `null`) and `primary_trap` (may be `null`). `retrieval_method` is `pgvector_cosine` (vector match), `hybrid_pgvector_fts` (vector and full-text both matched; `similarity` is the blended score) or `fts_lexical` (full-text match only). The dataclass default `vector` is never returned by the search paths.
 
 #### Request Body
 ```json
@@ -548,7 +630,10 @@ Finds semantically similar questions from the Question Bank repository using nat
       "explanation": "Catalysts stabilize transition states and lower activation energy without altering Gibbs free energy (delta G).",
       "final_score": 96,
       "similarity": 0.8842,
-      "retrieval_method": "hybrid_pgvector_fts"
+      "retrieval_method": "hybrid_pgvector_fts",
+      "options": [{"id": "A", "text": "..."}],
+      "distractor_analysis": null,
+      "primary_trap": null
     }
   ]
 }
@@ -777,15 +862,16 @@ Restores a soft-deleted question back to active status (`is_deleted = false`, `d
 
 ---
 
-### 3.20 Start Background Batch Generation (50 Qs)
+### 3.20 Start Background Batch Generation
 `POST /api/batches/start`
 
-Launches an asynchronous background batch generation. Creates 1 batch record and 10 parallel job records (each job producing 5 questions for 50 total items). Returns `202 Accepted` immediately while generation runs in the background.
+Launches an asynchronous background batch generation. Creates 1 batch record (`target_count` = `questions_to_generate`, 1 to 50) and `ceil(target_count / 5)` job records of up to 5 questions each: a 5-question batch has 1 job, a 50-question batch has 10 jobs, a 12-question batch has 3 jobs (5, 5, 2). Returns `202 Accepted` immediately while generation runs in the background. Rate limited and subject to the `MAX_ACTIVE_BATCHES` cap (see section 1.2); failures to initialize return `500` `{"detail": "Failed to initialize background batch."}`.
 
 #### Request Body
 Accepts a `GenerationRequest` payload (same schema as `POST /api/generate`).
 
 #### Response (`202 Accepted`)
+Example for a 50-question request (10 jobs; only the first job is shown):
 ```json
 {
   "success": true,
@@ -793,21 +879,45 @@ Accepts a `GenerationRequest` payload (same schema as `POST /api/generate`).
   "batch": {
     "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
     "section": "chem_phys",
-    "total_questions": 50,
+    "subtopic": "Thermodynamics & Reaction Kinetics",
+    "difficulty": "medium",
+    "passage_mode": "single_passage",
+    "target_count": 50,
+    "actual_count": 0,
+    "total_jobs": 10,
+    "completed_jobs": 0,
+    "failed_jobs": 0,
+    "error_message": null,
+    "total_tokens": 0,
+    "cost_usd": 0.0,
     "status": "in_progress",
-    "created_at": "2026-10-26T12:00:00Z"
+    "request_payload": {"...": "GenerationRequest dump without api_key"},
+    "created_at": "2026-10-26T12:00:00+00:00",
+    "updated_at": null
   },
   "jobs": [
     {
       "id": "job-uuid-1",
       "batch_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-      "job_index": 1,
+      "job_number": 1,
       "status": "pending",
-      "questions_target": 5
+      "target_count": 5,
+      "actual_count": 0,
+      "trial_count": 1,
+      "passage_id": null,
+      "total_tokens": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": 0.0,
+      "error_message": null,
+      "created_at": "2026-10-26T12:00:00+00:00",
+      "started_at": null,
+      "completed_at": null
     }
   ]
 }
 ```
+For a 5-question request the message reads `launched with 1 job (5 questions total).` and `jobs` has a single entry.
 
 ---
 
@@ -818,7 +928,11 @@ Lists generation batches with job progress counts, active running batch numbers,
 
 #### Query Parameters
 - `section` (optional): Filter by MCAT section.
-- `status` (optional): Filter by batch status (`in_progress`, `completed`, `partially_completed`, `cancelled`, `failed`).
+- `status` (optional): Filter by batch status. The 8 valid batch statuses are `pending`, `in_progress`, `running`, `completed`, `partially_completed`, `failed`, `cancelled`, `stopped`.
+- `limit` (optional): Page size, `1` to `500`, default `100`. Batches are returned newest first.
+- `offset` (optional): Number of batches to skip, `>= 0`, default `0`.
+
+`active_running_batches` is the database count of batches with status `in_progress` (respecting `section`); `concurrency_metrics` comes from the in-process runner. Rows omit `request_payload`.
 
 #### Response (`200 OK`)
 ```json
@@ -955,7 +1069,7 @@ Gracefully halts active background jobs for a specific batch. Cancels running as
 ### 3.24 Resume Incomplete Batch Jobs (3-Trials Policy)
 `POST /api/batches/{batch_id}/retry`
 
-Resumes incomplete, failed, or cancelled jobs for a batch into the global worker pool. 
+Resumes incomplete, failed, or cancelled jobs for a batch into the global worker pool. Rate limited and subject to the `MAX_ACTIVE_BATCHES` cap (see section 1.2). 
 
 #### 3-Trial Ceiling & Policy Rules
 - **Autonomous Retries**: Incomplete sets automatically undergo in-flight autonomous retries up to **3 trials maximum** during active batch execution.
@@ -1052,7 +1166,7 @@ Performs pairwise similarity clustering on questions within a batch to identify 
 #### Query Parameters
 | Parameter | Type | Required | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `threshold` | `float` | No | `0.75` | Minimum cosine/Jaccard similarity threshold for clustering (range: `0.5` to `1.0`) |
+| `threshold` | `float` | No | `config.DUPLICATE_HARD_THRESHOLD` (`0.75`) | Minimum similarity threshold for clustering (range: `0.5` to `1.0`) |
 
 #### Response (`200 OK`)
 ```json
@@ -1093,12 +1207,12 @@ Performs pairwise similarity clustering on questions within a batch to identify 
 ### 3.29 Resolve Batch Duplicates
 `POST /api/batches/{batch_id}/resolve-duplicates`
 
-Resolves duplicate clusters in a batch by preserving the designated leader question and permanently deleting (`action="delete"`, default) or archiving (`action="archive"`) redundant duplicate questions. Under `action="delete"`, duplicates are hard-deleted from PostgreSQL via `hard_delete_questions_batch` to eliminate ghost records in the UI and ensure clean subsequent refills. Refreshes batch aggregates and computes any remaining question deficit.
+Resolves duplicate clusters in a batch by preserving the designated leader question and either archiving (`action="archive"`, the default; sets status `discarded`, recoverable) or permanently deleting (`action="delete"`) redundant duplicate questions. Under `action="delete"`, duplicates are hard-deleted from PostgreSQL via `hard_delete_questions_batch`. Refreshes batch aggregates and computes any remaining question deficit.
 
 #### Request Body
 ```json
 {
-  "action": "delete",
+  "action": "archive",
   "cluster_ids": ["cluster-1"],
   "custom_leader_ids": ["q-lead-uuid"]
 }
@@ -1106,7 +1220,7 @@ Resolves duplicate clusters in a batch by preserving the designated leader quest
 
 | Field | Type | Required | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `action` | `string` | No | `"delete"` | Resolution action: `"delete"` (permanently hard-deletes duplicates) or `"archive"` (marks status as `discarded`) |
+| `action` | `string` | No | `"archive"` | Resolution action: `"archive"` (marks status as `discarded`; default) or `"delete"` (permanently hard-deletes duplicates) |
 | `cluster_ids` | `list[str]`| No | `null` | Specific cluster IDs to resolve (null resolves all clusters in batch) |
 | `custom_leader_ids` | `list[str]`| No | `null` | Optional list of question IDs to designate as leaders over default score leaders |
 
@@ -1114,22 +1228,34 @@ Resolves duplicate clusters in a batch by preserving the designated leader quest
 ```json
 {
   "success": true,
-  "message": "Successfully resolved 1 cluster(s). 1 duplicate question(s) deleted.",
-  "action": "delete",
+  "message": "Successfully resolved 1 cluster(s). 1 duplicate question(s) archived.",
+  "action": "archive",
   "resolved_clusters_count": 1,
-  "deleted_count": 1,
+  "archived_count": 1,
   "remaining_active_questions": 49,
   "target_count": 50,
   "deficit": 1
 }
 ```
 
+`archived_count` is the number of duplicate questions modified by the chosen action; it is returned for `delete` as well (the message then says `deleted`). When the batch has no duplicate clusters the response is instead:
+```json
+{
+  "success": true,
+  "message": "No duplicate clusters found in this batch.",
+  "resolved_clusters": 0,
+  "archived_count": 0,
+  "remaining_active": 50
+}
+```
+Unknown batch returns `404` `{"detail": "Batch not found"}`.
+
 ---
 
 ### 3.30 Refill Batch Question Deficit
 `POST /api/batches/{batch_id}/refill`
 
-Replenishes a batch up to its target question count by launching targeted background jobs for archived or missing questions with diverse pedagogical thematic angles to avoid re-generating similar concepts.
+Replenishes a batch up to its target question count by launching targeted background jobs for archived or missing questions with diverse pedagogical thematic angles to avoid re-generating similar concepts. Rate limited and subject to the `MAX_ACTIVE_BATCHES` cap (see section 1.2). Returns `409` `{"detail": "This batch is still running."}` while the batch's runner is active.
 
 #### Response (`200 OK`)
 ```json
@@ -1142,8 +1268,11 @@ Replenishes a batch up to its target question count by launching targeted backgr
     {
       "id": "refill-job-uuid",
       "batch_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+      "job_number": 11,
       "status": "pending",
-      "questions_target": 1
+      "target_count": 1,
+      "actual_count": 0,
+      "trial_count": 1
     }
   ],
   "batch": {
@@ -1153,6 +1282,7 @@ Replenishes a batch up to its target question count by launching targeted backgr
   }
 }
 ```
+Job and batch objects are full `GenerationJob` / `GenerationBatch` dumps (abbreviated here); the `job_number` shown is illustrative. When the batch already has at least `target_count` active questions the endpoint returns `{"success": true, "message": "...No refill needed.", "deficit": 0, "active_count": N}` without launching jobs.
 
 ---
 
@@ -1161,7 +1291,7 @@ Replenishes a batch up to its target question count by launching targeted backgr
 
 - **List Passages (`GET /api/passages`)**: Lists reading passages with query filtering (`section`, `subtopic`), text search (`search`), sorting (`sort_by`), and server-driven pagination (`limit`, `offset`). Soft-deleted passages are excluded by default.
 - **Get Single Passage (`GET /api/passages/{passage_id}`)**: Retrieves a reading passage along with its complete array of linked active questions.
-- **Create/Update Passage (`POST /api/passages`)**: Admin endpoint to persist or modify a shared stimulus passage.
+- **Create/Update Passage (`POST /api/passages`)**: Admin endpoint to persist or modify a shared stimulus passage. The body is a `Passage`: `text` is required; `id` (auto UUID4), `title`, `word_count`, `section`, `subtopic`, `image_url`, `image_svg`, `image_description`, `question_count` (default 0), `is_deleted` (default false), `deleted_at`, `created_at` and `updated_at` are optional. The passage text field is `text` (not `passage_text`). The `passages` table also has an `embedding` vector column, but the `Passage` schema does not expose it, so it never appears in these payloads.
 - **Delete Passage (`DELETE /api/passages/{passage_id}`)**: Admin endpoint to soft-delete a reading passage record and its associated questions (`is_deleted = true`, `deleted_at = ISO UTC timestamp`). This hides them from active catalog and review views while preserving linked batch job histories, passages IDs, and execution metrics (`actual_count`) 100% intact.
 
 #### Query Parameters for Listing Passages (`GET /api/passages`)
@@ -1180,14 +1310,18 @@ Replenishes a batch up to its target question count by launching targeted backgr
   "passages": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
+      "title": null,
+      "text": "In evaluating the nature of scientific inquiry...",
+      "word_count": null,
       "section": "cars",
       "subtopic": "Philosophy & Epistemology",
-      "passage_text": "In evaluating the nature of scientific inquiry...",
       "image_url": null,
       "image_svg": null,
       "image_description": null,
       "question_count": 5,
-      "created_at": "2026-10-26T12:00:00Z",
+      "is_deleted": false,
+      "deleted_at": null,
+      "created_at": "2026-10-26T12:00:00+00:00",
       "updated_at": null
     }
   ],
@@ -1210,14 +1344,18 @@ curl -X GET "http://localhost:8000/api/passages?section=cars&sort_by=questions&l
 {
   "passage": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
+    "title": null,
+    "text": "In evaluating the nature of scientific inquiry...",
+    "word_count": null,
     "section": "cars",
     "subtopic": "Philosophy & Epistemology",
-    "passage_text": "In evaluating the nature of scientific inquiry...",
     "image_url": null,
     "image_svg": null,
     "image_description": null,
     "question_count": 5,
-    "created_at": "2026-10-26T12:00:00Z",
+    "is_deleted": false,
+    "deleted_at": null,
+    "created_at": "2026-10-26T12:00:00+00:00",
     "updated_at": null
   },
   "questions": [
@@ -1231,9 +1369,11 @@ curl -X GET "http://localhost:8000/api/passages?section=cars&sort_by=questions&l
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": null,
+  "text": "In evaluating the nature of scientific inquiry...",
+  "word_count": null,
   "section": "cars",
   "subtopic": "Philosophy & Epistemology",
-  "passage_text": "In evaluating the nature of scientific inquiry...",
   "image_url": null,
   "image_svg": null,
   "image_description": null
@@ -1246,14 +1386,18 @@ curl -X GET "http://localhost:8000/api/passages?section=cars&sort_by=questions&l
   "success": true,
   "passage": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
+    "title": null,
+    "text": "In evaluating the nature of scientific inquiry...",
+    "word_count": null,
     "section": "cars",
     "subtopic": "Philosophy & Epistemology",
-    "passage_text": "In evaluating the nature of scientific inquiry...",
     "image_url": null,
     "image_svg": null,
     "image_description": null,
     "question_count": 5,
-    "created_at": "2026-10-26T12:00:00Z",
+    "is_deleted": false,
+    "deleted_at": null,
+    "created_at": "2026-10-26T12:00:00+00:00",
     "updated_at": null
   }
 }
@@ -1267,7 +1411,7 @@ curl -X POST "http://localhost:8000/api/passages" \
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "section": "cars",
     "subtopic": "Philosophy & Epistemology",
-    "passage_text": "In evaluating the nature of scientific inquiry..."
+    "text": "In evaluating the nature of scientific inquiry..."
   }'
 ```
 
@@ -1299,10 +1443,10 @@ curl -X DELETE "http://localhost:8000/api/passages/550e8400-e29b-41d4-a716-44665
 ### 3.32 Export Repository
 `GET /api/export`
 
-Exports the entire Question Bank (or filtered subsets) in standardized JSON or CSV format.
+Exports every non-deleted question with status `in_bank` in standardized JSON or CSV format. There are no filters; `format` is the only parameter, and questions in other statuses (for example `ai_validated`) are never exported. The response is an attachment (`mcat_question_bank.json` or `mcat_question_bank.csv`).
 
 #### Query Parameters
-- `format`: `"json"` (default) or `"csv"`
+- `format`: `"json"` (default) or `"csv"` (any other value is rejected with `422`)
 
 #### CSV Header Columns (Strict 4-Choice Format):
 `ID, Run_ID, Batch_ID, Combination_ID, Section, Subcategory, Difficulty, MCAT_Scaled_Score, AAMC_Skill, Content_Domain, Question_Type, Interaction_Type, Primary_Trap, Passage_Required, Visual_Type, Image_URL, Image_Description, Stimulus, Question Stem, Option A, Option B, Option C, Option D, Correct Answer, Explanation, Final Score, Cycles, Created At`
@@ -1317,56 +1461,76 @@ curl -X GET "http://localhost:8000/api/export?format=csv" -o mcat_question_bank.
 ### 3.33 Service Health Check
 `GET /api/health`
 
-Evaluates system status, database connectivity, active text reasoning model, neural image model, provider configuration, and active token pricing.
+Reports service status, database connectivity and active pricing. The payload depends on the caller: without a valid `x-admin-key` (always the case while `ADMIN_API_KEY` is empty) the response is the **public (masked)** shape; with a matching `x-admin-key` it is the **admin** shape. `status` is `healthy` when the database answers and `degraded` otherwise.
 
-#### Response (`200 OK`)
+#### Public Response (`200 OK`, 18 fields)
 ```json
 {
-  "status": "healthy",
-  "exam": "AAMC MCAT",
-  "database": "connected",
-  "database_connected": true,
-  "database_status": "ready",
-  "default_text_model": "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017",
-  "default_image_model": "black-forest-labs/FLUX-2-klein-4b",
-  "active_provider": "deepinfra",
-  "has_anthropic_key": false,
-  "has_deepinfra_key": true,
+  "engine": "Infynno Cognitive Architecture v2.0",
+  "visual_engine": "Infynno Visual Studio v2.0",
+  "ai_engine_ready": true,
   "max_regenerations": 3,
   "passing_threshold": 80,
+  "batch_passing_threshold": 70,
   "cost_per_million_input": 0.2,
   "cost_per_million_output": 0.6,
   "image_width": 1024,
   "image_height": 1024,
   "image_iters": 0,
-  "current_image_cost_usd": 0.014
+  "current_image_cost_usd": 0.014,
+  "status": "healthy",
+  "exam": "AAMC MCAT",
+  "database": "connected",
+  "database_connected": true,
+  "database_status": "ready",
+  "offline_mode": false
 }
 ```
+
+#### Admin Response (`200 OK`, 24 fields)
+The 12 shared runtime fields (`engine` through `current_image_cost_usd`) and the 5 status fields (`status`, `exam`, `database`, `database_connected`, `database_status`), plus 7 provider fields (no `offline_mode`):
+```json
+{
+  "default_text_model": "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "default_image_model": "black-forest-labs/FLUX-2-klein-4b",
+  "active_provider": "deepinfra",
+  "active_image_provider": "deepinfra",
+  "has_anthropic_key": false,
+  "has_deepinfra_key": true,
+  "has_openai_key": false
+}
+```
+Only booleans for key presence are returned, never key values. `GET /api/health/live` and `GET /api/health/ready` are documented in the summary table.
 
 ---
 
 ### 3.34 Runtime Configuration & Settings
 `GET /api/config`
 
-Retrieves active runtime engine configuration, active provider (`deepinfra` or `anthropic`), cascade fallbacks, worker concurrency limits, gateway secrets status (masked booleans), and pricing parameters across all 28 runtime fields.
+Retrieves the runtime engine configuration, worker concurrency limits, and pricing parameters. Without a valid `x-admin-key` (always the case while `ADMIN_API_KEY` is empty) the response is the **masked** payload of 25 fields; with a matching `x-admin-key` it is the **admin** payload of 36 fields (adds model names, provider selection and key-presence booleans). The active provider can be `deepinfra`, `anthropic` or `openai`.
 
-#### Response (`200 OK`)
+#### Caching
+The response carries a weak-style `ETag` (first 16 hex characters of a SHA-256 of the payload, quoted). Send it back as `If-None-Match` to receive `304 Not Modified` (empty body). `Cache-Control` is `public, max-age=300, stale-while-revalidate=60` for the masked payload and `private, no-cache` for the admin payload.
+
+#### Masked Response (`200 OK`, 25 fields)
 ```json
 {
-  "default_text_model": "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017",
-  "default_image_model": "black-forest-labs/FLUX-2-klein-4b",
-  "active_provider": "deepinfra",
-  "has_anthropic_key": false,
-  "has_deepinfra_key": true,
-  "fast_model_cascade": [
-    "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017"
-  ],
+  "engine": "Infynno Cognitive Architecture v2.0",
+  "visual_engine": "Infynno Visual Studio v2.0",
+  "ai_engine_ready": true,
   "max_regenerations": 3,
   "passing_threshold": 80,
-  "default_max_tokens": 3000,
-  "reviewer_max_tokens": 1800,
+  "batch_passing_threshold": 70,
+  "cost_per_million_input": 0.2,
+  "cost_per_million_output": 0.6,
+  "image_width": 1024,
+  "image_height": 1024,
+  "image_iters": 0,
+  "current_image_cost_usd": 0.014,
+  "default_max_tokens": 4096,
+  "reviewer_max_tokens": 4096,
   "default_temperature": 0.2,
-  "generator_temperature": 0.2,
+  "generator_temperature": 0.5,
   "regenerator_temperature": 0.2,
   "reviewer_temperature": 0.1,
   "blind_solver_temperature": 0.1,
@@ -1375,22 +1539,35 @@ Retrieves active runtime engine configuration, active provider (`deepinfra` or `
   "global_max_concurrent_jobs": 4,
   "global_max_concurrent_llm_calls": 10,
   "workflow_max_worker_retries": 2,
-  "cost_per_million_input": 0.2,
-  "cost_per_million_output": 0.6,
-  "image_width": 1024,
-  "image_height": 1024,
-  "image_iters": 0,
-  "image_cost_base_rate": 0.014,
-  "current_image_cost_usd": 0.014
+  "image_cost_base_rate": 0.014
 }
 ```
+
+#### Admin Response (`200 OK`, 36 fields)
+All 25 masked fields plus these 11 (values shown are defaults for `ACTIVE_LLM_PROVIDER=deepinfra`):
+```json
+{
+  "default_text_model": "deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "default_image_model": "black-forest-labs/FLUX-2-klein-4b",
+  "active_provider": "deepinfra",
+  "active_image_provider": "deepinfra",
+  "has_anthropic_key": false,
+  "has_deepinfra_key": true,
+  "has_openai_key": false,
+  "openai_model": "gpt-4o-mini",
+  "openai_image_model": "gpt-image-2.5-flare",
+  "deepinfra_image_model": "black-forest-labs/FLUX-2-klein-4b",
+  "fast_model_cascade": ["deepinfra/deepseek-ai/DeepSeek-V4.1-Flash-1017"]
+}
+```
+Values reflect environment overrides (for example `DEFAULT_MAX_TOKENS`); the examples above are the code defaults.
 
 ---
 
 ### 3.35 Official AAMC Sections & Syllabus Hierarchy
 `GET /api/sections`
 
-Returns the complete cached syllabus hierarchy across all 4 official AAMC MCAT sections, including subjects, units, topics, subtopics, reasoning skills, and target pacing.
+Returns the complete cached syllabus hierarchy across all 4 official AAMC MCAT sections, including subjects, units, topics, subtopics, reasoning skills, and target pacing. The payload is built once at import time and served with an `ETag` (`If-None-Match` returns `304`) and `Cache-Control: public, max-age=3600, stale-while-revalidate=300`.
 
 #### Response (`200 OK`)
 ```json
@@ -1440,14 +1617,14 @@ Returns the complete cached syllabus hierarchy across all 4 official AAMC MCAT s
 Returns the comprehensive hierarchical AAMC Dependent Taxonomy tree powering the multi-level Guided Wizard selection flow.
 
 #### Response (`200 OK`)
-Returns the raw taxonomy document: `schema_version`, `exam`, `selection_flow`, `sections` (subjects, units, topics, subtopics), `skills`, `generation_options` and `generation_form_fields`.
+Returns the raw taxonomy document: `schema_version`, `exam`, `selection_flow`, `sections` (subjects, units, topics, subtopics), `skills`, `generation_options` and `generation_form_fields`. Served with an `ETag` (`If-None-Match` returns `304`) and `Cache-Control: public, max-age=3600, stale-while-revalidate=300`.
 
 ---
 
 ### 3.37 Prometheus & OpenMetrics Telemetry
 `GET /metrics` and `GET /api/metrics`
 
-Native zero-dependency Prometheus/OpenMetrics exposition endpoint for real-time observability. Exposes application health, database connectivity, background batch concurrency limits, active worker jobs, question repository distributions, cumulative token and micro-cost consumption, and HTTP request counters and latencies with normalized route paths.
+Native zero-dependency Prometheus/OpenMetrics exposition endpoint for real-time observability. Public by default; when `ADMIN_API_KEY` is set and a non-matching `x-admin-key` or `Authorization` header is sent, the response is `403` (see section 1.2). Responses use `Cache-Control: no-cache, no-store, must-revalidate`. Exposes application health, database connectivity, background batch concurrency limits, active worker jobs, question repository distributions, cumulative token and micro-cost consumption, and HTTP request counters and latencies with normalized route paths.
 
 #### Response (`200 OK`, `text/plain; version=0.0.4; charset=utf-8`)
 ```text

@@ -26,9 +26,9 @@ Routers contain no SQL and no business logic. Repositories own every query and c
 5. Update `docs/API.md` (see mcat-docs-sync).
 
 ## Recipe: add or change a DB column / status
-- Edit the model in `models/`; question `status` is guarded by a CHECK constraint `ck_questions_status` listing allowed values, so adding a status means updating that constraint and any migration path in `db/init_db.py`, plus `tests/test_database_structure.py`.
-- There is no Alembic: `db/init_db.py` runs `Base.metadata.create_all` plus idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements for existing databases. Add a matching ALTER there for every new column, or existing DBs will break.
-- Add indexes deliberately (see `ix_questions_status_*` examples). Do not add a single-column index on the leading column of an existing composite; `_step_drop_redundant_indexes` in `db/init_db.py` removes those on purpose.
+- Edit the model in `models/`; question `status` is guarded by a CHECK constraint `ck_questions_status` listing allowed values, so adding a status means updating that constraint and any migration path in `db/schema_migrations.py`, plus `tests/test_database_structure.py`.
+- There is no Alembic: `db/init_db.py` runs `Base.metadata.create_all` and then `run_schema_migrations`, whose idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` steps live in `db/schema_migrations.py`. Add a matching step there for every new column, or existing DBs will break.
+- Add indexes deliberately (see `ix_questions_status_*` examples). Do not add a single-column index on the leading column of an existing composite; `_step_drop_redundant_indexes` in `db/schema_migrations.py` removes those on purpose.
 - Reads that only need a few columns should use the projected helpers (`get_active_job_question_heads`, `batch_exists`, `get_questions(slim=True)`) instead of loading full rows with their large JSONB columns.
 
 ## Behavioral invariants that tests protect
@@ -40,7 +40,7 @@ Routers contain no SQL and no business logic. Repositories own every query and c
 - `update_job_progress` treats `None` as "unchanged"; pass `clear=("error_message", ...)` to reset a field to NULL.
 - Security: never persist or return `api_key` (`batch_repository._scrub_request_payload`); optional `API_ACCESS_KEY` gate lives in `api/security.py`; keep new text inputs length-limited in `schemas/workflow.py`.
 - Repositories: use `repositories/_filters.py` (`active_question_clause`, `active_passage_clause`) for soft-delete filtering instead of retyping `is_deleted.is_(False)`. Model prices and fallbacks live in `core/pricing.py` (tables) with `Settings.get_default_pricing_rates` as the thin dispatcher.
-- DB writes: batch aggregates refresh under a `FOR NO KEY UPDATE` row lock; do not use plain `FOR UPDATE` (deadlocks with the key-share lock of question inserts). New migrations are ordered steps in `db/init_db.py` (`_SCHEMA_STEPS` run through the lock-avoiding connection, `_DATA_STEPS` in a second transaction); add a `_step_*` function and register it in the tuple (DDL that already exists is skipped; never add unconditional DDL that locks tables on every start).
+- DB writes: batch aggregates refresh under a `FOR NO KEY UPDATE` row lock; do not use plain `FOR UPDATE` (deadlocks with the key-share lock of question inserts). New migrations are ordered steps in `db/schema_migrations.py` (`_SCHEMA_STEPS` run through the lock-avoiding connection, `_DATA_STEPS` in a second transaction); add a `_step_*` function and register it in the tuple (DDL that already exists is skipped; never add unconditional DDL that locks tables on every start).
 - Health: `/api/health` (overview, `degraded` without DB), `/api/health/live` (liveness, no DB) and `/api/health/ready` (503 without DB); `ADMIN_API_KEY` gates the full payload.
 - Logging: bind correlation ids with `bind_log_context(batch_id=..., job_id=...)` from `app.core.logging`; set `LOG_FORMAT=json` for structured output.
 - Dedup lives in `services/deduplication.py`; reuse it, do not re-implement similarity checks.
