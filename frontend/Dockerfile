@@ -2,9 +2,8 @@
 # Build context is the repository root:  docker build -f frontend/Dockerfile .
 FROM node:24-alpine AS build
 # corepack installs the pnpm version pinned by "packageManager" in the root package.json (the
-# same one CI uses). Unpinned, it would fetch the newest major, whose default supply-chain policy
-# rejects packages published in the last day and fails `--frozen-lockfile` installs.
-RUN corepack enable
+# same one CI uses). Node 25+ unbundled corepack, so install it before enabling.
+RUN npm install -g corepack@latest && corepack enable
 WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY frontend/package.json frontend/
