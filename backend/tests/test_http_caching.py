@@ -118,4 +118,3 @@ async def test_single_batch_endpoint_caching_and_etag():
         )
         assert resp3.status_code == 200
         assert resp3.headers["etag"] == etag
-

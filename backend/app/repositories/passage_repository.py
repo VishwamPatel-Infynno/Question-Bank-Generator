@@ -62,7 +62,9 @@ async def get_passages(
         elif sort_by == "title":
             stmt = stmt.order_by(PassageModel.title.asc())
         elif sort_by == "questions":
-            stmt = stmt.order_by(func.count(QuestionModel.id).desc(), PassageModel.created_at.desc())
+            stmt = stmt.order_by(
+                func.count(QuestionModel.id).desc(), PassageModel.created_at.desc()
+            )
         else:
             stmt = stmt.order_by(PassageModel.created_at.desc())
         if offset and offset > 0:
